@@ -2,7 +2,7 @@
 
 世界に1体だけの生命体を誕生させ、育て、オートバトルさせるスマホ向けWebゲーム。
 
-- 遊ぶ（公開後）: https://thursdayla-droid.github.io/monz/
+- 遊ぶ（公開後）: https://thursdayla-droid.github.io/Monz/
 - デバッグ表示: URLの最後に `?debug=1` を付ける
 - 表示がおかしいとき: URLの最後に `?canvas` を付けると別の描画方式で動く
 
