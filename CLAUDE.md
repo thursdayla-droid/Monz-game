@@ -15,5 +15,6 @@
 - `npm install` は `.npmrc` の legacy-peer-deps 前提。
 - `src/core/` は Phaser に依存させない（テスト・将来のサーバー検証のため）。乱数は `mulberry32` で種から再現できるようにする。
 - DNA の見た目の決め方を変えるときは `GENERATOR_VERSION` を上げ、既存個体の見た目が変わらないようにする。
-- WebGL は `maxTextures: 1`。個体ごとにパーツを1枚のテクスチャにまとめている（`src/render/monzTextures.ts`）。
-- main への push で GitHub Pages に自動公開される（`.github/workflows/ci.yml`）。
+- WebGL は `maxTextures: 1`（複数枚にすると一部の環境でパーツが欠けたため）。
+- キャラクターの見た目の基準は元の公式参考画像。AIで全体を描き直さない。元画像のピクセルを切り出して使い、隠れていた部分だけを補う（`design/bunk/README.md`）。
+- main への push で GitHub Pages に自動公開される（`.github/workflows/ci.yml`）。URL は https://thursdayla-droid.github.io/Monz-game/

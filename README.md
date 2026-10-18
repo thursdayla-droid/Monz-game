@@ -2,16 +2,16 @@
 
 世界に1体だけの生命体を誕生させ、育て、オートバトルさせるスマホ向けWebゲーム。
 
-- 遊ぶ（公開後）: https://thursdayla-droid.github.io/Monz/
+- 遊ぶ: https://thursdayla-droid.github.io/Monz-game/
+- BUNKのパーツ組み立てテスト: https://thursdayla-droid.github.io/Monz-game/?parts
 - デバッグ表示: URLの最後に `?debug=1` を付ける
 - 表示がおかしいとき: URLの最後に `?canvas` を付けると別の描画方式で動く
 
 ## 現在の段階
 
-**BUNKの元画像との比較**: 元の公式参考画像から背景だけを消してゲーム画面に表示し、元画像と並べて確認する段階です（`design/bunk/README.md`）。
+**BUNKのパーツ組み立てテスト**（【仮】テスト版）: 元の公式参考画像をパーツに分けて組み立て、呼吸・まばたき・拳の小さな揺れを付けて確認する段階です。
 
-> BUNKのデザインの基準は元の公式参考画像だけです。パーツ分けの画像（`design/bunk/parts-sheet.png`）は正式素材として使いません。
-> 前の試作0の画面（色違い6体）は、URLの最後に `?gallery` を付けると開けます（今は確認対象外）。
+> BUNKのデザインの基準は元の公式参考画像だけです（`design/bunk/README.md`）。AIでキャラクター全体を描き直すことはしません。
 
 ## 開発の流れ（iPhoneだけで行う）
 
@@ -23,17 +23,18 @@
 
 | 場所 | 中身 |
 |---|---|
-| `src/core/` | ゲームのルール（DNA・性格・反応・配色）。画面に依存しない |
-| `src/render/` | MONZの組み立て・アニメーション・鳴き声 |
-| `src/scenes/` | 各画面 |
-| `public/assets/` | ゲームで使う画像。BUNKの基準は `bunk/reference/`。パーツ分けの画像は使わない |
-| `design/` | パーツ表の原画と、切り出し位置の設定 |
-| `tools/` | パーツ表から画像を切り出すツール |
+| `src/core/` | ゲームのルール（DNA・性格・反応・配色・BUNKの動きの計算）。画面に依存しない |
+| `src/render/` | BUNKの組み立てと動き、鳴き声 |
+| `src/scenes/` | 各画面（比較画面・パーツ組み立てテスト） |
+| `public/assets/` | ゲームで使う画像。BUNKは `bunk/reference/`（元画像）と `bunk/parts/`（パーツ） |
+| `design/` | 元画像と、パーツ分けの設定 |
+| `tools/` | 背景を消す・パーツに分ける・動きを確かめるツール |
 | `docs/` | 仕様・提案・決定事項 |
 | `tests/` | 自動テスト |
 
-## 新しいパーツ表を追加するとき
+## 元画像からキャラクターを作るとき
 
-1. ChatGPTで透明背景のパーツ表(PNG)を作る
-2. `design/<系統名>/parts-sheet.png` に置き、`parts-map.json` に各パーツのおおよその位置を書く
-3. `python3 tools/extract_parts.py design/<系統名>/parts-map.json public/assets/<系統名>` で切り出す
+1. 元画像を `design/<系統名>/reference/` に置く
+2. `tools/remove_background.py` で背景だけを消す（本体の色は変えない）
+3. `design/<系統名>/reference/split.json` にパーツの分け方を書き、`tools/split_parts.py` で分ける
+4. `tools/check_motion.py` で、動かしたときに補った部分が見えないか確かめる

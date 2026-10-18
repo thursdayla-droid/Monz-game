@@ -11,7 +11,6 @@
 | `public/assets/bunk/reference/bunk_hires_cutout.png` | 高画質版から背景だけを消したもの。本体の色は1ピクセルも変えていない | 【確定】企画者が元画像との一致を確認済み（2026-10-18） |
 | `reference/bunk_original.jpg` | 最初にもらったカード画像（255×310・小さい） | 参考 |
 | `public/assets/bunk/reference/bunk_cutout.png` | カード画像から背景だけを消したもの | 参考（今は使っていない） |
-| `parts-sheet.png` と `public/assets/bunk/*.png` | ChatGPTで作ったパーツ分けの画像と、そこから切り出したパーツ | **使わない**（元画像と形が違うため、正式素材にしない） |
 
 ## パーツ分け（企画者の確認待ち）
 
