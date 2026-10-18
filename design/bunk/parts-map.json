@@ -1,4 +1,5 @@
 {
+  "status": "【仮素材・未承認】試作用。企画者の承認前。正式素材ではない（design/bunk/README.md 参照）",
   "sheet": "parts-sheet.png",
   "note": "各パーツのおおよその中心座標(シート上のpx)。近くのかたまりを1つのパーツにまとめる。",
   "parts": {

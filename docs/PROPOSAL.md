@@ -303,6 +303,7 @@ monz/
 
 - 技術: Phaser 4 + TypeScript + Vite、GitHub Actions でテスト、main へのマージで GitHub Pages に公開
 - ChatGPTのBUNKパーツ表(`design/bunk/parts-sheet.png`)から19パーツを自動で切り出し
+  - **【仮素材・未承認】** BUNKの画像（原画・切り出した19パーツ）はすべて試作用の仮素材。企画者の承認待ち（`design/bunk/README.md`）
 - DNA(種)から個体を生成:
   - 体の形2種（顔が胴体にある型／頭が乗る型）、足あり/なし、頭の飾り4種
   - 胴体・頭・腕・足・目・口の大きさ、目の間隔、腕の開き具合を数値で変化

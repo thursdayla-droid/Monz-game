@@ -11,6 +11,7 @@ export class BootScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const label = this.add.text(width / 2, height / 2, 'よみこみ中…', { fontSize: '32px', color: '#ffffff' }).setOrigin(0.5);
     this.load.on('progress', (v: number) => label.setText(`よみこみ中… ${Math.round(v * 100)}%`));
+    // 【仮】BUNKの画像は未承認の仮素材(design/bunk/README.md)
     for (const part of PART_NAMES) this.load.image(sourceKey(part), `assets/bunk/${part}.png`);
   }
 
