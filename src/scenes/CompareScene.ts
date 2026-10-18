@@ -1,14 +1,18 @@
 import * as Phaser from 'phaser';
 
 const FONT = 'system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif';
-/** 元画像の幅(px)。両方この倍率で同じ大きさに表示する */
-const SOURCE_W = 255;
-const SOURCE_H = 310;
+/** 元画像(高画質版)の大きさ(px)。両方この倍率で同じ大きさに表示する */
+const SOURCE_W = 1278;
+const SOURCE_H = 1230;
 const PANEL_W = 340;
 const SCALE = (PANEL_W - 20) / SOURCE_W;
 
 export const REFERENCE_ORIGINAL = 'bunk:reference:original';
 export const REFERENCE_CUTOUT = 'bunk:reference:cutout';
+export const REFERENCE_FILES = {
+  original: 'assets/bunk/reference/bunk_original_hires.png',
+  cutout: 'assets/bunk/reference/bunk_hires_cutout.png',
+};
 
 /**
  * BUNKの元画像と、背景だけを消したゲーム表示を同じ大きさで並べる確認画面。

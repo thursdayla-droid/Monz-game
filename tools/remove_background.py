@@ -1,9 +1,11 @@
 """元画像から背景だけを消す(BUNK本体の色・線は1ピクセルも変えない)。
 
 使い方:
-  python3 tools/remove_background.py 元画像 出力.png [x,y ...]
+  python3 tools/remove_background.py 元画像 出力.png [--checker] [x,y ...]
 
-- 画像の外側から、明るいピンク・クリーム色の背景をたどって透明にする。
+- --checker: 背景が灰色の市松模様(透明の見た目を絵として描き込んだもの)のとき
+
+- 画像の外側から、背景の色(ピンク・クリーム色のカード、または灰色の市松模様)をたどって透明にする。
   黒い輪郭線で止まるので、輪郭の内側(おなか・白目など)は消えない。
 - 線に囲まれた背景(足の間の床など)は、その中の1点を x,y で指定して消す。
 - 背景を消したあと、いちばん大きいかたまり(本体)だけを残す。文字や枠は消える。
@@ -49,7 +51,9 @@ def largest_component(mask):
     return best
 
 
-def main(src, out, seeds):
+def main(src, out, args):
+    checker = '--checker' in args
+    seeds = [a for a in args if a != '--checker']
     rgb = np.array(Image.open(src).convert("RGB"))
     h, w, _ = rgb.shape
     f = rgb.astype(float) / 255
@@ -58,8 +62,13 @@ def main(src, out, seeds):
     r, g, b = f[..., 0], f[..., 1], f[..., 2]
     hue = (np.degrees(np.arctan2(np.sqrt(3) * (g - b), 2 * r - g - b)) + 360) % 360
     lum = 0.299 * rgb[..., 0] + 0.587 * rgb[..., 1] + 0.114 * rgb[..., 2]
-    # 背景になりうる色: 明るく、ピンク寄りか色の薄いもの(オレンジ・紫・黒は含まない)
-    passable = (lum > 110) & ((hue >= 300) | (hue <= 12) | (sat < 0.3))
+    if checker:
+        # 市松模様: 色みのない明るい灰色(白目やおなかはクリーム色なので含まない)
+        spread = rgb.max(2).astype(int) - rgb.min(2).astype(int)
+        passable = (spread <= 8) & (lum > 130)
+    else:
+        # カード: 明るく、ピンク寄りか色の薄いもの(オレンジ・紫・黒は含まない)
+        passable = (lum > 110) & ((hue >= 300) | (hue <= 12) | (sat < 0.3))
 
     bg = np.zeros((h, w), bool)
     border = [(y, x) for x in range(w) for y in (0, h - 1)] + [(y, x) for y in range(h) for x in (0, w - 1)]
@@ -69,6 +78,14 @@ def main(src, out, seeds):
         if not passable[y, x]:
             sys.exit(f"{s} は背景の色ではありません")
         flood([(y, x)], passable, bg)
+
+    if checker:
+        # 輪郭のすぐ外の、市松模様と混ざった灰色の点も背景にする(本体の色の点は残す)
+        fringe = (spread <= 12) & (lum > 70)
+        for _ in range(2):
+            near = np.zeros_like(bg)
+            near[1:] |= bg[:-1]; near[:-1] |= bg[1:]; near[:, 1:] |= bg[:, :-1]; near[:, :-1] |= bg[:, 1:]
+            bg |= near & fringe
 
     body = largest_component(~bg)
     alpha = np.where(body, 255, 0).astype(np.uint8)
