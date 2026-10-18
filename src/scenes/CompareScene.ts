@@ -50,5 +50,11 @@ export class CompareScene extends Phaser.Scene {
     this.add.image(cx, cy, REFERENCE_ORIGINAL).setScale(SCALE);
     const over = this.add.image(cx, cy, REFERENCE_CUTOUT).setScale(SCALE);
     this.tweens.add({ targets: over, alpha: 0, duration: 900, yoyo: true, repeat: -1, hold: 600, repeatDelay: 600 });
+
+    this.add
+      .text(width / 2, cy + h / 2 + 70, '  パーツ組み立てテストへ →  ', { fontFamily: FONT, fontSize: '30px', fontStyle: 'bold', color: '#1b1024', backgroundColor: '#ffe14d', padding: { x: 16, y: 12 } })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => this.scene.start('BunkParts'));
   }
 }

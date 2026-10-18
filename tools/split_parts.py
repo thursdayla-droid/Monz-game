@@ -10,6 +10,8 @@
 - 手前のパーツに隠れている部分だけを補う(まわりの色をのばして埋める)。
   補うのは、見えている形の外側のふくらみの内側だけ。補った場所は確認画像に色を付けて示す。
 - 最後に、全パーツを重ねると元画像と1ピクセルも違わないことを確かめる。
+- 補った場所は fill/<パーツ名>.png に白で書き出す。
+- 奥のパーツと接するふちには、元画像のピクセルを edgeOverlap px だけ重ねる(境目が透けないように)。
 """
 import json
 import os
@@ -118,6 +120,9 @@ def main(config_path, out_dir, check_dir):
             painted = cv2.inpaint(np.ascontiguousarray(img[..., ::-1]), unknown, 9, cv2.INPAINT_TELEA)[..., ::-1]
             layer[..., :3][fill] = painted[fill]
         layer[..., 3] = np.where(vis | fill, 255, 0)
+        # 境目が縮小表示で透けないよう、奥のパーツと接するふちに元画像のピクセルを少し重ねる
+        ring = ndi.binary_dilation(vis, iterations=cfg["edgeOverlap"]) & alpha & (owner < i)
+        layer[ring] = src[ring]
         layers[name] = layer
         fill_masks[name] = fill
 
@@ -136,8 +141,16 @@ def main(config_path, out_dir, check_dir):
     manifest = {"width": w, "height": h, "parts": {}}
     for name in names:
         ys, xs = np.nonzero(layers[name][..., 3])
-        x0, y0, x1, y1 = xs.min(), ys.min(), xs.max() + 1, ys.max() + 1
+        # 位置と大きさを偶数にそろえる(半分の大きさで表示したときにピクセルの位置がずれないように)
+        x0, y0 = xs.min() // 2 * 2, ys.min() // 2 * 2
+        x1, y1 = min(w, -(-(xs.max() + 1) // 2) * 2), min(h, -(-(ys.max() + 1) // 2) * 2)
         Image.fromarray(layers[name][y0:y1, x0:x1]).save(os.path.join(out_dir, f"{name}.png"), optimize=True)
+        if fill_masks[name].any():
+            # 補った場所(白)。ゲームの確認表示と、動いたときに見えるかの確認で使う
+            fm = np.zeros((y1 - y0, x1 - x0, 4), np.uint8)
+            fm[fill_masks[name][y0:y1, x0:x1]] = (255, 255, 255, 255)
+            os.makedirs(os.path.join(out_dir, "fill"), exist_ok=True)
+            Image.fromarray(fm).save(os.path.join(out_dir, "fill", f"{name}.png"), optimize=True)
         manifest["parts"][name] = {"x": int(x0), "y": int(y0), "w": int(x1 - x0), "h": int(y1 - y0), "z": parts[name]["z"],
                                    "filledPx": int(fill_masks[name].sum())}
         print(name, manifest["parts"][name])

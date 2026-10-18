@@ -1,0 +1,11 @@
+{
+  "note": "【仮】BUNK(元画像のパーツ)のテスト用の動き。座標は元画像のpx、時間は秒、角度は度。tools/check_motion.py も同じ値を使う。",
+  "breath": { "period": 3.0, "scaleY": 0.012, "scaleX": 0.006, "pivot": [640, 1060] },
+  "blink": { "minInterval": 2.5, "maxInterval": 5.0, "duration": 0.16, "closedScaleY": 0.12 },
+  "fists": {
+    "glove_l": { "pivot": [160, 470], "angle": 1.2, "bob": 3, "period": 2.4, "phase": 0 },
+    "glove_r": { "pivot": [1120, 740], "angle": 1.0, "bob": 3, "period": 2.8, "phase": 1.3 }
+  },
+  "eyes": ["eye_l", "eye_r"],
+  "still": ["foot_l", "foot_r"]
+}

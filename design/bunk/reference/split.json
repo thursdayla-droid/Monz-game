@@ -5,6 +5,7 @@
   "outlineRadius": 14,
   "fillIgnoreDark": 12,
   "fillLocal": 60,
+  "edgeOverlap": 2,
   "parts": {
     "body":    { "z": 1 },
     "horn_r":  { "z": 0, "regions": [[881, 221]] },
