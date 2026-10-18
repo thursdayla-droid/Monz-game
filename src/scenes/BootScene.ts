@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { PART_NAMES } from '../render/bunkRig';
 import { sourceKey } from '../render/monzTextures';
+import { assetUrl } from '../assetUrl';
 import { loadBunkParts } from '../render/bunkParts';
 import { REFERENCE_CUTOUT, REFERENCE_FILES, REFERENCE_ORIGINAL } from './CompareScene';
 
@@ -18,8 +19,8 @@ export class BootScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const label = this.add.text(width / 2, height / 2, 'よみこみ中…', { fontSize: '32px', color: '#ffffff' }).setOrigin(0.5);
     this.load.on('progress', (v: number) => label.setText(`よみこみ中… ${Math.round(v * 100)}%`));
-    this.load.image(REFERENCE_ORIGINAL, REFERENCE_FILES.original);
-    this.load.image(REFERENCE_CUTOUT, REFERENCE_FILES.cutout);
+    this.load.image(REFERENCE_ORIGINAL, assetUrl(REFERENCE_FILES.original));
+    this.load.image(REFERENCE_CUTOUT, assetUrl(REFERENCE_FILES.cutout));
     loadBunkParts(this.load);
     if (!SHOW_GALLERY) return;
     // 【仮】パーツ分けの画像は元画像と形が違うため、正式素材として使わない(design/bunk/README.md)

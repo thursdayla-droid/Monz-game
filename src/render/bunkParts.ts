@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { assetUrl, embeddedJson } from '../assetUrl';
 import { blinkScale, breathPose, fistPose, type BunkMotion } from '../core/bunkPose';
 import { mulberry32, range } from '../core/rng';
 import motionJson from './bunkMotion.json';
@@ -19,13 +20,20 @@ export const BUNK_MOTION = motionJson as unknown as BunkMotion;
 
 /** マニフェストを読み込んだら、パーツ画像と補った場所の画像を読み込む */
 export function loadBunkParts(load: Phaser.Loader.LoaderPlugin): void {
-  load.json(BUNK_PARTS_MANIFEST, `${BUNK_PARTS_DIR}/parts.json`);
-  load.once(`filecomplete-json-${BUNK_PARTS_MANIFEST}`, (_key: string, _type: string, data: BunkPartsManifest) => {
+  const loadImages = (data: BunkPartsManifest) => {
     for (const [name, p] of Object.entries(data.parts)) {
-      load.image(bunkPartKey(name), `${BUNK_PARTS_DIR}/${name}.png`);
-      if (p.filledPx > 0) load.image(bunkFillKey(name), `${BUNK_PARTS_DIR}/fill/${name}.png`);
+      load.image(bunkPartKey(name), assetUrl(`${BUNK_PARTS_DIR}/${name}.png`));
+      if (p.filledPx > 0) load.image(bunkFillKey(name), assetUrl(`${BUNK_PARTS_DIR}/fill/${name}.png`));
     }
-  });
+  };
+  const embedded = embeddedJson(`${BUNK_PARTS_DIR}/parts.json`) as BunkPartsManifest | undefined;
+  if (embedded) {
+    load.scene.cache.json.add(BUNK_PARTS_MANIFEST, embedded);
+    loadImages(embedded);
+    return;
+  }
+  load.json(BUNK_PARTS_MANIFEST, `${BUNK_PARTS_DIR}/parts.json`);
+  load.once(`filecomplete-json-${BUNK_PARTS_MANIFEST}`, (_key: string, _type: string, data: BunkPartsManifest) => loadImages(data));
 }
 
 type Item = { name: string; img: Phaser.GameObjects.Image; fill?: Phaser.GameObjects.Image };
