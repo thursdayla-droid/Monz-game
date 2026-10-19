@@ -2,12 +2,57 @@
  * 【仮】BUNK(元画像のパーツ)のテスト用の動きの計算。Phaserに依存しない。
  * 値は src/render/bunkMotion.json。tools/check_motion.py も同じ計算をする。
  */
-export interface BunkMotion {
-  breath: { period: number; scaleY: number; scaleX: number; pivot: [number, number] };
-  blink: { minInterval: number; maxInterval: number; duration: number; closedScaleY: number };
-  fists: Record<string, { pivot: [number, number]; angle: number; bob: number; period: number; phase: number }>;
-  eyes: string[];
+export type BunkPoseName = 'guard' | 'down';
+export type BunkFace = 'closed' | 'angry' | 'sad' | 'happy';
+
+export interface FistMotion {
+  pivot: [number, number];
+  angle: number;
+  bob: number;
+  period: number;
+  phase: number;
+}
+
+export interface PoseMotion {
+  dir: string;
+  cutout: string;
+  fists: Record<string, FistMotion>;
   still: string[];
+  jab?: { part: string; dx: number; dy: number; scale: number; duration: number };
+}
+
+export interface BehaviorConfig {
+  guardTime: [number, number];
+  downTime: [number, number];
+  walkTime: [number, number];
+  sleepTime: [number, number];
+  walkChance: number;
+  sleepChance: number;
+  walkSpeed: number;
+  hopPeriod: number;
+  hopHeight: number;
+  walkTilt: number;
+  walkSwing: number;
+  idleTilt: number;
+  idleTiltPeriod: number;
+  jabInterval: [number, number];
+  switchTime: number;
+  switchSquash: number;
+  sleepSink: number;
+  sleepBreathPeriod: number;
+  sleepBreathScale: number;
+  reactTime: number;
+  happyHop: number;
+  angryShake: number;
+}
+
+export interface BunkMotion {
+  anchor: [number, number];
+  breath: { period: number; scaleY: number; scaleX: number; pivot: [number, number] };
+  blink: { minInterval: number; maxInterval: number; duration: number };
+  faces: { dir: string; z: number; names: BunkFace[] };
+  poses: Record<BunkPoseName, PoseMotion>;
+  behavior: BehaviorConfig;
 }
 
 export interface BreathPose {
@@ -15,23 +60,20 @@ export interface BreathPose {
   scaleY: number;
 }
 
-/** 呼吸: 胴体の足元近く(pivot)を中心に、ごくわずかに伸び縮みする */
-export function breathPose(m: BunkMotion, t: number): BreathPose {
-  const s = Math.sin((t * Math.PI * 2) / m.breath.period);
+/** 呼吸: 胴体の足元近く(pivot)を中心に、ごくわずかに伸び縮みする。amount で大きさ、period で速さを変えられる */
+export function breathPose(m: BunkMotion, t: number, amount = 1, period = m.breath.period): BreathPose {
+  const s = Math.sin((t * Math.PI * 2) / period) * amount;
   return { scaleX: 1 - m.breath.scaleX * s, scaleY: 1 + m.breath.scaleY * s };
 }
 
-/** 拳の小さな揺れ: 手首あたり(pivot)を中心に少し回り、少し上下する */
-export function fistPose(m: BunkMotion, part: string, t: number): { angleRad: number; bob: number } {
-  const f = m.fists[part];
+/** 拳の小さな揺れ: 手首あたり(pivot)を中心に少し回り、少し上下する。swing は歩くときの追加の揺れ(度) */
+export function fistPose(f: FistMotion, t: number, swing = 0): { angleRad: number; bob: number } {
   const a = Math.sin((t * Math.PI * 2) / f.period + f.phase);
-  return { angleRad: (f.angle * a * Math.PI) / 180, bob: f.bob * a };
+  return { angleRad: ((f.angle * a + swing) * Math.PI) / 180, bob: f.bob * a };
 }
 
-/** まばたき中の目の縦の大きさ(1=開いている)。closedAt はまばたきを始めた時刻 */
-export function blinkScale(m: BunkMotion, t: number, closedAt: number): number {
-  const k = (t - closedAt) / m.blink.duration;
-  if (k < 0 || k > 1) return 1;
-  const shut = 1 - Math.abs(k * 2 - 1); // 0→1→0
-  return 1 - (1 - m.blink.closedScaleY) * shut;
+/** 拳を突き出す動きの強さ(0→1→0)。k は突き出しを始めてからの割合(0〜1) */
+export function jabAmount(k: number): number {
+  if (k <= 0 || k >= 1) return 0;
+  return k < 0.35 ? k / 0.35 : 1 - (k - 0.35) / 0.65;
 }

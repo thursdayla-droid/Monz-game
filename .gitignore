@@ -3,3 +3,4 @@ dist/
 *.log
 .DS_Store
 __pycache__/
+design/bunk/reference/pose_down/cut/
