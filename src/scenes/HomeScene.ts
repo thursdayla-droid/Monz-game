@@ -29,7 +29,7 @@ const DEPTH = { monz: 10, effect: 30, ui: 40, popup: 60 };
 /**
  * 企画者の背景画像(public/assets/home/)。届いていない場所は仮の絵(src/ui/homeArt.ts)を使う。
  */
-export const HOME_IMAGES: Partial<Record<HomePlace, string>> = { alley: 'alley.webp' };
+export const HOME_IMAGES: Partial<Record<HomePlace, string>> = { alley: 'alley.webp', garage: 'garage.webp' };
 export const homeImageKey = (p: HomePlace) => `home:bg:${p}`;
 
 function loadLastPlace(): HomePlace | null {
