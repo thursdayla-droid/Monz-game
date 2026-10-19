@@ -2,7 +2,8 @@
 
 世界に1体だけの生命体を誕生させ、育て、オートバトルさせるスマホ向けWebゲーム。
 
-- 遊ぶ: https://thursdayla-droid.github.io/Monz-game/ （BUNKの動きのテスト画面から始まる）
+- 遊ぶ: https://thursdayla-droid.github.io/Monz-game/ （タイトル画面から始まる）
+- BUNKの動きのテスト画面を直接開く: URLの最後に `?parts` を付ける
 - 元画像との比較画面（開発用）: URLの最後に `?compare` を付ける
 - デバッグ表示: URLの最後に `?debug=1` を付ける
 - 表示がおかしいとき: URLの最後に `?canvas` を付けると別の描画方式で動く
