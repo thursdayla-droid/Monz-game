@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { loadSave } from '../core/save';
 
 const FONT = 'system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif';
 export const TITLE_IMAGE = 'title:image';
@@ -6,7 +7,7 @@ export const TITLE_FILE = 'assets/title/title.png';
 
 /**
  * タイトル画面。企画者が用意したタイトルの絵(design/title/title.png)をそのまま全面に出す。
- * タップすると次の画面へ。【仮】今は BUNK の動きのテスト画面へ進む(誕生・部屋ができたら差しかえる)。
+ * タップすると、初回は質問へ、2回目からは出会ったMONZの画面(【仮】ホーム)へ進む。
  */
 export class TitleScene extends Phaser.Scene {
   constructor() {
@@ -33,7 +34,7 @@ export class TitleScene extends Phaser.Scene {
 
     this.input.once('pointerdown', () => {
       this.cameras.main.fadeOut(300, 0, 0, 0);
-      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('BunkParts'));
+      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start(loadSave() ? 'Birth' : 'Question', { intro: false }));
     });
   }
 }
