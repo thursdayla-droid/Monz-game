@@ -10,7 +10,7 @@ const REACTION_LABELS = { happy: 'うれしい！', angry: 'いやがった！',
 /**
  * 【仮・テスト実装】元画像のパーツで組み立てたBUNKを動かして確かめる画面。
  * BUNKをタップすると反応する。
- * URL: ?parts / &move 自動で動かす / &state=guard|down|walk|sleep / &face=happy|angry|sad|closed
+ * 最初に開く画面。URL: &move 自動で動かす / &state=guard|down|walk|sleep / &face=happy|angry|sad|closed
  *      &t=秒 その瞬間の姿で止める / &jab=0〜1 拳を突き出した途中 / &fill 補った場所 / &original 元画像
  */
 export class BunkPartsScene extends Phaser.Scene {
@@ -77,9 +77,9 @@ export class BunkPartsScene extends Phaser.Scene {
       this.showFill = !this.showFill;
       this.view.setShowFill(this.showFill);
     }]);
-    row(['元画像と見比べる', () => {
+    this.button(bx[0], by, '元画像と見比べる', () => {
       this.view.showOriginal = !this.view.showOriginal;
-    }], ['← 比較画面', () => this.scene.start('Compare')]);
+    });
 
     // 確認用のURL
     if (q.has('move')) this.setMode('auto');

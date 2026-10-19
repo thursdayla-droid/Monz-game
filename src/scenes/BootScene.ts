@@ -3,8 +3,8 @@ import { assetUrl } from '../assetUrl';
 import { loadBunk } from '../render/bunkView';
 import { REFERENCE_CUTOUT, REFERENCE_FILES, REFERENCE_ORIGINAL } from './CompareScene';
 
-/** ?parts を付けると、元画像のパーツで組み立てたBUNKの確認画面を開く */
-const SHOW_PARTS = new URLSearchParams(location.search).has('parts');
+/** ?compare を付けると、元画像との比較画面(開発用)を開く。ふだんはBUNKの画面から始める */
+const SHOW_COMPARE = new URLSearchParams(location.search).has('compare');
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -21,6 +21,6 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.scene.start(SHOW_PARTS ? 'BunkParts' : 'Compare');
+    this.scene.start(SHOW_COMPARE ? 'Compare' : 'BunkParts');
   }
 }
