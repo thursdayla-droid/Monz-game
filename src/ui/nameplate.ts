@@ -5,7 +5,7 @@ import { canvasTexture, COLORS, INK, splat, UI_FONT } from './paint';
 
 /**
  * 誕生したMONZの名前の表示(ストリートの落書き風)。
- * スプレーの飛び散り、ななめの太い名前(立体的な影と、したたり)、「NEW MONZ」のテープ、「キミの相棒」のステッカー。
+ * スプレーの飛び散り、ななめの太い名前(立体的な影と、したたり)、「NEW MONZ」のテープ、「FRESH OUT THE EGG」のステッカー。
  */
 const NAME_W = 680;
 const NAME_H = 260;
@@ -121,13 +121,13 @@ function drawSticker(ctx: CanvasRenderingContext2D, w: number, h: number): void 
   ctx.fillStyle = COLORS.pink;
   rr(ctx, 16, 16, w - 32, h - 32, r - 6);
   ctx.fill();
-  ctx.font = `900 ${h * 0.4}px ${UI_FONT}`;
+  ctx.font = `900 ${h * 0.34}px ${UI_FONT}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.lineWidth = 7;
-  ctx.strokeText('キミの相棒！', w / 2, h / 2 + 2);
+  ctx.strokeText('FRESH OUT THE EGG', w / 2, h / 2 + 2);
   ctx.fillStyle = '#ffffff';
-  ctx.fillText('キミの相棒！', w / 2, h / 2 + 2);
+  ctx.fillText('FRESH OUT THE EGG', w / 2, h / 2 + 2);
 }
 
 export interface Nameplate {
@@ -143,12 +143,12 @@ export function createNameplate(scene: Phaser.Scene, name: string, x: number, y:
   canvasTexture(scene, key('spray'), NAME_W, NAME_H + 60, (ctx) => drawSpray(ctx, NAME_W, NAME_H + 60));
   canvasTexture(scene, key('name'), NAME_W, NAME_H, (ctx) => drawName(ctx, NAME_W, NAME_H, name));
   canvasTexture(scene, key('tape'), 330, 62, (ctx) => drawTape(ctx, 330, 62));
-  canvasTexture(scene, key('sticker'), 260, 84, (ctx) => drawSticker(ctx, 260, 84));
+  canvasTexture(scene, key('sticker'), 330, 76, (ctx) => drawSticker(ctx, 330, 76));
   const root = scene.add.container(x, y).setDepth(8);
   const spray = scene.add.image(0, 10, key('spray'));
   const nameImg = scene.add.image(0, 0, key('name'));
   const tape = scene.add.image(-150, -118, key('tape')).setAngle(-7);
-  const sticker = scene.add.image(170, 112, key('sticker')).setAngle(6);
+  const sticker = scene.add.image(150, 114, key('sticker')).setAngle(5);
   root.add([spray, nameImg, tape, sticker]);
 
   const reveal = () => {

@@ -109,7 +109,7 @@ function hats16(bar: number, accents: number[], openAt: number[] = []): DrumHit[
 const melody = (bar: number, notes: [number, number, number, number?][]): Note[] =>
   notes.map(([beat, len, pitch, vel]) => ({ beat: bar * 4 + beat, len, pitch, vel: vel ?? 0.7 }));
 
-// ---------- タイトル: オシャレで少し生意気、クール。Fマイナー系、96 BPM ----------
+// ---------- タイトル: オシャレで少し生意気、メロー。Fマイナー系、92 BPM ----------
 function title(): Score {
   const prog = [
     ch([56, 60, 63, 67], 41, 48), // Fm9
@@ -140,14 +140,14 @@ function title(): Score {
     );
   }
   return {
-    bpm: 96,
+    bpm: 92,
     bars: 8,
-    swing: 0.58,
+    swing: 0.6,
     // エレピは短めに刻む(のんびりしすぎないように)
     ep: epComp(chords, [
-      { beat: 0, len: 0.9, vel: 0.72 },
-      { beat: 1.5, len: 0.35, vel: 0.55 },
-      { beat: 2.75, len: 0.6, vel: 0.62 },
+      { beat: 0, len: 1.4, vel: 0.7 },
+      { beat: 1.75, len: 0.5, vel: 0.5 },
+      { beat: 2.75, len: 1.1, vel: 0.6 },
     ], 3),
     bass: bassLine(chords, [
       { beat: 0, len: 0.7, vel: 1, deg: 'root' },
@@ -156,7 +156,8 @@ function title(): Score {
       { beat: 2.5, len: 0.55, vel: 0.9, deg: 'fifth' },
       { beat: 3.5, len: 0.4, vel: 0.75, deg: 'approach' },
     ], 5),
-    pad: [],
+    // うしろでうっすら鳴る温かい和音
+    pad: chords.flatMap((c, bar) => c.voicing.map((pitch) => ({ beat: bar * 4, len: 4, pitch, vel: 0.18 }))),
     // 高いシンセ(音程をすべらせる)。前半は呼びかけ、後半は答え
     lead: [
       ...melody(1, [[2, 0.5, 79, 0.6], [2.5, 1.2, 80, 0.7]]),
@@ -169,12 +170,12 @@ function title(): Score {
     bell: [],
     drums,
     wind: 0,
-    vinyl: 0.25,
+    vinyl: 0.45,
     glideLead: true,
   };
 }
 
-// ---------- 質問: 軽快で遊び心。100 BPM ----------
+// ---------- 質問: 軽快で遊び心。96 BPM ----------
 function question(): Score {
   const prog = [
     ch([54, 58, 61, 65], 42, 49), // G♭maj7
@@ -209,9 +210,9 @@ function question(): Score {
     [0, 0.5, 1, 1.5, 2.25, 3].forEach((b, i) => arp.push({ beat: bar * 4 + b, len: 0.22, pitch: c.voicing[i % c.voicing.length] + 12, vel: 0.5 }));
   });
   return {
-    bpm: 100,
+    bpm: 96,
     bars: 8,
-    swing: 0.56,
+    swing: 0.58,
     ep: epComp(chords, [
       { beat: 0.5, len: 0.25, vel: 0.6 },
       { beat: 1.5, len: 0.25, vel: 0.5 },
@@ -255,7 +256,7 @@ function mystery(): Score {
   return { bpm: 72, bars: 8, swing: 0.5, ep: [], bass, pad, lead: [], bell, drums: [], wind: 0.8, vinyl: 0, bassTone: 'round' };
 }
 
-// ---------- 誕生・ホーム: 明るく温かい。E♭メジャー、94 BPM。長く聴いても疲れない ----------
+// ---------- 誕生・ホーム: 明るく温かい。E♭メジャー、90 BPM。長く聴いても疲れない ----------
 function birth(): Score {
   const prog = [
     ch([55, 58, 62, 65], 39, 46), // E♭maj9
@@ -283,9 +284,9 @@ function birth(): Score {
     );
   }
   return {
-    bpm: 94,
+    bpm: 90,
     bars: 8,
-    swing: 0.57,
+    swing: 0.6,
     ep: epComp(chords, [
       { beat: 0, len: 1.8, vel: 0.65 },
       { beat: 2, len: 0.5, vel: 0.45 },

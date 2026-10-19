@@ -5,7 +5,7 @@ import { beatToSec, loopSeconds, midiToHz, type DrumHit, type Note, type Score }
  * 楽器はすべてここで合成する(録音した音や既存の曲は使わない)。
  */
 
-const SAMPLE_RATE = 32000;
+const SAMPLE_RATE = 24000;
 const TAIL_SEC = 3;
 
 type Ctx = BaseAudioContext;
@@ -82,13 +82,13 @@ function buildBuses(ctx: Ctx, out: AudioNode): Buses {
   const epIn = ctx.createGain();
   const epLp = ctx.createBiquadFilter();
   epLp.type = 'lowpass';
-  epLp.frequency.value = 4800;
+  epLp.frequency.value = 3600;
   const trem = ctx.createGain();
   trem.gain.value = 0.85;
   const lfo = ctx.createOscillator();
   lfo.frequency.value = 4.2;
   const lfoAmt = ctx.createGain();
-  lfoAmt.gain.value = 0.15;
+  lfoAmt.gain.value = 0.2;
   lfo.connect(lfoAmt).connect(trem.gain);
   lfo.start(0);
   const epOut = ctx.createGain();
@@ -100,12 +100,12 @@ function buildBuses(ctx: Ctx, out: AudioNode): Buses {
   const bassIn = ctx.createGain();
   const bassLp = ctx.createBiquadFilter();
   bassLp.type = 'lowpass';
-  bassLp.frequency.value = 900;
+  bassLp.frequency.value = 650;
   bassLp.Q.value = 0.8;
   const bassOut = ctx.createGain();
   bassOut.gain.value = 0.85;
   // 少し歪ませて倍音を足す(iPhoneの小さいスピーカーでも太く聞こえるように)
-  bassIn.connect(softClip(ctx, 2.8)).connect(bassLp).connect(bassOut).connect(comp);
+  bassIn.connect(softClip(ctx, 2.2)).connect(bassLp).connect(bassOut).connect(comp);
 
   const padIn = ctx.createGain();
   const padLp = ctx.createBiquadFilter();
@@ -119,7 +119,7 @@ function buildBuses(ctx: Ctx, out: AudioNode): Buses {
   const leadIn = ctx.createGain();
   const leadLp = ctx.createBiquadFilter();
   leadLp.type = 'lowpass';
-  leadLp.frequency.value = 2000;
+  leadLp.frequency.value = 1500;
   leadLp.Q.value = 2;
   const leadOut = ctx.createGain();
   leadOut.gain.value = 0.16;
@@ -137,7 +137,7 @@ function buildBuses(ctx: Ctx, out: AudioNode): Buses {
   const air = ctx.createBiquadFilter();
   air.type = 'highshelf';
   air.frequency.value = 5000;
-  air.gain.value = 7;
+  air.gain.value = 4;
   drumOut.connect(air).connect(comp);
   send(drumOut, 0.08);
 
@@ -216,11 +216,11 @@ function bassNote(ctx: Ctx, out: AudioNode, t: number, dur: number, pitch: numbe
   glide(sq, 0.5);
   const lp = ctx.createBiquadFilter();
   lp.type = 'lowpass';
-  lp.Q.value = 6;
-  lp.frequency.setValueAtTime(f * 9, t);
-  lp.frequency.exponentialRampToValueAtTime(f * 2.2, t + 0.22);
+  lp.Q.value = 3;
+  lp.frequency.setValueAtTime(f * 6, t);
+  lp.frequency.exponentialRampToValueAtTime(f * 1.8, t + 0.3);
   const sg = ctx.createGain();
-  sg.gain.value = 0.32;
+  sg.gain.value = 0.24;
   const qg = ctx.createGain();
   qg.gain.value = 0.18;
   saw.connect(sg).connect(lp);
@@ -256,7 +256,8 @@ function padNote(ctx: Ctx, out: AudioNode, t: number, dur: number, pitch: number
 function leadNote(ctx: Ctx, out: AudioNode, t: number, dur: number, pitch: number, vel: number, from?: number): void {
   const f = midiToHz(pitch);
   const o = ctx.createOscillator();
-  o.type = 'square';
+  // やわらかい三角波(メローに)
+  o.type = 'triangle';
   // 前の音から音程をすべらせる(西海岸らしい、うねる高いシンセ)
   if (from) {
     o.frequency.setValueAtTime(midiToHz(from), t);
@@ -347,7 +348,7 @@ function drum(ctx: Ctx, b: Buses, t: number, hit: DrumHit, i: number): void {
       o.start(t);
       o.stop(t + 0.14);
       noiseHit(ctx, b, t, 0.2, 'bandpass', 2200, 0.5, 0.6 * v, i * 0.031);
-      noiseHit(ctx, b, t, 0.11, 'highpass', 5000, 0.7, 0.55 * v, i * 0.037);
+      noiseHit(ctx, b, t, 0.11, 'highpass', 5000, 0.7, 0.35 * v, i * 0.037);
       break;
     }
     case 'clap':
@@ -366,7 +367,7 @@ function drum(ctx: Ctx, b: Buses, t: number, hit: DrumHit, i: number): void {
       break;
     }
     case 'hat':
-      noiseHit(ctx, b, t, 0.04, 'highpass', 8000, 0.7, 0.55 * v, i * 0.019);
+      noiseHit(ctx, b, t, 0.04, 'highpass', 8000, 0.7, 0.42 * v, i * 0.019);
       noiseHit(ctx, b, t, 0.03, 'bandpass', 10000, 1, 0.25 * v, i * 0.021);
       break;
     case 'openhat':
