@@ -3,7 +3,7 @@ import { audio } from '../audio/engine';
 import { BunkBrain } from '../core/bunkBehavior';
 import { HOME_ACTIONS, HOME_ACTION_LABELS, HOME_ACTION_READY, HOME_LAYOUTS, clipPolygonX, decideHomePlace, insidePolygon, type HomeAction, type HomePlace, type Pt } from '../core/home';
 import { MonzLife } from '../core/life';
-import { clearLife, loadLife, saveLife, Wallet } from '../core/lifeSave';
+import { clearLife, LifeRecord, loadLife, saveLife } from '../core/lifeSave';
 import { mulberry32 } from '../core/rng';
 import { clearSave, loadSave } from '../core/save';
 import { BUNK_MOTION, BunkView, cutoutKey, TEST_PERSONALITY } from '../render/bunkView';
@@ -52,7 +52,9 @@ export class HomeScene extends Phaser.Scene {
   private yFront = 1;
   private t = 0;
   private busy = false;
-  private wallet?: Wallet;
+  private record?: LifeRecord;
+  private saveTimer = 0;
+  private bubble?: Phaser.GameObjects.Image;
   place: HomePlace = 'room';
 
   constructor() {
@@ -69,10 +71,16 @@ export class HomeScene extends Phaser.Scene {
     if (life0.place !== this.place) saveLife({ ...life0, place: this.place });
     this.drawBackground();
 
+    // お腹・眠さ・機嫌。閉じていた間のぶんを、まとめて進める
+    const record = new LifeRecord(loadLife());
+    record.catchUp();
+    this.record = record;
+    this.saveTimer = 0;
+
     // MONZ(床の上を自分で動き回る)
     const brain = new BunkBrain(BUNK_MOTION.behavior, Date.now() & 0xffff, TEST_PERSONALITY);
     brain.jabDuration = BUNK_MOTION.poses.guard.jab?.duration ?? 0.34;
-    const life = new MonzLife(brain, this.floor, mulberry32((Date.now() >>> 3) & 0xffffffff), (y) => this.depthOf(y));
+    const life = new MonzLife(brain, this.floor, mulberry32((Date.now() >>> 3) & 0xffffffff), (y) => this.depthOf(y), undefined, () => record.needs);
     this.life = life;
     this.shadow = this.add.ellipse(life.x, life.y, 300, 46, 0x000000, 0.28);
     const view = new BunkView(this, life.x, life.y, SCALE_BACK);
@@ -87,7 +95,16 @@ export class HomeScene extends Phaser.Scene {
 
     this.cameras.main.fadeIn(400, 0, 0, 0);
     audio.playBgm('home');
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.saveSeen());
+    // 画面を離れるときは保存。戻ってきたら、離れていた間のぶんを進める
+    const onVisible = () => {
+      if (document.hidden) record.tick(0, Date.now(), true);
+      else record.catchUp();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      record.tick(0, Date.now(), true);
+    });
   }
 
   /** 背景と、歩ける床の範囲(画面の座標にする) */
@@ -131,9 +148,8 @@ export class HomeScene extends Phaser.Scene {
   // ---------------- 上の表示 ----------------
 
   private buildTop(name: string): void {
-    const data = loadLife();
-    const wallet = new Wallet(data);
-    this.wallet = wallet;
+    const record = this.record!;
+    const data = record.snapshot;
 
     // 名前・レベルのカード
     canvasTexture(this, 'home:card', 430, 138, (ctx) => drawPanel(ctx, 430, 138, 91));
@@ -164,12 +180,17 @@ export class HomeScene extends Phaser.Scene {
     card.add(this.add.image(14, 11, 'home:portrait').setOrigin(0, 0));
     const ink = '#16101c';
     card.add(this.add.text(140, 18, name, { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '34px', color: ink }));
-    // 【仮】レベルは見た目だけ(上がり方は未確定)
-    card.add(this.add.text(140, 62, `Lv. ${data.level}`, { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '900', color: ink }));
+    // レベルと、次のレベルまでのゲージ(お世話で経験値がたまる)
+    const lv = this.add.text(140, 62, `Lv. ${data.level}`, { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '900', color: ink });
+    card.add(lv);
     const bar = this.add.graphics();
-    bar.fillStyle(0x16101c, 1).fillRoundedRect(232, 66, 176, 22, 11);
-    bar.fillStyle(0xd9c7a0, 1).fillRoundedRect(236, 70, 168, 14, 7);
-    bar.fillStyle(0x2fa8ff, 1).fillRoundedRect(236, 70, Math.max(14, 168 * Math.min(1, data.exp / 100)), 14, 7);
+    const drawBar = () => {
+      bar.clear();
+      bar.fillStyle(0x16101c, 1).fillRoundedRect(232, 66, 176, 22, 11);
+      bar.fillStyle(0xd9c7a0, 1).fillRoundedRect(236, 70, 168, 14, 7);
+      bar.fillStyle(0x2fa8ff, 1).fillRoundedRect(236, 70, Math.max(14, 168 * record.expRate), 14, 7);
+    };
+    drawBar();
     card.add(bar);
     // 【仮】ひとこと
     card.add(this.add.text(140, 98, '今日もよろしく！', { fontFamily: UI_FONT, fontSize: '20px', fontStyle: 'bold', color: ink }));
@@ -183,11 +204,18 @@ export class HomeScene extends Phaser.Scene {
     });
     const coinCard = this.add.container(W - 16 - 126, 14 + 42).setDepth(DEPTH.ui);
     coinCard.add(this.add.image(0, 0, 'home:coinCard'));
-    const shown = { v: wallet.coins };
+    const shown = { v: record.coins };
     const label = this.add.text(104, 2, shown.v.toLocaleString(), { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '34px', color: ink }).setOrigin(1, 0.5);
     coinCard.add(label);
     // 増えたり減ったりしたときは、数字が動いて、札が少しはねる
-    wallet.onChange((coins, delta) => {
+    record.on((e) => {
+      drawBar();
+      lv.setText(`Lv. ${record.snapshot.level}`);
+      if (e.type === 'levelUp') {
+        this.levelUp(e.level);
+        return;
+      }
+      const { coins, delta } = e;
       this.tweens.add({
         targets: shown,
         v: coins,
@@ -208,9 +236,52 @@ export class HomeScene extends Phaser.Scene {
     return this.textures.exists(key) ? (this.textures.get(key).getSourceImage() as CanvasImageSource) : undefined;
   }
 
-  private saveSeen(): void {
-    const data = loadLife();
-    saveLife({ ...data, lastSeen: Date.now() });
+  /** 頭の上の吹き出し(肉の絵) */
+  private showBubble(on: boolean): void {
+    const life = this.life!;
+    if (!this.bubble) {
+      const meat = this.icon(MEAT_KEY, true);
+      canvasTexture(this, 'home:bubble', 150, 130, (ctx) => {
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#16101c';
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.ellipse(75, 56, 68, 50, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(52, 98);
+        ctx.lineTo(40, 126);
+        ctx.lineTo(74, 104);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillRect(48, 92, 30, 12);
+        if (meat) ctx.drawImage(meat, 22, 22, 106, 69);
+      });
+      this.bubble = this.add.image(0, 0, 'home:bubble').setOrigin(0.25, 1).setDepth(DEPTH.effect).setScale(0.75).setVisible(false);
+    }
+    const b = this.bubble;
+    if (on && !b.visible) {
+      b.setVisible(true).setScale(0.2);
+      this.tweens.add({ targets: b, scale: 0.75, duration: 260, ease: 'Back.easeOut' });
+    }
+    if (!on) b.setVisible(false);
+    if (on) b.setPosition(life.x + 30, life.y - MONZ_H * this.scaleAt(life.y) + 10 + Math.sin(this.t * 4) * 4);
+  }
+
+  /** 画面のまん中に短い知らせ(テスト用) */
+  private toast(msg: string): void {
+    const t = this.text(W / 2, 600, msg, 34, '#ffffff').setDepth(DEPTH.popup);
+    this.tweens.add({ targets: t, alpha: 0, delay: 1000, duration: 400, onComplete: () => t.destroy() });
+  }
+
+  /** レベルアップの演出 */
+  private levelUp(level: number): void {
+    audio.se('sting');
+    const t = this.text(W / 2, 470, `LEVEL UP!\nLv. ${level}`, 64, '#ffd23a').setDepth(DEPTH.popup).setScale(0.3);
+    this.tweens.add({ targets: t, scale: 1, duration: 420, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: t, alpha: 0, y: t.y - 60, delay: 1800, duration: 500, onComplete: () => t.destroy() });
+    this.hearts(3);
   }
 
   // ---------------- 下のメニュー ----------------
@@ -247,7 +318,12 @@ export class HomeScene extends Phaser.Scene {
       this.scene.start('Title');
     });
     button(152, '誕生をもう一度', () => this.scene.start('Birth', { intro: true }));
-    button(194, '+10コイン', () => this.wallet?.add(10));
+    button(194, '+10コイン', () => this.record?.add(10));
+    // 時間を進めて、お腹がすいたり眠くなったりするのを確かめる
+    button(236, '6時間すすめる', () => {
+      this.record?.advance(6);
+      this.toast('6時間すすめました');
+    });
   }
 
   private act(action: HomeAction): void {
@@ -269,7 +345,10 @@ export class HomeScene extends Phaser.Scene {
     if (this.busy || !this.life) return;
     const life = this.life;
     life.pause(1.8);
-    const kind = life.body.pet();
+    const kind = life.petted();
+    this.record?.pet(kind === 'happy');
+    // 眠っていたら起こしてしまう(眠ければ、またすぐ眠る)
+    this.record?.setAsleep(false);
     audio.se(kind);
     if (kind === 'happy' && Math.random() < 0.7) this.hearts(2);
   }
@@ -311,6 +390,7 @@ export class HomeScene extends Phaser.Scene {
         this.time.delayedCall(700 + 3 * 650, () => {
           this.tweens.add({ targets: bowl, alpha: 0, scale: bowl.scale * 0.6, duration: 320, onComplete: () => bowl.destroy() });
           audio.se('happy');
+          this.record?.feed();
           brain.reaction = { face: 'happy', kind: 'happy', left: 1.6, age: 0 };
           this.hearts(3);
           this.time.delayedCall(1600, () => (this.busy = false));
@@ -340,7 +420,9 @@ export class HomeScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
       onStart: () => audio.se('spray', { pitch: 0.5 }),
       onComplete: () => {
-        const kind = life.body.pet();
+        const kind = life.petted();
+        this.record?.pet(kind === 'happy');
+        this.record?.setAsleep(false);
         audio.se(kind);
         if (kind === 'happy') this.hearts(3);
         this.tweens.add({ targets: hand, alpha: 0, y: headY - 100, duration: 240, onComplete: () => hand.destroy() });
@@ -400,6 +482,16 @@ export class HomeScene extends Phaser.Scene {
     const dt = Math.min(delta / 1000, 0.1);
     this.t += dt;
     life.update(dt);
+    // お腹・眠さ・機嫌を進める(保存は30秒ごと)。眠くなると自分で眠り、元気になると起きる
+    const record = this.record;
+    if (record) {
+      this.saveTimer += dt;
+      const save = this.saveTimer > 30;
+      if (save) this.saveTimer = 0;
+      record.tick(dt, Date.now(), save);
+    }
+    // お腹がすいてごはんを欲しがっているときは、頭の上に肉の吹き出し
+    this.showBubble(life.act === 'beg' && !life.isPaused);
     // 奥ほど小さく、手前にいるほど前に描く
     const sc = this.scaleAt(life.y);
     // 左を向くときは反転する(目は反転しない。BunkView.mirrored)

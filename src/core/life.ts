@@ -1,4 +1,5 @@
 import { BunkBrain } from './bunkBehavior';
+import { newNeeds, type Needs } from './needs';
 import { insidePolygon, randomPointIn, type Pt } from './home';
 import { range, type Rng } from './rng';
 
@@ -7,8 +8,10 @@ import { range, type Rng } from './rng';
  * 何もしない時間をはさみながら、次の行動を気まぐれに選ぶ。同じ行動は続けて選びにくくする。
  * 体の動き(姿・表情・歩くときの揺れ)は BunkBrain に伝え、位置と向きはここで持つ。
  * 【仮】座る・伸び・横向きの絵がまだないので、今ある姿と動きで表す(素材が届いたら差しかえる)。
+ * 第2段階: お腹・眠さ・機嫌(src/core/needs.ts)で、選ぶ行動と表情が変わる。
+ *   お腹がすく → しょんぼりして、ごはんを欲しがる(beg) / 眠い → よく眠る / 機嫌がいい → よく跳ねる・こっちを見る / 悪い → じっとする
  */
-export type LifeAct = 'idle' | 'walk' | 'explore' | 'look' | 'rest' | 'sleep' | 'hop' | 'lookAtYou' | 'box';
+export type LifeAct = 'idle' | 'walk' | 'explore' | 'look' | 'rest' | 'sleep' | 'hop' | 'lookAtYou' | 'box' | 'beg';
 
 interface ActRule {
   weight: number;
@@ -26,7 +29,36 @@ export const LIFE_RULES: Record<Exclude<LifeAct, 'idle'>, ActRule> = {
   hop: { weight: 1.5, time: [1.4, 1.4] },
   lookAtYou: { weight: 2, time: [2, 3.5] },
   box: { weight: 1.5, time: [2, 3.5] },
+  // お腹がすいたときだけ選ぶ
+  beg: { weight: 0, time: [3, 5] },
 };
+
+/** お腹・眠さ・機嫌による、行動の選ばれやすさの倍率 */
+export function needWeights(n: Needs): Partial<Record<Exclude<LifeAct, 'idle'>, number>> {
+  const w: Partial<Record<Exclude<LifeAct, 'idle'>, number>> = {};
+  const mul = (a: Exclude<LifeAct, 'idle'>, k: number) => (w[a] = (w[a] ?? 1) * k);
+  if (n.full < 0.3) {
+    w.beg = 5;
+    mul('hop', 0.3);
+    mul('box', 0.4);
+  }
+  if (n.sleepy > 0.6) {
+    mul('sleep', 3);
+    mul('rest', 1.5);
+    mul('hop', 0.5);
+    mul('explore', 0.5);
+  }
+  if (n.mood < 0.3) {
+    mul('hop', 0.2);
+    mul('lookAtYou', 0.3);
+    mul('box', 0.5);
+    mul('rest', 2);
+  } else if (n.mood > 0.7) {
+    mul('hop', 1.8);
+    mul('lookAtYou', 1.5);
+  }
+  return w;
+}
 /** 行動と行動のあいだの、何もしない時間 */
 const IDLE_TIME: [number, number] = [1.5, 5];
 /** 歩く速さ(画面の手前での px/秒)。奥ではゆっくりに見せる */
@@ -54,6 +86,8 @@ export class MonzLife {
     /** 奥(0)〜手前(1)の割合を返す。速さの調整に使う */
     private readonly depth: (y: number) => number,
     start?: Pt,
+    /** 今のお腹・眠さ・機嫌 */
+    private readonly needs: () => Needs = newNeeds,
   ) {
     [this.x, this.y] = start ?? randomPointIn(rng, floor);
     body.hold = true;
@@ -125,8 +159,25 @@ export class MonzLife {
     this.body.dir = this.facing;
   }
 
+  /** なでられた(タップ・なでるボタン)。機嫌が悪いと怒りやすい */
+  petted(): 'happy' | 'angry' | 'surprised' {
+    const n = this.needs();
+    if (n.mood < 0.3 && this.act !== 'sleep' && this.rng() < 0.5) {
+      this.body.start('idle');
+      this.body.reaction = { face: 'angry', kind: 'angry', left: 1.4, age: 0 };
+      return 'angry';
+    }
+    return this.body.pet();
+  }
+
   /** 次の行動を選ぶ。行動のあとは、たいてい何もしない時間をはさむ */
   private next(): void {
+    // 眠いときは眠る(眠っていれば、そのまま眠り続ける)
+    if (this.needs().asleep) {
+      if (this.act === 'sleep') this.timer = range(this.rng, 10, 20);
+      else this.begin('sleep', range(this.rng, 20, 40));
+      return;
+    }
     if (this.act === 'explore' && this.stops > 0 && !this.target) {
       this.walkTo(this.pickTarget(160, 420));
       return;
@@ -136,8 +187,9 @@ export class MonzLife {
       return;
     }
     const acts = Object.keys(LIFE_RULES) as Exclude<LifeAct, 'idle'>[];
+    const byNeeds = needWeights(this.needs());
     const weights = acts.map((a) => {
-      let w = LIFE_RULES[a].weight;
+      let w = a === 'beg' ? (byNeeds.beg ?? 0) : LIFE_RULES[a].weight * (byNeeds[a] ?? 1);
       // 最近やったことは選びにくい(同じことのくり返しを避ける)
       const ago = this.recent.lastIndexOf(a);
       if (ago >= 0) w *= ago === this.recent.length - 1 ? 0.1 : 0.4;
@@ -179,9 +231,17 @@ export class MonzLife {
         this.lookTimer = range(this.rng, 0.5, 1.2);
         break;
       case 'rest':
-        // 【仮】座る絵がないので、腕を下ろしてじっとする
+        // 【仮】座る絵がないので、腕を下ろしてじっとする。機嫌が悪いとしょんぼり、眠いと目を閉じる
         body.start('idle');
         body.setPose('down');
+        if (this.needs().mood < 0.3) body.reaction = { face: 'sad', kind: 'calm', left: seconds, age: 0 };
+        else if (this.needs().sleepy > 0.6) body.reaction = { face: 'closed', kind: 'calm', left: seconds, age: 0 };
+        break;
+      case 'beg':
+        // ごはんを欲しがる: こっちを向いて、しょんぼり顔(画面に肉の吹き出しを出す)
+        body.start('idle');
+        body.setPose('down');
+        body.reaction = { face: 'sad', kind: 'calm', left: seconds, age: 0 };
         break;
       case 'sleep':
         body.start('sleep');
