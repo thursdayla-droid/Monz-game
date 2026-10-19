@@ -1,0 +1,19 @@
+{
+  "note": "BUNK「腕を下ろしたポーズ」と表情の素材の設定（2026-10-18 企画者承認）。元画像は ChatGPT で作り、企画者が確認したもの。",
+  "shift": [0, 22],
+  "shiftNote": "元画像（構え）と顔の位置がそろうように、全体を下へ 22px ずらす。拡大縮小はしない。",
+  "sources": {
+    "neutral": { "file": "arms_down.png", "seeds": ["878,266"] },
+    "closed":  { "file": "arms_down_eyes_closed.png", "seeds": [] },
+    "angry":   { "file": "arms_down_angry.png", "seeds": ["875,274"] },
+    "sad":     { "file": "arms_down_sad.png", "seeds": ["874,275"] },
+    "happy":   { "file": "arms_down_happy.png", "seeds": ["875,274"] }
+  },
+  "face": {
+    "note": "表情の画像のうち、ふつうの顔と違う部分（顔のまわり）だけを切り出す。座標はずらした後のもの。",
+    "box": [300, 352, 960, 822],
+    "diff": 45,
+    "grow": 22,
+    "feather": 6
+  }
+}

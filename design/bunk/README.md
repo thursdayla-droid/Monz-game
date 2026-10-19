@@ -27,6 +27,22 @@
 python3 tools/split_parts.py design/bunk/reference/split.json public/assets/bunk/parts 確認画像の出力先
 ```
 
+## 腕を下ろした姿と表情（2026-10-19 企画者承認）
+
+| ファイル | 内容 |
+|---|---|
+| `reference/pose_down/*.png` | 企画者がChatGPTで作った素材（腕を下ろした姿のふつう・目を閉じた・怒った・悲しい・喜んだ）。基準 |
+| `reference/pose_down/pose_down.json` | 位置合わせ（下へ22px）と、顔の切り出し方の設定 |
+| `public/assets/bunk/reference/bunk_down_cutout.png` | 腕を下ろした姿（背景を消して位置をそろえたもの） |
+| `public/assets/bunk/down/` | 腕を下ろした姿のパーツ（体・左右の拳） |
+| `public/assets/bunk/faces/` | 表情の顔（顔のまわりだけ。ふちはぼかしてある） |
+
+作り直すとき:
+```
+python3 tools/build_bunk_faces.py design/bunk/reference/pose_down/pose_down.json
+python3 tools/split_parts.py design/bunk/reference/pose_down/split.json public/assets/bunk/down 確認画像の出力先
+```
+
 ## 背景を消し直すとき
 
 ```
