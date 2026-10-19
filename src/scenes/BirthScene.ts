@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { BunkBrain } from '../core/bunkBehavior';
-import { loadSave } from '../core/save';
+import { clearSave, loadSave } from '../core/save';
 import { BUNK_MOTION, BunkView, TEST_PERSONALITY } from '../render/bunkView';
 import { canvasTexture, drawStreet, COLORS, UI_FONT } from '../ui/paint';
 
@@ -119,6 +119,17 @@ export class BirthScene extends Phaser.Scene {
     this.alive = true;
     view.on('pointerdown', () => brain.pet());
     this.zText = this.text(0, 0, 'z', 38, '#ffffff').setVisible(false);
+
+    // 【テスト用】回答を消して質問からやり直す(URL に ?reset を付けられない環境のため)
+    this.add
+      .text(W - 20, 24, '最初から', { fontFamily: UI_FONT, fontSize: '22px', color: '#ffffff', backgroundColor: '#16101caa', padding: { x: 10, y: 6 } })
+      .setOrigin(1, 0)
+      .setDepth(6)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => {
+        clearSave();
+        this.scene.start('Title');
+      });
 
     const name = NAMES[monz] ?? monz.toUpperCase();
     if (born) {
