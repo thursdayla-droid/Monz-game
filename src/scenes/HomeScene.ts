@@ -1,9 +1,9 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { BunkBrain } from '../core/bunkBehavior';
-import { HOME_ACTIONS, HOME_ACTION_LABELS, HOME_ACTION_READY, HOME_LAYOUTS, HOME_PLACES, clipPolygonX, insidePolygon, pickHomePlace, type HomeAction, type HomePlace, type Pt } from '../core/home';
+import { HOME_ACTIONS, HOME_ACTION_LABELS, HOME_ACTION_READY, HOME_LAYOUTS, clipPolygonX, decideHomePlace, insidePolygon, type HomeAction, type HomePlace, type Pt } from '../core/home';
 import { MonzLife } from '../core/life';
-import { loadLife, saveLife, Wallet } from '../core/lifeSave';
+import { clearLife, loadLife, saveLife, Wallet } from '../core/lifeSave';
 import { mulberry32 } from '../core/rng';
 import { clearSave, loadSave } from '../core/save';
 import { BUNK_MOTION, BunkView, cutoutKey, TEST_PERSONALITY } from '../render/bunkView';
@@ -14,7 +14,6 @@ import { openSoundSettings } from '../ui/soundButton';
 const W = 720;
 const H = 1280;
 const NAMES: Record<string, string> = { bunk: 'BUNK' };
-const LAST_PLACE_KEY = 'monz:home';
 /** MONZの大きさ(部屋の奥 → 手前)。部屋全体が見渡せるよう小さめ */
 const SCALE_BACK = 0.12;
 const SCALE_FRONT = 0.165;
@@ -32,25 +31,8 @@ const DEPTH = { monz: 10, effect: 30, ui: 40, popup: 60 };
 export const HOME_IMAGES: Partial<Record<HomePlace, string>> = { alley: 'alley.webp', garage: 'garage.webp' };
 export const homeImageKey = (p: HomePlace) => `home:bg:${p}`;
 
-function loadLastPlace(): HomePlace | null {
-  try {
-    const v = localStorage.getItem(LAST_PLACE_KEY);
-    return (HOME_PLACES as readonly string[]).includes(v ?? '') ? (v as HomePlace) : null;
-  } catch {
-    return null;
-  }
-}
-
-function saveLastPlace(p: HomePlace): void {
-  try {
-    localStorage.setItem(LAST_PLACE_KEY, p);
-  } catch {
-    /* 保存できなくても続ける */
-  }
-}
-
 /**
- * お世話画面(第1段階)。場所は「部屋・路地裏・ガレージ」から開くたびにランダム。
+ * お世話画面(第1段階)。場所は「部屋・路地裏・ガレージ」から、いちばん最初に1回だけランダムで決まる。
  * MONZは床の上を自分で歩き回り、立ち止まったり、休んだり、眠ったりする(src/core/life.ts)。
  * 上: 名前・レベル【仮】・コイン。下: ごはん・ミニゲーム・なでる・バトル・ショップ・設定。
  */
@@ -75,8 +57,10 @@ export class HomeScene extends Phaser.Scene {
     this.t = 0;
     this.busy = false;
     const monz = loadSave()?.firstMonz ?? 'bunk';
-    this.place = pickHomePlace(mulberry32(Date.now() & 0xffffffff), loadLastPlace());
-    saveLastPlace(this.place);
+    // 場所はいちばん最初に1回だけランダムで決めて保存し、そのあとはずっと同じ
+    const life0 = loadLife();
+    this.place = decideHomePlace(mulberry32(Date.now() & 0xffffffff), life0.place);
+    if (life0.place !== this.place) saveLife({ ...life0, place: this.place });
     this.drawBackground();
 
     // MONZ(床の上を自分で動き回る)
@@ -243,7 +227,9 @@ export class HomeScene extends Phaser.Scene {
         .setInteractive({ useHandCursor: true })
         .on('pointerdown', onTap);
     button(110, '最初から', () => {
+      // お世話画面のデータ(場所・コイン)も消して、場所を決め直す
       clearSave();
+      clearLife();
       this.scene.start('Title');
     });
     button(152, '誕生をもう一度', () => this.scene.start('Birth', { intro: true }));

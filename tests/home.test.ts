@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BunkBrain } from '../src/core/bunkBehavior';
-import { HOME_ACTIONS, HOME_ACTION_LABELS, HOME_LAYOUTS, HOME_PLACES, clipPolygonX, insidePolygon, pickHomePlace } from '../src/core/home';
+import { HOME_ACTIONS, HOME_ACTION_LABELS, HOME_LAYOUTS, HOME_PLACES, clipPolygonX, decideHomePlace, insidePolygon } from '../src/core/home';
 import { MonzLife, type LifeAct } from '../src/core/life';
 import { LIFE_KEY, loadLife, Wallet } from '../src/core/lifeSave';
 import { mulberry32 } from '../src/core/rng';
@@ -15,17 +15,13 @@ const memoryStore = (): KeyValueStore & { data: Record<string, string> } => {
 };
 
 describe('home', () => {
-  it('picks every place over time and never repeats the last one', () => {
+  it('picks a random place the first time, then always keeps it', () => {
     const rng = mulberry32(1);
     const seen = new Set<string>();
-    let last = pickHomePlace(rng);
-    for (let i = 0; i < 60; i++) {
-      const p = pickHomePlace(rng, last);
-      expect(p).not.toBe(last);
-      seen.add(p);
-      last = p;
-    }
+    for (let i = 0; i < 60; i++) seen.add(decideHomePlace(rng));
     expect(seen.size).toBe(HOME_PLACES.length);
+    for (let i = 0; i < 20; i++) expect(decideHomePlace(rng, 'garage')).toBe('garage');
+    expect(HOME_PLACES).toContain(decideHomePlace(rng, 'broken'));
   });
 
   it('has six menu buttons in the planner order', () => {

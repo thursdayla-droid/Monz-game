@@ -3,6 +3,7 @@
  * Phaserに依存しない。保存できない環境でも止まらない。
  * 【仮】コインの最初の枚数(0)、レベルの上がり方は未確定。
  */
+import type { HomePlace } from './home';
 import type { KeyValueStore } from './save';
 
 export const LIFE_KEY = 'monz:life';
@@ -18,6 +19,8 @@ export interface LifeData {
   lastSeen: number;
   /** 第3段階: 買った家具など。いまは空 */
   items: string[];
+  /** お世話画面の場所(いちばん最初に1回だけ決める) */
+  place?: HomePlace;
 }
 
 export const newLife = (now = Date.now()): LifeData => ({ version: LIFE_VERSION, coins: 0, level: 1, exp: 0, lastSeen: now, items: [] });
@@ -40,6 +43,14 @@ export function loadLife(store = defaultStore()): LifeData {
     return { ...newLife(), ...data, coins: Math.max(0, Math.floor(Number(data.coins) || 0)) };
   } catch {
     return newLife();
+  }
+}
+
+export function clearLife(store = defaultStore()): void {
+  try {
+    store?.removeItem(LIFE_KEY);
+  } catch {
+    /* 消せなくても続ける */
   }
 }
 

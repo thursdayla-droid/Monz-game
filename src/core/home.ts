@@ -8,10 +8,9 @@ import { pick, type Rng } from './rng';
 export const HOME_PLACES = ['room', 'alley', 'garage'] as const;
 export type HomePlace = (typeof HOME_PLACES)[number];
 
-/** 【仮】ホームを開くたびに選び直す。前回と同じ場所は続けて出さない */
-export function pickHomePlace(rng: Rng, last?: HomePlace | null): HomePlace {
-  const choices = last ? HOME_PLACES.filter((p) => p !== last) : HOME_PLACES;
-  return pick(rng, choices);
+/** 企画者決定(2026-10-19): 場所はいちばん最初に1回だけランダムで決め、そのあとはずっと同じ場所 */
+export function decideHomePlace(rng: Rng, saved?: string | null): HomePlace {
+  return (HOME_PLACES as readonly string[]).includes(saved ?? '') ? (saved as HomePlace) : pick(rng, HOME_PLACES);
 }
 
 /** ホームの下に並ぶボタン(左から順)。企画者決定(2026-10-19) */
