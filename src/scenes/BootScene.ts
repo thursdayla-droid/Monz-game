@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { assetUrl } from '../assetUrl';
+import { audio } from '../audio/engine';
 import { clearSave } from '../core/save';
 import { loadBunk } from '../render/bunkView';
 import { REFERENCE_CUTOUT, REFERENCE_FILES, REFERENCE_ORIGINAL } from './CompareScene';
@@ -27,6 +28,8 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
+    // 最初の2曲は、タップを待たずに先に音にしておく(タップ後すぐ流せるように)
+    void audio.prepare('title').then(() => audio.prepare('question'));
     this.scene.start(START);
   }
 }

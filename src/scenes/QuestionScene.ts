@@ -1,6 +1,8 @@
 import * as Phaser from 'phaser';
+import { audio } from '../audio/engine';
 import { INTRO, QUESTIONS, decideFirstMonz, type Answers } from '../core/questions';
 import { SAVE_VERSION, writeSave } from '../core/save';
+import { addSoundButton } from '../ui/soundButton';
 import { canvasTexture, drawButton, drawCard, drawPaper, drawPlaceCard, drawProgress, drawStreet, richText, richTextHeight, COLORS, CREAM } from '../ui/paint';
 
 const W = 720;
@@ -37,6 +39,11 @@ export class QuestionScene extends Phaser.Scene {
     this.add.image(0, 0, 'ui:street').setOrigin(0, 0);
     this.show(0);
     this.cameras.main.fadeIn(300, 0, 0, 0);
+    audio.playBgm('question', 1.5);
+    // 次の場面の曲を先に用意しておく
+    void audio.prepare('mystery');
+    void audio.prepare('birth');
+    addSoundButton(this, W - 46, 56);
   }
 
   /** 今の step の画面を作る。dir は切りかえの向き(1=進む, -1=戻る, 0=最初) */
@@ -156,6 +163,7 @@ export class QuestionScene extends Phaser.Scene {
   private choose(questionId: string, choiceId: string): void {
     if (this.busy) return;
     this.answers[questionId] = choiceId;
+    audio.se('select');
     (this.content?.getData('refresh') as (() => void) | undefined)?.();
   }
 
@@ -165,10 +173,12 @@ export class QuestionScene extends Phaser.Scene {
     if (q && !this.answers[q.id]) {
       // まだ選んでいない: 紙を少しゆらして知らせる
       this.cameras.main.shake(160, 0.004);
+      audio.se('tap', { pitch: 0.6 });
       return;
     }
     if (this.step < QUESTIONS.length - 1) {
       this.step++;
+      audio.se('next');
       this.show(1);
       return;
     }
@@ -178,6 +188,7 @@ export class QuestionScene extends Phaser.Scene {
   private back(): void {
     if (this.busy || this.step < 1) return;
     this.step--;
+    audio.se('back');
     this.show(-1);
   }
 

@@ -7,7 +7,7 @@ import { BirthScene } from './scenes/BirthScene';
 import { QuestionScene } from './scenes/QuestionScene';
 import { TitleScene } from './scenes/TitleScene';
 
-new Phaser.Game({
+const game = new Phaser.Game({
   // ?canvas を付けるとCanvas描画で動かす(表示がおかしいときの確認用)
   type: new URLSearchParams(location.search).has('canvas') ? Phaser.CANVAS : Phaser.AUTO,
   parent: 'game',
@@ -22,3 +22,6 @@ new Phaser.Game({
   render: { antialias: true, maxTextures: 1 },
   scene: [BootScene, TitleScene, QuestionScene, BirthScene, CompareScene, BunkPartsScene],
 });
+
+// 開発中だけ、確認用にゲームを外から触れるようにする
+if (import.meta.env.DEV) (window as unknown as { __monzGame: Phaser.Game }).__monzGame = game;
