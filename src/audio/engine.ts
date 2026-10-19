@@ -1,22 +1,20 @@
-import { BGM_FILES } from './bgmFiles';
-import { FilePlayer } from './filePlayer';
-import { SongPlayer } from './player';
-import { SONGS, type SongName } from './songs';
+import { BGM_FILES, type BgmName } from './bgmFiles';
+import { FilePlayer, loadBuffer } from './filePlayer';
 import { loadSound, saveSound, stepToGain, type SoundSettings } from './settings';
 import { playSe, type SeName } from './sfx';
 
 /**
  * 音の再生をまとめて受け持つ(BGM・効果音)。
  * - iPhone は最初のタップの中で unlock() を呼ぶまで音が出ない
- * - BGM plays each scene's song in real time (src/audio/player.ts). Switching crossfades naturally
+ * - BGM は企画者の曲ファイル(src/audio/bgmFiles.ts)。曲を切りかえるときは重ねてなめらかに入れかえる
  * - BGMと効果音の音量は別々。設定は端末に保存する
  */
 class AudioEngine {
   private ctx: AudioContext | null = null;
   private bgmBus: GainNode | null = null;
   private seBus: GainNode | null = null;
-  private current: SongPlayer | FilePlayer | null = null;
-  private wanted: SongName | null = null;
+  private current: FilePlayer | null = null;
+  private wanted: BgmName | null = null;
   settings: SoundSettings = loadSound();
 
   private touched = false;
@@ -52,6 +50,8 @@ class AudioEngine {
     s.buffer = silent;
     s.connect(this.ctx.destination);
     s.start(0);
+    // 曲の読み込みには少し時間がかかるので、最初のタップのときに読み始めておく
+    for (const { file } of Object.values(BGM_FILES)) void loadBuffer(this.ctx, file).catch(() => undefined);
     if (this.wanted && !this.current) this.playBgm(this.wanted);
   }
 
@@ -68,27 +68,14 @@ class AudioEngine {
     this.seBus.gain.setTargetAtTime(stepToGain(this.settings.se), t, 0.02);
   }
 
-  /** The song playing now (null if none) */
-  get playing(): SongName | null {
-    return this.current?.song.name ?? null;
-  }
-
-  /** Play the song for this scene, crossfading. Does nothing if the same song is already playing */
-  playBgm(name: SongName, fade = 1.5, startBar = 0): void {
+  /** この場面の曲を流す(重ねて入れかえる)。同じ曲が流れていれば何もしない(そのまま続ける) */
+  playBgm(name: BgmName, fade = 1.5): void {
     this.wanted = name;
     if (!this.ctx || !this.bgmBus) return;
-    if (this.current?.song.name === name) return;
+    if (this.current?.name === name) return;
     this.current?.stop(fade);
-    const song = SONGS[name];
-    // A song with a next (e.g. the birth song) moves into that song when it ends
-    const onEnd = () => {
-      if (this.current === player && song.next) this.playBgm(song.next, 3);
-    };
-    // 企画者の曲ファイルがあればそれを、なければプログラムの曲を流す
-    const file = BGM_FILES[name];
-    const player = file ? new FilePlayer(this.ctx, this.bgmBus, song, file, onEnd) : new SongPlayer(this.ctx, this.bgmBus, song, onEnd);
-    if (player instanceof FilePlayer) player.start(fade, startBar === 0);
-    else player.start(fade, startBar);
+    const player = new FilePlayer(this.ctx, this.bgmBus, name, BGM_FILES[name]);
+    player.start(fade);
     this.current = player;
   }
 

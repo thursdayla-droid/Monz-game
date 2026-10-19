@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { audio } from './audio/engine';
 import './debug';
 import { BootScene } from './scenes/BootScene';
 import { BunkPartsScene } from './scenes/BunkPartsScene';
@@ -26,4 +27,4 @@ const game = new Phaser.Game({
 });
 
 // 開発中だけ、確認用にゲームを外から触れるようにする
-if (import.meta.env.DEV) (window as unknown as { __monzGame: Phaser.Game }).__monzGame = game;
+if (import.meta.env.DEV) Object.assign(window, { __monzGame: game, __monzAudio: audio });

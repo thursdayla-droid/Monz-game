@@ -41,8 +41,8 @@ export class TitleScene extends Phaser.Scene {
       .setOrigin(0.5);
     this.tweens.add({ targets: tap, alpha: 0.25, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
 
-    // タイトル曲。ふつうは前の「TAP TO START」で音が出せる状態になっているので、
-    // ジャーン!の音と一緒に絵がドンと出て、曲はドラムが入るところ(4小節目)から流れる。
+    // メインの曲。ふつうは前の「TAP TO START」で音が出せる状態になっているので、
+    // ジャーン!の音と一緒に絵がドンと出て、曲が始まる。
     // 音がまだ出せないとき(テスト用に直接開いた等)は、1回目のタップで音楽だけ始める
     const base = img.scale;
     if (this.fromSplash && audio.unlocked) {
@@ -51,9 +51,9 @@ export class TitleScene extends Phaser.Scene {
       this.tweens.add({ targets: img, scale: base, duration: 520, ease: 'Back.easeOut' });
       this.cameras.main.flash(260, 255, 255, 255);
       this.cameras.main.shake(180, 0.006);
-      this.time.delayedCall(450, () => audio.playBgm('title', 0.2, 4));
+      this.time.delayedCall(450, () => audio.playBgm('main', 0.3));
     } else {
-      audio.playBgm('title');
+      audio.playBgm('main');
     }
     addSoundButton(this, width - 60, 60);
     const label = () => tap.setText(audio.unlocked ? 'タップしてはじめる' : '♪ タップして音楽をON');

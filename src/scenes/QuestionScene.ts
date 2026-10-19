@@ -39,7 +39,7 @@ export class QuestionScene extends Phaser.Scene {
     this.add.image(0, 0, 'ui:street').setOrigin(0, 0);
     this.show(0);
     this.cameras.main.fadeIn(300, 0, 0, 0);
-    audio.playBgm('question', 1.5);
+    audio.playBgm('main');
     addSoundButton(this, W - 46, 56);
   }
 

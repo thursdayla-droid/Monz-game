@@ -1,22 +1,32 @@
 import { assetUrl } from '../assetUrl';
-import type { BgmFile } from './bgmFiles';
-import type { Song } from './songs';
+import type { BgmFile, BgmName } from './bgmFiles';
 
 const cache = new Map<string, Promise<AudioBuffer>>();
 
-function loadBuffer(ctx: BaseAudioContext, file: string): Promise<AudioBuffer> {
+/** 曲を読み込んでおく(何度呼んでも1回だけ読む) */
+export function loadBuffer(ctx: BaseAudioContext, file: string): Promise<AudioBuffer> {
   let p = cache.get(file);
   if (!p) {
-    p = fetch(assetUrl(`assets/bgm/${file}`))
-      .then((r) => r.arrayBuffer())
-      .then((data) => ctx.decodeAudioData(data));
+    const url = assetUrl(`assets/bgm/${file}`);
+    // 確認用ページでは曲がページに埋め込まれている(data:)。fetch が禁止されている場所でも鳴るよう、自分で読む
+    const bytes = url.startsWith('data:') ? Promise.resolve(dataUrlToBuffer(url)) : fetch(url).then((r) => r.arrayBuffer());
+    p = bytes.then((data) => ctx.decodeAudioData(data));
+    // 失敗したら、次は読み直せるようにする
+    p.catch(() => cache.delete(file));
     cache.set(file, p);
   }
   return p;
 }
 
+function dataUrlToBuffer(url: string): ArrayBuffer {
+  const bin = atob(url.slice(url.indexOf(',') + 1));
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out.buffer;
+}
+
 /**
- * 企画者の曲ファイルを流す。SongPlayer と同じ使い方(start / stop)。
+ * 企画者の曲ファイルを流す(フェードイン・フェードアウトつき)。
  * ファイルの読み込みが終わってから鳴り始める。読み込めなかったら鳴らさない。
  */
 export class FilePlayer {
@@ -27,17 +37,15 @@ export class FilePlayer {
   constructor(
     private readonly ctx: AudioContext,
     destination: AudioNode,
-    readonly song: Song,
+    readonly name: BgmName,
     private readonly bgm: BgmFile,
-    private readonly onEnd?: () => void,
   ) {
     this.out = ctx.createGain();
     this.out.gain.value = 0.0001;
     this.out.connect(destination);
   }
 
-  /** fromIntro=false なら skip 秒目から流す */
-  start(fade: number, fromIntro = true): void {
+  start(fade: number): void {
     loadBuffer(this.ctx, this.bgm.file)
       .then((buffer) => {
         if (this.stopped) return;
@@ -46,10 +54,9 @@ export class FilePlayer {
         src.loop = this.bgm.loop;
         src.connect(this.out);
         const t = this.ctx.currentTime + 0.05;
-        src.start(t, fromIntro ? 0 : Math.min(this.bgm.skip ?? 0, buffer.duration - 1));
+        src.start(t);
         this.out.gain.setValueAtTime(0.0001, t);
         this.out.gain.exponentialRampToValueAtTime(1, t + Math.max(0.05, fade));
-        if (!this.bgm.loop) src.onended = () => !this.stopped && this.onEnd?.();
         this.source = src;
       })
       .catch(() => {

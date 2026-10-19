@@ -106,8 +106,7 @@ export class HomeScene extends Phaser.Scene {
     testButton(72, '誕生をもう一度', () => this.scene.start('Birth', { intro: true }));
 
     this.cameras.main.fadeIn(400, 0, 0, 0);
-    // 誕生の曲が流れていれば、最後まで聴かせる(終わるとホームの曲へ自然に移る)
-    if (audio.playing !== 'hatch') audio.playBgm('home');
+    audio.playBgm('home');
   }
 
   private drawBackground(): void {

@@ -94,7 +94,8 @@ export class BirthScene extends Phaser.Scene {
     cam.setScroll(0, SKY_TOP);
     cam.fadeIn(700, 0, 0, 0);
     this.tweens.add({ targets: cam, scrollY: SKY_TOP + 70, duration: 3200, ease: 'Sine.easeInOut' });
-    audio.playBgm('dragon', 2.0);
+    // メインの曲がそのまま続く(割れる直前だけ止める)
+    audio.playBgm('main', 2.0);
 
     const D = LAYOUT.dragon;
     const farWing = this.add.image(D.farPivot[0] - D.w / 2, D.farPivot[1] - D.h / 2, key('wingFar')).setOrigin(D.farPivot[0] / D.w, D.farPivot[1] / D.h);
@@ -279,7 +280,7 @@ export class BirthScene extends Phaser.Scene {
           this.spawn(monz);
           // 光がゆっくり消える
           this.tweens.add({ targets: flash, alpha: 0, duration: 1300, ease: 'Sine.easeOut', onComplete: () => flash.destroy() });
-          s(150, () => audio.playBgm('hatch', 0.8));
+          s(150, () => audio.playBgm('main', 0.8));
           flapping = false;
           this.events.off('update', flapUpdate);
           dragon.destroy();
