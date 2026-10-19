@@ -496,6 +496,98 @@ export function drawBowl(ctx: CanvasRenderingContext2D, x: number, y: number, w:
   ctx.restore();
 }
 
+/**
+ * ごはん【仮】: 骨付きの肉(マンガ肉)。bites=0〜3 でかじった跡が増え、3 で骨だけになる。
+ * 大きさは 220x150 の中に描く。
+ */
+export function drawMeat(ctx: CanvasRenderingContext2D, bites: number): void {
+  const ink = INK;
+  ctx.save();
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  // 骨(肉の左右につき出る)
+  const bone = (x: number, y: number, dir: 1 | -1) => {
+    ctx.fillStyle = '#fff6e0';
+    ctx.strokeStyle = ink;
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.rect(x - (dir > 0 ? 0 : 28), y - 9, 28, 18);
+    ctx.fill();
+    ctx.stroke();
+    for (const dy of [-11, 11]) {
+      ctx.beginPath();
+      ctx.arc(x + dir * 30, y + dy, 12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#fff6e0';
+    ctx.fillRect(x + dir * 18 - 6, y - 7, 14, 14);
+  };
+  if (bites < 3) {
+    // 肉のかたまり
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(110, 76, 74, 56, -0.08, 0, Math.PI * 2);
+    ctx.fillStyle = '#b5532c';
+    ctx.fill();
+    ctx.clip();
+    // 焼き色とつや
+    ctx.fillStyle = '#d9723c';
+    ctx.beginPath();
+    ctx.ellipse(100, 62, 58, 36, -0.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,240,210,0.75)';
+    ctx.beginPath();
+    ctx.ellipse(82, 46, 22, 9, -0.35, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(90,30,15,0.6)';
+    ctx.lineWidth = 4;
+    for (const [x0, y0] of [[120, 92], [140, 70], [96, 100]]) {
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.quadraticCurveTo(x0 + 10, y0 - 6, x0 + 20, y0);
+      ctx.stroke();
+    }
+    ctx.restore();
+    ctx.strokeStyle = ink;
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    ctx.ellipse(110, 76, 74, 56, -0.08, 0, Math.PI * 2);
+    ctx.stroke();
+    // かじった跡(右上から順に)
+    const marks: [number, number][] = [
+      [168, 38],
+      [176, 92],
+      [62, 34],
+    ];
+    ctx.globalCompositeOperation = 'destination-out';
+    for (const [x, y] of marks.slice(0, bites)) {
+      for (let k = -1; k <= 1; k++) {
+        ctx.beginPath();
+        ctx.arc(x + k * 13, y + Math.abs(k) * 5, 15, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    // 骨は肉の後ろに描く(かじった跡からも骨がのぞく)
+    ctx.globalCompositeOperation = 'destination-over';
+    bone(170, 76, 1);
+    bone(50, 76, -1);
+    ctx.globalCompositeOperation = 'source-over';
+  } else {
+    bone(170, 76, 1);
+    bone(50, 76, -1);
+    // 骨だけ
+    ctx.fillStyle = '#fff6e0';
+    ctx.strokeStyle = ink;
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.rect(50, 67, 120, 18);
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 /** ハート(なでたとき・食べたときに出す) */
 export function drawHeart(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   const s = Math.min(w, h) / 2 - 5;

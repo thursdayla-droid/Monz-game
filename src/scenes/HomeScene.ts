@@ -7,7 +7,7 @@ import { clearLife, loadLife, saveLife, Wallet } from '../core/lifeSave';
 import { mulberry32 } from '../core/rng';
 import { clearSave, loadSave } from '../core/save';
 import { BUNK_MOTION, BunkView, cutoutKey, TEST_PERSONALITY } from '../render/bunkView';
-import { drawBowl, drawCoin, drawGarage, drawHeart, drawIcon, drawMenuButton, drawPanel, drawRoom } from '../ui/homeArt';
+import { drawCoin, drawGarage, drawHeart, drawIcon, drawMeat, drawMenuButton, drawPanel, drawRoom } from '../ui/homeArt';
 import { canvasTexture, drawPaper, drawStreet, UI_FONT } from '../ui/paint';
 import { openSoundSettings } from '../ui/soundButton';
 
@@ -22,7 +22,7 @@ const MONZ_H = 1150;
 /** 下のメニュー */
 const MENU = { y: 1198, w: 111, h: 134, gap: 6 };
 /** 画面の左右のはしから、MONZの足元までの最小の距離 */
-const EDGE = 80;
+const EDGE = 110;
 const DEPTH = { monz: 10, effect: 30, ui: 40, popup: 60 };
 
 /**
@@ -271,7 +271,7 @@ export class HomeScene extends Phaser.Scene {
     if (kind === 'happy' && Math.random() < 0.7) this.hearts(2);
   }
 
-  /** ごはん【仮】: どんぶりが落ちてきて、3口で食べる */
+  /** ごはん【仮】: 骨付き肉が落ちてきて、3口で食べる(最後は骨が残って消える) */
   private feed(): void {
     const view = this.view!;
     const life = this.life!;
@@ -280,11 +280,12 @@ export class HomeScene extends Phaser.Scene {
     life.pause(6);
     audio.se('select');
     const s = this.scaleAt(life.y) / SCALE_FRONT;
-    canvasTexture(this, 'home:bowl', 230, 190, (ctx) => drawBowl(ctx, 115, 104, 205));
+    // 【仮】ごはんは骨付き肉。ひとくちごとに、かじった跡が増える
+    for (let b = 0; b <= 3; b++) canvasTexture(this, `home:meat${b}`, 220, 150, (ctx) => drawMeat(ctx, b));
     const side: 1 | -1 = insidePolygon([life.x + 150 * s * life.facing, life.y], this.floor) ? life.facing : life.facing === 1 ? -1 : 1;
     life.facing = side;
     const bx = life.x + 150 * s * side;
-    const bowl = this.add.image(bx, life.y - 220, 'home:bowl').setOrigin(0.5, 0.85).setScale(0.55 * s).setDepth(DEPTH.monz + (side > 0 ? 1 : -1)).setAlpha(0);
+    const bowl = this.add.image(bx, life.y - 220, 'home:meat0').setOrigin(0.5, 0.85).setScale(0.62 * s).setDepth(DEPTH.monz + (side > 0 ? 1 : -1)).setAlpha(0);
     this.tweens.add({ targets: bowl, alpha: 1, duration: 120 });
     this.tweens.add({
       targets: bowl,
@@ -298,7 +299,7 @@ export class HomeScene extends Phaser.Scene {
           this.time.delayedCall(700 + i * 650, () => {
             audio.se('knock', { pitch: 1.6 + i * 0.15 });
             brain.reaction = { face: i % 2 ? 'closed' : 'happy', kind: 'calm', left: 0.4, age: 0 };
-            bowl.setScale(0.55 * s * (1 - (i + 1) * 0.18));
+            bowl.setTexture(`home:meat${i + 1}`);
             const word = this.text(view.x + side * 70 * s, life.y - MONZ_H * this.scaleAt(life.y) - 10, 'もぐ', 34, '#ffffff').setDepth(DEPTH.effect);
             this.tweens.add({ targets: word, y: word.y - 50, alpha: 0, duration: 600, onComplete: () => word.destroy() });
           });
