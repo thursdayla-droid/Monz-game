@@ -245,7 +245,7 @@ export function drawGarage(ctx: CanvasRenderingContext2D, w: number, h: number, 
 }
 
 /** 下のメニューのボタン(参考画像のような、クリーム色のカードに太い輪郭)。ready=false なら「SOON」のシールを貼る */
-export function drawMenuButton(ctx: CanvasRenderingContext2D, w: number, h: number, action: HomeAction, label: string, ready: boolean, seed: number): void {
+export function drawMenuButton(ctx: CanvasRenderingContext2D, w: number, h: number, action: HomeAction, label: string, ready: boolean, seed: number, icon?: CanvasImageSource): void {
   const rng = mulberry32(seed);
   const m = 5;
   roundRectPath(ctx, m, m, w - m * 2, h - m * 2, 18);
@@ -260,7 +260,11 @@ export function drawMenuButton(ctx: CanvasRenderingContext2D, w: number, h: numb
   ctx.lineWidth = 6;
   ctx.strokeStyle = INK;
   ctx.stroke();
-  drawIcon(ctx, action, w / 2, h * 0.4, Math.min(w, h) * 0.26);
+  // 企画者のアイコン画像があればそれを、なければ仮の絵を描く
+  if (icon) {
+    const s = Math.min(w - 18, h * 0.6);
+    ctx.drawImage(icon, (w - s) / 2, h * 0.37 - s / 2, s, s);
+  } else drawIcon(ctx, action, w / 2, h * 0.4, Math.min(w, h) * 0.26);
   const size = label.length > 4 ? 19 : 23;
   ctx.font = `900 ${size}px "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif`;
   ctx.textAlign = 'center';
@@ -284,7 +288,7 @@ export function drawMenuButton(ctx: CanvasRenderingContext2D, w: number, h: numb
   ctx.textAlign = 'left';
 }
 
-/** 【仮】メニューのアイコン。企画者のアイコン画像が届いたら差しかえる */
+/** 【仮】メニューのアイコン(企画者のアイコン画像を読み込めなかったときの代わり。なでる手の動きにも使う) */
 export function drawIcon(ctx: CanvasRenderingContext2D, action: HomeAction, x: number, y: number, s: number): void {
   ctx.save();
   ctx.translate(x, y);

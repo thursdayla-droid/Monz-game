@@ -30,6 +30,9 @@ const DEPTH = { monz: 10, effect: 30, ui: 40, popup: 60 };
  */
 export const HOME_IMAGES: Partial<Record<HomePlace, string>> = { alley: 'alley.webp', garage: 'garage.webp' };
 export const homeImageKey = (p: HomePlace) => `home:bg:${p}`;
+/** 企画者のアイコン(design/home/icons.png → design/home/make_icons.py で切り分け) */
+export const HOME_ICONS = ['food', 'minigame', 'pet', 'battle', 'shop', 'settings', 'coin'] as const;
+export const homeIconKey = (name: string) => `home:icon:${name}`;
 
 /**
  * お世話画面(第1段階)。場所は「部屋・路地裏・ガレージ」から、いちばん最初に1回だけランダムで決まる。
@@ -171,7 +174,9 @@ export class HomeScene extends Phaser.Scene {
     // コインのカード
     canvasTexture(this, 'home:coinCard', 252, 84, (ctx) => {
       drawPanel(ctx, 252, 84, 93);
-      drawCoin(ctx, 44, 42, 27);
+      const coin = this.icon('coin');
+      if (coin) ctx.drawImage(coin, 6, 4, 76, 76);
+      else drawCoin(ctx, 44, 42, 27);
     });
     const coinCard = this.add.container(W - 16 - 126, 14 + 42).setDepth(DEPTH.ui);
     coinCard.add(this.add.image(0, 0, 'home:coinCard'));
@@ -194,6 +199,12 @@ export class HomeScene extends Phaser.Scene {
     });
   }
 
+  /** 企画者のアイコン画像(読み込めていなければ undefined) */
+  private icon(name: string): CanvasImageSource | undefined {
+    const key = homeIconKey(name);
+    return this.textures.exists(key) ? (this.textures.get(key).getSourceImage() as CanvasImageSource) : undefined;
+  }
+
   private saveSeen(): void {
     const data = loadLife();
     saveLife({ ...data, lastSeen: Date.now() });
@@ -207,7 +218,7 @@ export class HomeScene extends Phaser.Scene {
     const total = HOME_ACTIONS.length * MENU.w + (HOME_ACTIONS.length - 1) * MENU.gap;
     HOME_ACTIONS.forEach((action, i) => {
       const key = `home:menu:${action}`;
-      canvasTexture(this, key, MENU.w, MENU.h, (ctx) => drawMenuButton(ctx, MENU.w, MENU.h, action, HOME_ACTION_LABELS[action], HOME_ACTION_READY[action], 70 + i));
+      canvasTexture(this, key, MENU.w, MENU.h, (ctx) => drawMenuButton(ctx, MENU.w, MENU.h, action, HOME_ACTION_LABELS[action], HOME_ACTION_READY[action], 70 + i, this.icon(action)));
       const x = (W - total) / 2 + MENU.w / 2 + i * (MENU.w + MENU.gap);
       const btn = this.add.image(x, MENU.y, key).setDepth(DEPTH.ui).setInteractive({ useHandCursor: true });
       btn.on('pointerdown', () => {
