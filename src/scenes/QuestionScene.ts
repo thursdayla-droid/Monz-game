@@ -40,9 +40,6 @@ export class QuestionScene extends Phaser.Scene {
     this.show(0);
     this.cameras.main.fadeIn(300, 0, 0, 0);
     audio.playBgm('question', 1.5);
-    // 次の場面の曲を先に用意しておく
-    void audio.prepare('mystery');
-    void audio.prepare('birth');
     addSoundButton(this, W - 46, 56);
   }
 

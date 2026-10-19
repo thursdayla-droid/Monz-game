@@ -62,7 +62,7 @@ export class BirthScene extends Phaser.Scene {
       this.add.image(0, 0, 'ui:street').setOrigin(0, 0).setDepth(-10);
       this.spawn(monz, false);
       this.cameras.main.fadeIn(300, 0, 0, 0);
-      audio.playBgm('birth');
+      audio.playBgm('home');
     }
   }
 
@@ -100,7 +100,7 @@ export class BirthScene extends Phaser.Scene {
     cam.setScroll(0, WORLD_TOP);
     cam.fadeIn(800, 251, 241, 220);
     this.tweens.add({ targets: cam, scrollY: WORLD_TOP + 150, duration: 3600, ease: 'Sine.easeInOut' });
-    audio.playBgm('mystery', 2);
+    audio.playBgm('dragon', 2.5);
 
     // 籠(地面)
     const BASKET_Y = 1165;
@@ -253,7 +253,7 @@ export class BirthScene extends Phaser.Scene {
             }
             this.spawn(monz, true);
             this.tweens.add({ targets: flash, alpha: 0, duration: 900, ease: 'Cubic.easeOut', onComplete: () => flash.destroy() });
-            s(250, () => audio.playBgm('birth', 2.5));
+            s(150, () => audio.playBgm('hatch', 0.8));
             this.events.off('update', follow);
             this.events.off('update', camFollow);
           },
