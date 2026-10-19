@@ -7,7 +7,7 @@ import { clearLife, loadLife, saveLife, Wallet } from '../core/lifeSave';
 import { mulberry32 } from '../core/rng';
 import { clearSave, loadSave } from '../core/save';
 import { BUNK_MOTION, BunkView, cutoutKey, TEST_PERSONALITY } from '../render/bunkView';
-import { drawCoin, drawGarage, drawHeart, drawIcon, drawMeat, drawMenuButton, drawPanel, drawRoom } from '../ui/homeArt';
+import { drawCoin, drawGarage, drawHeart, drawIcon, drawMeat, drawMeatImage, drawMenuButton, drawPanel, drawRoom } from '../ui/homeArt';
 import { canvasTexture, drawPaper, drawStreet, UI_FONT } from '../ui/paint';
 import { openSoundSettings } from '../ui/soundButton';
 
@@ -33,6 +33,9 @@ export const homeImageKey = (p: HomePlace) => `home:bg:${p}`;
 /** 企画者のアイコン(design/home/icons.png → design/home/make_icons.py で切り分け) */
 export const HOME_ICONS = ['food', 'minigame', 'pet', 'battle', 'shop', 'settings', 'coin'] as const;
 export const homeIconKey = (name: string) => `home:icon:${name}`;
+/** 企画者の肉の絵(design/home/meat.png → design/home/make_meat.py で切り抜き) */
+export const MEAT_KEY = 'home:meatImage';
+export const MEAT_FILE = 'meat.webp';
 
 /**
  * お世話画面(第1段階)。場所は「部屋・路地裏・ガレージ」から、いちばん最初に1回だけランダムで決まる。
@@ -200,8 +203,8 @@ export class HomeScene extends Phaser.Scene {
   }
 
   /** 企画者のアイコン画像(読み込めていなければ undefined) */
-  private icon(name: string): CanvasImageSource | undefined {
-    const key = homeIconKey(name);
+  private icon(name: string, rawKey = false): CanvasImageSource | undefined {
+    const key = rawKey ? name : homeIconKey(name);
     return this.textures.exists(key) ? (this.textures.get(key).getSourceImage() as CanvasImageSource) : undefined;
   }
 
@@ -271,7 +274,7 @@ export class HomeScene extends Phaser.Scene {
     if (kind === 'happy' && Math.random() < 0.7) this.hearts(2);
   }
 
-  /** ごはん【仮】: 骨付き肉が落ちてきて、3口で食べる(最後は骨が残って消える) */
+  /** ごはん: 骨付き肉が落ちてきて、3口で食べる(かじった跡が増えて、最後は消える) */
   private feed(): void {
     const view = this.view!;
     const life = this.life!;
@@ -280,8 +283,9 @@ export class HomeScene extends Phaser.Scene {
     life.pause(6);
     audio.se('select');
     const s = this.scaleAt(life.y) / SCALE_FRONT;
-    // 【仮】ごはんは骨付き肉。ひとくちごとに、かじった跡が増える
-    for (let b = 0; b <= 3; b++) canvasTexture(this, `home:meat${b}`, 220, 150, (ctx) => drawMeat(ctx, b));
+    // ごはんは骨付き肉(企画者の絵)。ひとくちごとに、かじった跡が増える。絵を読み込めなかったときは仮の絵
+    const meat = this.icon(MEAT_KEY, true);
+    for (let b = 0; b <= 3; b++) canvasTexture(this, `home:meat${b}`, 220, meat ? 143 : 150, (ctx) => (meat ? drawMeatImage(ctx, meat, 220, 143, b) : drawMeat(ctx, b)));
     const side: 1 | -1 = insidePolygon([life.x + 150 * s * life.facing, life.y], this.floor) ? life.facing : life.facing === 1 ? -1 : 1;
     life.facing = side;
     const bx = life.x + 150 * s * side;
@@ -305,7 +309,7 @@ export class HomeScene extends Phaser.Scene {
           });
         }
         this.time.delayedCall(700 + 3 * 650, () => {
-          this.tweens.add({ targets: bowl, alpha: 0, scale: 0.1, duration: 260, onComplete: () => bowl.destroy() });
+          this.tweens.add({ targets: bowl, alpha: 0, scale: bowl.scale * 0.6, duration: 320, onComplete: () => bowl.destroy() });
           audio.se('happy');
           brain.reaction = { face: 'happy', kind: 'happy', left: 1.6, age: 0 };
           this.hearts(3);

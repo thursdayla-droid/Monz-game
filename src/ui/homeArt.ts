@@ -588,6 +588,29 @@ export function drawMeat(ctx: CanvasRenderingContext2D, bites: number): void {
   ctx.restore();
 }
 
+/**
+ * ごはん: 企画者の肉の絵(440x285)に、かじった跡(bites=0〜3)をあける。絵そのものは描き直さない。
+ * かじる場所は、肉の切り口(左がわ)から順に。
+ */
+export function drawMeatImage(ctx: CanvasRenderingContext2D, img: CanvasImageSource, w: number, h: number, bites: number): void {
+  ctx.drawImage(img, 0, 0, w, h);
+  const marks: [number, number][] = [
+    [0.12, 0.3],
+    [0.05, 0.62],
+    [0.22, 0.88],
+  ];
+  ctx.globalCompositeOperation = 'destination-out';
+  for (const [mx, my] of marks.slice(0, bites)) {
+    // 歯のあと(小さな丸を3つ並べる)
+    for (let k = -1; k <= 1; k++) {
+      ctx.beginPath();
+      ctx.arc(mx * w + k * w * 0.07, my * h + Math.abs(k) * h * 0.06, w * 0.085, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.globalCompositeOperation = 'source-over';
+}
+
 /** ハート(なでたとき・食べたときに出す) */
 export function drawHeart(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   const s = Math.min(w, h) / 2 - 5;

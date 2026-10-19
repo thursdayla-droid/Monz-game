@@ -5,7 +5,7 @@ import { clearSave } from '../core/save';
 import { loadBunk } from '../render/bunkView';
 import { loadBirth } from './BirthScene';
 import { REFERENCE_CUTOUT, REFERENCE_FILES, REFERENCE_ORIGINAL } from './CompareScene';
-import { HOME_ICONS, HOME_IMAGES, homeIconKey, homeImageKey } from './HomeScene';
+import { HOME_ICONS, HOME_IMAGES, homeIconKey, homeImageKey, MEAT_FILE, MEAT_KEY } from './HomeScene';
 import type { HomePlace } from '../core/home';
 import { TITLE_FILE, TITLE_IMAGE } from './TitleScene';
 
@@ -35,6 +35,7 @@ export class BootScene extends Phaser.Scene {
     loadBirth(this.load);
     for (const [place, file] of Object.entries(HOME_IMAGES)) this.load.image(homeImageKey(place as HomePlace), assetUrl(`assets/home/${file}`));
     for (const name of HOME_ICONS) this.load.image(homeIconKey(name), assetUrl(`assets/home/icons/${name}.webp`));
+    this.load.image(MEAT_KEY, assetUrl(`assets/home/${MEAT_FILE}`));
   }
 
   create(): void {
