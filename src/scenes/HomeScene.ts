@@ -400,9 +400,11 @@ export class HomeScene extends Phaser.Scene {
     const dt = Math.min(delta / 1000, 0.1);
     this.t += dt;
     life.update(dt);
-    // 奥ほど小さく、向きに合わせて左右反転。手前にいるほど前に描く
+    // 奥ほど小さく、手前にいるほど前に描く
     const sc = this.scaleAt(life.y);
-    view.setPosition(life.x, life.y).setScale(sc * life.facing, sc).setDepth(DEPTH.monz + this.depthOf(life.y));
+    // 左を向くときは反転する(目は反転しない。BunkView.mirrored)
+    view.mirrored = life.facing < 0;
+    view.setPosition(life.x, life.y).setScale(sc).setDepth(DEPTH.monz + this.depthOf(life.y));
     view.render(life.body, this.t);
     this.shadow?.setPosition(life.x, life.y + 2).setScale(sc / SCALE_FRONT).setDepth(DEPTH.monz - 1);
     const brain = life.body;

@@ -65,7 +65,13 @@ interface PoseView {
   items: Item[];
   face: Phaser.GameObjects.Image;
   cutout: Phaser.GameObjects.Image;
+  /** 左右反転したときに上から重ねる、反転していない元の目(元画像から切り抜き) */
+  eyeFix: { img: Phaser.GameObjects.Image; x: number }[];
 }
+
+/** 目のまわりを少し広めに切り抜く幅(元画像の px)。反転した目が、はみ出して見えないようにする */
+const EYE_MARGIN = 16;
+const eyeFixKey = (pose: BunkPoseName, eye: string) => `bunk:eyefix:${pose}:${eye}`;
 
 export class BunkView extends Phaser.GameObjects.Container {
   private readonly actor: Phaser.GameObjects.Container;
@@ -76,6 +82,13 @@ export class BunkView extends Phaser.GameObjects.Container {
   private blinkUntil = -1;
   /** true: 元画像と同じ姿で止める(呼吸なども止める) */
   still = true;
+  /**
+   * true: 左右反転(左を向く)。企画者の指示で、目は反転させない:
+   * 顔のまん中の線で体を反転し、その上に元の向きの目(元画像から切り抜き)を重ねる。表情の顔も反転させない。
+   */
+  mirrored = false;
+  /** 顔のまん中の線(元画像の x)。左右の目のまん中 */
+  private faceAxis = 0;
   showOriginal = false;
 
   constructor(scene: Phaser.Scene, x: number, y: number, scale: number) {
@@ -84,6 +97,7 @@ export class BunkView extends Phaser.GameObjects.Container {
     this.actor = scene.add.container(0, 0);
     this.add(this.actor);
     for (const pose of POSES) this.views[pose] = this.build(scene, pose);
+    this.addEyeFix(scene);
     this.setScale(scale);
     this.setSize(1100, 1150);
     this.setInteractive(new Phaser.Geom.Rectangle(-550, -1150, 1100, 1150), Phaser.Geom.Rectangle.Contains);
@@ -141,7 +155,59 @@ export class BunkView extends Phaser.GameObjects.Container {
     }
     const cutout = scene.add.image(0, 0, cutoutKey(pose)).setOrigin(0, 0).setVisible(false);
     root.add(cutout);
-    return { root, groups, items, face, cutout };
+    return { root, groups, items, face, cutout, eyeFix: [] };
+  }
+
+  /**
+   * 反転したときに重ねる「元の向きの目」を用意する。目の場所は構えた姿の目のパーツから決める(腕を下ろした姿も同じ場所)。
+   * 元画像(各姿の切り抜き)から目のまわりを楕円にぼかして切り出すだけで、描き直さない。
+   */
+  private addEyeFix(scene: Phaser.Scene): void {
+    const manifest = scene.cache.json.get(manifestKey('guard')) as PartsManifest;
+    const eyes = ['eye_l', 'eye_r'].map((n) => manifest.parts[n]).filter(Boolean);
+    if (eyes.length < 2) return;
+    this.faceAxis = eyes.reduce((s, e) => s + e.x + e.w / 2, 0) / eyes.length;
+    const [bx, by] = BUNK_MOTION.breath.pivot;
+    for (const pose of POSES) {
+      const v = this.views[pose];
+      const src = scene.textures.get(cutoutKey(pose)).getSourceImage() as HTMLImageElement;
+      const sx = src.width / manifest.width;
+      const sy = src.height / manifest.height;
+      const group = v.groups.find((g) => g.exists(v.face));
+      if (!group) continue;
+      eyes.forEach((e, i) => {
+        const x = e.x - EYE_MARGIN;
+        const y = e.y - EYE_MARGIN;
+        const w = e.w + EYE_MARGIN * 2;
+        const h = e.h + EYE_MARGIN * 2;
+        const key = eyeFixKey(pose, i ? 'r' : 'l');
+        if (!scene.textures.exists(key)) {
+          const tex = scene.textures.createCanvas(key, w, h);
+          const ctx = tex?.getContext();
+          if (!tex || !ctx) return;
+          ctx.drawImage(src, x * sx, y * sy, w * sx, h * sy, 0, 0, w, h);
+          // ふちをぼかした楕円で切り抜く
+          const g = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+          g.addColorStop(0, 'rgba(0,0,0,1)');
+          g.addColorStop(0.86, 'rgba(0,0,0,1)');
+          g.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.globalCompositeOperation = 'destination-in';
+          ctx.save();
+          ctx.translate(w / 2, h / 2);
+          ctx.scale(1, h / w);
+          ctx.translate(-w / 2, -w / 2);
+          ctx.fillStyle = g;
+          ctx.fillRect(0, 0, w, w);
+          ctx.restore();
+          ctx.globalCompositeOperation = 'source-over';
+          tex.refresh();
+        }
+        const img = scene.add.image(0, y - by, key).setOrigin(0, 0).setVisible(false);
+        // 表情の顔のすぐ下(目のパーツより上、グローブより下)に入れる
+        group.addAt(img, group.getIndex(v.face));
+        v.eyeFix.push({ img, x: x - bx });
+      });
+    }
   }
 
   setShowFill(show: boolean): void {
@@ -186,12 +252,20 @@ export class BunkView extends Phaser.GameObjects.Container {
             .setScale(1 + (pj?.scale ?? 0) * jab);
         }
       }
+      // 反転しているときは、顔のまん中の線を軸に、目と表情の顔だけもう一度反転して元の向きに戻す
+      const axis = this.faceAxis - m.breath.pivot[0];
+      const unflipX = (x: number) => (this.mirrored ? 2 * axis - x : x);
       if (face) {
         const fm = this.faces.faces[face];
-        v.face.setTexture(faceKey(face)).setPosition(fm.x - m.breath.pivot[0], fm.y - m.breath.pivot[1]).setVisible(true);
+        v.face
+          .setTexture(faceKey(face))
+          .setPosition(unflipX(fm.x - m.breath.pivot[0]), fm.y - m.breath.pivot[1])
+          .setScale(this.mirrored ? -1 : 1, 1)
+          .setVisible(true);
       } else {
         v.face.setVisible(false);
       }
+      for (const e of v.eyeFix) e.img.setVisible(this.mirrored && !this.showOriginal).setPosition(unflipX(e.x), e.img.y).setScale(-1, 1);
       v.cutout.setVisible(this.showOriginal);
       for (const g of v.groups) g.setVisible(!this.showOriginal);
       for (const it of v.items) if (!v.groups.some((g) => g.exists(it.objs[0]))) it.objs[0].setVisible(!this.showOriginal);
@@ -226,6 +300,8 @@ export class BunkView extends Phaser.GameObjects.Container {
         if (r.kind === 'surprised') y -= Math.max(0, Math.sin(Math.min(r.age * 7, Math.PI))) * b.happyHop * 1.4;
       }
     }
-    this.actor.setPosition(x, y).setRotation((rot * Math.PI) / 180).setScale(sx, sy);
+    // 反転は顔のまん中の線を軸にする(足元の中心とは少しずれている)
+    const flipShift = this.mirrored ? 2 * (this.faceAxis - m.anchor[0]) : 0;
+    this.actor.setPosition(x + flipShift, y).setRotation((rot * Math.PI) / 180).setScale(this.mirrored ? -sx : sx, sy);
   }
 }
