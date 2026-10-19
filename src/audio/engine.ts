@@ -1,3 +1,5 @@
+import { BGM_FILES } from './bgmFiles';
+import { FilePlayer } from './filePlayer';
 import { SongPlayer } from './player';
 import { SONGS, type SongName } from './songs';
 import { loadSound, saveSound, stepToGain, type SoundSettings } from './settings';
@@ -13,7 +15,7 @@ class AudioEngine {
   private ctx: AudioContext | null = null;
   private bgmBus: GainNode | null = null;
   private seBus: GainNode | null = null;
-  private current: SongPlayer | null = null;
+  private current: SongPlayer | FilePlayer | null = null;
   private wanted: SongName | null = null;
   settings: SoundSettings = loadSound();
 
@@ -78,11 +80,15 @@ class AudioEngine {
     if (this.current?.song.name === name) return;
     this.current?.stop(fade);
     const song = SONGS[name];
-    const player = new SongPlayer(this.ctx, this.bgmBus, song, () => {
-      // A song with a next (e.g. the birth song) moves into that song when it ends
+    // A song with a next (e.g. the birth song) moves into that song when it ends
+    const onEnd = () => {
       if (this.current === player && song.next) this.playBgm(song.next, 3);
-    });
-    player.start(fade, startBar);
+    };
+    // 企画者の曲ファイルがあればそれを、なければプログラムの曲を流す
+    const file = BGM_FILES[name];
+    const player = file ? new FilePlayer(this.ctx, this.bgmBus, song, file, onEnd) : new SongPlayer(this.ctx, this.bgmBus, song, onEnd);
+    if (player instanceof FilePlayer) player.start(fade, startBar === 0);
+    else player.start(fade, startBar);
     this.current = player;
   }
 
