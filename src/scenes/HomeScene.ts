@@ -33,6 +33,21 @@ export const homeImageKey = (p: HomePlace) => `home:bg:${p}`;
 /** 企画者のアイコン(design/home/icons.png → design/home/make_icons.py で切り分け) */
 export const HOME_ICONS = ['food', 'minigame', 'pet', 'battle', 'shop', 'settings', 'coin'] as const;
 export const homeIconKey = (name: string) => `home:icon:${name}`;
+/**
+ * 企画者のBUNKの姿(design/bunk/poses/ → make_poses.py で切り抜き)。お世話画面の行動に合わせて出す。
+ * height: 立っているBUNKの高さに対する大きさ。これらの姿は反転しない(目が入れかわらないように)。
+ */
+export const BUNK_POSE_IMAGES = {
+  sit: { height: 0.82 },
+  sleep: { height: 0.66 },
+  stretch: { height: 1.12 },
+  look: { height: 0.98 },
+  hungry: { height: 1.02 },
+  sleepy: { height: 1.0 },
+} as const;
+export type BunkPoseImage = keyof typeof BUNK_POSE_IMAGES;
+export const bunkPoseKey = (name: string) => `bunk:pose:${name}`;
+
 /** 企画者の肉の絵(design/home/meat.png → design/home/make_meat.py で切り抜き) */
 export const MEAT_KEY = 'home:meatImage';
 export const MEAT_FILE = 'meat.webp';
@@ -55,6 +70,9 @@ export class HomeScene extends Phaser.Scene {
   private record?: LifeRecord;
   private saveTimer = 0;
   private bubble?: Phaser.GameObjects.Image;
+  /** 行動に合わせた姿の絵(座る・眠る・伸び・見渡す・お腹がすいた・眠い)。出している間は BunkView を隠す */
+  private poseImg?: Phaser.GameObjects.Image;
+  private shownPose: BunkPoseImage | null = null;
   place: HomePlace = 'room';
 
   constructor() {
@@ -87,6 +105,8 @@ export class HomeScene extends Phaser.Scene {
     view.still = false;
     this.view = view;
     view.on('pointerdown', () => this.tapMonz());
+    this.poseImg = this.add.image(life.x, life.y, '__DEFAULT').setOrigin(0.5, 1).setVisible(false).setInteractive({ useHandCursor: true, pixelPerfect: false });
+    this.poseImg.on('pointerdown', () => this.tapMonz());
     this.zText = this.text(0, 0, 'z', 34, '#ffffff').setVisible(false);
 
     this.buildTop(NAMES[monz] ?? monz.toUpperCase());
@@ -234,6 +254,55 @@ export class HomeScene extends Phaser.Scene {
   private icon(name: string, rawKey = false): CanvasImageSource | undefined {
     const key = rawKey ? name : homeIconKey(name);
     return this.textures.exists(key) ? (this.textures.get(key).getSourceImage() as CanvasImageSource) : undefined;
+  }
+
+  /** 今の行動に合う姿の絵(なければ null = ふつうのBUNKを動かす) */
+  private poseFor(): BunkPoseImage | null {
+    const life = this.life!;
+    if (life.isPaused || life.body.reaction?.kind === 'happy' || life.body.reaction?.kind === 'angry' || life.body.reaction?.kind === 'surprised') return null;
+    const n = this.record?.needs;
+    const has = (p: BunkPoseImage) => (this.textures.exists(bunkPoseKey(p)) ? p : null);
+    switch (life.act) {
+      case 'sleep':
+        return has('sleep');
+      case 'stretch':
+        return has('stretch');
+      case 'beg':
+        return has('hungry');
+      case 'look':
+        // 見渡す: 横を向いた絵と、正面のBUNKを交互に
+        return life.facing < 0 ? has('look') : null;
+      case 'rest':
+        if (n && n.mood < 0.3) return null;
+        return n && n.sleepy > 0.6 ? has('sleepy') : has('sit');
+      default:
+        return null;
+    }
+  }
+
+  private showPose(pose: BunkPoseImage | null, sc: number): void {
+    const img = this.poseImg!;
+    const life = this.life!;
+    const view = this.view!;
+    if (pose !== this.shownPose) {
+      this.shownPose = pose;
+      if (pose) {
+        img.setTexture(bunkPoseKey(pose));
+        // 切りかわるときに、少しだけふわっと
+        img.setAlpha(0.4);
+        this.tweens.add({ targets: img, alpha: 1, duration: 160 });
+      }
+      img.setVisible(!!pose);
+      view.setVisible(!pose);
+    }
+    if (!pose) return;
+    const target = BUNK_POSE_IMAGES[pose].height * MONZ_H * sc;
+    const base = target / img.height;
+    // ゆっくり呼吸(眠っているときはもっとゆっくり)。伸びは、ぐーっと上へ
+    const period = pose === 'sleep' ? 3.2 : 2.2;
+    const breath = 1 + 0.018 * Math.sin((this.t * Math.PI * 2) / period);
+    const stretchUp = pose === 'stretch' ? 1 + 0.04 * Math.sin(Math.min(1, (this.t % 2.4) / 1.2) * Math.PI) : 1;
+    img.setPosition(life.x, life.y + 4).setScale(base * (2 - breath), base * breath * stretchUp).setDepth(DEPTH.monz + this.depthOf(life.y));
   }
 
   /** 頭の上の吹き出し(肉の絵) */
@@ -490,17 +559,21 @@ export class HomeScene extends Phaser.Scene {
       if (save) this.saveTimer = 0;
       record.tick(dt, Date.now(), save);
     }
-    // お腹がすいてごはんを欲しがっているときは、頭の上に肉の吹き出し
-    this.showBubble(life.act === 'beg' && !life.isPaused);
     // 奥ほど小さく、手前にいるほど前に描く
     const sc = this.scaleAt(life.y);
+    // 行動に合わせて、企画者の姿の絵に切りかえる
+    const pose = this.poseFor();
+    this.showPose(pose, sc);
+    // お腹がすいてごはんを欲しがっているときは、頭の上に肉の吹き出し(お腹がすいた姿の絵には吹き出しが描いてあるので出さない)
+    this.showBubble(life.act === 'beg' && !life.isPaused && pose !== 'hungry');
     // 左を向くときは反転する(目は反転しない。BunkView.mirrored)
     view.mirrored = life.facing < 0;
     view.setPosition(life.x, life.y).setScale(sc).setDepth(DEPTH.monz + this.depthOf(life.y));
     view.render(life.body, this.t);
     this.shadow?.setPosition(life.x, life.y + 2).setScale(sc / SCALE_FRONT).setDepth(DEPTH.monz - 1);
     const brain = life.body;
-    const sleeping = brain.activity === 'sleep' && !brain.switching;
+    // 眠っている姿の絵には「Z」が描いてあるので、そのときは出さない
+    const sleeping = brain.activity === 'sleep' && !brain.switching && this.shownPose !== 'sleep';
     this.zText?.setVisible(sleeping);
     if (sleeping && this.zText) {
       const k = (this.t % 2) / 2;

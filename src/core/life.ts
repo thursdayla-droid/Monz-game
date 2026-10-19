@@ -11,7 +11,7 @@ import { range, type Rng } from './rng';
  * 第2段階: お腹・眠さ・機嫌(src/core/needs.ts)で、選ぶ行動と表情が変わる。
  *   お腹がすく → しょんぼりして、ごはんを欲しがる(beg) / 眠い → よく眠る / 機嫌がいい → よく跳ねる・こっちを見る / 悪い → じっとする
  */
-export type LifeAct = 'idle' | 'walk' | 'explore' | 'look' | 'rest' | 'sleep' | 'hop' | 'lookAtYou' | 'box' | 'beg';
+export type LifeAct = 'idle' | 'walk' | 'explore' | 'look' | 'rest' | 'sleep' | 'hop' | 'lookAtYou' | 'box' | 'stretch' | 'beg';
 
 interface ActRule {
   weight: number;
@@ -29,6 +29,7 @@ export const LIFE_RULES: Record<Exclude<LifeAct, 'idle'>, ActRule> = {
   hop: { weight: 1.5, time: [1.4, 1.4] },
   lookAtYou: { weight: 2, time: [2, 3.5] },
   box: { weight: 1.5, time: [2, 3.5] },
+  stretch: { weight: 1.2, time: [1.8, 2.4] },
   // お腹がすいたときだけ選ぶ
   beg: { weight: 0, time: [3, 5] },
 };
@@ -45,6 +46,7 @@ export function needWeights(n: Needs): Partial<Record<Exclude<LifeAct, 'idle'>, 
   if (n.sleepy > 0.6) {
     mul('sleep', 3);
     mul('rest', 1.5);
+    mul('stretch', 1.5);
     mul('hop', 0.5);
     mul('explore', 0.5);
   }
@@ -178,6 +180,11 @@ export class MonzLife {
       else this.begin('sleep', range(this.rng, 20, 40));
       return;
     }
+    // 起きたら、まず伸びをする
+    if (this.act === 'sleep') {
+      this.begin('stretch', range(this.rng, ...LIFE_RULES.stretch.time));
+      return;
+    }
     if (this.act === 'explore' && this.stops > 0 && !this.target) {
       this.walkTo(this.pickTarget(160, 420));
       return;
@@ -236,6 +243,9 @@ export class MonzLife {
         body.setPose('down');
         if (this.needs().mood < 0.3) body.reaction = { face: 'sad', kind: 'calm', left: seconds, age: 0 };
         else if (this.needs().sleepy > 0.6) body.reaction = { face: 'closed', kind: 'calm', left: seconds, age: 0 };
+        break;
+      case 'stretch':
+        body.start('idle');
         break;
       case 'beg':
         // ごはんを欲しがる: こっちを向いて、しょんぼり顔(画面に肉の吹き出しを出す)
