@@ -12,4 +12,7 @@ export interface BgmFile {
   skip?: number;
 }
 
-export const BGM_FILES: Partial<Record<SongName, BgmFile>> = {};
+export const BGM_FILES: Partial<Record<SongName, BgmFile>> = {
+  // 企画者の曲「Smooth Minimal Groove」(2026-10-19・Sunoで作成)。前奏と終わりが静かなので、そのまま最初に戻ってくり返す
+  home: { file: 'home.mp3', loop: true },
+};
