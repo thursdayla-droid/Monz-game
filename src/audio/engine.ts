@@ -66,6 +66,11 @@ class AudioEngine {
     this.seBus.gain.setTargetAtTime(stepToGain(this.settings.se), t, 0.02);
   }
 
+  /** The song playing now (null if none) */
+  get playing(): SongName | null {
+    return this.current?.song.name ?? null;
+  }
+
   /** Play the song for this scene, crossfading. Does nothing if the same song is already playing */
   playBgm(name: SongName, fade = 1.5, startBar = 0): void {
     this.wanted = name;

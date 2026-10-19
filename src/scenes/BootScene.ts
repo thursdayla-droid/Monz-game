@@ -3,6 +3,8 @@ import { assetUrl } from '../assetUrl';
 import { clearSave } from '../core/save';
 import { loadBunk } from '../render/bunkView';
 import { REFERENCE_CUTOUT, REFERENCE_FILES, REFERENCE_ORIGINAL } from './CompareScene';
+import { HOME_IMAGES, homeImageKey } from './HomeScene';
+import type { HomePlace } from '../core/home';
 import { TITLE_FILE, TITLE_IMAGE } from './TitleScene';
 
 /** ふだんは「TAP TO START」→タイトル画面から始める。?parts でBUNKの動きのテスト画面、?compare で元画像との比較画面(開発用)を直接開く */
@@ -24,6 +26,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image(REFERENCE_ORIGINAL, assetUrl(REFERENCE_FILES.original));
     this.load.image(REFERENCE_CUTOUT, assetUrl(REFERENCE_FILES.cutout));
     loadBunk(this.load);
+    for (const [place, file] of Object.entries(HOME_IMAGES)) this.load.image(homeImageKey(place as HomePlace), assetUrl(`assets/home/${file}`));
   }
 
   create(): void {

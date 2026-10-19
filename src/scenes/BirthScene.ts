@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { BunkBrain } from '../core/bunkBehavior';
-import { clearSave, loadSave } from '../core/save';
+import { loadSave } from '../core/save';
 import { BUNK_MOTION, BunkView, TEST_PERSONALITY } from '../render/bunkView';
 import { mulberry32, range } from '../core/rng';
 import {
@@ -25,7 +25,7 @@ import {
   drawShell,
   drawSkyWorld,
 } from '../ui/birthArt';
-import { canvasTexture, drawStreet, UI_FONT } from '../ui/paint';
+import { canvasTexture, UI_FONT } from '../ui/paint';
 import { createNameplate } from '../ui/nameplate';
 import { addSoundButton } from '../ui/soundButton';
 
@@ -38,7 +38,7 @@ const NAMES: Record<string, string> = { bunk: 'BUNK' };
 /**
  * 誕生の演出と、最初のMONZとの出会い。
  * intro=true: 質問のあと(ドラゴンが運んだ卵が籠に落ちて割れ、MONZが現れる)。intro=false: 2回目からの起動(すぐ表示)。
- * 【仮】出会ったあとは、この画面が仮のホーム(部屋ができたら差しかえる)。
+ * 出会ったあとはホーム(HomeScene)へ移る。
  */
 export class BirthScene extends Phaser.Scene {
   private view?: BunkView;
@@ -57,13 +57,8 @@ export class BirthScene extends Phaser.Scene {
     const monz = loadSave()?.firstMonz ?? 'bunk';
     addSoundButton(this, 56, H - 56).setScrollFactor(0);
     if (data.intro) this.playIntro(monz);
-    else {
-      canvasTexture(this, 'ui:street', W, H, (ctx) => drawStreet(ctx, W, H));
-      this.add.image(0, 0, 'ui:street').setOrigin(0, 0).setDepth(-10);
-      this.spawn(monz, false);
-      this.cameras.main.fadeIn(300, 0, 0, 0);
-      audio.playBgm('home');
-    }
+    // 2回目からはホームへ(古い呼び方への備え)
+    else this.scene.start('Home');
   }
 
   /**
@@ -251,7 +246,7 @@ export class BirthScene extends Phaser.Scene {
               this.tweens.add({ targets: sh, x: sh.x + dx, y: sh.y + dy, angle: spin, duration: 650, ease: 'Quad.easeOut' });
               this.tweens.add({ targets: sh, y: FLOOR_Y + 60, alpha: 0, delay: 650, duration: 900, ease: 'Quad.easeIn', onComplete: () => sh.destroy() });
             }
-            this.spawn(monz, true);
+            this.spawn(monz);
             this.tweens.add({ targets: flash, alpha: 0, duration: 900, ease: 'Cubic.easeOut', onComplete: () => flash.destroy() });
             s(150, () => audio.playBgm('hatch', 0.8));
             this.events.off('update', follow);
@@ -262,14 +257,14 @@ export class BirthScene extends Phaser.Scene {
     };
   }
 
-  /** MONZを出す。born=true なら誕生直後(喜んで跳ねる、文字を出す) */
-  private spawn(monz: string, born: boolean): void {
+  /** 卵からMONZを出す(喜んで跳ね、名前を出す) */
+  private spawn(monz: string): void {
     const view = new BunkView(this, W / 2, FLOOR_Y, SCALE);
     view.setDepth(2);
     view.still = false;
     const brain = new BunkBrain(BUNK_MOTION.behavior, Date.now() & 0xffff, TEST_PERSONALITY);
     brain.jabDuration = BUNK_MOTION.poses.guard.jab?.duration ?? 0.34;
-    brain.hold = born;
+    brain.hold = true;
     this.view = view;
     this.brain = brain;
     this.alive = true;
@@ -279,34 +274,20 @@ export class BirthScene extends Phaser.Scene {
     });
     this.zText = this.text(0, 0, 'z', 38, '#ffffff').setVisible(false);
 
-    // 【テスト用】回答を消して質問からやり直す(URL に ?reset を付けられない環境のため)
-    this.add
-      .text(W - 20, 24, '最初から', { fontFamily: UI_FONT, fontSize: '22px', color: '#ffffff', backgroundColor: '#16101caa', padding: { x: 10, y: 6 } })
-      .setOrigin(1, 0)
-      .setDepth(6)
-      .setInteractive({ useHandCursor: true })
-      .on('pointerdown', () => {
-        clearSave();
-        this.scene.start('Title');
-      });
-
+    // 誕生直後: 喜んで跳ね、名前を出したあと、ホームへ移る
     const name = NAMES[monz] ?? monz.toUpperCase();
-    if (born) {
-      brain.reaction = { face: 'happy', kind: 'happy', left: 2.2, age: 0 };
-      view.setScale(SCALE * 0.2);
-      this.tweens.add({ targets: view, scale: SCALE, duration: 520, ease: 'Back.easeOut' });
-      const plate = createNameplate(this, name, W / 2, 250);
-      plate.reveal();
-      this.time.delayedCall(3600, () => {
-        brain.hold = false;
-        plate.dock(true);
-        const hint = this.text(W / 2, H - 70, 'タップするとなでられるよ', 30, '#ffffff').setAlpha(0);
-        this.tweens.add({ targets: hint, alpha: 1, duration: 400 });
+    brain.reaction = { face: 'happy', kind: 'happy', left: 2.2, age: 0 };
+    view.setScale(SCALE * 0.2);
+    this.tweens.add({ targets: view, scale: SCALE, duration: 520, ease: 'Back.easeOut' });
+    const plate = createNameplate(this, name, W / 2, 250);
+    plate.reveal();
+    this.time.delayedCall(3600, () => {
+      plate.dock(true);
+      this.time.delayedCall(1400, () => {
+        this.cameras.main.fadeOut(500, 0, 0, 0);
+        this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('Home'));
       });
-    } else {
-      createNameplate(this, name, W / 2, 250).dock(false);
-      this.text(W / 2, H - 70, 'タップするとなでられるよ', 30, '#ffffff');
-    }
+    });
   }
 
   private text(x: number, y: number, s: string, size: number, color: string): Phaser.GameObjects.Text {

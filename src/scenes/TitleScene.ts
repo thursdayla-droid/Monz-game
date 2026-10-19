@@ -73,7 +73,7 @@ export class TitleScene extends Phaser.Scene {
       leaving = true;
       audio.se('next');
       this.cameras.main.fadeOut(300, 0, 0, 0);
-      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start(loadSave() ? 'Birth' : 'Question', { intro: false }));
+      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start(loadSave() ? 'Home' : 'Question', { intro: false }));
     });
   }
 }

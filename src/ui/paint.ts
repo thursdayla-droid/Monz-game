@@ -65,7 +65,7 @@ export function splat(ctx: CanvasRenderingContext2D, x: number, y: number, r: nu
 }
 
 /** 細かいスプレーの粒 */
-function speckle(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, count: number, rng: Rng, colors = SPLAT_COLORS): void {
+export function speckle(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, count: number, rng: Rng, colors = SPLAT_COLORS): void {
   for (let i = 0; i < count; i++) {
     ctx.fillStyle = colors[Math.floor(rng() * colors.length)];
     ctx.globalAlpha = range(rng, 0.35, 0.9);
@@ -76,7 +76,7 @@ function speckle(ctx: CanvasRenderingContext2D, x: number, y: number, w: number,
   ctx.globalAlpha = 1;
 }
 
-function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
+export function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
   ctx.arcTo(x + w, y, x + w, y + h, r);
