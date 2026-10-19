@@ -9,11 +9,17 @@ export const TITLE_FILE = 'assets/title/title.png';
 
 /**
  * タイトル画面。企画者が用意したタイトルの絵(design/title/title.png)をそのまま全面に出す。
- * Tap (after the music turns on) to go to the questions the first time、2回目からは出会ったMONZの画面(【仮】ホーム)へ進む。
+ * タップすると、初回は質問へ、2回目からは出会ったMONZの画面(【仮】ホーム)へ進む。
  */
 export class TitleScene extends Phaser.Scene {
   constructor() {
     super('Title');
+  }
+
+  private fromSplash = false;
+
+  init(data: { fromSplash?: boolean }): void {
+    this.fromSplash = !!data?.fromSplash;
   }
 
   create(): void {
@@ -35,9 +41,20 @@ export class TitleScene extends Phaser.Scene {
       .setOrigin(0.5);
     this.tweens.add({ targets: tap, alpha: 0.25, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
 
-    // Title song. An iPhone can't play sound until the first tap, so
-    // the first tap only starts the music, and the next tap begins the game (skipped if sound is already on)
-    audio.playBgm('title');
+    // タイトル曲。ふつうは前の「TAP TO START」で音が出せる状態になっているので、
+    // ジャーン!の音と一緒に絵がドンと出て、曲はドラムが入るところ(4小節目)から流れる。
+    // 音がまだ出せないとき(テスト用に直接開いた等)は、1回目のタップで音楽だけ始める
+    const base = img.scale;
+    if (this.fromSplash && audio.unlocked) {
+      audio.se('sting');
+      img.setScale(base * 1.12);
+      this.tweens.add({ targets: img, scale: base, duration: 520, ease: 'Back.easeOut' });
+      this.cameras.main.flash(260, 255, 255, 255);
+      this.cameras.main.shake(180, 0.006);
+      this.time.delayedCall(450, () => audio.playBgm('title', 0.2, 4));
+    } else {
+      audio.playBgm('title');
+    }
     addSoundButton(this, width - 60, 60);
     const label = () => tap.setText(audio.unlocked ? 'タップしてはじめる' : '♪ タップして音楽をON');
     label();
@@ -49,7 +66,7 @@ export class TitleScene extends Phaser.Scene {
       if (!audio.unlocked) {
         audio.unlock();
         audio.se('select');
-        this.tweens.add({ targets: img, scale: img.scale * 1.02, duration: 120, yoyo: true });
+        this.tweens.add({ targets: img, scale: base * 1.02, duration: 120, yoyo: true });
         label();
         return;
       }

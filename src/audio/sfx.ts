@@ -18,7 +18,8 @@ export type SeName =
   | 'slam'
   | 'happy'
   | 'angry'
-  | 'surprised';
+  | 'surprised'
+  | 'sting';
 
 let noise: AudioBuffer | null = null;
 function noiseBuf(ctx: BaseAudioContext): AudioBuffer {
@@ -136,6 +137,21 @@ export function playSe(ctx: AudioContext, out: AudioNode, name: SeName, pitch: n
     case 'angry':
       tone(ctx, out, t, 'sawtooth', [[0, 150 * p], [0.3, 120 * p]], [[0, 0.0001], [0.02, 0.09], [0.35, 0.0001]], 0.37);
       break;
+    case 'sting': {
+      // タイトルが出る瞬間の「ジャーン!」(低いドン + 明るい和音 + シンバル)
+      tone(ctx, out, t, 'sine', [[0, 120], [0.3, 40]], [[0, 0.9], [0.6, 0.0001]], 0.65);
+      tone(ctx, out, t, 'triangle', [[0, 69.3]], [[0, 0.0001], [0.01, 0.35], [1.6, 0.0001]], 1.7);
+      hiss(ctx, out, t, 'highpass', [[0, 5000]], 0.7, [[0, 0.32], [1.6, 0.0001]], 1.7);
+      hiss(ctx, out, t, 'bandpass', [[0, 1500]], 0.8, [[0, 0.4], [0.12, 0.0001]], 0.14);
+      // D♭メジャー9の和音(タイトル曲と同じ調)。少しずつずらして広がりを出す
+      const chord = [49, 61, 65, 68, 72, 75, 80];
+      chord.forEach((m, i) => {
+        const f = 440 * Math.pow(2, (m - 69) / 12);
+        tone(ctx, out, t + i * 0.012, 'sawtooth', [[0, f]], [[0, 0.0001], [0.01, 0.045], [0.25, 0.02], [1.8, 0.0001]], 1.9);
+        tone(ctx, out, t + i * 0.012, 'triangle', [[0, f * 2]], [[0, 0.0001], [0.01, 0.06], [1.4, 0.0001]], 1.5);
+      });
+      break;
+    }
     case 'surprised':
       tone(ctx, out, t, 'square', [[0, 330 * p], [0.1, 820 * p]], [[0, 0.0001], [0.02, 0.1], [0.18, 0.0001]], 0.2);
       break;

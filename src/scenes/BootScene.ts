@@ -5,11 +5,11 @@ import { loadBunk } from '../render/bunkView';
 import { REFERENCE_CUTOUT, REFERENCE_FILES, REFERENCE_ORIGINAL } from './CompareScene';
 import { TITLE_FILE, TITLE_IMAGE } from './TitleScene';
 
-/** ふだんはタイトル画面から始める。?parts でBUNKの動きのテスト画面、?compare で元画像との比較画面(開発用)を直接開く */
+/** ふだんは「TAP TO START」→タイトル画面から始める。?parts でBUNKの動きのテスト画面、?compare で元画像との比較画面(開発用)を直接開く */
 const query = new URLSearchParams(location.search);
 /** ?reset を付けると、保存した回答を消して最初(質問)からやり直す(テスト用) */
 if (query.has('reset')) clearSave();
-const START = query.has('compare') ? 'Compare' : query.has('parts') ? 'BunkParts' : 'Title';
+const START = query.has('compare') ? 'Compare' : query.has('parts') ? 'BunkParts' : 'Splash';
 
 export class BootScene extends Phaser.Scene {
   constructor() {

@@ -67,7 +67,7 @@ class AudioEngine {
   }
 
   /** Play the song for this scene, crossfading. Does nothing if the same song is already playing */
-  playBgm(name: SongName, fade = 1.5): void {
+  playBgm(name: SongName, fade = 1.5, startBar = 0): void {
     this.wanted = name;
     if (!this.ctx || !this.bgmBus) return;
     if (this.current?.song.name === name) return;
@@ -77,7 +77,7 @@ class AudioEngine {
       // A song with a next (e.g. the birth song) moves into that song when it ends
       if (this.current === player && song.next) this.playBgm(song.next, 3);
     });
-    player.start(fade);
+    player.start(fade, startBar);
     this.current = player;
   }
 

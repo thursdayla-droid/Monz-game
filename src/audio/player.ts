@@ -25,7 +25,9 @@ export class SongPlayer {
     this.band = new Band(ctx, destination);
   }
 
-  start(fade: number): void {
+  /** startBar: which bar to start from (e.g. skip the quiet intro and start at the drums) */
+  start(fade: number, startBar = 0): void {
+    this.bar = Math.max(0, Math.min(startBar, totalBars(this.song) - 1));
     const t = this.ctx.currentTime + 0.08;
     this.band.out.gain.setValueAtTime(0.0001, t);
     this.band.out.gain.exponentialRampToValueAtTime(1, t + Math.max(0.05, fade));
