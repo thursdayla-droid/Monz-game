@@ -41,12 +41,13 @@ export function addSoundButton(scene: Phaser.Scene, x: number, y: number): Phase
     ev.stopPropagation();
     audio.unlock();
     audio.se('tap');
-    openPanel(scene, draw);
+    openSoundSettings(scene, draw);
   });
   return btn;
 }
 
-function openPanel(scene: Phaser.Scene, onChange: () => void): void {
+/** 音の設定(BGM・効果音の音量)を開く。お世話画面の「設定」ボタンからも使う */
+export function openSoundSettings(scene: Phaser.Scene, onChange: () => void = () => {}): void {
   const { width, height } = scene.scale;
   const layer = scene.add.container(0, 0).setDepth(DEPTH + 1);
   const shade = scene.add.rectangle(0, 0, width, height, 0x0d0614, 0.7).setOrigin(0, 0).setInteractive();

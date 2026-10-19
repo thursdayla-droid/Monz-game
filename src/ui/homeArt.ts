@@ -244,80 +244,84 @@ export function drawGarage(ctx: CanvasRenderingContext2D, w: number, h: number, 
   speckle(ctx, 0, 0, w, h, 400, rng);
 }
 
-/** 下のボタン。ready=false なら「SOON」のシールを貼る */
-export function drawActionButton(ctx: CanvasRenderingContext2D, w: number, h: number, action: HomeAction, label: string, ready: boolean, seed: number): void {
+/** 下のメニューのボタン(参考画像のような、クリーム色のカードに太い輪郭)。ready=false なら「SOON」のシールを貼る */
+export function drawMenuButton(ctx: CanvasRenderingContext2D, w: number, h: number, action: HomeAction, label: string, ready: boolean, seed: number): void {
   const rng = mulberry32(seed);
-  const m = 6;
-  const color = { food: COLORS.orange, pet: COLORS.pink, minigame: COLORS.blue, dressup: COLORS.purple }[action];
-  roundRectPath(ctx, m, m, w - m * 2, h - m * 2, 26);
-  ctx.fillStyle = color;
+  const m = 5;
+  roundRectPath(ctx, m, m, w - m * 2, h - m * 2, 18);
+  ctx.fillStyle = '#fbf1dc';
   ctx.fill();
   ctx.save();
   ctx.clip();
-  for (let i = 0; i < 2; i++) splat(ctx, range(rng, 0, w), range(rng, 0, h), range(rng, 12, 22), i ? COLORS.yellow : '#ffffff', rng, false);
+  // ふちの絵の具の飛び散り
+  for (let i = 0; i < 3; i++) splat(ctx, range(rng, 0, w), range(rng, 0, h) < h / 2 ? range(rng, -6, 10) : range(rng, h - 10, h + 6), range(rng, 8, 16), [COLORS.orange, COLORS.purple, COLORS.pink, COLORS.blue][i % 4], rng, false);
   ctx.restore();
-  roundRectPath(ctx, m, m, w - m * 2, h - m * 2, 26);
-  ctx.lineWidth = 7;
+  roundRectPath(ctx, m, m, w - m * 2, h - m * 2, 18);
+  ctx.lineWidth = 6;
   ctx.strokeStyle = INK;
   ctx.stroke();
-  drawIcon(ctx, action, w / 2, h * 0.4, h * 0.26);
-  ctx.font = `900 ${label.length > 4 ? 22 : 26}px "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif`;
+  drawIcon(ctx, action, w / 2, h * 0.4, Math.min(w, h) * 0.26);
+  const size = label.length > 4 ? 19 : 23;
+  ctx.font = `900 ${size}px "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.lineWidth = 7;
-  ctx.strokeStyle = INK;
-  ctx.strokeText(label, w / 2, h * 0.8);
-  ctx.fillStyle = '#ffffff';
-  ctx.fillText(label, w / 2, h * 0.8);
+  ctx.fillStyle = INK;
+  ctx.fillText(label, w / 2, h * 0.81);
   if (!ready) {
     ctx.save();
-    ctx.translate(w - 34, 24);
+    ctx.translate(w - 26, 20);
     ctx.rotate(0.25);
     ctx.fillStyle = COLORS.yellow;
-    roundRectPath(ctx, -32, -13, 64, 26, 6);
+    roundRectPath(ctx, -26, -11, 52, 22, 5);
     ctx.fill();
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 3;
     ctx.stroke();
     ctx.fillStyle = INK;
-    ctx.font = `900 16px "Arial Black", Impact, sans-serif`;
+    ctx.font = `900 13px "Arial Black", Impact, sans-serif`;
     ctx.fillText('SOON', 0, 1);
     ctx.restore();
   }
   ctx.textAlign = 'left';
 }
 
+/** 【仮】メニューのアイコン。企画者のアイコン画像が届いたら差しかえる */
 export function drawIcon(ctx: CanvasRenderingContext2D, action: HomeAction, x: number, y: number, s: number): void {
   ctx.save();
   ctx.translate(x, y);
-  ctx.lineWidth = 6;
+  ctx.lineWidth = Math.max(3, s * 0.12);
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
   ctx.strokeStyle = INK;
   ctx.fillStyle = '#ffffff';
   if (action === 'food') {
-    drawBowl(ctx, 0, s * 0.15, s * 1.6);
+    drawBowl(ctx, 0, s * 0.15, s * 1.7);
   } else if (action === 'pet') {
-    // 手のひら
+    // 手のひらとハート
+    ctx.fillStyle = '#ffd9b8';
     ctx.beginPath();
-    ctx.ellipse(0, s * 0.25, s * 0.55, s * 0.5, 0, 0, Math.PI * 2);
+    ctx.ellipse(-s * 0.1, s * 0.3, s * 0.55, s * 0.5, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
     for (let i = 0; i < 4; i++) {
-      const fx = (i - 1.5) * s * 0.3;
-      roundRectPath(ctx, fx - s * 0.13, -s * 0.75 + Math.abs(i - 1.5) * s * 0.15, s * 0.26, s * 0.8, s * 0.13);
+      const fx = -s * 0.1 + (i - 1.5) * s * 0.3;
+      roundRectPath(ctx, fx - s * 0.13, -s * 0.65 + Math.abs(i - 1.5) * s * 0.15, s * 0.26, s * 0.8, s * 0.13);
       ctx.fill();
       ctx.stroke();
     }
-    ctx.beginPath();
-    ctx.ellipse(s * 0.62, s * 0.15, s * 0.14, s * 0.32, -0.7, 0, Math.PI * 2);
+    ctx.save();
+    ctx.translate(s * 0.75, -s * 0.6);
+    ctx.scale(s * 0.012, s * 0.012);
+    heartPath(ctx, 26);
+    ctx.fillStyle = COLORS.pink;
     ctx.fill();
-    ctx.stroke();
+    ctx.restore();
   } else if (action === 'minigame') {
     // コントローラー
+    ctx.fillStyle = COLORS.purple;
     roundRectPath(ctx, -s, -s * 0.5, s * 2, s, s * 0.5);
     ctx.fill();
     ctx.stroke();
-    ctx.fillStyle = INK;
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(-s * 0.65, -s * 0.08, s * 0.5, s * 0.16);
     ctx.fillRect(-s * 0.48, -s * 0.25, s * 0.16, s * 0.5);
     ctx.fillStyle = COLORS.pink;
@@ -328,29 +332,122 @@ export function drawIcon(ctx: CanvasRenderingContext2D, action: HomeAction, x: n
     ctx.beginPath();
     ctx.arc(s * 0.7, s * 0.12, s * 0.13, 0, Math.PI * 2);
     ctx.fill();
+  } else if (action === 'battle') {
+    // 交差した2本の剣
+    for (const dir of [-1, 1]) {
+      ctx.save();
+      ctx.rotate(dir * 0.75);
+      ctx.fillStyle = '#d7dbe8';
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.12, s * 0.35);
+      ctx.lineTo(-s * 0.12, -s * 0.75);
+      ctx.lineTo(0, -s * 0.95);
+      ctx.lineTo(s * 0.12, -s * 0.75);
+      ctx.lineTo(s * 0.12, s * 0.35);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = COLORS.orange;
+      roundRectPath(ctx, -s * 0.35, s * 0.33, s * 0.7, s * 0.16, s * 0.06);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = COLORS.purple;
+      roundRectPath(ctx, -s * 0.09, s * 0.49, s * 0.18, s * 0.42, s * 0.06);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+  } else if (action === 'shop') {
+    // お店(屋根のしま模様)
+    ctx.fillStyle = COLORS.blue;
+    ctx.fillRect(-s * 0.8, -s * 0.2, s * 1.6, s * 1.0);
+    ctx.strokeRect(-s * 0.8, -s * 0.2, s * 1.6, s * 1.0);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(-s * 0.55, s * 0.05, s * 0.5, s * 0.75);
+    ctx.strokeRect(-s * 0.55, s * 0.05, s * 0.5, s * 0.75);
+    ctx.fillRect(s * 0.1, s * 0.05, s * 0.45, s * 0.4);
+    ctx.strokeRect(s * 0.1, s * 0.05, s * 0.45, s * 0.4);
+    for (let i = 0; i < 4; i++) {
+      ctx.fillStyle = i % 2 ? '#ffffff' : '#ff4f5e';
+      ctx.beginPath();
+      const x0 = -s + (i * s) / 2;
+      ctx.moveTo(x0 + s * 0.2, -s * 0.8);
+      ctx.lineTo(x0 + s * 0.7, -s * 0.8);
+      ctx.lineTo(x0 + s * 0.5, -s * 0.15);
+      ctx.lineTo(x0, -s * 0.15);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
   } else {
-    // Tシャツ
+    // 歯車
+    ctx.fillStyle = '#9aa0b4';
     ctx.beginPath();
-    ctx.moveTo(-s * 0.35, -s * 0.75);
-    ctx.lineTo(-s, -s * 0.4);
-    ctx.lineTo(-s * 0.72, s * 0.05);
-    ctx.lineTo(-s * 0.5, -s * 0.1);
-    ctx.lineTo(-s * 0.5, s * 0.8);
-    ctx.lineTo(s * 0.5, s * 0.8);
-    ctx.lineTo(s * 0.5, -s * 0.1);
-    ctx.lineTo(s * 0.72, s * 0.05);
-    ctx.lineTo(s, -s * 0.4);
-    ctx.lineTo(s * 0.35, -s * 0.75);
-    ctx.quadraticCurveTo(0, -s * 0.4, -s * 0.35, -s * 0.75);
+    const teeth = 8;
+    for (let i = 0; i < teeth * 2; i++) {
+      const a = (i / (teeth * 2)) * Math.PI * 2;
+      const r = i % 2 ? s * 0.68 : s * 0.9;
+      const a2 = a + Math.PI / (teeth * 2);
+      ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+      ctx.lineTo(Math.cos(a2) * r, Math.sin(a2) * r);
+    }
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
-    ctx.fillStyle = COLORS.yellow;
+    ctx.fillStyle = '#fbf1dc';
     ctx.beginPath();
-    ctx.arc(0, s * 0.2, s * 0.2, 0, Math.PI * 2);
+    ctx.arc(0, 0, s * 0.3, 0, Math.PI * 2);
     ctx.fill();
+    ctx.stroke();
   }
   ctx.restore();
+}
+
+function heartPath(ctx: CanvasRenderingContext2D, s: number): void {
+  ctx.beginPath();
+  ctx.moveTo(0, s * 0.85);
+  ctx.bezierCurveTo(-s * 1.2, 0, -s * 0.8, -s * 1.05, 0, -s * 0.45);
+  ctx.bezierCurveTo(s * 0.8, -s * 1.05, s * 1.2, 0, 0, s * 0.85);
+  ctx.closePath();
+}
+
+/** 【仮】コインのアイコン(半径 r) */
+export function drawCoin(ctx: CanvasRenderingContext2D, x: number, y: number, r: number): void {
+  ctx.save();
+  ctx.lineWidth = Math.max(3, r * 0.14);
+  ctx.strokeStyle = INK;
+  ctx.fillStyle = '#f5b521';
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#ffd95a';
+  ctx.beginPath();
+  ctx.arc(x, y, r * 0.72, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#c98a0e';
+  ctx.font = `900 ${r * 1.1}px "Arial Black", Impact, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('$', x, y + r * 0.05);
+  ctx.textAlign = 'left';
+  ctx.restore();
+}
+
+/** 上の札(名前・レベルのカード、コインのカード)の下地 */
+export function drawPanel(ctx: CanvasRenderingContext2D, w: number, h: number, seed: number): void {
+  const rng = mulberry32(seed);
+  roundRectPath(ctx, 4, 4, w - 8, h - 8, 20);
+  ctx.fillStyle = '#fbf1dc';
+  ctx.fill();
+  ctx.save();
+  ctx.clip();
+  for (let i = 0; i < 3; i++) splat(ctx, range(rng, 0, w), range(rng, 0, 1) < 0.5 ? range(rng, -4, 8) : range(rng, h - 8, h + 4), range(rng, 8, 14), [COLORS.pink, COLORS.orange, COLORS.purple][i], rng, false);
+  ctx.restore();
+  roundRectPath(ctx, 4, 4, w - 8, h - 8, 20);
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = INK;
+  ctx.stroke();
 }
 
 /** ごはん【仮】: 湯気の立つどんぶり。w はどんぶりの幅 */
