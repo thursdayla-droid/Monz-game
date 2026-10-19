@@ -36,6 +36,10 @@ export interface Score {
   wind: number;
   /** レコードのかすかなノイズ 0〜1 */
   vinyl: number;
+  /** 高いシンセの音程をすべらせるか */
+  glideLead?: boolean;
+  /** ベースの音色。round = 丸いだけ(神秘的な場面用)、growl = 太くうなる(標準) */
+  bassTone?: 'round' | 'growl';
 }
 
 /** 1小節ずつの和音。voicing はエレピ・パッド用、bass は低音の根音 */
@@ -105,13 +109,13 @@ function hats16(bar: number, accents: number[], openAt: number[] = []): DrumHit[
 const melody = (bar: number, notes: [number, number, number, number?][]): Note[] =>
   notes.map(([beat, len, pitch, vel]) => ({ beat: bar * 4 + beat, len, pitch, vel: vel ?? 0.7 }));
 
-// ---------- タイトル: オシャレで少し生意気。D♭メジャー系、92 BPM ----------
+// ---------- タイトル: オシャレで少し生意気、クール。Fマイナー系、96 BPM ----------
 function title(): Score {
   const prog = [
-    ch([53, 56, 60, 63], 37, 44), // D♭maj9
-    ch([51, 55, 58, 62], 36, 43), // Cm9
     ch([56, 60, 63, 67], 41, 48), // Fm9
-    ch([50, 56, 62, 67], 34, 41), // B♭13
+    ch([56, 60, 61, 65], 37, 44), // D♭maj7
+    ch([56, 60, 61, 65], 34, 41), // B♭m9
+    ch([52, 58, 63, 67], 36, 43), // C7(#9) ← 少し緊張感のある和音
   ];
   const chords = [...prog, ...prog];
   const drums: DrumHit[] = [];
@@ -121,49 +125,56 @@ function title(): Score {
         bar,
         [
           [0, 'kick', 1],
-          [0.75, 'kick', 0.55],
-          [1, 'snare', 0.9],
-          [1, 'clap', 0.5],
-          [2.5, 'kick', 0.85],
-          [3, 'snare', 0.95],
-          [3, 'clap', 0.55],
-          ...(bar % 2 === 1 ? ([[3.75, 'kick', 0.5]] as [number, DrumHit['kind'], number][]) : []),
+          [0.75, 'kick', 0.6],
+          [1, 'snare', 1],
+          [1, 'clap', 0.55],
+          [2.25, 'kick', 0.7],
+          [2.5, 'kick', 0.9],
+          [3, 'snare', 1],
+          [3, 'clap', 0.6],
+          ...(bar % 2 === 1 ? ([[3.75, 'kick', 0.6]] as [number, DrumHit['kind'], number][]) : []),
         ],
         11,
       ),
-      ...hats16(bar, [0.7, 0.25, 0.45, 0.3], bar % 4 === 3 ? [3.5] : []),
+      ...hats16(bar, [0.8, 0.3, 0.55, 0.35], bar % 4 === 3 ? [3.5] : []),
     );
   }
   return {
-    bpm: 92,
+    bpm: 96,
     bars: 8,
     swing: 0.58,
+    // エレピは短めに刻む(のんびりしすぎないように)
     ep: epComp(chords, [
-      { beat: 0, len: 1.4, vel: 0.75 },
-      { beat: 1.75, len: 0.6, vel: 0.55 },
-      { beat: 2.5, len: 1.3, vel: 0.65 },
+      { beat: 0, len: 0.9, vel: 0.72 },
+      { beat: 1.5, len: 0.35, vel: 0.55 },
+      { beat: 2.75, len: 0.6, vel: 0.62 },
     ], 3),
     bass: bassLine(chords, [
-      { beat: 0, len: 0.9, vel: 1, deg: 'root' },
-      { beat: 1.5, len: 0.35, vel: 0.7, deg: 'root' },
-      { beat: 2.5, len: 0.7, vel: 0.85, deg: 'fifth' },
-      { beat: 3.5, len: 0.45, vel: 0.7, deg: 'approach' },
+      { beat: 0, len: 0.7, vel: 1, deg: 'root' },
+      { beat: 0.75, len: 0.2, vel: 0.65, deg: 'oct' },
+      { beat: 1.5, len: 0.4, vel: 0.85, deg: 'root' },
+      { beat: 2.5, len: 0.55, vel: 0.9, deg: 'fifth' },
+      { beat: 3.5, len: 0.4, vel: 0.75, deg: 'approach' },
     ], 5),
     pad: [],
+    // 高いシンセ(音程をすべらせる)。前半は呼びかけ、後半は答え
     lead: [
-      ...melody(4, [[0.5, 0.5, 72], [1, 0.25, 75], [1.5, 1.2, 77]]),
-      ...melody(5, [[0.5, 0.5, 75], [1, 1.5, 72]]),
-      ...melody(6, [[0, 0.5, 68], [0.75, 0.5, 70], [1.5, 0.5, 72], [2.5, 1.2, 75]]),
-      ...melody(7, [[1, 0.5, 73], [1.5, 0.5, 72], [2, 1.5, 70, 0.6]]),
+      ...melody(1, [[2, 0.5, 79, 0.6], [2.5, 1.2, 80, 0.7]]),
+      ...melody(2, [[0, 0.5, 79, 0.6], [0.5, 1.5, 77, 0.65]]),
+      ...melody(3, [[2, 0.5, 79, 0.6], [2.5, 0.5, 82, 0.7], [3, 1, 84, 0.7]]),
+      ...melody(5, [[2, 0.5, 79, 0.6], [2.5, 1.2, 80, 0.7]]),
+      ...melody(6, [[0, 0.5, 84, 0.65], [0.5, 0.5, 82, 0.6], [1, 1.5, 80, 0.65]]),
+      ...melody(7, [[2, 0.5, 79, 0.6], [2.5, 1.4, 76, 0.65]]),
     ],
     bell: [],
     drums,
     wind: 0,
-    vinyl: 0.5,
+    vinyl: 0.25,
+    glideLead: true,
   };
 }
 
-// ---------- 質問: 軽快で遊び心。96 BPM ----------
+// ---------- 質問: 軽快で遊び心。100 BPM ----------
 function question(): Score {
   const prog = [
     ch([54, 58, 61, 65], 42, 49), // G♭maj7
@@ -198,7 +209,7 @@ function question(): Score {
     [0, 0.5, 1, 1.5, 2.25, 3].forEach((b, i) => arp.push({ beat: bar * 4 + b, len: 0.22, pitch: c.voicing[i % c.voicing.length] + 12, vel: 0.5 }));
   });
   return {
-    bpm: 96,
+    bpm: 100,
     bars: 8,
     swing: 0.56,
     ep: epComp(chords, [
@@ -220,7 +231,7 @@ function question(): Score {
     bell: [],
     drums,
     wind: 0,
-    vinyl: 0.35,
+    vinyl: 0.2,
   };
 }
 
@@ -241,10 +252,10 @@ function mystery(): Score {
     ...melody(4, [[1, 2, 82, 0.4], [3, 2, 77, 0.3]]),
     ...melody(6, [[0, 2, 80, 0.35], [1.5, 2, 77, 0.3], [3, 2, 72, 0.3]]),
   ];
-  return { bpm: 72, bars: 8, swing: 0.5, ep: [], bass, pad, lead: [], bell, drums: [], wind: 0.8, vinyl: 0 };
+  return { bpm: 72, bars: 8, swing: 0.5, ep: [], bass, pad, lead: [], bell, drums: [], wind: 0.8, vinyl: 0, bassTone: 'round' };
 }
 
-// ---------- 誕生・ホーム: 明るく温かい。E♭メジャー、90 BPM。長く聴いても疲れない ----------
+// ---------- 誕生・ホーム: 明るく温かい。E♭メジャー、94 BPM。長く聴いても疲れない ----------
 function birth(): Score {
   const prog = [
     ch([55, 58, 62, 65], 39, 46), // E♭maj9
@@ -272,7 +283,7 @@ function birth(): Score {
     );
   }
   return {
-    bpm: 90,
+    bpm: 94,
     bars: 8,
     swing: 0.57,
     ep: epComp(chords, [
@@ -298,7 +309,8 @@ function birth(): Score {
     bell: [],
     drums,
     wind: 0,
-    vinyl: 0.4,
+    vinyl: 0.2,
+    glideLead: true,
   };
 }
 

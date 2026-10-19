@@ -37,7 +37,7 @@ describe('BGM の楽譜', () => {
     expect(beatToSec(1, 90, 0.6)).toBeCloseTo(60 / 90);
     expect(beatToSec(0.25, 90, 0.5)).toBeCloseTo((60 / 90) / 4);
     expect(beatToSec(0.25, 90, 0.6)).toBeGreaterThan((60 / 90) / 4);
-    expect(loopSeconds(SCORES.title())).toBeCloseTo(8 * 4 * (60 / 92));
+    expect(loopSeconds(SCORES.title())).toBeCloseTo(8 * 4 * (60 / SCORES.title().bpm));
   });
 });
 

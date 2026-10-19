@@ -26,6 +26,7 @@ import {
   drawSkyWorld,
 } from '../ui/birthArt';
 import { canvasTexture, drawStreet, UI_FONT } from '../ui/paint';
+import { createNameplate } from '../ui/nameplate';
 import { addSoundButton } from '../ui/soundButton';
 
 const W = 720;
@@ -294,17 +295,16 @@ export class BirthScene extends Phaser.Scene {
       brain.reaction = { face: 'happy', kind: 'happy', left: 2.2, age: 0 };
       view.setScale(SCALE * 0.2);
       this.tweens.add({ targets: view, scale: SCALE, duration: 520, ease: 'Back.easeOut' });
-      const t1 = this.text(W / 2, 170, 'MONZが生まれた！', 64, '#ffd23a').setScale(0);
-      this.tweens.add({ targets: t1, scale: 1, duration: 420, delay: 300, ease: 'Back.easeOut' });
-      const t2 = this.text(W / 2, 270, `「${name}」`, 76, '#ffffff').setAlpha(0);
-      this.tweens.add({ targets: t2, alpha: 1, duration: 400, delay: 900 });
-      this.time.delayedCall(3200, () => {
+      const plate = createNameplate(this, name, W / 2, 250);
+      plate.reveal();
+      this.time.delayedCall(3600, () => {
         brain.hold = false;
+        plate.dock(true);
         const hint = this.text(W / 2, H - 70, 'タップするとなでられるよ', 30, '#ffffff').setAlpha(0);
         this.tweens.add({ targets: hint, alpha: 1, duration: 400 });
       });
     } else {
-      this.text(W / 2, 170, name, 76, '#ffffff');
+      createNameplate(this, name, W / 2, 250).dock(false);
       this.text(W / 2, H - 70, 'タップするとなでられるよ', 30, '#ffffff');
     }
   }

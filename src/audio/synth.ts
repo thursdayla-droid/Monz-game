@@ -59,8 +59,8 @@ interface Buses {
 
 function buildBuses(ctx: Ctx, out: AudioNode): Buses {
   const comp = ctx.createDynamicsCompressor();
-  comp.threshold.value = -16;
-  comp.ratio.value = 3;
+  comp.threshold.value = -18;
+  comp.ratio.value = 4;
   comp.attack.value = 0.01;
   comp.release.value = 0.2;
   const master = ctx.createGain();
@@ -82,7 +82,7 @@ function buildBuses(ctx: Ctx, out: AudioNode): Buses {
   const epIn = ctx.createGain();
   const epLp = ctx.createBiquadFilter();
   epLp.type = 'lowpass';
-  epLp.frequency.value = 3200;
+  epLp.frequency.value = 4800;
   const trem = ctx.createGain();
   trem.gain.value = 0.85;
   const lfo = ctx.createOscillator();
@@ -100,11 +100,12 @@ function buildBuses(ctx: Ctx, out: AudioNode): Buses {
   const bassIn = ctx.createGain();
   const bassLp = ctx.createBiquadFilter();
   bassLp.type = 'lowpass';
-  bassLp.frequency.value = 420;
+  bassLp.frequency.value = 900;
   bassLp.Q.value = 0.8;
   const bassOut = ctx.createGain();
-  bassOut.gain.value = 0.62;
-  bassIn.connect(softClip(ctx, 1.8)).connect(bassLp).connect(bassOut).connect(comp);
+  bassOut.gain.value = 0.85;
+  // 少し歪ませて倍音を足す(iPhoneの小さいスピーカーでも太く聞こえるように)
+  bassIn.connect(softClip(ctx, 2.8)).connect(bassLp).connect(bassOut).connect(comp);
 
   const padIn = ctx.createGain();
   const padLp = ctx.createBiquadFilter();
@@ -132,7 +133,12 @@ function buildBuses(ctx: Ctx, out: AudioNode): Buses {
 
   const drumOut = ctx.createGain();
   drumOut.gain.value = 0.8;
-  drumOut.connect(comp);
+  // ドラムの高い音を少し持ち上げて、ハイハットやスネアをはっきりさせる
+  const air = ctx.createBiquadFilter();
+  air.type = 'highshelf';
+  air.frequency.value = 5000;
+  air.gain.value = 7;
+  drumOut.connect(air).connect(comp);
   send(drumOut, 0.08);
 
   return { ep: epIn, bass: bassIn, pad: padIn, lead: leadIn, bell: bellOut, drums: drumOut, noise: noiseBuffer(ctx, 1.5, 3) };
@@ -152,7 +158,7 @@ function epNote(ctx: Ctx, out: AudioNode, t: number, dur: number, pitch: number,
   const tine = ctx.createOscillator();
   tine.frequency.value = f * 4;
   const tineGain = ctx.createGain();
-  tineGain.gain.setValueAtTime(0.06 * vel, t);
+  tineGain.gain.setValueAtTime(0.1 * vel, t);
   tineGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
   const g = ctx.createGain();
   const peak = 0.22 * vel;
@@ -171,32 +177,58 @@ function epNote(ctx: Ctx, out: AudioNode, t: number, dur: number, pitch: number,
   }
 }
 
-function bassNote(ctx: Ctx, out: AudioNode, t: number, dur: number, pitch: number, vel: number, from?: number): void {
+/**
+ * ベース: 低い丸い音(サイン波)に、ゴリッとしたシンセの音(のこぎり波をフィルターで「ブゥン」と閉じる)を重ねる。
+ * 西海岸ヒップホップらしい、太くて少しうなるベース。近い音へは音程をすべらせる。
+ */
+function bassNote(ctx: Ctx, out: AudioNode, t: number, dur: number, pitch: number, vel: number, from?: number, round = false): void {
   const f = midiToHz(pitch);
-  const o1 = ctx.createOscillator();
-  o1.type = 'sine';
-  const o2 = ctx.createOscillator();
-  o2.type = 'triangle';
-  for (const o of [o1, o2]) {
+  const glide = (o: OscillatorNode, mul = 1) => {
     if (from) {
-      o.frequency.setValueAtTime(midiToHz(from), t);
-      o.frequency.exponentialRampToValueAtTime(f, t + 0.06);
-    } else o.frequency.setValueAtTime(f, t);
-  }
-  const g2 = ctx.createGain();
-  g2.gain.value = 0.35;
+      o.frequency.setValueAtTime(midiToHz(from) * mul, t);
+      o.frequency.exponentialRampToValueAtTime(f * mul, t + 0.07);
+    } else o.frequency.setValueAtTime(f * mul, t);
+  };
+  const end = t + dur + 0.35;
   const g = ctx.createGain();
-  const peak = 0.55 * vel;
+  const peak = 0.6 * vel;
   g.gain.setValueAtTime(0.0001, t);
-  g.gain.exponentialRampToValueAtTime(peak, t + 0.012);
-  g.gain.setTargetAtTime(peak * 0.7, t + 0.05, 0.25);
-  g.gain.setTargetAtTime(0.0001, t + dur, 0.05);
-  o1.connect(g);
-  o2.connect(g2).connect(g);
+  g.gain.exponentialRampToValueAtTime(peak, t + 0.008);
+  g.gain.setTargetAtTime(peak * 0.75, t + 0.04, 0.3);
+  g.gain.setTargetAtTime(0.0001, t + dur, 0.06);
   g.connect(out);
-  for (const o of [o1, o2]) {
+  // 低い丸い音
+  const sub = ctx.createOscillator();
+  glide(sub);
+  sub.connect(g);
+  if (round) {
+    sub.start(t);
+    sub.stop(end);
+    return;
+  }
+  // うなるシンセの音
+  const saw = ctx.createOscillator();
+  saw.type = 'sawtooth';
+  glide(saw);
+  saw.detune.value = 4;
+  const sq = ctx.createOscillator();
+  sq.type = 'square';
+  glide(sq, 0.5);
+  const lp = ctx.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.Q.value = 6;
+  lp.frequency.setValueAtTime(f * 9, t);
+  lp.frequency.exponentialRampToValueAtTime(f * 2.2, t + 0.22);
+  const sg = ctx.createGain();
+  sg.gain.value = 0.32;
+  const qg = ctx.createGain();
+  qg.gain.value = 0.18;
+  saw.connect(sg).connect(lp);
+  sq.connect(qg).connect(lp);
+  lp.connect(g);
+  for (const o of [sub, saw, sq]) {
     o.start(t);
-    o.stop(t + dur + 0.4);
+    o.stop(end);
   }
 }
 
@@ -221,11 +253,15 @@ function padNote(ctx: Ctx, out: AudioNode, t: number, dur: number, pitch: number
 }
 
 /** レトロなシンセ(矩形波、少しビブラート) */
-function leadNote(ctx: Ctx, out: AudioNode, t: number, dur: number, pitch: number, vel: number): void {
+function leadNote(ctx: Ctx, out: AudioNode, t: number, dur: number, pitch: number, vel: number, from?: number): void {
   const f = midiToHz(pitch);
   const o = ctx.createOscillator();
   o.type = 'square';
-  o.frequency.value = f;
+  // 前の音から音程をすべらせる(西海岸らしい、うねる高いシンセ)
+  if (from) {
+    o.frequency.setValueAtTime(midiToHz(from), t);
+    o.frequency.exponentialRampToValueAtTime(f, t + 0.09);
+  } else o.frequency.setValueAtTime(f, t);
   const vib = ctx.createOscillator();
   vib.frequency.value = 5.2;
   const vibAmt = ctx.createGain();
@@ -286,16 +322,17 @@ function drum(ctx: Ctx, b: Buses, t: number, hit: DrumHit, i: number): void {
   switch (hit.kind) {
     case 'kick': {
       const o = ctx.createOscillator();
-      o.frequency.setValueAtTime(130, t);
-      o.frequency.exponentialRampToValueAtTime(46, t + 0.11);
+      o.frequency.setValueAtTime(155, t);
+      o.frequency.exponentialRampToValueAtTime(48, t + 0.08);
+      o.frequency.exponentialRampToValueAtTime(42, t + 0.5);
       const g = ctx.createGain();
       g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(0.95 * v, t + 0.004);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.42);
+      g.gain.exponentialRampToValueAtTime(1.15 * v, t + 0.003);
+      g.gain.setTargetAtTime(0.0001, t + 0.12, 0.13);
       o.connect(g).connect(b.drums);
       o.start(t);
-      o.stop(t + 0.45);
-      noiseHit(ctx, b, t, 0.012, 'lowpass', 2500, 0.7, 0.25 * v, i * 0.013);
+      o.stop(t + 0.7);
+      noiseHit(ctx, b, t, 0.012, 'lowpass', 3500, 0.7, 0.35 * v, i * 0.013);
       break;
     }
     case 'snare': {
@@ -309,7 +346,8 @@ function drum(ctx: Ctx, b: Buses, t: number, hit: DrumHit, i: number): void {
       o.connect(g).connect(b.drums);
       o.start(t);
       o.stop(t + 0.14);
-      noiseHit(ctx, b, t, 0.2, 'bandpass', 1900, 0.6, 0.55 * v, i * 0.031);
+      noiseHit(ctx, b, t, 0.2, 'bandpass', 2200, 0.5, 0.6 * v, i * 0.031);
+      noiseHit(ctx, b, t, 0.11, 'highpass', 5000, 0.7, 0.55 * v, i * 0.037);
       break;
     }
     case 'clap':
@@ -328,10 +366,11 @@ function drum(ctx: Ctx, b: Buses, t: number, hit: DrumHit, i: number): void {
       break;
     }
     case 'hat':
-      noiseHit(ctx, b, t, 0.045, 'highpass', 7200, 0.7, 0.2 * v, i * 0.019);
+      noiseHit(ctx, b, t, 0.04, 'highpass', 8000, 0.7, 0.55 * v, i * 0.019);
+      noiseHit(ctx, b, t, 0.03, 'bandpass', 10000, 1, 0.25 * v, i * 0.021);
       break;
     case 'openhat':
-      noiseHit(ctx, b, t, 0.22, 'highpass', 6800, 0.7, 0.16 * v, i * 0.023);
+      noiseHit(ctx, b, t, 0.22, 'highpass', 7500, 0.7, 0.26 * v, i * 0.023);
       break;
     case 'shaker':
       noiseHit(ctx, b, t, 0.06, 'bandpass', 5200, 1.5, 0.12 * v, i * 0.029);
@@ -385,9 +424,11 @@ export async function renderScore(score: Score): Promise<AudioBuffer> {
   const ctx = new OAC(2, Math.ceil(total * SAMPLE_RATE), SAMPLE_RATE);
   const b = buildBuses(ctx, ctx.destination);
   play(score.ep, score, (t, d, n) => epNote(ctx, b.ep, t, d, n.pitch, n.vel));
-  play(score.bass, score, (t, d, n, prev) => bassNote(ctx, b.bass, t, d, n.pitch, n.vel, prev && Math.abs(prev.pitch - n.pitch) <= 2 ? prev.pitch : undefined));
+  play(score.bass, score, (t, d, n, prev) =>
+    bassNote(ctx, b.bass, t, d, n.pitch, n.vel, prev && Math.abs(prev.pitch - n.pitch) <= 2 ? prev.pitch : undefined, score.bassTone === 'round'),
+  );
   play(score.pad, score, (t, d, n) => padNote(ctx, b.pad, t, d, n.pitch, n.vel));
-  play(score.lead, score, (t, d, n) => leadNote(ctx, b.lead, t, d, n.pitch, n.vel));
+  play(score.lead, score, (t, d, n, prev) => leadNote(ctx, b.lead, t, d, n.pitch, n.vel, score.glideLead && prev && n.beat - (prev.beat + prev.len) < 0.3 ? prev.pitch : undefined));
   play(score.bell, score, (t, d, n) => bellNote(ctx, b.bell, t, d, n.pitch, n.vel));
   score.drums.forEach((h, i) => drum(ctx, b, timeOf(h.beat, score), h, i));
   if (score.wind > 0) wind(ctx, b.bell, b, loop, score.wind);
