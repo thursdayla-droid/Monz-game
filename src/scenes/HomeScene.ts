@@ -91,16 +91,19 @@ export class HomeScene extends Phaser.Scene {
     this.buildButtons();
     addSoundButton(this, 56, 56);
 
-    // 【テスト用】回答を消して質問からやり直す
-    this.add
-      .text(W - 20, 24, '最初から', { fontFamily: UI_FONT, fontSize: '22px', color: '#ffffff', backgroundColor: '#16101caa', padding: { x: 10, y: 6 } })
-      .setOrigin(1, 0)
-      .setDepth(6)
-      .setInteractive({ useHandCursor: true })
-      .on('pointerdown', () => {
-        clearSave();
-        this.scene.start('Title');
-      });
+    // 【テスト用】回答を消して質問からやり直す / 誕生の演出だけをもう一度見る(保存データはそのまま)
+    const testButton = (y: number, label: string, onTap: () => void) =>
+      this.add
+        .text(W - 20, y, label, { fontFamily: UI_FONT, fontSize: '22px', color: '#ffffff', backgroundColor: '#16101caa', padding: { x: 10, y: 6 } })
+        .setOrigin(1, 0)
+        .setDepth(6)
+        .setInteractive({ useHandCursor: true })
+        .on('pointerdown', onTap);
+    testButton(24, '最初から', () => {
+      clearSave();
+      this.scene.start('Title');
+    });
+    testButton(72, '誕生をもう一度', () => this.scene.start('Birth', { intro: true }));
 
     this.cameras.main.fadeIn(400, 0, 0, 0);
     // 誕生の曲が流れていれば、最後まで聴かせる(終わるとホームの曲へ自然に移る)

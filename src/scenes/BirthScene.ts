@@ -2,50 +2,66 @@ import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { BunkBrain } from '../core/bunkBehavior';
 import { loadSave } from '../core/save';
-import { BUNK_MOTION, BunkView, TEST_PERSONALITY } from '../render/bunkView';
 import { mulberry32, range } from '../core/rng';
-import {
-  BASKET_H,
-  BASKET_W,
-  DRAGON_EGG,
-  DRAGON_H,
-  DRAGON_W,
-  EGG_H,
-  EGG_W,
-  WORLD_H,
-  WORLD_TOP,
-  drawBasketBack,
-  drawBasketFront,
-  drawCloud,
-  drawCracks,
-  drawDragon,
-  drawEgg,
-  drawGlow,
-  drawRays,
-  drawShell,
-  drawSkyWorld,
-} from '../ui/birthArt';
+import { assetUrl } from '../assetUrl';
+import LAYOUT from '../render/birthLayout.json';
+import { BUNK_MOTION, BunkView, TEST_PERSONALITY } from '../render/bunkView';
+import { SHELL_PIECES, drawCracks, drawGlow, drawRays, drawShell } from '../ui/birthArt';
 import { canvasTexture, UI_FONT } from '../ui/paint';
 import { createNameplate } from '../ui/nameplate';
 import { addSoundButton } from '../ui/soundButton';
 
 const W = 720;
 const H = 1280;
-const SCALE = 0.5;
-const FLOOR_Y = 1100;
 const NAMES: Record<string, string> = { bunk: 'BUNK' };
 
+/** 企画者の画像(design/birth/ → design/birth/make_assets.py で切り分け) */
+const FILES = {
+  sky: 'sky.webp',
+  basket: 'basket.webp',
+  basketFront: 'basket_front.webp',
+  egg: 'egg.webp',
+  dragonBody: 'dragon_body.webp',
+  wingNear: 'dragon_wing_near.webp',
+  wingFar: 'dragon_wing_far.webp',
+} as const;
+const key = (name: keyof typeof FILES) => `birth:${name}`;
+
+export function loadBirth(load: Phaser.Loader.LoaderPlugin): void {
+  for (const [name, file] of Object.entries(FILES)) load.image(key(name as keyof typeof FILES), assetUrl(`assets/birth/${file}`));
+}
+
+// 籠の場面: ふつうの画面の位置。卵が落ちてきたら、ここへ切りかえる
+const BASKET_TOP = 0;
+// 空の場面: 籠の場面より上(別の場所)に、空の絵を少し大きく出す。卵を追ってカメラが下へ動く
+const SKY_SCALE = (H * 1.2) / LAYOUT.sky.h;
+const SKY_H = LAYOUT.sky.h * SKY_SCALE;
+const SKY_TOP = -SKY_H - 400;
+const BASKET_SCALE = H / LAYOUT.basket.h;
+const NEST_X = W / 2 + (LAYOUT.basket.nest[0] - LAYOUT.basket.w / 2) * BASKET_SCALE;
+const NEST_Y = BASKET_TOP + LAYOUT.basket.nest[1] * BASKET_SCALE;
+/** 籠の中の卵の大きさ・卵の底の位置 */
+const EGG_SCALE = 0.75;
+const EGG_BOTTOM = NEST_Y + 12;
+/** ドラゴンの足の卵の大きさ(ドラゴンの大きさに対して) */
+const EGG_IN_CLAW = 0.26;
+/** 籠の中のMONZ */
+const MONZ_SCALE = 0.36;
+const MONZ_FEET = NEST_Y + 110;
+/** 羽ばたき1回の秒数 */
+const FLAP = 0.95;
+
 /**
- * 誕生の演出と、最初のMONZとの出会い。
- * intro=true: 質問のあと(ドラゴンが運んだ卵が籠に落ちて割れ、MONZが現れる)。intro=false: 2回目からの起動(すぐ表示)。
- * 出会ったあとはホーム(HomeScene)へ移る。
+ * 誕生の演出(質問のあと、約14秒)。
+ * 空 → 黒いドラゴンが卵を運んでくる → 卵を落とす(カメラが追う) → 木の籠に「ポトッ」→ 揺れて止まる
+ * → コンコン・ヒビ・金色の光 → 一瞬の静寂 → 割れて光が広がる → 籠の中にMONZ(目を開ける)→ 名前 → ホームへ。
+ * MONZの正体は卵が割れるまで見せない。MONZの絵は元の画像のまま。
  */
 export class BirthScene extends Phaser.Scene {
   private view?: BunkView;
   private brain?: BunkBrain;
   private t = 0;
   private alive = false;
-  private zText?: Phaser.GameObjects.Text;
 
   constructor() {
     super('Birth');
@@ -55,216 +71,232 @@ export class BirthScene extends Phaser.Scene {
     this.alive = false;
     this.t = 0;
     const monz = loadSave()?.firstMonz ?? 'bunk';
-    addSoundButton(this, 56, H - 56).setScrollFactor(0);
+    addSoundButton(this, 56, H - 56).setScrollFactor(0).setDepth(60);
     if (data.intro) this.playIntro(monz);
     // 2回目からはホームへ(古い呼び方への備え)
     else this.scene.start('Home');
   }
 
-  /**
-   * 誕生の演出【仮の絵】: 空 → ドラゴンの影が卵を運ぶ → 卵を落とす → 籠に「ポトッ」→ ゴトゴト → ヒビ → 静寂 → 誕生。
-   * MONZの姿は卵が割れるまで出さない。
-   */
   private playIntro(monz: string): void {
     const cam = this.cameras.main;
     const s = (ms: number, fn: () => void) => this.time.delayedCall(ms, fn);
-    const tex = (key: string, w: number, h: number, draw: (ctx: CanvasRenderingContext2D) => void) => canvasTexture(this, key, w, h, draw);
+    const eggImg = this.textures.get(key('egg')).getSourceImage() as HTMLImageElement;
+    const EW = LAYOUT.egg.w;
+    const EH = LAYOUT.egg.h;
+    [1, 2, 3].forEach((st) => canvasTexture(this, `birth:crack${st}`, EW, EH, (ctx) => drawCracks(ctx, eggImg, EW, EH, st)));
+    for (const p of SHELL_PIECES) canvasTexture(this, `birth:shell:${p}`, EW, EH, (ctx) => drawShell(ctx, eggImg, EW, EH, p));
+    canvasTexture(this, 'birth:rays', 900, 900, (ctx) => drawRays(ctx, 900, 18));
+    canvasTexture(this, 'birth:glow', 300, 300, (ctx) => drawGlow(ctx, 300));
 
-    // 絵を用意する
-    tex('birth:sky', W, WORLD_H, (ctx) => drawSkyWorld(ctx, W, WORLD_H));
-    [0, 1, 2].forEach((i) => tex(`birth:cloud${i}`, 300, 170, (ctx) => drawCloud(ctx, 300, 170, 3 + i * 5)));
-    [1, 0, -1].forEach((wing, i) => tex(`birth:dragon${i}`, DRAGON_W, DRAGON_H, (ctx) => drawDragon(ctx, DRAGON_W, DRAGON_H, wing)));
-    tex('birth:egg', EGG_W, EGG_H, (ctx) => drawEgg(ctx));
-    [1, 2, 3].forEach((st) => tex(`birth:crack${st}`, EGG_W, EGG_H, (ctx) => drawCracks(ctx, st)));
-    tex('birth:shellTop', EGG_W, EGG_H, (ctx) => drawShell(ctx, 'top'));
-    tex('birth:shellBottom', EGG_W, EGG_H, (ctx) => drawShell(ctx, 'bottom'));
-    tex('birth:basketBack', BASKET_W, BASKET_H, (ctx) => drawBasketBack(ctx));
-    tex('birth:basketFront', BASKET_W, BASKET_H, (ctx) => drawBasketFront(ctx));
-    tex('birth:rays', 900, 900, (ctx) => drawRays(ctx, 900, 18));
-    tex('birth:glow', 300, 300, (ctx) => drawGlow(ctx, 300));
+    // ---- シーン1: ドラゴン登場(約3秒) ----
+    this.add.image(W / 2, SKY_TOP, key('sky')).setOrigin(0.5, 0).setScale(SKY_SCALE);
+    cam.setBounds(0, SKY_TOP, W, SKY_H);
+    cam.setScroll(0, SKY_TOP);
+    cam.fadeIn(700, 0, 0, 0);
+    this.tweens.add({ targets: cam, scrollY: SKY_TOP + 70, duration: 3200, ease: 'Sine.easeInOut' });
+    audio.playBgm('dragon', 2.0);
 
-    // 空の世界(上へ長い)。カメラは上から始めて、卵を追って下へ
-    this.add.image(0, WORLD_TOP, 'birth:sky').setOrigin(0, 0);
-    const rng = mulberry32(31);
-    // 雲は空にだけ(地面の近くには置かない)
-    for (let i = 0; i < 10; i++) {
-      const c = this.add.image(range(rng, 60, W - 60), WORLD_TOP + 150 + i * 270 + range(rng, -60, 60), `birth:cloud${i % 3}`).setScale(range(rng, 0.6, 1.2));
-      this.tweens.add({ targets: c, x: c.x + range(rng, -80, 80), duration: range(rng, 6000, 9000), yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    }
-    cam.setBounds(0, WORLD_TOP, W, WORLD_H);
-    cam.setScroll(0, WORLD_TOP);
-    cam.fadeIn(800, 251, 241, 220);
-    this.tweens.add({ targets: cam, scrollY: WORLD_TOP + 150, duration: 3600, ease: 'Sine.easeInOut' });
-    audio.playBgm('dragon', 2.5);
+    const D = LAYOUT.dragon;
+    const farWing = this.add.image(D.farPivot[0] - D.w / 2, D.farPivot[1] - D.h / 2, key('wingFar')).setOrigin(D.farPivot[0] / D.w, D.farPivot[1] / D.h);
+    const body = this.add.image(0, 0, key('dragonBody'));
+    const nearWing = this.add.image(D.nearPivot[0] - D.w / 2, D.nearPivot[1] - D.h / 2, key('wingNear')).setOrigin(D.nearPivot[0] / D.w, D.nearPivot[1] / D.h);
+    const dragon = this.add.container(780, SKY_TOP + 220, [farWing, body, nearWing]).setScale(0.12).setAlpha(0).setDepth(5);
+    const egg = this.add.image(0, 0, key('egg')).setDepth(4);
+    const clawEgg = { x: D.claw[0] - D.w / 2, y: D.claw[1] - D.h / 2 + 34 };
 
-    // 籠(地面)
-    const BASKET_Y = 1165;
-    const EGG_BOTTOM = BASKET_Y - BASKET_H + BASKET_H * 0.32 + 52;
-    const basketBack = this.add.image(W / 2, BASKET_Y, 'birth:basketBack').setOrigin(0.5, 1);
-    const eggC = this.add.container(0, 0);
-    const egg = this.add.image(0, 0, 'birth:egg');
-    const cracks = [1, 2, 3].map((st) => this.add.image(0, 0, `birth:crack${st}`).setVisible(false));
-    const leak = this.add.image(0, -10, 'birth:glow').setBlendMode(Phaser.BlendModes.ADD).setAlpha(0).setScale(0.6);
-    eggC.add([egg, ...cracks, leak]);
-    const basketFront = this.add.image(W / 2, BASKET_Y, 'birth:basketFront').setOrigin(0.5, 1);
-    const rays = this.add.image(W / 2, EGG_BOTTOM - EGG_H / 2, 'birth:rays').setBlendMode(Phaser.BlendModes.ADD).setAlpha(0).setScale(0.4).setDepth(-1);
-    this.tweens.add({ targets: rays, angle: 360, duration: 14000, repeat: -1 });
-    basketBack.setDepth(1);
-    rays.setDepth(1.5);
-    eggC.setDepth(2);
-    basketFront.setDepth(3);
-
-    // ドラゴン(影)。羽ばたきは3枚の絵を順に出す
-    const dragon = this.add.image(600, WORLD_TOP + 260, 'birth:dragon0').setScale(0.1).setAlpha(0).setDepth(4);
-    let frame = 0;
-    const flap = this.time.addEvent({
-      delay: 120,
-      loop: true,
-      callback: () => {
-        frame = (frame + 1) % 4;
-        dragon.setTexture(`birth:dragon${[0, 1, 2, 1][frame]}`);
-        if (frame === 2 && dragon.scale > 0.35 && dragon.visible) audio.se('wing', { pitch: Math.min(1, dragon.scale) });
-      },
-    });
+    // 羽ばたき(翼の付け根を中心に回し、振り下ろすときに翼が短く見えるようにする)
+    let flapping = true;
+    let lastPhase = 0;
     let holding = true;
-    const eggOnDragon = () => {
-      const k = dragon.scale;
-      eggC.setPosition(dragon.x + (DRAGON_EGG.x - DRAGON_W / 2) * k, dragon.y + (DRAGON_EGG.y - DRAGON_H / 2) * k).setScale(k).setAlpha(dragon.alpha);
+    const flapUpdate = () => {
+      if (!flapping) return;
+      const ph = (this.t / FLAP) * Math.PI * 2;
+      const sn = Math.sin(ph);
+      nearWing.setAngle(4 + 13 * sn).setScale(1, 1 - 0.1 * (sn + 1));
+      farWing.setAngle(-4 - 11 * sn).setScale(1, 1 - 0.08 * (sn + 1));
+      body.setY(-10 * Math.cos(ph));
+      // 振り下ろしの始まりで「バサッ」
+      const phase = Math.floor(ph / (Math.PI * 2) + 0.25);
+      if (phase !== lastPhase && dragon.alpha > 0.5 && dragon.scale > 0.3) audio.se('wing', { pitch: Math.min(1, dragon.scale + 0.2) });
+      lastPhase = phase;
+      if (holding) {
+        const k = dragon.scale;
+        egg.setPosition(dragon.x + clawEgg.x * k, dragon.y + (clawEgg.y + body.y) * k).setScale(k * EGG_IN_CLAW).setAlpha(dragon.alpha);
+      }
     };
-    eggOnDragon();
-    const follow = () => {
-      if (holding) eggOnDragon();
-    };
-    this.events.on('update', follow);
+    this.events.on('update', flapUpdate);
+    flapUpdate();
+    this.tweens.add({ targets: dragon, alpha: 1, duration: 700 });
+    this.tweens.add({ targets: dragon, x: 380, y: SKY_TOP + 500, scale: 0.72, duration: 3000, ease: 'Sine.easeOut' });
 
-    s(700, () => {
-      this.tweens.add({ targets: dragon, alpha: 1, duration: 900 });
-      this.tweens.add({ targets: dragon, x: 340, y: WORLD_TOP + 470, scale: 0.92, duration: 3400, ease: 'Sine.easeIn' });
-    });
-
-    // 卵を落とす
+    // ---- シーン2: 卵を落とす(約2秒) ----
     let falling = false;
-    s(4200, () => {
+    s(3200, () => {
       holding = false;
       falling = true;
       audio.se('whistle');
-      this.tweens.add({ targets: dragon, x: -320, y: WORLD_TOP - 200, scale: 1.7, duration: 1700, ease: 'Sine.easeIn', onComplete: () => { dragon.setVisible(false); flap.remove(); } });
-      this.tweens.add({ targets: eggC, y: EGG_BOTTOM - EGG_H / 2, x: W / 2, scale: 1, angle: 720, duration: 2000, ease: 'Quad.easeIn', onComplete: land });
+      this.tweens.add({ targets: dragon, x: -160, y: SKY_TOP + 120, scale: 0.26, duration: 2000, ease: 'Sine.easeIn' });
+      this.tweens.add({ targets: dragon, alpha: 0, delay: 1300, duration: 700 });
+      this.tweens.add({ targets: egg, x: W / 2 + 10, y: SKY_TOP + SKY_H + 260, angle: 540, scale: EGG_SCALE * 0.7, duration: 1700, ease: 'Quad.easeIn', onComplete: enterBasket });
     });
     const camFollow = () => {
-      if (falling) cam.setScroll(0, Phaser.Math.Clamp(eggC.y - 560, WORLD_TOP, 0));
+      if (falling) cam.setScroll(0, Phaser.Math.Clamp(egg.y - 560, SKY_TOP, SKY_TOP + SKY_H - H));
     };
     this.events.on('update', camFollow);
 
-    // 籠に「ポトッ」(少しコミカルに)
-    const land = () => {
+    // ---- シーン3: 木の籠に着地(約2秒) ----
+    this.add.image(W / 2, BASKET_TOP, key('basket')).setOrigin(0.5, 0).setScale(BASKET_SCALE);
+    const front = this.add
+      .image(W / 2, BASKET_TOP + LAYOUT.basket.frontTop * BASKET_SCALE, key('basketFront'))
+      .setOrigin(0.5, 0)
+      .setScale(BASKET_SCALE)
+      .setDepth(8);
+    const glow = this.add.image(NEST_X, EGG_BOTTOM - (EH * EGG_SCALE) / 2, 'birth:glow').setBlendMode(Phaser.BlendModes.ADD).setAlpha(0).setDepth(3);
+    const rays = this.add.image(NEST_X, EGG_BOTTOM - (EH * EGG_SCALE) / 2, 'birth:rays').setBlendMode(Phaser.BlendModes.ADD).setAlpha(0).setScale(0.4).setDepth(2);
+    this.tweens.add({ targets: rays, angle: 360, duration: 16000, repeat: -1 });
+    const cracks = [1, 2, 3].map((st) => this.add.image(NEST_X, EGG_BOTTOM, `birth:crack${st}`).setOrigin(0.5, 1).setScale(EGG_SCALE).setDepth(4.5).setVisible(false));
+    /** 卵とヒビをいっしょに動かす */
+    const eggParts = [egg, ...cracks];
+
+    const enterBasket = () => {
       falling = false;
-      cam.setScroll(0, 0);
-      // ここからは卵の底を中心に揺らす
-      eggC.setAngle(0).setPosition(W / 2, EGG_BOTTOM);
-      for (const o of [egg, ...cracks]) o.setY(-EGG_H / 2);
-      leak.setY(-EGG_H / 2 - 10);
+      this.events.off('update', camFollow);
+      cam.setBounds(0, BASKET_TOP, W, H);
+      cam.setScroll(0, BASKET_TOP);
+      // 速さを感じる白い線
+      const rng = mulberry32(5);
+      for (let i = 0; i < 9; i++) {
+        const line = this.add.rectangle(range(rng, 60, W - 60), BASKET_TOP + range(rng, 0, 700), range(rng, 3, 7), range(rng, 160, 360), 0xffffff, 0.7).setDepth(9);
+        this.tweens.add({ targets: line, y: line.y + 500, alpha: 0, duration: 380, onComplete: () => line.destroy() });
+      }
+      egg.setOrigin(0.5, 1).setPosition(NEST_X, BASKET_TOP - 40).setScale(EGG_SCALE).setAngle(-160).setAlpha(1);
+      this.tweens.add({ targets: egg, y: EGG_BOTTOM, angle: 0, duration: 380, ease: 'Quad.easeIn', onComplete: land });
+    };
+
+    const land = () => {
       audio.se('plop');
+      s(40, () => audio.se('boing'));
+      cam.shake(140, 0.004);
+      this.tweens.add({ targets: front, y: front.y + 10, duration: 80, yoyo: true, repeat: 1, ease: 'Sine.easeOut' });
       this.tweens.chain({
-        targets: eggC,
+        targets: egg,
         tweens: [
-          { scaleX: 1.3, scaleY: 0.65, duration: 70 },
-          { scaleX: 0.9, scaleY: 1.15, y: EGG_BOTTOM - 90, duration: 230, ease: 'Quad.easeOut' },
-          { scaleX: 1, scaleY: 1, y: EGG_BOTTOM, duration: 220, ease: 'Quad.easeIn' },
-          { scaleX: 1.12, scaleY: 0.88, duration: 70 },
-          { scaleX: 1, scaleY: 1, duration: 160, ease: 'Back.easeOut' },
+          { scaleX: EGG_SCALE * 1.25, scaleY: EGG_SCALE * 0.72, duration: 70 },
+          { scaleX: EGG_SCALE * 0.92, scaleY: EGG_SCALE * 1.1, y: EGG_BOTTOM - 70, duration: 210, ease: 'Quad.easeOut' },
+          { scaleX: EGG_SCALE, scaleY: EGG_SCALE, y: EGG_BOTTOM, duration: 200, ease: 'Quad.easeIn' },
+          { scaleX: EGG_SCALE * 1.1, scaleY: EGG_SCALE * 0.9, duration: 60 },
+          { scaleX: EGG_SCALE, scaleY: EGG_SCALE, duration: 140, ease: 'Back.easeOut' },
         ],
       });
-      s(40, () => audio.se('boing'));
-      this.tweens.add({ targets: [basketBack, basketFront], scaleY: 0.86, scaleX: 1.06, duration: 90, yoyo: true, repeat: 1, ease: 'Sine.easeOut' });
+      // 左右にコロン、コロンと揺れて止まる
+      [-16, 12, -7, 3, 0].forEach((a, i) =>
+        s(620 + i * 210, () => {
+          this.tweens.add({ targets: egg, angle: a, duration: 190, ease: 'Sine.easeInOut' });
+          if (i < 3) audio.se('knock', { pitch: 1.5 - i * 0.1 });
+        }),
+      );
       const pop = this.add
-        .text(W / 2 + 150, EGG_BOTTOM - 250, 'ポトッ！', { fontFamily: UI_FONT, fontSize: '64px', fontStyle: '900', color: '#ffd23a', stroke: '#16101c', strokeThickness: 12 })
+        .text(NEST_X + 190, EGG_BOTTOM - 330, 'ポトッ！', { fontFamily: UI_FONT, fontSize: '70px', fontStyle: '900', color: '#ffd23a', stroke: '#16101c', strokeThickness: 13 })
         .setOrigin(0.5)
         .setAngle(-12)
         .setScale(0)
-        .setDepth(6);
-      this.tweens.add({ targets: pop, scale: 1, duration: 260, ease: 'Back.easeOut' });
-      this.tweens.add({ targets: pop, alpha: 0, y: pop.y - 40, delay: 900, duration: 400, onComplete: () => pop.destroy() });
-      hatch();
+        .setDepth(10);
+      this.tweens.add({ targets: pop, scale: 1, duration: 240, ease: 'Back.easeOut' });
+      this.tweens.add({ targets: pop, alpha: 0, y: pop.y - 40, delay: 950, duration: 400, onComplete: () => pop.destroy() });
+      s(1900, hatch);
     };
 
-    // ゴトゴト → ヒビ → 光 → 静寂 → 誕生
-    const wobble = (startMs: number, angles: number[], step = 170) =>
-      angles.forEach((a, i) =>
-        s(startMs + i * step, () => {
-          this.tweens.add({ targets: eggC, angle: a, duration: step * 0.8, ease: 'Sine.easeInOut' });
-          audio.se('knock', { pitch: 0.9 + (i % 2) * 0.2 });
-        }),
-      );
-    const crack = (stage: number, big = false) => {
+    // ---- シーン4: 孵化(約4秒) ----
+    const shake = (times: number, px: number, step = 45) => {
+      this.tweens.add({ targets: eggParts, x: { from: NEST_X - px, to: NEST_X + px }, duration: step, yoyo: true, repeat: times, ease: 'Sine.easeInOut', onComplete: () => eggParts.forEach((o) => o.setX(NEST_X)) });
+    };
+    const crack = (stage: number) => {
       cracks.forEach((c, i) => c.setVisible(i === stage - 1));
-      audio.se(big ? 'crackBig' : 'crack');
-      cam.shake(big ? 180 : 110, big ? 0.006 : 0.003);
+      audio.se(stage === 3 ? 'crackBig' : 'crack');
+      cam.shake(stage === 3 ? 160 : 90, stage === 3 ? 0.005 : 0.0025);
     };
     const hatch = () => {
-      wobble(1100, [-12, 10, -8, 0]);
-      s(2000, () => crack(1));
-      wobble(2500, [9, -9, 0], 150);
-      s(3100, () => {
+      shake(3, 3);
+      audio.se('knock', { pitch: 1.1 });
+      s(260, () => audio.se('knock', { pitch: 1.2 }));
+      s(600, () => crack(1));
+      s(1000, () => {
+        shake(4, 5);
+        audio.se('knock', { pitch: 1.0 });
+        s(220, () => audio.se('knock', { pitch: 1.15 }));
+      });
+      s(1400, () => {
         crack(2);
-        this.tweens.add({ targets: leak, alpha: 0.45, duration: 400 });
-        this.tweens.add({ targets: rays, alpha: 0.25, scale: 0.55, duration: 600 });
+        this.tweens.add({ targets: glow, alpha: 0.5, scale: 1.1, duration: 400 });
       });
-      wobble(3600, [-7, 7, -7, 7, 0], 110);
-      s(4200, () => {
-        crack(3, true);
-        this.tweens.add({ targets: leak, alpha: 0.8, scale: 0.8, duration: 300 });
-        this.tweens.add({ targets: rays, alpha: 0.5, scale: 0.8, duration: 500 });
+      s(1800, () => shake(6, 7, 40));
+      s(2200, () => {
+        crack(3);
+        this.tweens.add({ targets: glow, alpha: 0.85, scale: 1.5, duration: 300 });
+        this.tweens.add({ targets: rays, alpha: 0.45, scale: 0.75, duration: 500 });
       });
-      // 一瞬の静寂(音を止めて、ゆっくり卵に寄る)
-      s(4700, () => {
+      // 一瞬の静寂(音楽を止めて、卵に寄る)
+      s(2600, () => {
         audio.stopBgm(0.12);
-        // 画面の外(地面の下)が見えないよう、カメラの範囲はそのまま
-        cam.pan(W / 2, EGG_BOTTOM - EGG_H / 2, 1500, 'Sine.easeInOut');
-        cam.zoomTo(1.45, 1500, 'Sine.easeInOut');
-        this.tweens.add({ targets: leak, alpha: 1, scale: 1.1, duration: 1500, ease: 'Sine.easeIn' });
+        cam.zoomTo(1.35, 1100, 'Sine.easeInOut');
+        shake(14, 4, 38);
+        this.tweens.add({ targets: glow, alpha: 1, scale: 2.1, duration: 1100, ease: 'Sine.easeIn' });
+        this.tweens.add({ targets: rays, alpha: 0.7, scale: 1, duration: 1100, ease: 'Sine.easeIn' });
       });
-      // 誕生
-      s(6400, () => {
-        audio.se('burst');
-        const flash = this.add.rectangle(0, 0, W, H, 0xfffbe8).setOrigin(0, 0).setScrollFactor(0).setDepth(20).setAlpha(0);
-        this.tweens.add({
-          targets: flash,
-          alpha: 1,
-          duration: 120,
-          onComplete: () => {
-            cam.setZoom(1).setScroll(0, 0);
-            eggC.setVisible(false);
-            basketBack.setVisible(false);
-            basketFront.setVisible(false);
-            rays.setPosition(W / 2, FLOOR_Y - 220).setAlpha(0.9).setScale(1.3).setDepth(1.5);
-            this.tweens.add({ targets: rays, alpha: 0, duration: 2600, delay: 400, ease: 'Sine.easeIn' });
-            // 殻が飛び散る
-            const shells: [string, number, number, number][] = [['birth:shellTop', -260, -420, -540], ['birth:shellBottom', 230, -300, 400]];
-            for (const [key, dx, dy, spin] of shells) {
-              const sh = this.add.image(W / 2, EGG_BOTTOM - EGG_H / 2, key).setDepth(6);
-              this.tweens.add({ targets: sh, x: sh.x + dx, y: sh.y + dy, angle: spin, duration: 650, ease: 'Quad.easeOut' });
-              this.tweens.add({ targets: sh, y: FLOOR_Y + 60, alpha: 0, delay: 650, duration: 900, ease: 'Quad.easeIn', onComplete: () => sh.destroy() });
-            }
-            this.spawn(monz);
-            this.tweens.add({ targets: flash, alpha: 0, duration: 900, ease: 'Cubic.easeOut', onComplete: () => flash.destroy() });
-            s(150, () => audio.playBgm('hatch', 0.8));
-            this.events.off('update', follow);
-            this.events.off('update', camFollow);
-          },
-        });
+      s(3800, burst);
+    };
+
+    // 割れて光が広がる → ---- シーン5: MONZ誕生(約3秒) ----
+    const burst = () => {
+      audio.se('burst');
+      const flash = this.add.rectangle(0, 0, W, H, 0xfffbe8).setOrigin(0, 0).setScrollFactor(0).setDepth(50).setAlpha(0);
+      this.tweens.add({
+        targets: flash,
+        alpha: 1,
+        duration: 110,
+        onComplete: () => {
+          cam.setZoom(1);
+          eggParts.forEach((o) => o.setVisible(false));
+          glow.setAlpha(0.9).setScale(3.2).setDepth(7);
+          this.tweens.add({ targets: glow, alpha: 0, scale: 2, duration: 1800, ease: 'Sine.easeIn' });
+          rays.setAlpha(1).setScale(1.5);
+          this.tweens.add({ targets: rays, alpha: 0, duration: 2600, delay: 500, ease: 'Sine.easeIn' });
+          // 下半分の殻は左右に開いて籠に残り、上のかけらは飛び散る
+          for (const side of [-1, 1]) {
+            const half = this.add.image(NEST_X, EGG_BOTTOM, `birth:shell:${side < 0 ? 'bottomL' : 'bottomR'}`).setOrigin(0.5, 1).setScale(EGG_SCALE).setDepth(6);
+            this.tweens.add({ targets: half, x: NEST_X + side * 175, y: EGG_BOTTOM + 18, angle: side * 24, duration: 520, ease: 'Back.easeOut' });
+          }
+          const fly: [string, number, number, number][] = [
+            ['top0', -250, -330, -300],
+            ['top1', 30, -460, 200],
+            ['top2', 260, -300, 340],
+          ];
+          for (const [p, dx, dy, spin] of fly) {
+            const sh = this.add.image(NEST_X, EGG_BOTTOM, `birth:shell:${p}`).setOrigin(0.5, 1).setScale(EGG_SCALE).setDepth(9);
+            this.tweens.add({ targets: sh, x: sh.x + dx, y: sh.y + dy, angle: spin, duration: 600, ease: 'Quad.easeOut' });
+            this.tweens.add({ targets: sh, y: BASKET_TOP + H + 200, alpha: 0.6, delay: 600, duration: 800, ease: 'Quad.easeIn', onComplete: () => sh.destroy() });
+          }
+          this.spawn(monz);
+          // 光がゆっくり消える
+          this.tweens.add({ targets: flash, alpha: 0, duration: 1300, ease: 'Sine.easeOut', onComplete: () => flash.destroy() });
+          s(150, () => audio.playBgm('hatch', 0.8));
+          flapping = false;
+          this.events.off('update', flapUpdate);
+          dragon.destroy();
+        },
       });
     };
   }
 
-  /** 卵からMONZを出す(喜んで跳ね、名前を出す) */
+  /** 籠の中にMONZを出す(目を閉じている → 目を開ける → 少し体を動かす → 名前) */
   private spawn(monz: string): void {
-    const view = new BunkView(this, W / 2, FLOOR_Y, SCALE);
-    view.setDepth(2);
+    const view = new BunkView(this, NEST_X, MONZ_FEET, MONZ_SCALE);
+    view.setDepth(5);
     view.still = false;
     const brain = new BunkBrain(BUNK_MOTION.behavior, Date.now() & 0xffff, TEST_PERSONALITY);
     brain.jabDuration = BUNK_MOTION.poses.guard.jab?.duration ?? 0.34;
     brain.hold = true;
+    brain.reaction = { face: 'closed', kind: 'calm', left: 1.5, age: 0 };
     this.view = view;
     this.brain = brain;
     this.alive = true;
@@ -272,56 +304,29 @@ export class BirthScene extends Phaser.Scene {
       audio.unlock();
       audio.se(brain.pet());
     });
-    this.zText = this.text(0, 0, 'z', 38, '#ffffff').setVisible(false);
 
-    // 誕生直後: 喜んで跳ね、名前を出したあと、ホームへ移る
     const name = NAMES[monz] ?? monz.toUpperCase();
-    brain.reaction = { face: 'happy', kind: 'happy', left: 2.2, age: 0 };
-    view.setScale(SCALE * 0.2);
-    this.tweens.add({ targets: view, scale: SCALE, duration: 520, ease: 'Back.easeOut' });
-    const plate = createNameplate(this, name, W / 2, 250);
-    plate.reveal();
-    this.time.delayedCall(3600, () => {
-      plate.dock(true);
-      this.time.delayedCall(1400, () => {
-        this.cameras.main.fadeOut(500, 0, 0, 0);
-        this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('Home'));
+    this.time.delayedCall(1500, () => {
+      // 目を開けて、うれしそうに少し跳ねる
+      brain.reaction = { face: 'happy', kind: 'happy', left: 2.2, age: 0 };
+      audio.se('happy');
+      const plate = createNameplate(this, name, W / 2, 250);
+      plate.reveal();
+      this.time.delayedCall(3600, () => {
+        plate.dock(true);
+        this.time.delayedCall(1400, () => {
+          this.cameras.main.fadeOut(500, 0, 0, 0);
+          this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('Home'));
+        });
       });
     });
   }
 
-  private text(x: number, y: number, s: string, size: number, color: string): Phaser.GameObjects.Text {
-    return this.add
-      .text(x, y, s, { fontFamily: UI_FONT, fontSize: `${size}px`, fontStyle: '900', color, stroke: '#16101c', strokeThickness: Math.round(size * 0.2), align: 'center' })
-      .setOrigin(0.5)
-      .setDepth(5);
-  }
-
   update(_time: number, delta: number): void {
-    if (!this.alive || !this.view || !this.brain) return;
     const dt = Math.min(delta / 1000, 0.1);
-    const view = this.view;
-    const brain = this.brain;
     this.t += dt;
-    brain.update(dt);
-    if (brain.activity === 'walk' && !brain.switching && !brain.reaction) {
-      const minX = 300;
-      const maxX = W - 300;
-      view.x += brain.dir * BUNK_MOTION.behavior.walkSpeed * SCALE * dt;
-      if (view.x > maxX) {
-        view.x = maxX;
-        brain.bounce(-1);
-      } else if (view.x < minX) {
-        view.x = minX;
-        brain.bounce(1);
-      }
-    }
-    view.render(brain, this.t);
-    const sleeping = brain.activity === 'sleep' && !brain.switching;
-    this.zText?.setVisible(sleeping);
-    if (sleeping && this.zText) {
-      const k = (this.t % 2) / 2;
-      this.zText.setPosition(view.x + 150 + k * 40, view.y - 900 * SCALE - k * 60).setAlpha(1 - k).setScale(0.7 + k * 0.6);
-    }
+    if (!this.alive || !this.view || !this.brain) return;
+    this.brain.update(dt);
+    this.view.render(this.brain, this.t);
   }
 }

@@ -12,6 +12,13 @@ export class SplashScene extends Phaser.Scene {
     super('Splash');
   }
 
+  /** タップのあとに開く画面(ふつうはタイトル。?birth のときは誕生の演出) */
+  private next = 'Title';
+
+  init(data: { next?: string }): void {
+    this.next = data?.next ?? 'Title';
+  }
+
   create(): void {
     const { width: W, height: H } = this.scale;
     canvasTexture(this, 'ui:splash', W, H, (ctx) => {
@@ -64,7 +71,7 @@ export class SplashScene extends Phaser.Scene {
       this.tweens.killTweensOf(text);
       this.tweens.add({ targets: [text, sub], scale: 1.5, alpha: 0, duration: 220, ease: 'Cubic.easeIn' });
       this.cameras.main.flash(200, 255, 255, 255);
-      this.time.delayedCall(140, () => this.scene.start('Title', { fromSplash: true }));
+      this.time.delayedCall(140, () => this.scene.start(this.next, this.next === 'Birth' ? { intro: true } : { fromSplash: true }));
     });
   }
 }

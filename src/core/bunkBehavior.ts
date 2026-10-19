@@ -16,8 +16,8 @@ export class BunkBrain {
   activity: BunkActivity = 'idle';
   /** 歩く向き(1=右, -1=左) */
   dir: 1 | -1 = 1;
-  /** 反応中の表情と残り時間 */
-  reaction: { face: BunkFace | null; kind: 'happy' | 'angry' | 'surprised'; left: number; age: number } | null = null;
+  /** 反応中の表情と残り時間(calm は体を動かさず表情だけ) */
+  reaction: { face: BunkFace | null; kind: 'happy' | 'angry' | 'surprised' | 'calm'; left: number; age: number } | null = null;
   /** 姿を切りかえている途中(0〜1)。null なら切りかえ中ではない */
   switching: { to: BunkPoseName; k: number; then: BunkActivity } | null = null;
   /** 拳を突き出している途中(0〜1)。null なら突き出していない */
