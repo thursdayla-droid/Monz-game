@@ -438,6 +438,11 @@ export class HomeScene extends Phaser.Scene {
     if (this.busy) return;
     if (action === 'food') this.feed();
     else if (action === 'status') this.openStatus();
+    else if (action === 'minigame') {
+      audio.se('next');
+      this.cameras.main.fadeOut(200, 0, 0, 0);
+      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('MinigameSelect'));
+    }
     else this.comingSoon(HOME_ACTION_LABELS[action]);
   }
 

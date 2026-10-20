@@ -10,10 +10,15 @@ export interface MinigameInfo {
   ready: boolean;
   scene?: string;
   score: string;
+  /** セレクト画面の看板の色(未定のゲームは灰色) */
+  color: string;
 }
 
+/** 目標の数(セレクト画面には、まだ決まっていないぶんも「？？？」の枠を出す) */
+export const MINIGAME_SLOTS = 5;
+
 export const MINIGAMES: readonly MinigameInfo[] = [
-  { id: 'card', title: 'MONZ CARD', ready: false, score: '出したカードの枚数' },
+  { id: 'card', title: 'MONZ CARD', ready: false, score: '出したカードの枚数', color: '#8a35e0' },
   // 【企画段階】ルールが決まるまで作らない
-  { id: 'jump', title: 'ジャンプゲーム', ready: false, score: '走った距離' },
+  { id: 'jump', title: 'ジャンプゲーム', ready: false, score: '走った距離', color: '#ff8a1f' },
 ];

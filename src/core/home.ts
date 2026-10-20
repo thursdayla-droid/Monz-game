@@ -30,7 +30,7 @@ export const HOME_ACTION_LABELS: Record<HomeAction, string> = {
 /** まだ中身がないボタン(押すと「じゅんび中」と出す)。中身は企画者が決める */
 export const HOME_ACTION_READY: Record<HomeAction, boolean> = {
   food: true,
-  minigame: false,
+  minigame: true,
   status: true,
   battle: false,
   shop: false,
