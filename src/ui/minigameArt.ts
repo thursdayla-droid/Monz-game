@@ -67,7 +67,7 @@ export function drawTitleSign(ctx: CanvasRenderingContext2D, w: number, h: numbe
 
 /**
  * ゲームの看板(カード)。ready=false なら「SOON」。title が空なら「？？？」(まだ決まっていない枠)。
- * icon: 'card' | 'jump' | null(？マーク)
+ * icon: 'card' | 'dash' | null(？マーク)
  */
 export function drawGameCard(ctx: CanvasRenderingContext2D, w: number, h: number, title: string, sub: string, color: string, icon: string | null, ready: boolean, seed: number): void {
   const rng = mulberry32(seed);
@@ -115,7 +115,7 @@ export function drawGameCard(ctx: CanvasRenderingContext2D, w: number, h: number
       ctx.fillText(mark, 0, 2);
       ctx.restore();
     }
-  } else if (icon === 'jump') {
+  } else if (icon === 'dash') {
     // 跳ねる矢印と地面
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
