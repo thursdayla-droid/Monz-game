@@ -42,8 +42,8 @@ export const DASH = {
   shortRamp: 45000,
   /** 【仮】はねるトゲ: 出はじめる距離(200m)、1回はねる時間(秒)、はねる高さ、転がる速さ */
   bounceFrom: 20000,
-  bouncePeriod: 1.3,
-  bounceHeight: 130,
+  bouncePeriod: 1.5,
+  bounceHeight: 200,
   bounceRoll: 90,
   /** 【仮】難しくなると、足場の端の近くで跳ばないと届かないすき間が出る(すき間の最大を少し広げる) */
   edgeGapExtra: 0.08,
