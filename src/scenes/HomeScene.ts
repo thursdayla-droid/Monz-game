@@ -107,10 +107,11 @@ export class HomeScene extends Phaser.Scene {
     const view = new BunkView(this, life.x, life.y, SCALE_BACK);
     view.still = false;
     this.view = view;
-    view.on('pointerdown', (p: Phaser.Input.Pointer) => this.startStroke(p));
-    this.poseImg = this.add.image(life.x, life.y, '__DEFAULT').setOrigin(0.5, 1).setVisible(false).setInteractive({ useHandCursor: true, pixelPerfect: false });
-    this.poseImg.on('pointerdown', (p: Phaser.Input.Pointer) => this.startStroke(p));
-    // 指でなぞってなでる: 指の動きを追う
+    this.poseImg = this.add.image(life.x, life.y, '__DEFAULT').setOrigin(0.5, 1).setVisible(false);
+    // 指でなでる・タップ: 画面のどこを触ったかで判断する(MONZの体のあたりなら反応。座る・眠るなどの絵のときも同じ)
+    this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      if (this.onMonz(p.x, p.y)) this.startStroke(p);
+    });
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => this.moveStroke(p));
     this.input.on('pointerup', () => this.endStroke());
     this.input.on('pointerupoutside', () => this.endStroke());
@@ -432,9 +433,19 @@ export class HomeScene extends Phaser.Scene {
   /** なでた距離(px)がこれだけたまるたびに反応する */
   private static STROKE_STEP = 70;
 
+  /** その場所がMONZの体のあたりか(少し広めに取って、指で触りやすくする) */
+  private onMonz(x: number, y: number): boolean {
+    const life = this.life;
+    if (!life) return false;
+    const sc = this.scaleAt(life.y);
+    return Math.abs(x - life.x) < 620 * sc && y < life.y + 30 && y > life.y - MONZ_H * sc - 40;
+  }
+
   private startStroke(p: Phaser.Input.Pointer): void {
     if (this.busy || !this.life) return;
     this.stroke = { x: p.x, y: p.y, dist: 0, sinceTick: 0, ticks: 0, happy: 0, angry: false };
+    // 触ったらすぐ手を出す(指で隠れないよう、指の少し上に)
+    this.showStrokeHand(p.x, p.y);
   }
 
   private moveStroke(p: Phaser.Input.Pointer): void {
@@ -444,13 +455,11 @@ export class HomeScene extends Phaser.Scene {
     const d = Math.hypot(p.x - s.x, p.y - s.y);
     s.x = p.x;
     s.y = p.y;
+    this.showStrokeHand(p.x, p.y);
     // MONZの体の上をなぞっているときだけ数える
-    const sc = this.scaleAt(life.y);
-    const onBody = Math.abs(p.x - life.x) < 600 * sc && p.y < life.y + 20 && p.y > life.y - MONZ_H * sc - 30;
-    if (!onBody) return;
+    if (!this.onMonz(p.x, p.y)) return;
     s.dist += d;
     s.sinceTick += d;
-    if (s.dist > 18) this.showStrokeHand(p.x, p.y);
     if (s.sinceTick < HomeScene.STROKE_STEP) return;
     s.sinceTick = 0;
     s.ticks++;
@@ -488,9 +497,10 @@ export class HomeScene extends Phaser.Scene {
   private showStrokeHand(x: number, y: number): void {
     if (!this.strokeHand) {
       canvasTexture(this, 'home:hand', 220, 220, (ctx) => drawIcon(ctx, 'pet', 110, 116, 82));
-      this.strokeHand = this.add.image(0, 0, 'home:hand').setDepth(DEPTH.effect).setScale(0.45).setAngle(180);
+      this.strokeHand = this.add.image(0, 0, 'home:hand').setDepth(DEPTH.effect).setScale(0.6).setAngle(180);
     }
-    this.strokeHand.setVisible(true).setPosition(x + 10, y - 30).setAngle(180 + Math.sin(this.t * 14) * 8);
+    // 指の少し上に出す(指で隠れないように)
+    this.strokeHand.setVisible(true).setPosition(x + 16, y - 90).setAngle(180 + Math.sin(this.t * 14) * 8);
   }
 
   private hideStrokeHand(): void {
