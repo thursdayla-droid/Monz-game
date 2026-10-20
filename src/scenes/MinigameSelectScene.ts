@@ -6,22 +6,99 @@ import { drawArcadeWall, drawGameCard, drawTitleSign } from '../ui/minigameArt';
 import { canvasTexture, canvasTextureOnce, UI_FONT } from '../ui/paint';
 import { drawPanel } from '../ui/homeArt';
 import { homeIconKey } from './HomeScene';
+import { preloadPacks } from '../render/packs';
 
 const W = 720;
 const H = 1280;
 const CARD = { w: 660, h: 176, gap: 22, top: 300 };
 
+/** 企画者のセレクト画面の絵(design/minigame/select.png・941x1671)。押せる場所は、この絵の座標で決める */
+export const SELECT_IMAGE = 'mg:select';
+const ART = { w: 941, h: 1671 };
+const ART_BACK = [30, 38, 255, 110];
+/** 上から MONZ CARD・ダッシュモンズ・？？？×3 の看板 */
+const ART_CARDS = [
+  [38, 420, 910, 640],
+  [38, 668, 910, 890],
+  [38, 925, 910, 1132],
+  [38, 1160, 910, 1367],
+  [38, 1393, 910, 1602],
+];
+/** 絵に描いてある「0」を隠して、本当のコインの数を出す場所 */
+const ART_COIN_NUMBER = [715, 52, 846, 104];
+
 /**
  * ミニゲームのセレクト画面(お世話画面の「ミニゲーム」から開く)。
  * 遊ぶゲームを選ぶ専用の画面。ゲームの一覧(src/core/modes.ts)から看板を並べる。目標5種類なので、決まっていない枠は「？？？」。
- * 【仮】絵はプログラムで描いた仮の絵。企画者のデザインが届いたら差しかえる。
+ * 絵は企画者のデザイン(2026-10-20)。読み込めなかったときだけ、プログラムで描いた仮の絵を出す。
  */
 export class MinigameSelectScene extends Phaser.Scene {
   constructor() {
     super('MinigameSelect');
   }
 
+  preload(): void {
+    preloadPacks(this, ['minigame', 'home']);
+  }
+
   create(): void {
+    if (this.textures.exists(SELECT_IMAGE)) this.buildFromArt();
+    else this.buildDrawn();
+    this.cameras.main.fadeIn(250, 0, 0, 0);
+    audio.playBgm('home');
+  }
+
+  /** 企画者の絵で作る */
+  private buildFromArt(): void {
+    const sx = W / ART.w;
+    const sy = H / ART.h;
+    this.add.image(0, 0, SELECT_IMAGE).setOrigin(0, 0).setDisplaySize(W, H);
+    const zone = ([x0, y0, x1, y1]: number[], onTap: (z: Phaser.GameObjects.Rectangle) => void) => {
+      const z = this.add.rectangle(x0 * sx, y0 * sy, (x1 - x0) * sx, (y1 - y0) * sy, 0xffffff, 0).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+      z.on('pointerdown', () => onTap(z));
+      return z;
+    };
+    // 押したところが一瞬光る
+    const flash = (z: Phaser.GameObjects.Rectangle) => {
+      z.setFillStyle(0xffffff, 0.25);
+      this.tweens.add({ targets: z, fillAlpha: 0, duration: 220 });
+    };
+    zone(ART_BACK, (z) => {
+      flash(z);
+      this.leave();
+    });
+    ART_CARDS.forEach((box, i) => {
+      const g = MINIGAMES[i];
+      zone(box, (z) => {
+        flash(z);
+        if (g?.ready && g.scene) {
+          audio.se('next');
+          this.scene.start(g.scene);
+        } else {
+          audio.se('tap', { pitch: 0.8 });
+          this.cameras.main.shake(120, 0.003);
+          if (g) this.toast(`${g.title}は じゅんび中！`);
+        }
+      });
+    });
+    // コインの数
+    const [cx0, cy0, cx1, cy1] = ART_COIN_NUMBER;
+    this.add.rectangle(cx0 * sx, cy0 * sy, (cx1 - cx0) * sx, (cy1 - cy0) * sy, 0x050308, 1).setOrigin(0, 0);
+    this.add
+      .text(cx1 * sx - 4, ((cy0 + cy1) / 2) * sy, loadLife().coins.toLocaleString(), { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '30px', color: '#ffffff' })
+      .setOrigin(1, 0.5);
+  }
+
+  private toast(msg: string): void {
+    const t = this.add
+      .text(W / 2, H * 0.5, msg, { fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: '#ffffff', backgroundColor: '#16101cdd', padding: { x: 22, y: 12 } })
+      .setOrigin(0.5)
+      .setDepth(10);
+    this.tweens.add({ targets: t, alpha: 0, y: t.y - 40, delay: 900, duration: 400, onComplete: () => t.destroy() });
+  }
+
+  /** 【仮】絵が読めなかったときの、プログラムで描いた画面 */
+  private buildDrawn(): void {
     canvasTextureOnce(this, 'mg:wall', W, H, (ctx) => drawArcadeWall(ctx, W, H));
     this.add.image(0, 0, 'mg:wall').setOrigin(0, 0);
     canvasTextureOnce(this, 'mg:title', 640, 140, (ctx) => drawTitleSign(ctx, 640, 140));
@@ -60,8 +137,6 @@ export class MinigameSelectScene extends Phaser.Scene {
         }
       });
     }
-    this.cameras.main.fadeIn(250, 0, 0, 0);
-    audio.playBgm('home');
   }
 
   private leave(): void {
