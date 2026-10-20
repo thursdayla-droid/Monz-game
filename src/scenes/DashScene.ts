@@ -23,6 +23,16 @@ export const DASH_SPIKE_KEY = 'dash:spike';
 export const DASH_SPIKE_FILE = 'assets/minigame/dash_spike.webp';
 const SPIKE_SIZE = 76;
 
+/** 走るモンズの絵(企画者の絵)。height: 画面での高さ、ox/oy: 足元の位置(絵の幅・高さに対する割合) */
+export const DASH_RUN_KEY = 'dash:run';
+export const DASH_RUN_FILE = 'assets/minigame/dash_run.webp';
+export const DASH_JUMP_KEY = 'dash:jump';
+export const DASH_JUMP_FILE = 'assets/minigame/dash_jump.webp';
+const POSES = {
+  run: { key: DASH_RUN_KEY, height: 100, ox: 0.6, oy: 0.96 },
+  jump: { key: DASH_JUMP_KEY, height: 112, ox: 0.6, oy: 0.96 },
+};
+
 const W = 720;
 const H = 1280;
 const INK = '#16101c';
@@ -38,7 +48,8 @@ export class DashScene extends Phaser.Scene {
   private phase: Phase = 'ready';
   private record!: LifeRecord;
   private runId = '';
-  private runner?: Phaser.GameObjects.Image | Phaser.GameObjects.Rectangle;
+  private runner?: Phaser.GameObjects.Image;
+  private pose: keyof typeof POSES | '' = '';
   private distText!: Phaser.GameObjects.Text;
   private t = 0;
   private onHide?: () => void;
@@ -66,10 +77,10 @@ export class DashScene extends Phaser.Scene {
       pt.add('right', 0, PLAT.left + PLAT.mid + 8, 0, PLAT.right, PLAT.h);
     }
     this.platViews = new Map();
+    this.pose = '';
     this.spikeViews = new Map();
-    if (this.textures.exists('cardimg:clearMonz')) this.runner = this.add.image(DASH.runnerX, 900, 'cardimg:clearMonz').setOrigin(0.5, 0.92).setScale(0.2);
-    else this.runner = this.add.rectangle(DASH.runnerX, 900, DASH.runnerW, DASH.runnerH, 0x16101c).setOrigin(0.5, 1);
-    this.runner.setDepth(3);
+    this.runner = this.add.image(DASH.runnerX, 900, DASH_RUN_KEY).setDepth(3);
+    this.setPose('run');
 
     this.distText = this.add.text(W / 2, 40, '', { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '52px', color: '#ffffff', stroke: INK, strokeThickness: 10 }).setOrigin(0.5, 0).setDepth(10);
     const pause = this.add.text(24, 30, 'Ⅱ', { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '34px', color: '#ffffff', backgroundColor: '#16101ccc', padding: { x: 16, y: 6 } }).setDepth(10).setInteractive({ useHandCursor: true }).setName('pause');
@@ -235,6 +246,15 @@ export class DashScene extends Phaser.Scene {
   }
 
   /** 【仮】足場・危険物・さわっても大丈夫な物を描く(コースの座標 → 画面の座標) */
+  /** 走る/ジャンプの絵に切りかえる。足元が足場の面にくるように合わせる */
+  private setPose(name: keyof typeof POSES): void {
+    if (this.pose === name || !this.runner) return;
+    this.pose = name;
+    const p = POSES[name];
+    this.runner.setTexture(p.key).setOrigin(p.ox, p.oy);
+    this.runner.setScale(p.height / this.runner.height);
+  }
+
   /** 足場1つ分の絵を作る。左はし・まん中(くり返し)・右はし を並べる。短い足場は はしを半分ずつ使う */
   private buildPlatform(width: number): { img: Phaser.GameObjects.Image; dx: number }[] {
     const w = Math.round(width);
@@ -294,7 +314,8 @@ export class DashScene extends Phaser.Scene {
     }
     const runner = this.runner!;
     const bob = s.grounded ? Math.abs(Math.sin(this.t * 14)) * 6 : 0;
-    runner.setPosition(DASH.runnerX, s.y - bob).setAngle(s.grounded ? Math.sin(this.t * 14) * 4 : s.vy < 0 ? -10 : 10);
+    this.setPose(s.grounded ? 'run' : 'jump');
+    runner.setPosition(DASH.runnerX, s.y - bob).setAngle(s.grounded ? Math.sin(this.t * 14) * 3 : s.vy < 0 ? -4 : 4);
     const bg = this.children.getByName('city') as Phaser.GameObjects.TileSprite | null;
     bg?.setTilePosition((s.dist * 0.2) / bg.tileScaleX, 0);
     this.distText.setText(`${meters(s)}m`);

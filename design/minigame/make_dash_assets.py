@@ -5,6 +5,7 @@ DASH MONZ の企画者の絵を、ゲーム用に書き出す。絵は描き直�
 """
 import os
 
+import numpy as np
 from PIL import Image, ImageOps
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -41,3 +42,20 @@ sp = sp.crop(sp.getchannel('A').point(lambda v: 255 if v > 20 else 0).getbbox())
 sp.thumbnail((160, 160), Image.LANCZOS)
 sp.save(os.path.join(OUT, 'dash_spike.webp'), quality=88, method=6)
 print('dash_spike.webp', sp.size)
+
+# 走るモンズ: 走る絵は透明の背景つき(そのまま)、ジャンプの絵は描きこまれたチェック柄を消す
+from cutout import cut_checker  # noqa: E402
+
+
+def save_pose(im: Image.Image, name: str, width: int) -> None:
+    im = im.crop(im.getchannel('A').point(lambda v: 255 if v > 20 else 0).getbbox())
+    a = np.asarray(im).copy()
+    a[..., 3] = np.where(a[..., 3] > 240, 255, a[..., 3])  # ほぼ不透明の所は不透明にする
+    im = Image.fromarray(a)
+    h = round(im.height * width / im.width)
+    im.resize((width, h), Image.LANCZOS).save(os.path.join(OUT, name), quality=88, method=6)
+    print(name, (width, h))
+
+
+save_pose(Image.open(os.path.join(HERE, 'dash_run.png')).convert('RGBA'), 'dash_run.webp', 360)
+save_pose(cut_checker(os.path.join(HERE, 'dash_jump.png')), 'dash_jump.webp', 300)
