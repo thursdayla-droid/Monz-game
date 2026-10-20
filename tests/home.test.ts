@@ -27,7 +27,7 @@ describe('home', () => {
   });
 
   it('has six menu buttons in the planner order', () => {
-    expect(HOME_ACTIONS.map((a) => HOME_ACTION_LABELS[a])).toEqual(['ごはん', 'ミニゲーム', 'なでる', 'バトル', 'ショップ', '設定']);
+    expect(HOME_ACTIONS.map((a) => HOME_ACTION_LABELS[a])).toEqual(['ごはん', 'ミニゲーム', 'ステータス', 'バトル', 'ショップ', '設定']);
   });
 });
 
@@ -107,6 +107,7 @@ describe('life record', () => {
     const rec = new LifeRecord(loadLife(store), store);
     expect(rec.coins).toBe(7);
     expect(rec.level).toBe(3);
+    expect(rec.monz.statPoints).toBe(0.2);
     expect(rec.monz.exp).toBe(20);
     expect(rec.monz.species).toBe('bunk');
     expect(rec.needs.full).toBe(0.3);

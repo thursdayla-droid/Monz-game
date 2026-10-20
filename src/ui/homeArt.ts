@@ -289,7 +289,7 @@ export function drawMenuButton(ctx: CanvasRenderingContext2D, w: number, h: numb
 }
 
 /** 【仮】メニューのアイコン(企画者のアイコン画像を読み込めなかったときの代わり。なでる手の動きにも使う) */
-export function drawIcon(ctx: CanvasRenderingContext2D, action: HomeAction, x: number, y: number, s: number): void {
+export function drawIcon(ctx: CanvasRenderingContext2D, action: HomeAction | 'pet', x: number, y: number, s: number): void {
   ctx.save();
   ctx.translate(x, y);
   ctx.lineWidth = Math.max(3, s * 0.12);
@@ -319,6 +319,26 @@ export function drawIcon(ctx: CanvasRenderingContext2D, action: HomeAction, x: n
     ctx.fillStyle = COLORS.pink;
     ctx.fill();
     ctx.restore();
+  } else if (action === 'status') {
+    // 【仮】ステータス: 棒グラフと星
+    const bars = [0.5, 0.85, 0.65];
+    bars.forEach((h, i) => {
+      ctx.fillStyle = [COLORS.orange, COLORS.purple, COLORS.blue][i];
+      const bx = -s * 0.8 + i * s * 0.55;
+      roundRectPath(ctx, bx, s * 0.8 - h * s * 1.4, s * 0.42, h * s * 1.4, s * 0.08);
+      ctx.fill();
+      ctx.stroke();
+    });
+    ctx.fillStyle = COLORS.yellow;
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2 - Math.PI / 2;
+      const r = i % 2 ? s * 0.18 : s * 0.4;
+      ctx.lineTo(s * 0.62 + Math.cos(a) * r, -s * 0.62 + Math.sin(a) * r);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
   } else if (action === 'minigame') {
     // コントローラー
     ctx.fillStyle = COLORS.purple;

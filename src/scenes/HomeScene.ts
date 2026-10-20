@@ -40,7 +40,8 @@ export function homePlace(): HomePlace {
   return place;
 }
 /** 企画者のアイコン(design/home/icons.png → design/home/make_icons.py で切り分け) */
-export const HOME_ICONS = ['food', 'minigame', 'pet', 'battle', 'shop', 'settings', 'coin'] as const;
+/** 企画者のアイコンがあるもの(ステータスはまだないので仮の絵) */
+export const HOME_ICONS = ['food', 'minigame', 'battle', 'shop', 'settings', 'coin'] as const;
 export const homeIconKey = (name: string) => `home:icon:${name}`;
 /**
  * 企画者のBUNKの姿(design/bunk/poses/ → make_poses.py で切り抜き)。お世話画面の行動に合わせて出す。
@@ -429,7 +430,7 @@ export class HomeScene extends Phaser.Scene {
     }
     if (this.busy) return;
     if (action === 'food') this.feed();
-    else if (action === 'pet') this.petWithHand();
+    else if (action === 'status') this.openStatus();
     else this.comingSoon(HOME_ACTION_LABELS[action]);
   }
 
@@ -553,13 +554,6 @@ export class HomeScene extends Phaser.Scene {
     });
   }
 
-  /** 手の絵(企画者の指さしの手)を、大きさ size(px の高さ)で使えるようにする。キーを返す */
-  private handKey(): string {
-    if (this.textures.exists(HAND_KEY)) return HAND_KEY;
-    canvasTextureOnce(this, 'home:hand', 220, 220, (ctx) => drawIcon(ctx, 'pet', 110, 116, 82));
-    return 'home:hand';
-  }
-
   /** ごはん: 骨付き肉が落ちてきて、3口で食べる(かじった跡が増えて、最後は消える) */
   private feed(): void {
     const view = this.view!;
@@ -606,38 +600,45 @@ export class HomeScene extends Phaser.Scene {
     });
   }
 
-  /** なでる: 手が出てきて頭をなでる(反応はタップのときと同じ) */
-  private petWithHand(): void {
-    const view = this.view!;
-    const life = this.life!;
+  /**
+   * ステータス画面。【未確定】ステータスの種類・初期値・上限は企画者が決めてから。
+   * 今は、レベル・経験値・振り分けられるポイント(レベル1ごとに0.1)だけを出す。
+   */
+  private openStatus(): void {
+    const record = this.record;
+    if (!record) return;
     this.busy = true;
-    life.pause(3.5);
-    const sc = this.scaleAt(life.y);
-    const key = this.handKey();
-    const headY = life.y - MONZ_H * sc + 30;
-    // 企画者の手の絵は、人さし指の先で頭をなでる(指先を頭に合わせる)
-    const hand = this.add.image(view.x, headY - 120, key).setDepth(DEPTH.effect).setAlpha(0);
-    if (key === HAND_KEY) hand.setOrigin(HAND_TIP[0], HAND_TIP[1]).setScale(((sc / SCALE_FRONT) * 120) / 300);
-    else hand.setAngle(180).setScale((sc / SCALE_FRONT) * 0.7);
-    this.tweens.add({ targets: hand, alpha: 1, y: headY, duration: 260, ease: 'Back.easeOut' });
-    this.tweens.add({
-      targets: hand,
-      x: { from: view.x - 50, to: view.x + 50 },
-      duration: 260,
-      delay: 260,
-      yoyo: true,
-      repeat: 2,
-      ease: 'Sine.easeInOut',
-      onStart: () => audio.se('spray', { pitch: 0.5 }),
-      onComplete: () => {
-        const kind = life.petted(this.record?.petMaxed() ?? false);
-        this.record?.pet(kind === 'happy');
-        this.record?.setAsleep(false);
-        audio.se(kind);
-        if (kind === 'happy') this.hearts(3);
-        this.tweens.add({ targets: hand, alpha: 0, y: headY - 100, duration: 240, onComplete: () => hand.destroy() });
-        this.time.delayedCall(900, () => (this.busy = false));
-      },
+    audio.se('select');
+    const m = record.monz;
+    const pw = 600;
+    const ph = 640;
+    const px = (W - pw) / 2;
+    const py = 230;
+    const layer = this.add.container(0, 0).setDepth(DEPTH.popup);
+    const shade = this.add.rectangle(0, 0, W, H, 0x0d0614, 0.7).setOrigin(0, 0).setInteractive();
+    canvasTexture(this, 'home:statusPanel', pw, ph, (ctx) => drawPanel(ctx, pw, ph, 97));
+    const panel = this.add.image(px, py, 'home:statusPanel').setOrigin(0, 0);
+    const ink = '#16101c';
+    const t = (x: number, y: number, s: string, size: number, color = ink, origin = 0) =>
+      this.add.text(x, y, s, { fontFamily: UI_FONT, fontSize: `${size}px`, fontStyle: '900', color }).setOrigin(origin, 0);
+    const portrait = this.add.image(px + 40, py + 36, 'home:portrait').setOrigin(0, 0);
+    const name = this.add.text(px + 176, py + 44, speciesName(m.species), { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '44px', color: ink });
+    const lv = t(px + 178, py + 104, `Lv. ${m.level}`, 32);
+    const bar = this.add.graphics();
+    bar.fillStyle(0x16101c, 1).fillRoundedRect(px + 40, py + 190, pw - 80, 30, 15);
+    bar.fillStyle(0xd9c7a0, 1).fillRoundedRect(px + 45, py + 195, pw - 90, 20, 10);
+    bar.fillStyle(0x2fa8ff, 1).fillRoundedRect(px + 45, py + 195, Math.max(20, (pw - 90) * record.expRate), 20, 10);
+    const expLabel = t(px + 40, py + 228, `次のレベルまで ${Math.round(record.expRate * 100)}%`, 24);
+    const points = t(px + 40, py + 290, `振り分けられるポイント：${m.statPoints.toFixed(1)}`, 30);
+    const note = t(px + 40, py + 350, 'レベルが1上がるごとに 0.1 ポイント\nもらえます。\n\nステータスの種類は じゅんび中！', 26, '#5a4a66');
+    const close = t(W / 2, py + ph - 100, '  とじる  ', 38, ink, 0.5).setBackgroundColor('#ffd23a').setPadding(20, 10, 20, 12).setInteractive({ useHandCursor: true });
+    layer.add([shade, panel, portrait, name, lv, bar, expLabel, points, note, close]);
+    layer.setAlpha(0);
+    this.tweens.add({ targets: layer, alpha: 1, duration: 160 });
+    close.on('pointerdown', () => {
+      audio.se('back');
+      layer.destroy();
+      this.busy = false;
     });
   }
 

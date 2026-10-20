@@ -14,13 +14,14 @@ export function decideHomePlace(rng: Rng, saved?: string | null): HomePlace {
 }
 
 /** ホームの下に並ぶボタン(左から順)。企画者決定(2026-10-19) */
-export const HOME_ACTIONS = ['food', 'minigame', 'pet', 'battle', 'shop', 'settings'] as const;
+// 2026-10-20 企画者の指示: MONZを直接なでられるので「なでる」ボタンはやめて「ステータス」にする
+export const HOME_ACTIONS = ['food', 'minigame', 'status', 'battle', 'shop', 'settings'] as const;
 export type HomeAction = (typeof HOME_ACTIONS)[number];
 
 export const HOME_ACTION_LABELS: Record<HomeAction, string> = {
   food: 'ごはん',
   minigame: 'ミニゲーム',
-  pet: 'なでる',
+  status: 'ステータス',
   battle: 'バトル',
   shop: 'ショップ',
   settings: '設定',
@@ -30,7 +31,7 @@ export const HOME_ACTION_LABELS: Record<HomeAction, string> = {
 export const HOME_ACTION_READY: Record<HomeAction, boolean> = {
   food: true,
   minigame: false,
-  pet: true,
+  status: true,
   battle: false,
   shop: false,
   settings: true,

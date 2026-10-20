@@ -101,7 +101,9 @@ export function migrateLife(raw: unknown, now = Date.now()): LifeData | null {
   const base = newLife(now);
   if (d.version === 1) {
     // 版1: MONZ1匹ぶんのレベル・経験値・様子が、データのいちばん上にあった
-    const m = { ...base.monz[0], level: num(d.level, 1, 1), exp: num(d.exp, 0), expDay: String(d.expDay ?? base.monz[0].expDay), expToday: num(d.expToday, 0), needs: { ...newNeeds(), ...(d.needs as object) } };
+    // ステータスポイントは版2からなので、これまでに上がったレベルのぶんを渡す
+    const level = num(d.level, 1, 1);
+    const m = { ...base.monz[0], level, statPoints: Math.round((level - 1) * STAT_POINTS_PER_LEVEL * 10) / 10, exp: num(d.exp, 0), expDay: String(d.expDay ?? base.monz[0].expDay), expToday: num(d.expToday, 0), needs: { ...newNeeds(), ...(d.needs as object) } };
     const items = Array.isArray(d.items) ? (d.items as unknown[]).map(String) : [];
     return migrateLife({ ...base, coins: d.coins, monz: [m], inventory: { owned: items, placed: [] }, place: d.place, lastSeen: d.lastSeen, version: 2 }, now);
   }
