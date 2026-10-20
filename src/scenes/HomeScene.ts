@@ -8,7 +8,7 @@ import { mulberry32 } from '../core/rng';
 import { clearSave, loadSave } from '../core/save';
 import { BUNK_MOTION, BunkView, cutoutKey, TEST_PERSONALITY } from '../render/bunkView';
 import { drawCoin, drawGarage, drawHeart, drawIcon, drawMeat, drawMeatImage, drawMenuButton, drawPanel, drawRoom } from '../ui/homeArt';
-import { canvasTexture, drawPaper, drawStreet, UI_FONT } from '../ui/paint';
+import { canvasTexture, canvasTextureOnce, drawPaper, drawStreet, UI_FONT } from '../ui/paint';
 import { openSoundSettings } from '../ui/soundButton';
 
 const W = 720;
@@ -302,9 +302,10 @@ export class HomeScene extends Phaser.Scene {
         img.setAlpha(0.4);
         this.tweens.add({ targets: img, alpha: 1, duration: 160 });
       }
-      img.setVisible(!!pose);
-      view.setVisible(!pose);
     }
+    // 見え方は毎回そろえる(何かの拍子にどちらも消えたままにならないように)
+    img.setVisible(!!pose);
+    view.setVisible(!pose);
     if (!pose) return;
     const target = BUNK_POSE_IMAGES[pose].height * MONZ_H * sc;
     const base = target / img.height;
@@ -320,7 +321,7 @@ export class HomeScene extends Phaser.Scene {
     const life = this.life!;
     if (!this.bubble) {
       const meat = this.icon(MEAT_KEY, true);
-      canvasTexture(this, 'home:bubble', 150, 130, (ctx) => {
+      canvasTextureOnce(this, 'home:bubble', 150, 130, (ctx) => {
         ctx.fillStyle = '#ffffff';
         ctx.strokeStyle = '#16101c';
         ctx.lineWidth = 6;
@@ -496,7 +497,7 @@ export class HomeScene extends Phaser.Scene {
 
   private showStrokeHand(x: number, y: number): void {
     if (!this.strokeHand) {
-      canvasTexture(this, 'home:hand', 220, 220, (ctx) => drawIcon(ctx, 'pet', 110, 116, 82));
+      canvasTextureOnce(this, 'home:hand', 220, 220, (ctx) => drawIcon(ctx, 'pet', 110, 116, 82));
       this.strokeHand = this.add.image(0, 0, 'home:hand').setDepth(DEPTH.effect).setScale(0.6).setAngle(180);
     }
     // 指の少し上に出す(指で隠れないように)
@@ -518,7 +519,7 @@ export class HomeScene extends Phaser.Scene {
     const s = this.scaleAt(life.y) / SCALE_FRONT;
     // ごはんは骨付き肉(企画者の絵)。ひとくちごとに、かじった跡が増える。絵を読み込めなかったときは仮の絵
     const meat = this.icon(MEAT_KEY, true);
-    for (let b = 0; b <= 3; b++) canvasTexture(this, `home:meat${b}`, 220, meat ? 143 : 150, (ctx) => (meat ? drawMeatImage(ctx, meat, 220, 143, b) : drawMeat(ctx, b)));
+    for (let b = 0; b <= 3; b++) canvasTextureOnce(this, `home:meat${b}`, 220, meat ? 143 : 150, (ctx) => (meat ? drawMeatImage(ctx, meat, 220, 143, b) : drawMeat(ctx, b)));
     const side: 1 | -1 = insidePolygon([life.x + 150 * s * life.facing, life.y], this.floor) ? life.facing : life.facing === 1 ? -1 : 1;
     life.facing = side;
     const bx = life.x + 150 * s * side;
@@ -560,7 +561,7 @@ export class HomeScene extends Phaser.Scene {
     this.busy = true;
     life.pause(3.5);
     const sc = this.scaleAt(life.y);
-    canvasTexture(this, 'home:hand', 220, 220, (ctx) => drawIcon(ctx, 'pet', 110, 116, 82));
+    canvasTextureOnce(this, 'home:hand', 220, 220, (ctx) => drawIcon(ctx, 'pet', 110, 116, 82));
     const headY = life.y - MONZ_H * sc;
     const hand = this.add.image(view.x, headY - 120, 'home:hand').setDepth(DEPTH.effect).setAlpha(0).setAngle(180).setScale(sc / SCALE_FRONT * 0.7);
     this.tweens.add({ targets: hand, alpha: 1, y: headY, duration: 260, ease: 'Back.easeOut' });
@@ -590,7 +591,7 @@ export class HomeScene extends Phaser.Scene {
     this.busy = true;
     audio.se('tap', { pitch: 0.8 });
     const key = `home:soon:${label}`;
-    canvasTexture(this, key, 520, 300, (ctx) => {
+    canvasTextureOnce(this, key, 520, 300, (ctx) => {
       const p = drawPaper(ctx, 520, 300, label.length);
       ctx.fillStyle = '#16101c';
       ctx.font = `900 46px ${UI_FONT}`;
@@ -614,7 +615,7 @@ export class HomeScene extends Phaser.Scene {
   private hearts(n: number): void {
     const life = this.life!;
     const sc = this.scaleAt(life.y);
-    canvasTexture(this, 'home:heart', 72, 66, (ctx) => drawHeart(ctx, 72, 66));
+    canvasTextureOnce(this, 'home:heart', 72, 66, (ctx) => drawHeart(ctx, 72, 66));
     for (let i = 0; i < n; i++) {
       const h = this.add.image(life.x + (i - (n - 1) / 2) * 50, life.y - MONZ_H * sc - 10, 'home:heart').setDepth(DEPTH.effect).setScale(0.25);
       this.tweens.add({ targets: h, scale: 0.6 + (i % 2) * 0.15, duration: 260, delay: i * 120, ease: 'Back.easeOut' });

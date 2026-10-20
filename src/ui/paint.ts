@@ -29,6 +29,15 @@ export function canvasTexture(scene: Phaser.Scene, key: string, w: number, h: nu
   return key;
 }
 
+/**
+ * canvasTexture と同じだが、同じ key がもうあれば作り直さない。
+ * 画面に出ている途中の絵(ハートなど)が使っているテクスチャを作り直すと、iPhone では描画がこわれることがあるため、
+ * 何度も出す小さな絵はこちらで作る。
+ */
+export function canvasTextureOnce(scene: Phaser.Scene, key: string, w: number, h: number, draw: (ctx: CanvasRenderingContext2D) => void): string {
+  return scene.textures.exists(key) ? key : canvasTexture(scene, key, w, h, draw);
+}
+
 /** スプレーの飛び散り */
 export function splat(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, color: string, rng: Rng, drips = true): void {
   ctx.fillStyle = color;
