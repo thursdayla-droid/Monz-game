@@ -6,7 +6,7 @@ import { HOME_ACTIONS, HOME_ACTION_LABELS, HOME_ACTION_READY, HOME_LAYOUTS, clip
 import { MonzLife } from '../core/life';
 import { clearLife, LifeRecord, loadLife, saveLife } from '../core/lifeSave';
 import { mulberry32 } from '../core/rng';
-import { currentStats, fmt, speciesStats, STAT_KEYS, STAT_LABELS, type StatKey } from '../core/stats';
+import { currentStats, LOVE_RULES, STAT_KEYS, STAT_LABELS, type StatBlock, type StatKey } from '../core/stats';
 import { clearSave, loadSave } from '../core/save';
 import { BUNK_MOTION, BunkView, cutoutKey, TEST_PERSONALITY } from '../render/bunkView';
 import { drawCoin, drawGarage, drawHeart, drawIcon, drawMeat, drawMeatImage, drawMenuButton, drawPanel, drawRoom } from '../ui/homeArt';
@@ -257,7 +257,7 @@ export class HomeScene extends Phaser.Scene {
       drawBar();
       lv.setText(`Lv. ${record.level}`);
       if (e.type === 'levelUp') {
-        this.levelUp(e.level);
+        this.levelUp(e.level, e.gain);
         return;
       }
       const { coins, delta } = e;
@@ -373,13 +373,13 @@ export class HomeScene extends Phaser.Scene {
   }
 
   /** レベルアップの演出 */
-  private levelUp(level: number): void {
+  private levelUp(level: number, gain: StatBlock): void {
     audio.se('sting');
-    const g = speciesStats(this.record?.monz.species ?? 'bunk').growth;
-    const parts = STAT_KEYS.map((k) => `${STAT_LABELS[k]} +${fmt(g[k])}`);
-    const gains = `${parts.slice(0, 3).join('  ')}\n${parts.slice(3).join('  ')}`;
+    const gains = STAT_KEYS.filter((k) => gain[k] > 0)
+      .map((k) => `${STAT_LABELS[k]} +${gain[k]}`)
+      .join('  ');
     const t = this.text(W / 2, 470, `LEVEL UP!\nLv. ${level}`, 64, '#ffd23a').setDepth(DEPTH.popup).setScale(0.3);
-    const sub = this.text(W / 2, 590, `${gains}\nポイント +0.1`, 24, '#ffffff').setDepth(DEPTH.popup).setAlpha(0);
+    const sub = this.text(W / 2, 590, `${gains}\nポイント +1`, 24, '#ffffff').setDepth(DEPTH.popup).setAlpha(0);
     this.tweens.add({ targets: sub, alpha: 1, delay: 300, duration: 300 });
     this.tweens.add({ targets: sub, alpha: 0, delay: 2600, duration: 500, onComplete: () => sub.destroy() });
     this.tweens.add({ targets: t, scale: 1, duration: 420, ease: 'Back.easeOut' });
@@ -643,12 +643,15 @@ export class HomeScene extends Phaser.Scene {
       content.add(bar);
       // ポイントの残り
       const pts = m.statPoints;
-      content.add(t(px + 32, py + 168, pts > 0 ? `振り分けられるポイント：${fmt(pts)}` : '振り分けられるポイント：なし', 28, pts > 0 ? '#c2410c' : '#5a4a66'));
-      if (pts > 0) content.add(t(px + 32, py + 206, '＋をおすと 0.1 ずつ振り分けられます', 20, '#5a4a66'));
+      content.add(t(px + 32, py + 168, pts > 0 ? `振り分けられるポイント：${pts}` : '振り分けられるポイント：なし', 28, pts > 0 ? '#c2410c' : '#5a4a66'));
+      if (pts > 0) content.add(t(px + 32, py + 206, '＋をおすと 1 ずつ振り分けられます', 20, '#5a4a66'));
+      // 【仮】ゲージのいっぱいの値: 通常ステータスは、いちばん高い能力が収まる10きざみ(最低20)。愛は最大値(100)
+      const top = Math.max(...STAT_KEYS.map((k) => st[k]));
+      const gaugeMax = Math.max(20, Math.ceil(top / 10) * 10);
       // 6種類
-      const rows: { label: string; value: string; key?: StatKey; color: number }[] = [
-        ...STAT_KEYS.map((k, i) => ({ label: STAT_LABELS[k], value: fmt(st[k]), key: k, color: [0xff4f5e, 0xff8a1f, 0x8a35e0, 0x2fa8ff, 0x2ed3c2][i] })),
-        { label: '愛', value: String(m.love), color: 0xff4fa3 },
+      const rows: { label: string; value: number; max: number; key?: StatKey; color: number }[] = [
+        ...STAT_KEYS.map((k, i) => ({ label: STAT_LABELS[k], value: st[k], max: gaugeMax, key: k, color: [0xff4f5e, 0xff8a1f, 0x8a35e0, 0x2fa8ff, 0x2ed3c2][i] })),
+        { label: '愛', value: m.love, max: LOVE_RULES.max, color: 0xff4fa3 },
       ];
       rows.forEach((r, i) => {
         const y = py + 252 + i * 84;
@@ -657,8 +660,18 @@ export class HomeScene extends Phaser.Scene {
         g.lineStyle(4, 0x16101c, 1).strokeRoundedRect(px + 26, y, pw - 52, 70, 16);
         g.fillStyle(r.color, 1).fillRoundedRect(px + 26, y, 20, 70, { tl: 16, bl: 16, tr: 0, br: 0 });
         content.add(g);
-        content.add(t(px + 64, y + 16, r.label, 30));
-        content.add(t(pw + px - (r.key && pts > 0 ? 130 : 50), y + 14, r.value, 34, ink, 1));
+        content.add(t(px + 62, y + 18, r.label, 26));
+        // 能力の横のゲージ
+        const right = pw + px - (r.key && pts > 0 ? 130 : 46);
+        const gx = px + 206;
+        const gw = right - 76 - gx;
+        const gauge = this.add.graphics();
+        gauge.fillStyle(0x16101c, 1).fillRoundedRect(gx, y + 22, gw, 26, 13);
+        gauge.fillStyle(0xe8dcc0, 1).fillRoundedRect(gx + 4, y + 26, gw - 8, 18, 9);
+        const fill = Math.max(0, Math.min(1, r.value / r.max));
+        if (fill > 0) gauge.fillStyle(r.color, 1).fillRoundedRect(gx + 4, y + 26, Math.max(18, (gw - 8) * fill), 18, 9);
+        content.add(gauge);
+        content.add(t(right, y + 14, String(r.value), 34, ink, 1));
         if (r.key && pts > 0) {
           const key = r.key;
           const plus = t(px + pw - 82, y + 9, '＋', 34, ink, 0.5).setBackgroundColor('#ffd23a').setPadding(14, 4, 14, 6).setInteractive({ useHandCursor: true });
@@ -676,7 +689,7 @@ export class HomeScene extends Phaser.Scene {
       const g = this.add.graphics();
       g.fillStyle(0xfbf1dc, 1).fillRoundedRect(80, 470, W - 160, 330, 24);
       g.lineStyle(8, 0x16101c, 1).strokeRoundedRect(80, 470, W - 160, 330, 24);
-      const msg = t(W / 2, 510, `${STAT_LABELS[key]}に 0.1\n振り分けますか？`, 36, ink, 0.5).setAlign('center');
+      const msg = t(W / 2, 510, `${STAT_LABELS[key]}に 1\n振り分けますか？`, 36, ink, 0.5).setAlign('center');
       const warn = t(W / 2, 620, '振り直しはできません', 24, '#c2410c', 0.5);
       const yes = t(W / 2 + 110, 690, ' はい ', 34, ink, 0.5).setBackgroundColor('#ffd23a').setPadding(20, 8, 20, 10).setInteractive({ useHandCursor: true });
       const no = t(W / 2 - 110, 690, 'やめる', 34, '#ffffff', 0.5).setBackgroundColor('#8a35e0').setPadding(20, 8, 20, 10).setInteractive({ useHandCursor: true });

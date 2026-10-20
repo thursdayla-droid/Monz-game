@@ -1,13 +1,13 @@
 import type { SpeciesId } from './species';
 
+import { mulberry32, type Rng } from './rng';
+
 /**
- * ステータス(企画者仕様 Ver.1・2026-10-20)。Phaserに依存しない。
+ * ステータス(企画者仕様 Ver.1 → 2026-10-20 変更: 小数をやめて整数にする)。Phaserに依存しない。
  * 通常ステータス5種(HP・パワー・タフネス・スピード・テクニック)と、愛。
- * 小数のずれが出ないよう、中では「0.1 を 1」とした整数で持つ(例: 3.0 → 30)。画面に出すときだけ小数にする。
  */
 export const STAT_KEYS = ['hp', 'power', 'tough', 'speed', 'tech'] as const;
 export type StatKey = (typeof STAT_KEYS)[number];
-/** 5種の値(0.1 を 1 とした整数) */
 export type StatBlock = Record<StatKey, number>;
 
 export const STAT_LABELS: Record<StatKey, string> = {
@@ -18,37 +18,57 @@ export const STAT_LABELS: Record<StatKey, string> = {
   tech: 'テクニック',
 };
 
-/** レベルが1上がるごとの、自動成長の合計(3.0)と、自由に振り分けるポイント(0.1)【確定】 */
-export const AUTO_GROWTH_PER_LEVEL = 30;
+/** 企画者決定(2026-10-20): レベルが1上がるごとに、自動でランダムに合計3、自由に振り分けるポイント1 */
+export const AUTO_GROWTH_PER_LEVEL = 3;
 export const FREE_POINTS_PER_LEVEL = 1;
 
 export const zeroStats = (): StatBlock => ({ hp: 0, power: 0, tough: 0, speed: 0, tech: 0 });
 
 /**
- * キャラクターごとの初期ステータスと、1レベルで上がる量(どちらも 0.1 を 1 とした整数)。
- * growth の合計は必ず AUTO_GROWTH_PER_LEVEL(3.0)。テストで確かめる。
- * 【仮】BUNKは企画者の仮の設定(2026-10-20)。ほかのMONZは素材がそろってから決める。
+ * キャラクターごとの初期ステータスと、自動成長の「入りやすさ」。
+ * 自動成長の3ポイントは、1ポイントずつランダムに、入りやすさの割合で入る(得意な能力ほど伸びやすい)。
+ * 【仮】BUNKは企画者の仮の設定(2026-10-20)。入りやすさは、以前の成長率(0.6・0.9・0.8・0.3・0.4)の割合のまま。
  */
-export const SPECIES_STATS: Partial<Record<SpeciesId, { base: StatBlock; growth: StatBlock }>> = {
+export const SPECIES_STATS: Partial<Record<SpeciesId, { base: StatBlock; weight: StatBlock }>> = {
   bunk: {
-    base: { hp: 100, power: 80, tough: 80, speed: 40, tech: 50 },
-    growth: { hp: 6, power: 9, tough: 8, speed: 3, tech: 4 },
+    base: { hp: 10, power: 8, tough: 8, speed: 4, tech: 5 },
+    weight: { hp: 6, power: 9, tough: 8, speed: 3, tech: 4 },
   },
 };
 
 /** 決まっていないMONZは、5種に同じだけ(仮) */
-const FALLBACK = { base: { hp: 60, power: 60, tough: 60, speed: 60, tech: 60 }, growth: { hp: 6, power: 6, tough: 6, speed: 6, tech: 6 } };
+const FALLBACK = { base: { hp: 6, power: 6, tough: 6, speed: 6, tech: 6 }, weight: { hp: 1, power: 1, tough: 1, speed: 1, tech: 1 } };
 
 export const speciesStats = (species: SpeciesId) => SPECIES_STATS[species] ?? FALLBACK;
 
-export const addStats = (a: StatBlock, b: StatBlock, times = 1): StatBlock =>
-  Object.fromEntries(STAT_KEYS.map((k) => [k, a[k] + b[k] * times])) as StatBlock;
+export const addStats = (a: StatBlock, b: StatBlock): StatBlock => Object.fromEntries(STAT_KEYS.map((k) => [k, a[k] + b[k]])) as StatBlock;
 
-/** Lv.level までの自動成長(レベルアップ (level−1) 回ぶん) */
-export const autoGrowthAt = (species: SpeciesId, level: number): StatBlock => addStats(zeroStats(), speciesStats(species).growth, Math.max(0, level - 1));
+/** レベルアップ1回ぶんの自動成長(合計3を、入りやすさの割合でランダムに) */
+export function rollAutoGrowth(species: SpeciesId, rng: Rng): StatBlock {
+  const w = speciesStats(species).weight;
+  const total = STAT_KEYS.reduce((s, k) => s + w[k], 0);
+  const out = zeroStats();
+  for (let i = 0; i < AUTO_GROWTH_PER_LEVEL; i++) {
+    let r = rng() * total;
+    const k = STAT_KEYS.find((key) => (r -= w[key]) < 0) ?? STAT_KEYS[STAT_KEYS.length - 1];
+    out[k]++;
+  }
+  return out;
+}
 
-/** 0.1 を 1 とした整数を、画面に出す文字にする(例: 95 → "9.5") */
-export const fmt = (tenths: number): string => (tenths / 10).toFixed(1);
+/** そのMONZの、そのレベルに上がったときの乱数(MONZの番号とレベルから決まる。同じなら同じ結果になる) */
+export function levelUpRng(uid: string, level: number): Rng {
+  let h = 2166136261;
+  for (const c of `${uid}:${level}`) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+  return mulberry32(h >>> 0);
+}
+
+/** Lv.level までの自動成長の合計(Lv.2〜Lv.level に上がったぶん) */
+export function autoGrowthAt(species: SpeciesId, uid: string, level: number): StatBlock {
+  let sum = zeroStats();
+  for (let lv = 2; lv <= level; lv++) sum = addStats(sum, rollAutoGrowth(species, levelUpRng(uid, lv)));
+  return sum;
+}
 
 /**
  * 愛【確定】: レベルでは上がらず、お世話で育つ。自由ポイントは振り分けられない。

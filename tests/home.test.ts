@@ -107,9 +107,9 @@ describe('life record', () => {
     const rec = new LifeRecord(loadLife(store), store);
     expect(rec.coins).toBe(7);
     expect(rec.level).toBe(3);
-    // Lv.3: 自動成長2回ぶん、自由ポイント0.2(=2)
+    // Lv.3: 自動成長2回ぶん(合計6)、自由ポイント2
     expect(rec.monz.statPoints).toBe(2);
-    expect(rec.monz.auto.power).toBe(18);
+    expect(Object.values(rec.monz.auto).reduce((a, v) => a + v, 0)).toBe(6);
     expect(rec.monz.exp).toBe(20);
     expect(rec.monz.species).toBe('bunk');
     expect(rec.needs.full).toBe(0.3);

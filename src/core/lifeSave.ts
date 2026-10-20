@@ -1,7 +1,7 @@
 /**
  * プレイヤーのデータの保存(コイン・持ち物・場所と、育てているMONZごとのレベル・経験値・ステータス・お腹などの様子)。
  * 最初の質問の保存(save.ts)とは別にして、今までのデータを壊さない。Phaserに依存しない。保存できない環境でも止まらない。
- * - 版(version)を持ち、古い形のデータは新しい形に引き継ぐ(1 → 2 → 3)。引き継ぎは版が上がるので、2回かかることはない
+ * - 版(version)を持ち、古い形のデータは新しい形に引き継ぐ(1 → 2 → 3 → 4)。引き継ぎは版が上がるので、2回かかることはない
  * - 保存するたびに、1つ前の正しいデータを予備(backup)に残す。読めなかったら予備から戻す
  * 【仮】コインの最初の枚数(0)。コインはレベルが上がったとき・ミニゲームでもらえる(企画者決定)。
  */
@@ -9,11 +9,11 @@ import { HOME_PLACES, type HomePlace } from './home';
 import { catchUp, dayKey, expToNext, levelUpCoins, newNeeds, NEEDS_RULES, stepNeeds, isNight, type Needs } from './needs';
 import type { KeyValueStore } from './save';
 import { isSpecies, type SpeciesId } from './species';
-import { addStats, autoGrowthAt, FREE_POINTS_PER_LEVEL, LOVE_RULES, speciesStats, STAT_KEYS, zeroStats, type StatBlock, type StatKey } from './stats';
+import { addStats, autoGrowthAt, FREE_POINTS_PER_LEVEL, levelUpRng, LOVE_RULES, rollAutoGrowth, STAT_KEYS, zeroStats, type StatBlock, type StatKey } from './stats';
 
 export const LIFE_KEY = 'monz:life';
 export const LIFE_BACKUP_KEY = 'monz:life:backup';
-export const LIFE_VERSION = 3;
+export const LIFE_VERSION = 4;
 /** 同じ報酬を2回渡さないために覚えておく、最近の報酬の番号の数 */
 const CLAIMED_KEEP = 200;
 
@@ -31,9 +31,9 @@ export interface MonzData {
   expDay: string;
   expToday: number;
   expPetToday: number;
-  /** まだ振り分けていない自由ポイント(0.1 を 1 とした整数) */
+  /** まだ振り分けていない自由ポイント */
   statPoints: number;
-  /** レベルアップの自動成長の合計 / 自由に振り分けた合計(どちらも 0.1 を 1 とした整数。src/core/stats.ts) */
+  /** レベルアップの自動成長の合計 / 自由に振り分けた合計(src/core/stats.ts) */
   auto: StatBlock;
   alloc: StatBlock;
   /** 愛(お世話で育つ)。loveDay の日に、ごはん・なでるで増やした量 */
@@ -121,20 +121,21 @@ export function migrateLife(raw: unknown, now = Date.now()): LifeData | null {
     const items = Array.isArray(d.items) ? (d.items as unknown[]).map(String) : [];
     return migrateLife({ ...base, coins: d.coins, monz: [m], inventory: { owned: items, placed: [] }, place: d.place, lastSeen: d.lastSeen, version: 2 }, now);
   }
-  if (d.version === 2) {
-    // 版2 → 版3: ステータス6種を入れる(企画者決定 2026-10-20)。
-    // Lv.N なら、自動成長は (N−1) 回ぶん、自由ポイントは 0.1×(N−1) を未使用として入れる。
-    // 足すのではなく「レベルから決まる値」をそのまま入れるので、何度読み込んでも同じ結果になる。愛は初期値から。
-    const monz2 = (Array.isArray(d.monz) ? (d.monz as Record<string, unknown>[]) : []).map((m) => {
-      const level = num(m?.level, 1, 1);
+  if (d.version === 2 || d.version === 3) {
+    // 版2・版3 → 版4: ステータスを整数にした(企画者決定 2026-10-20)。
+    // Lv.N なら、自動成長はランダム3×(N−1)(MONZの番号とレベルから決まるので、何度やっても同じ)、
+    // 自由ポイントは (N−1) を未使用として入れ直す(版3で0.1ずつ振り分けていたぶんも、いったんポイントに戻す)。
+    // 足すのではなく「レベルから決まる値」をそのまま入れ、版も上がるので、2回かかることはない。愛・名前などはそのまま。
+    const monz4 = (Array.isArray(d.monz) ? (d.monz as Record<string, unknown>[]) : []).map((m) => {
+      const level = Math.floor(num(m?.level, 1, 1));
       const species = String(m?.species);
-      if (!isSpecies(species)) return m;
-      const { stats: _old, statPoints: _oldPoints, ...rest } = m;
-      return { ...rest, auto: autoGrowthAt(species, level), alloc: zeroStats(), statPoints: (level - 1) * FREE_POINTS_PER_LEVEL };
+      if (!isSpecies(species) || typeof m?.uid !== 'string') return m;
+      const { stats: _old, ...rest } = m;
+      return { ...rest, auto: autoGrowthAt(species, m.uid, level), alloc: zeroStats(), statPoints: (level - 1) * FREE_POINTS_PER_LEVEL };
     });
-    return migrateLife({ ...d, monz: monz2, version: 3 }, now);
+    return migrateLife({ ...d, monz: monz4, version: 4 }, now);
   }
-  if (d.version !== 3) return null;
+  if (d.version !== 4) return null;
   const block = (v: unknown): StatBlock => Object.fromEntries(STAT_KEYS.map((k) => [k, Math.round(num((v as StatBlock | undefined)?.[k], 0))])) as StatBlock;
   const monz = (Array.isArray(d.monz) ? (d.monz as Partial<MonzData>[]) : [])
     .filter((m) => m && typeof m.uid === 'string' && isSpecies(String(m.species)))
@@ -201,7 +202,7 @@ export function saveLife(data: LifeData, store = defaultStore()): void {
   }
 }
 
-export type LifeEvent = { type: 'coins'; coins: number; delta: number } | { type: 'levelUp'; level: number; coins: number };
+export type LifeEvent = { type: 'coins'; coins: number; delta: number } | { type: 'levelUp'; level: number; coins: number; gain: StatBlock };
 
 /** ミニゲームなどからの報酬。runId は1回のプレイごとの番号(同じ番号の報酬は2回もらえない) */
 export interface Reward {
@@ -354,7 +355,7 @@ export class LifeRecord {
   }
 
   /**
-   * 自由ポイントを1つ(0.1)振り分ける。振り直しはできない(企画者決定)。愛には振れない。
+   * 自由ポイントを1つ振り分ける。振り直しはできない(企画者決定)。愛には振れない。
    * ポイントが足りなければ false。
    */
   allocate(stat: StatKey): boolean {
@@ -380,18 +381,21 @@ export class LifeRecord {
     let { level, exp, statPoints, auto } = m;
     exp += got;
     const ups: number[] = [];
+    const gains: StatBlock[] = [];
     while (exp >= expToNext(level)) {
       exp -= expToNext(level);
       level++;
-      // 自動成長(合計+3.0、キャラクターごとの成長率で配る)と、自由ポイント+0.1
-      auto = addStats(auto, speciesStats(m.species).growth);
+      // 自動成長(ランダムに合計+3。得意な能力ほど入りやすい)と、自由ポイント+1
+      const gain = rollAutoGrowth(m.species, levelUpRng(m.uid, level));
+      auto = addStats(auto, gain);
+      gains.push(gain);
       statPoints += FREE_POINTS_PER_LEVEL;
       ups.push(level);
     }
     this.update({}, { level, exp, statPoints, auto, expDay: today, expToday: care ? used + got : used, expPetToday: kind === 'pet' ? usedPet + got : usedPet });
-    for (const lv of ups) {
+    for (const [i, lv] of ups.entries()) {
       const coins = levelUpCoins(lv);
-      this.emit({ type: 'levelUp', level: lv, coins });
+      this.emit({ type: 'levelUp', level: lv, coins, gain: gains[i] });
       this.add(coins);
     }
   }

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { LIFE_KEY, LifeRecord, loadLife, migrateLife } from '../src/core/lifeSave';
 import type { KeyValueStore } from '../src/core/save';
 import { SPECIES } from '../src/core/species';
-import { AUTO_GROWTH_PER_LEVEL, currentStats, fmt, LOVE_RULES, SPECIES_STATS, STAT_KEYS, statsForMode, tryLoveSave } from '../src/core/stats';
+import { autoGrowthAt, currentStats, levelUpRng, LOVE_RULES, rollAutoGrowth, SPECIES_STATS, STAT_KEYS, statsForMode, tryLoveSave } from '../src/core/stats';
 
 const memoryStore = (): KeyValueStore & { data: Record<string, string> } => {
   const data: Record<string, string> = {};
@@ -11,28 +11,42 @@ const memoryStore = (): KeyValueStore & { data: Record<string, string> } => {
 const sum = (b: Record<string, number>) => Object.values(b).reduce((a, v) => a + v, 0);
 
 describe('stats table', () => {
-  it('every species grows exactly 3.0 per level', () => {
-    for (const [id, s] of Object.entries(SPECIES_STATS)) expect(sum(s!.growth), id).toBe(AUTO_GROWTH_PER_LEVEL);
+  it('BUNK uses the planner provisional base numbers (whole numbers)', () => {
+    const b = SPECIES_STATS.bunk!;
+    expect(STAT_KEYS.map((k) => b.base[k])).toEqual([10, 8, 8, 4, 5]);
+    expect(SPECIES.bunk.ready).toBe(true);
   });
 
-  it('BUNK uses the planner provisional numbers', () => {
-    const b = SPECIES_STATS.bunk!;
-    expect(STAT_KEYS.map((k) => fmt(b.base[k]))).toEqual(['10.0', '8.0', '8.0', '4.0', '5.0']);
-    expect(STAT_KEYS.map((k) => fmt(b.growth[k]))).toEqual(['0.6', '0.9', '0.8', '0.3', '0.4']);
-    expect(SPECIES.bunk.ready).toBe(true);
+  it('auto growth adds exactly 3 at random, favouring the strong stats', () => {
+    const counts = Object.fromEntries(STAT_KEYS.map((k) => [k, 0]));
+    for (let i = 0; i < 2000; i++) {
+      const g = rollAutoGrowth('bunk', levelUpRng('m1', i));
+      expect(sum(g)).toBe(3);
+      for (const k of STAT_KEYS) counts[k] += g[k];
+    }
+    expect(counts.power).toBeGreaterThan(counts.speed * 2);
+  });
+
+  it('the same MONZ and level always roll the same growth', () => {
+    expect(autoGrowthAt('bunk', 'm1', 10)).toEqual(autoGrowthAt('bunk', 'm1', 10));
+    expect(sum(autoGrowthAt('bunk', 'm1', 10))).toBe(27);
   });
 });
 
 describe('level-up growth and free points', () => {
-  it('each level adds 3.0 automatically and 0.1 free point, without float drift', () => {
+  it('each level adds 3 automatically and 1 free point', () => {
     const store = memoryStore();
     const rec = new LifeRecord(loadLife(store), store);
+    const ups: number[] = [];
+    rec.on((e) => e.type === 'levelUp' && ups.push(sum(e.gain)));
     for (let i = 0; i < 200; i++) rec.grant({ runId: `r${i}`, source: 'test', coins: 0, exp: 500 });
     const lv = rec.level;
     expect(lv).toBeGreaterThan(50);
-    expect(sum(rec.monz.auto)).toBe((lv - 1) * 30);
+    expect(sum(rec.monz.auto)).toBe((lv - 1) * 3);
+    expect(rec.monz.auto).toEqual(autoGrowthAt('bunk', rec.monz.uid, lv));
     expect(rec.monz.statPoints).toBe(lv - 1);
-    expect(fmt(currentStats(rec.monz).power)).toBe(((80 + 9 * (lv - 1)) / 10).toFixed(1));
+    expect(ups.every((g) => g === 3)).toBe(true);
+    expect(sum(currentStats(rec.monz))).toBe(35 + (lv - 1) * 3);
   });
 
   it('free points go to one normal stat, cannot be undone, and never to love', () => {
@@ -49,7 +63,7 @@ describe('level-up growth and free points', () => {
   });
 });
 
-describe('save migration v2 -> v3', () => {
+describe('save migration to v4', () => {
   const v2 = (level: number) => ({
     version: 2,
     coins: 55,
@@ -61,15 +75,24 @@ describe('save migration v2 -> v3', () => {
     claimed: ['card-1'],
   });
 
-  it('gives (N-1) auto growths and 0.1x(N-1) free points, keeping everything else', () => {
+  it('gives 3x(N-1) random auto growth and (N-1) free points, keeping everything else', () => {
     const d = migrateLife(v2(5))!;
     const m = d.monz[0];
-    expect(d.version).toBe(3);
-    expect(m.auto).toEqual({ hp: 24, power: 36, tough: 32, speed: 12, tech: 16 });
+    expect(d.version).toBe(4);
+    expect(sum(m.auto)).toBe(12);
     expect(m.statPoints).toBe(4);
     expect(m.love).toBe(LOVE_RULES.initial);
     expect([d.coins, m.name, m.level, m.exp, d.place, d.claimed[0], d.inventory.owned[0]]).toEqual([55, 'ポチ', 5, 12, 'alley', 'card-1', 'x']);
     expect(m.needs.full).toBe(0.3);
+  });
+
+  it('turns version 3 tenths back into whole points and keeps love', () => {
+    const v3 = { ...v2(4), version: 3, monz: [{ uid: 'm1', species: 'bunk', level: 4, exp: 0, statPoints: 2, auto: { hp: 18, power: 27, tough: 24, speed: 9, tech: 12 }, alloc: { hp: 0, power: 1, tough: 0, speed: 0, tech: 0 }, love: 33 }] };
+    const m = migrateLife(v3)!.monz[0];
+    expect(sum(m.auto)).toBe(9);
+    expect(sum(m.alloc)).toBe(0);
+    expect(m.statPoints).toBe(3);
+    expect(m.love).toBe(33);
   });
 
   it('is not applied twice', () => {
@@ -80,7 +103,7 @@ describe('save migration v2 -> v3', () => {
     const twice = loadLife(store);
     expect(twice.monz[0].auto).toEqual(once.monz[0].auto);
     expect(twice.monz[0].statPoints).toBe(4);
-    expect(twice.version).toBe(3);
+    expect(twice.version).toBe(4);
   });
 });
 
@@ -123,7 +146,7 @@ describe('modes and love save', () => {
     const store = memoryStore();
     const rec = new LifeRecord(loadLife(store), store);
     const before = JSON.stringify(rec.monz);
-    expect(statsForMode(rec.monz, 'online').stats.hp).toBe(100);
+    expect(statsForMode(rec.monz, 'online').stats.hp).toBe(10);
     expect(JSON.stringify(rec.monz)).toBe(before);
   });
 
