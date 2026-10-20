@@ -1,6 +1,6 @@
 /**
  * ミニゲームの一覧。Phaserに依存しない。ミニゲームを増やすときは、ここに1つ足す(セレクト画面に並ぶ)。
- * 企画者決定(2026-10-20): 目標5種類。① MONZ CARD ② ダッシュモンズ(走ってジャンプするゲーム) ③〜⑤は未定。
+ * 企画者決定(2026-10-20): 目標5種類。① MONZ CARD ② ダッシュモンズ(走ってジャンプするゲーム) ③ MONZ SLUGGER(バッティング) ④⑤は未定。
  * ready: 遊べるか(まだのものは「SOON」)。scene: そのゲームの画面の名前(作ったら入れる)。
  * score: ランキング・最高記録に使う点数の呼び方。
  */
@@ -21,4 +21,5 @@ export const MINIGAMES: readonly MinigameInfo[] = [
   { id: 'card', title: 'MONZ CARD', ready: true, scene: 'CardTitle', score: '出したカードの枚数', color: '#8a35e0' },
   // 【企画段階】ルールが決まるまで作らない
   { id: 'dash', title: 'ダッシュモンズ', ready: true, scene: 'Dash', score: '走った距離', color: '#ff8a1f' },
+  { id: 'slugger', title: 'MONZ SLUGGER', ready: true, scene: 'Slugger', score: 'スコア', color: '#2fb8e0' },
 ];

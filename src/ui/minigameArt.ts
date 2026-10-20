@@ -67,7 +67,7 @@ export function drawTitleSign(ctx: CanvasRenderingContext2D, w: number, h: numbe
 
 /**
  * ゲームの看板(カード)。ready=false なら「SOON」。title が空なら「？？？」(まだ決まっていない枠)。
- * icon: 'card' | 'dash' | null(？マーク)
+ * icon: 'card' | 'dash' | 'slugger' | null(？マーク)
  */
 export function drawGameCard(ctx: CanvasRenderingContext2D, w: number, h: number, title: string, sub: string, color: string, icon: string | null, ready: boolean, seed: number): void {
   const rng = mulberry32(seed);
@@ -131,6 +131,22 @@ export function drawGameCard(ctx: CanvasRenderingContext2D, w: number, h: number
     ctx.stroke();
     ctx.fillStyle = INK;
     ctx.fillRect(-50, 36, 100, 10);
+  } else if (icon === 'slugger') {
+    // バットとボール
+    ctx.save();
+    ctx.rotate(-0.7);
+    roundRectPath(ctx, -50, -9, 100, 18, 9);
+    ctx.fillStyle = '#2a2a33';
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = COLORS.yellow;
+    ctx.fillRect(10, -7, 8, 14);
+    ctx.restore();
+    ctx.beginPath();
+    ctx.arc(26, 26, 16, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.stroke();
   } else {
     ctx.font = `900 84px "Arial Black", Impact, sans-serif`;
     ctx.textAlign = 'center';

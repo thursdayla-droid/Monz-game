@@ -24,6 +24,12 @@ const ART_CARDS = [
   [38, 1160, 910, 1367],
   [38, 1393, 910, 1602],
 ];
+/** 企画者の絵に名前まで描いてあるゲームの数(これより後のゲームは、？？？の上に名前を重ねて出す) */
+const ART_PAINTED = 2;
+/** 看板の中の「？？？・説明」と「SOON」の場所(看板の左上からの位置) */
+const ART_SLOT_TEXT = [332, 36, 712, 176];
+const ART_SLOT_SOON = [712, 12, 858, 176];
+
 /** 絵に描いてある「0」を隠して、本当のコインの数を出す場所 */
 const ART_COIN_NUMBER = [715, 52, 846, 104];
 
@@ -80,6 +86,17 @@ export class MinigameSelectScene extends Phaser.Scene {
           if (g) this.toast(`${g.title}は じゅんび中！`);
         }
       });
+    });
+    // 【仮】絵がまだないゲーム: ？？？と SOON を隠して名前を出す(企画者の絵が来たら差しかえる)
+    ART_CARDS.forEach(([bx0, by0], i) => {
+      const g = MINIGAMES[i];
+      if (i < ART_PAINTED || !g) return;
+      const cover = ([x0, y0, x1, y1]: number[]) => this.add.rectangle((bx0 + x0) * sx, (by0 + y0) * sy, (x1 - x0) * sx, (y1 - y0) * sy, 0x0b0a12, 0.96).setOrigin(0, 0);
+      cover(ART_SLOT_TEXT);
+      if (g.ready) cover(ART_SLOT_SOON);
+      const tx = (bx0 + ART_SLOT_TEXT[0] + 10) * sx;
+      this.add.text(tx, (by0 + 92) * sy, g.title, { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '44px', color: '#ffffff', stroke: g.color, strokeThickness: 4 }).setOrigin(0, 0.5);
+      this.add.text(tx, (by0 + 146) * sy, `スコア：${g.score}`, { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '800', color: '#d8d0e8' }).setOrigin(0, 0.5);
     });
     // コインの数
     const [cx0, cy0, cx1, cy1] = ART_COIN_NUMBER;

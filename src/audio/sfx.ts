@@ -21,7 +21,9 @@ export type SeName =
   | 'surprised'
   | 'sting'
   | 'beep'
-  | 'beepLast';
+  | 'beepLast'
+  | 'swing'
+  | 'bat';
 
 let noise: AudioBuffer | null = null;
 function noiseBuf(ctx: BaseAudioContext): AudioBuffer {
@@ -166,6 +168,17 @@ export function playSe(ctx: AudioContext, out: AudioNode, name: SeName, pitch: n
     }
     case 'surprised':
       tone(ctx, out, t, 'square', [[0, 330 * p], [0.1, 820 * p]], [[0, 0.0001], [0.02, 0.1], [0.18, 0.0001]], 0.2);
+      break;
+    case 'swing':
+      // MONZ SLUGGER: バットを振る「ブンッ」
+      hiss(ctx, out, t, 'bandpass', [[0, 300], [0.16, 1400]], 1.5, [[0, 0.0001], [0.06, 0.45], [0.2, 0.0001]], 0.22);
+      break;
+    case 'bat':
+      // MONZ SLUGGER: 芯でとらえた「カキーン!」(pitch で強さを変える。1.3 くらいでジャストミート)
+      hiss(ctx, out, t, 'highpass', [[0, 2600 * p]], 0.8, [[0, 0.6], [0.05, 0.0001]], 0.06);
+      tone(ctx, out, t, 'triangle', [[0, 1180 * p], [0.35, 1100 * p]], [[0, 0.35], [0.4 * p, 0.0001]], 0.5 * p);
+      tone(ctx, out, t, 'sine', [[0, 2360 * p]], [[0, 0.18], [0.25 * p, 0.0001]], 0.3 * p);
+      tone(ctx, out, t, 'sine', [[0, 140], [0.12, 60]], [[0, 0.5], [0.15, 0.0001]], 0.16);
       break;
   }
 }
