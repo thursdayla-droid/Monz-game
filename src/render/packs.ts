@@ -2,7 +2,7 @@ import * as Phaser from 'phaser';
 import { assetUrl } from '../assetUrl';
 import { BIRTH_FILES, birthKey } from '../scenes/BirthScene';
 import { REFERENCE_FILES, REFERENCE_ORIGINAL } from '../scenes/CompareScene';
-import { BUNK_POSE_IMAGES, bunkPoseKey, HOME_ICONS, HOME_IMAGES, homeIconKey, homeImageKey, homePlace, MEAT_FILE, MEAT_KEY } from '../scenes/HomeScene';
+import { BUNK_POSE_IMAGES, bunkPoseKey, HAND_FILE, HAND_KEY, HOME_ICONS, HOME_IMAGES, homeIconKey, homeImageKey, homePlace, MEAT_FILE, MEAT_KEY } from '../scenes/HomeScene';
 import { TITLE_FILE, TITLE_IMAGE } from '../scenes/TitleScene';
 import { loadBunk } from './bunkView';
 
@@ -35,6 +35,7 @@ function packFiles(name: Exclude<PackName, 'bunk'>): PackFile[] {
         ...(bg ? [{ key: homeImageKey(place), url: `assets/home/${bg}` }] : []),
         ...HOME_ICONS.map((n) => ({ key: homeIconKey(n), url: `assets/home/icons/${n}.webp` })),
         { key: MEAT_KEY, url: `assets/home/${MEAT_FILE}` },
+        { key: HAND_KEY, url: `assets/home/${HAND_FILE}` },
       ];
     }
     case 'compare':

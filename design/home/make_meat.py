@@ -11,18 +11,24 @@ from PIL import Image, ImageFilter
 from scipy import ndimage
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-OUT = os.path.join(HERE, '..', '..', 'public', 'assets', 'home', 'meat.webp')
+OUT_DIR = os.path.join(HERE, '..', '..', 'public', 'assets', 'home')
 
-im = Image.open(os.path.join(HERE, 'meat.png')).convert('RGB')
-a = np.asarray(im).astype(int)
-white = (a.min(2) > 225) & (a.max(2) - a.min(2) < 30)
-labels, _ = ndimage.label(white)
-border = set(np.unique(np.concatenate([labels[0], labels[-1], labels[:, 0], labels[:, -1]]))) - {0}
-outside = np.isin(labels, list(border))
-alpha = Image.fromarray(np.where(outside, 0, 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(1.2))
-rgba = im.convert('RGBA')
-rgba.putalpha(alpha)
-rgba = rgba.crop(rgba.getchannel('A').point(lambda v: 255 if v > 20 else 0).getbbox())
-w = 440
-rgba.resize((w, round(rgba.height * w / rgba.width)), Image.LANCZOS).save(OUT, quality=90, method=6)
-print(rgba.size, '->', w)
+
+def cut_white(name: str, width: int) -> None:
+    im = Image.open(os.path.join(HERE, f'{name}.png')).convert('RGB')
+    a = np.asarray(im).astype(int)
+    white = (a.min(2) > 225) & (a.max(2) - a.min(2) < 30)
+    labels, _ = ndimage.label(white)
+    border = set(np.unique(np.concatenate([labels[0], labels[-1], labels[:, 0], labels[:, -1]]))) - {0}
+    outside = np.isin(labels, list(border))
+    alpha = Image.fromarray(np.where(outside, 0, 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(1.2))
+    rgba = im.convert('RGBA')
+    rgba.putalpha(alpha)
+    rgba = rgba.crop(rgba.getchannel('A').point(lambda v: 255 if v > 20 else 0).getbbox())
+    w = width
+    rgba.resize((w, round(rgba.height * w / rgba.width)), Image.LANCZOS).save(os.path.join(OUT_DIR, f'{name}.webp'), quality=90, method=6)
+    print(name, rgba.size, '->', w)
+
+
+cut_white('meat', 440)
+cut_white('hand', 300)

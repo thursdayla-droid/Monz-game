@@ -59,6 +59,10 @@ export const bunkPoseKey = (name: string) => `bunk:pose:${name}`;
 
 /** 企画者の肉の絵(design/home/meat.png → design/home/make_meat.py で切り抜き) */
 export const MEAT_KEY = 'home:meatImage';
+/** 企画者の手の絵(なでるときのカーソル)。HAND_TIP は人さし指の先の位置(絵の幅・高さに対する割合) */
+export const HAND_KEY = 'home:handImage';
+export const HAND_FILE = 'hand.webp';
+const HAND_TIP: [number, number] = [0.25, 0.03];
 export const MEAT_FILE = 'meat.webp';
 
 /**
@@ -505,12 +509,19 @@ export class HomeScene extends Phaser.Scene {
   }
 
   private showStrokeHand(x: number, y: number): void {
+    // 企画者の手の絵(指さしの手)。人さし指の先を、触った所の少し上に合わせる(本物の指で隠れないように)
+    const useImage = this.textures.exists(HAND_KEY);
     if (!this.strokeHand) {
-      canvasTextureOnce(this, 'home:hand', 220, 220, (ctx) => drawIcon(ctx, 'pet', 110, 116, 82));
-      this.strokeHand = this.add.image(0, 0, 'home:hand').setDepth(DEPTH.effect).setScale(0.6).setAngle(180);
+      if (useImage) {
+        this.strokeHand = this.add.image(0, 0, HAND_KEY).setOrigin(HAND_TIP[0], HAND_TIP[1]).setDepth(DEPTH.effect).setScale(105 / 300);
+      } else {
+        canvasTextureOnce(this, 'home:hand', 220, 220, (ctx) => drawIcon(ctx, 'pet', 110, 116, 82));
+        this.strokeHand = this.add.image(0, 0, 'home:hand').setDepth(DEPTH.effect).setScale(0.6);
+      }
     }
-    // 指の少し上に出す(指で隠れないように)
-    this.strokeHand.setVisible(true).setPosition(x + 16, y - 90).setAngle(180 + Math.sin(this.t * 14) * 8);
+    const wobble = Math.sin(this.t * 14) * 8;
+    if (useImage) this.strokeHand.setVisible(true).setPosition(x - 4, y - 55).setAngle(wobble);
+    else this.strokeHand.setVisible(true).setPosition(x + 16, y - 90).setAngle(180 + wobble);
   }
 
   private hideStrokeHand(): void {
