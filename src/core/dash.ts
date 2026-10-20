@@ -35,6 +35,8 @@ export const DASH = {
   pxPerMeter: 100,
   /** 【仮】足場の続きがマグマになる割合(足場1つごと) */
   magmaChance: 0.12,
+  /** マグマの床は、まわりの足場より少し低くする(分かりやすくするため 2026-10-20 企画者の指示) */
+  magmaDrop: 40,
 } as const;
 
 export interface Platform {
@@ -115,11 +117,11 @@ function fill(s: DashState): void {
     const speed = Math.min(DASH.maxSpeed, s.speed + DASH.accel * ((s.nextX - s.dist) / s.speed));
     const reach = speed * airtime();
     const level = Math.min(1, s.dist / 60000);
-    // 【仮】ときどき、足場の続きの1つがマグマになる(すき間なし・同じ高さ。跳べば越えられる幅)。前の足場がマグマなら続けない
+    // 【仮】ときどき、足場の続きの1つがマグマになる(すき間なし・少し低い。跳べば越えられる幅)。前の足場がマグマなら続けない
     const prev = s.platforms[s.platforms.length - 1];
     if (s.nextX > 3000 && !prev?.magma && rng() < DASH.magmaChance) {
       const mw = range(rng, 0.4, 0.6) * reach;
-      s.platforms.push({ x: s.nextX, w: mw, y: s.lastY, magma: true });
+      s.platforms.push({ x: s.nextX, w: mw, y: s.lastY + DASH.magmaDrop, magma: true });
       s.nextX += mw;
       // マグマの次の足場: すき間なし・同じ高さ。トゲは置かない
       const nw = range(rng, 1.2, 2.0) * reach;

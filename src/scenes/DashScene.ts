@@ -267,10 +267,11 @@ export class DashScene extends Phaser.Scene {
   private buildPlatform(width: number, magma = false): { img: Phaser.GameObjects.Image | Phaser.GameObjects.Rectangle; dx: number; dy?: number }[] {
     const parts = this.platformPieces(width);
     if (!magma) return parts;
-    parts.forEach((v) => (v.img as Phaser.GameObjects.Image).setTint(0xff7a4a));
+    // 低い所にあるので、まわりの足場の後ろに描く
+    parts.forEach((v) => (v.img as Phaser.GameObjects.Image).setTint(0xff7a4a).setDepth(0.5));
     const w = Math.round(width);
-    const lava = this.add.rectangle(0, 0, w - 16, 22, 0xff4a10).setOrigin(0, 0).setDepth(1);
-    const glow = this.add.rectangle(0, 0, w - 24, 8, 0xffd23a).setOrigin(0, 0).setDepth(1);
+    const lava = this.add.rectangle(0, 0, w - 16, 22, 0xff4a10).setOrigin(0, 0).setDepth(0.5);
+    const glow = this.add.rectangle(0, 0, w - 24, 8, 0xffd23a).setOrigin(0, 0).setDepth(0.5);
     this.tweens.add({ targets: glow, alpha: 0.35, duration: 420, yoyo: true, repeat: -1 });
     return [...parts, { img: lava, dx: 8, dy: 3 }, { img: glow, dx: 12, dy: 6 }];
   }

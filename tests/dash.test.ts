@@ -56,7 +56,7 @@ describe('DASH MONZ', () => {
     let magmaOver = false;
     for (let seed = 1; seed <= 200 && !magmaOver; seed++) {
       const s = newDash(seed);
-      s.platforms = [{ x: -400, w: 1000, y: 900 }, { x: 600, w: 200, y: 900, magma: true }, { x: 800, w: 2000, y: 900 }];
+      s.platforms = [{ x: -400, w: 1000, y: 900 }, { x: 600, w: 200, y: 900 + DASH.magmaDrop, magma: true }, { x: 800, w: 2000, y: 900 }];
       s.nextX = 2800;
       for (let i = 0; i < 600 && !s.over; i++) step(s, 1 / 60);
       magmaOver = s.over === 'magma';
