@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyResult, ballAt, canSwing, isHit, isStrike, judge, levelFor, markerLead, newSlugger, nextPitch, passed, rngOf, SLUG, SLUG_LEVELS, sluggerReward, type Pitch, type SwingResult } from '../src/core/slugger';
+import { applyResult, ballAt, canSwing, HOMERUN_MIN, isHit, isStrike, judge, levelFor, markerLead, newSlugger, nextPitch, passed, rngOf, SLUG, SLUG_LEVELS, sluggerReward, type Pitch, type SwingResult } from '../src/core/slugger';
 
 const pitch = (tx = 0, ty = 0, flight = 1.2): Pitch => ({ kind: 'straight', flight, tx, ty, bx: 0, by: 0 });
 const fixed = (v: number) => () => v;
@@ -58,17 +58,19 @@ describe('MONZ SLUGGER', () => {
     expect(judge(p, 1.25, { x: 0, y: 0 }, fixed(0.5)).dir).toBeGreaterThan(0);
   });
 
-  it('a weak contact can be caught for an out', () => {
-    let outs = 0;
-    let hits = 0;
+  it('every contact is a hit or a home run, decided by distance', () => {
     const rng = rngOf(newSlugger(11));
+    let homers = 0;
     for (let i = 0; i < 300; i++) {
-      const r = judge(pitch(0, 0), 1.2 + 0.1, { x: 0, y: -0.25 }, rng);
-      if (r.outcome === 'out') outs++;
-      if (isHit(r.outcome)) hits++;
+      const dy = [-0.3, 0, 0.3][i % 3];
+      const r = judge(pitch(0, 0), 1.2 + (i % 5) * 0.02, { x: 0, y: dy }, rng);
+      expect(isHit(r.outcome)).toBe(true);
+      expect(r.homerun).toBe(r.distance >= HOMERUN_MIN);
+      if (r.homerun) homers++;
+      // ゴロはホームランにならない
+      if (r.contact === 'grounder') expect(r.homerun).toBe(false);
     }
-    expect(outs).toBeGreaterThan(100);
-    expect(hits).toBeGreaterThan(10);
+    expect(homers).toBeGreaterThan(10);
   });
 
   it('count: 3 strikes is a strikeout, 4 balls a walk, fouls with 2 strikes keep the count', () => {
@@ -84,40 +86,39 @@ describe('MONZ SLUGGER', () => {
     expect(s.outs).toBe(1);
     expect(s.strikes).toBe(0);
     for (let i = 0; i < 3; i++) expect(applyResult(s, r('ball')).atBatEnd).toBe(null);
-    const walk = applyResult(s, r('ball'));
-    expect(walk.atBatEnd).toBe('walk');
-    expect(walk.points).toBeGreaterThan(0);
+    expect(applyResult(s, r('ball')).atBatEnd).toBe('walk');
     expect(s.outs).toBe(1);
     expect(s.balls).toBe(0);
   });
 
-  it('three outs end the game; an out resets the hit streak, a walk does not', () => {
+  it('three strikeouts end the game; a strikeout resets the hit streak, a walk does not', () => {
     const s = newSlugger(1);
-    const hit: SwingResult = { grade: 'great', outcome: 'single', contact: 'liner', timing: 0, offset: 0, distance: 60, homerun: false, points: 0, dir: 0, atBatEnd: null };
-    const out: SwingResult = { ...hit, outcome: 'out' };
+    const hit: SwingResult = { grade: 'great', outcome: 'hit', contact: 'liner', timing: 0, offset: 0, distance: 60, homerun: false, points: 0, dir: 0, atBatEnd: null };
     const ball: SwingResult = { ...hit, grade: 'miss', outcome: 'ball', distance: 0 };
+    const strike: SwingResult = { ...hit, grade: 'miss', outcome: 'swingMiss', distance: 0 };
     applyResult(s, hit);
     applyResult(s, hit);
     for (let i = 0; i < 4; i++) applyResult(s, ball);
     expect(s.streak).toBe(2);
-    applyResult(s, out);
+    for (let i = 0; i < 3; i++) applyResult(s, strike);
+    expect(s.outs).toBe(1);
     expect(s.streak).toBe(0);
     expect(s.bestStreak).toBe(2);
-    applyResult(s, out);
+    for (let i = 0; i < 3; i++) applyResult(s, strike);
     expect(s.over).toBe(false);
-    applyResult(s, out);
+    for (let i = 0; i < 3; i++) applyResult(s, strike);
     expect(s.over).toBe(true);
   });
 
-  it('combo raises the points of each hit, home runs score the most', () => {
+  it('the score is the total distance', () => {
     const s = newSlugger(1);
-    const hit: SwingResult = { grade: 'great', outcome: 'single', contact: 'liner', timing: 0, offset: 0, distance: 60, homerun: false, points: 0, dir: 0, atBatEnd: null };
-    const first = applyResult(s, hit).points;
-    let last = first;
-    for (let i = 0; i < 10; i++) last = applyResult(s, hit).points;
-    expect(last).toBeGreaterThan(first);
-    const hr = applyResult(newSlugger(2), { ...hit, outcome: 'homerun', homerun: true, distance: 130 }).points;
-    expect(hr).toBeGreaterThan(first * 3);
+    const hit: SwingResult = { grade: 'great', outcome: 'hit', contact: 'liner', timing: 0, offset: 0, distance: 60, homerun: false, points: 0, dir: 0, atBatEnd: null };
+    expect(applyResult(s, hit).points).toBe(60);
+    expect(applyResult(s, { ...hit, outcome: 'homerun', homerun: true, distance: 130 }).points).toBe(130);
+    applyResult(s, { ...hit, grade: 'miss', outcome: 'ball', distance: 0 });
+    expect(s.score).toBe(190);
+    expect(s.totalDistance).toBe(190);
+    expect(s.homeruns).toBe(1);
   });
 
   it('swing window: too early is not accepted, the ball passes after the foul window', () => {
@@ -155,21 +156,20 @@ describe('MONZ SLUGGER', () => {
     expect(markerLead(200)).toBeCloseTo(0.3);
   });
 
-  it('a good player (aims at the ball, lays off balls) gets a real score before 3 outs', () => {
-    let total = 0;
-    for (let seed = 1; seed <= 20; seed++) {
-      const s = newSlugger(seed);
-      const rng = rngOf(s);
-      for (let i = 0; i < 2000 && !s.over; i++) {
-        const p = nextPitch(s);
-        const swing = isStrike(p) ? p.flight + 0.01 : null;
-        applyResult(s, judge(p, swing, { x: p.tx, y: p.ty + 0.05 }, rng));
-      }
-      expect(s.over).toBe(true);
-      total += s.hits;
+  it('a player who never swings ends by strikeouts; one who aims well keeps going', () => {
+    const lazy = newSlugger(4);
+    for (let i = 0; i < 500 && !lazy.over; i++) applyResult(lazy, judge(nextPitch(lazy), null, { x: 0, y: 0 }));
+    expect(lazy.over).toBe(true);
+    expect(lazy.score).toBe(0);
+    const good = newSlugger(7);
+    const rng = rngOf(good);
+    for (let i = 0; i < 300; i++) {
+      const p = nextPitch(good);
+      applyResult(good, judge(p, isStrike(p) ? p.flight + 0.01 : null, { x: p.tx, y: p.ty }, rng));
     }
-    // 1試合で平均 5本以上はヒットが出る
-    expect(total / 20).toBeGreaterThan(5);
+    expect(good.over).toBe(false);
+    expect(good.score).toBe(good.totalDistance);
+    expect(good.hits).toBeGreaterThan(150);
   });
 
   it('same seed gives the same pitches', () => {

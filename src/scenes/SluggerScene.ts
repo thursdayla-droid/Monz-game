@@ -18,8 +18,7 @@ const CTRL = {
   sensitivity: 1.15,
 };
 /** バッターの立つ所(足元)と大きさ */
-/** キャッチャー目線なので、バッターは左にうすく(ゾーンが見えるように) */
-const BATTER = { x: 80, y: 1150, scale: 0.88, alpha: 0.5 };
+const BATTER = { x: 130, y: 1120, scale: 0.9, alpha: 1 };
 /** ボールの半径(ゾーンの半分を 1 とした長さ) */
 const BALL_R = 0.2;
 /** ボールの絵の大きさ(px) */
@@ -149,7 +148,7 @@ export class SluggerScene extends Phaser.Scene {
       e.stopPropagation();
       if (this.phase === 'play') this.pause();
     });
-    this.scoreText = this.add.text(W / 2, 30, '0', { fontFamily: ARIAL, fontSize: '56px', color: '#ffffff', stroke: INK, strokeThickness: 10 }).setOrigin(0.5, 0);
+    this.scoreText = this.add.text(W / 2, 30, '0m', { fontFamily: ARIAL, fontSize: '56px', color: '#ffffff', stroke: INK, strokeThickness: 10 }).setOrigin(0.5, 0);
     this.comboText = this.add.text(W / 2, 108, '', { fontFamily: ARIAL, fontSize: '34px', color: '#ffd23a', stroke: INK, strokeThickness: 8 }).setOrigin(0.5, 0);
     // カウントの板(右上): B 緑3つ / S 黄2つ / O 赤2つ
     const bx = W - 200;
@@ -245,7 +244,7 @@ export class SluggerScene extends Phaser.Scene {
     const logo2 = this.add.text(W / 2, 370, 'SLUGGER', { fontFamily: ARIAL, fontSize: '104px', color: '#ffd23a', stroke: INK, strokeThickness: 18 }).setOrigin(0.5).setAngle(-6);
     const sub = this.add.text(W / 2, 480, 'モンズスラッガー', { fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: '#ffffff', stroke: INK, strokeThickness: 8 }).setOrigin(0.5);
     const rec = loadLife().records.slugger;
-    const best = this.add.text(W / 2, 550, rec ? `自己ベスト：${rec.bestScore.toLocaleString()}点` : '', { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '900', color: '#ffd23a', stroke: INK, strokeThickness: 8 }).setOrigin(0.5);
+    const best = this.add.text(W / 2, 550, rec ? `自己ベスト：${rec.bestScore.toLocaleString()}m` : '', { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '900', color: '#ffd23a', stroke: INK, strokeThickness: 8 }).setOrigin(0.5);
     const play = this.button(W / 2, 1010, '  PLAY ▶  ', '#ffd23a', INK, 58);
     const how = this.button(W / 2, 1140, '  📖 遊び方  ', '#16101c', '#ffffff', 34);
     const back = this.button(70, 64, '◀', '#16101ccc', '#ffffff', 34);
@@ -280,10 +279,10 @@ export class SluggerScene extends Phaser.Scene {
       '・カーソルがボールより上だとゴロ、',
       '  まん中だとライナー、下だとフライ',
       '・はやく振ると左へ、おそいと右へ飛ぶ',
+      '・打った飛距離の合計がスコア！',
+      '  （遠くへ飛ばすとホームラン）',
       '・ゾーンの外はボール。見のがしてOK',
-      '  （4ボールでフォアボール）',
-      '・3ストライクで三振。打っても捕られるとアウト',
-      '・3アウトでおしまい',
+      '・3ストライクで三振。3回三振でおしまい',
       '・ヒットを打つほど、球が速く・変化球も来て',
       '  目印が出るのもおそくなるよ',
       '',
@@ -366,7 +365,7 @@ export class SluggerScene extends Phaser.Scene {
   }
 
   private refreshHud(): void {
-    this.scoreText.setText(this.s.score.toLocaleString());
+    this.scoreText.setText(`${this.s.score.toLocaleString()}m`);
     this.comboText.setText(this.s.streak >= 2 ? `${this.s.streak}連続ヒット！` : '');
     const lit = (arr: Phaser.GameObjects.Arc[], n: number) => arr.forEach((c, i) => c.setAlpha(i < n ? 1 : 0.18));
     lit(this.lamps.b, this.s.balls);
@@ -409,13 +408,13 @@ export class SluggerScene extends Phaser.Scene {
     this.popText(this.swung ? (early ? '空振り（はやい）' : '空振り') : '見のがし ストライク', '#ffd23a', this.swung ? 72 : 56);
   }
 
-  /** アウトになったときの「あと何アウト」 */
+  /** 三振したときの「何アウト」 */
   private outNotice(): void {
     const left = SLUG.maxOuts - this.s.outs;
     if (left > 0) this.popText(`${this.s.outs}アウト`, '#ffffff', 40, 740);
   }
 
-  /** バットに当たった球: ヒット・アウト・ファウル */
+  /** バットに当たった球: ヒット・ホームラン・ファウル */
   private showContact(r: SwingResult): void {
     const p = this.pitch!;
     const at = project(p.tx, p.ty, 0);
@@ -444,21 +443,12 @@ export class SluggerScene extends Phaser.Scene {
     this.time.delayedCall(big ? 150 : 60, () => this.setBatter(r.homerun ? 'homer' : 'hit'));
     this.popText(big ? 'PERFECT!!' : great ? 'GREAT!' : 'GOOD', big ? '#ffd23a' : great ? '#2fe0ff' : '#ffffff', big ? 96 : great ? 80 : 64, 560);
     this.flyBall(r);
-    // 打球の結果は、ボールが落ちる(捕られる)ころに出す
-    const name = { grounder: 'ゴロ', liner: 'ライナー', fly: 'フライ' }[r.contact!];
-    this.time.delayedCall(r.homerun ? 0 : 520, () => {
-      if (r.outcome === 'out') {
-        audio.se('knock', { pitch: 0.8 });
-        this.popText(`${name}アウト`, '#ff8a9a', 80, 680);
-        this.outNotice();
-      } else if (r.outcome === 'single') {
+    // 打球の結果は、ボールが落ちるころに出す(ホームランは flyBall が出す)
+    if (!r.homerun)
+      this.time.delayedCall(520, () => {
         audio.se('select');
         this.popText('ヒット！', '#ffffff', 92, 680);
-      } else if (r.outcome === 'double') {
-        audio.se('select', { pitch: 1.2 });
-        this.popText('ツーベース！', '#2fe0ff', 92, 680);
-      }
-    });
+      });
     if (hit) this.scorePop(at.x, at.y, r.points);
     if (hit && this.s.streak >= 2) this.tweens.add({ targets: this.comboText, scale: 1.4, duration: 90, yoyo: true });
   }
@@ -481,7 +471,7 @@ export class SluggerScene extends Phaser.Scene {
 
   /** 点数が飛んでいって、上の点数に入る */
   private scorePop(x: number, y: number, points: number): void {
-    const t = this.add.text(x, y - 40, `+${points.toLocaleString()}`, { fontFamily: ARIAL, fontSize: '46px', color: '#ffd23a', stroke: INK, strokeThickness: 9 }).setOrigin(0.5).setDepth(16);
+    const t = this.add.text(x, y - 40, `+${points}m`, { fontFamily: ARIAL, fontSize: '46px', color: '#ffd23a', stroke: INK, strokeThickness: 9 }).setOrigin(0.5).setDepth(16);
     this.tweens.add({
       targets: t,
       x: W / 2,
@@ -499,12 +489,11 @@ export class SluggerScene extends Phaser.Scene {
 
   /**
    * 打球が飛んでいく(光りながら、オレンジの尾を引く)。
-   * ゴロ: 低くはねながら / ライナー: 低くまっすぐ / フライ: 高い山なり。アウトは手前で止まる(捕られる)。ファウルは横の上へ
+   * ゴロ: 低くはねながら / ライナー: 低くまっすぐ / フライ: 高い山なり。ファウルは横の上へ
    */
   private flyBall(r: SwingResult): void {
     const p = this.pitch!;
     const from = project(p.tx, p.ty, 0);
-    const out = r.outcome === 'out';
     const foul = r.outcome === 'foul';
     const c = r.contact ?? 'liner';
     // 着く所(画面の y)・山の高さ・時間・はねる回数
@@ -513,10 +502,10 @@ export class SluggerScene extends Phaser.Scene {
       : r.homerun
         ? { far: 210, arc: 300, dur: 1150, bounce: 0 }
         : c === 'grounder'
-          ? { far: out ? 520 : 470, arc: 0, dur: out ? 560 : 700, bounce: 3 }
+          ? { far: 470, arc: 0, dur: 700, bounce: 3 }
           : c === 'liner'
-            ? { far: out ? 450 : 400, arc: 50, dur: out ? 520 : 720, bounce: 0 }
-            : { far: out ? 420 : 380, arc: out ? 330 : 260, dur: out ? 950 : 900, bounce: 0 };
+            ? { far: 400, arc: 50, dur: 720, bounce: 0 }
+            : { far: 380, arc: 260, dur: 900, bounce: 0 };
     const far = shape.far;
     const toX = foul ? (r.timing < 0 ? -80 : W + 80) : VIEW.vx + r.dir * (r.homerun ? 180 : c === 'grounder' ? 200 : 260);
     const dur = shape.dur;
@@ -546,7 +535,7 @@ export class SluggerScene extends Phaser.Scene {
       onComplete: () => {
         this.ball.setVisible(false);
         this.ballGlow.setVisible(false).setTint(0x8ff4ff);
-        if (foul || out) return;
+        if (foul) return;
         const label = this.add.text(toX, far - 20, `${r.distance}m`, { fontFamily: ARIAL, fontSize: r.homerun ? '56px' : '42px', color: '#ffffff', stroke: INK, strokeThickness: 9 }).setOrigin(0.5).setDepth(15).setScale(0.4);
         this.tweens.add({ targets: label, scale: 1, duration: 140, ease: 'Back.easeOut' });
         this.tweens.add({ targets: label, alpha: 0, y: label.y - 40, delay: 500, duration: 300, onComplete: () => label.destroy() });
@@ -631,17 +620,17 @@ export class SluggerScene extends Phaser.Scene {
       audio.se('slam');
       const box = this.add.container(0, 0).setDepth(30);
       const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.72).setOrigin(0, 0).setInteractive();
-      const title = this.add.text(W / 2, 170, 'GAME SET', { fontFamily: ARIAL, fontSize: '96px', color: '#c9c4d6', stroke: INK, strokeThickness: 16 }).setOrigin(0.5);
-      const score = this.add.text(W / 2, 300, `${s.score.toLocaleString()}点`, { fontFamily: ARIAL, fontSize: '80px', color: '#ffd23a', stroke: INK, strokeThickness: 14 }).setOrigin(0.5);
+      const title = this.add.text(W / 2, 170, 'GAME OVER', { fontFamily: ARIAL, fontSize: '96px', color: '#c9c4d6', stroke: INK, strokeThickness: 16 }).setOrigin(0.5);
+      const score = this.add.text(W / 2, 300, `${s.score.toLocaleString()}m`, { fontFamily: ARIAL, fontSize: '80px', color: '#ffd23a', stroke: INK, strokeThickness: 14 }).setOrigin(0.5);
       canvasTextureOnce(this, 'slug:overpanel', 600, 520, (ctx) => drawPanel(ctx, 600, 520, 97));
       const panel = this.add.image(W / 2, 650, 'slug:overpanel');
       const lines = [
+        '（飛距離の合計）',
         `ヒット   ${s.hits}`,
         `ホームラン   ${s.homeruns}`,
+        `最長飛距離   ${s.longest}m`,
         `最高連続ヒット   ${s.bestStreak}`,
         `PERFECT   ${s.perfects}`,
-        `最長飛距離   ${s.longest}m`,
-        `三振 ${s.strikeouts}   フォアボール ${s.walks}`,
         '',
         `獲得コイン   ${r.coins}   獲得EXP   ${r.exp}`,
       ];
