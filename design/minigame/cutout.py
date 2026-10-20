@@ -35,3 +35,17 @@ def cut_checker(path: str) -> Image.Image:
     out = im.convert('RGBA')
     out.putalpha(alpha)
     return out.crop(out.getchannel('A').point(lambda v: 255 if v > 20 else 0).getbbox())
+
+
+def cut_white(path: str) -> Image.Image:
+    """ふちからつながっている白い背景だけを透明にする(目の白など、線に囲まれた白は残す)"""
+    im = Image.open(path).convert('RGB')
+    a = np.asarray(im).astype(int)
+    bg = (a.min(2) > 225) & (a.max(2) - a.min(2) < 30)
+    labels, _ = ndimage.label(bg)
+    border = set(np.unique(np.concatenate([labels[0], labels[-1], labels[:, 0], labels[:, -1]]))) - {0}
+    keep = ~np.isin(labels, list(border))
+    alpha = Image.fromarray(np.where(keep, 255, 0).astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.8))
+    out = im.convert('RGBA')
+    out.putalpha(alpha)
+    return out

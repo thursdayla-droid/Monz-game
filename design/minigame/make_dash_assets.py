@@ -43,8 +43,8 @@ sp.thumbnail((160, 160), Image.LANCZOS)
 sp.save(os.path.join(OUT, 'dash_spike.webp'), quality=88, method=6)
 print('dash_spike.webp', sp.size)
 
-# 走るモンズ: 走る絵は透明の背景つき(そのまま)、ジャンプの絵は描きこまれたチェック柄を消す
-from cutout import cut_checker  # noqa: E402
+# 走るモンズ: 走る絵は白い背景を消す、ジャンプの絵は描きこまれたチェック柄を消す
+from cutout import cut_checker, cut_white  # noqa: E402
 
 
 def save_pose(im: Image.Image, name: str, width: int) -> None:
@@ -57,7 +57,7 @@ def save_pose(im: Image.Image, name: str, width: int) -> None:
     print(name, (width, h))
 
 
-save_pose(Image.open(os.path.join(HERE, 'dash_run.png')).convert('RGBA'), 'dash_run.webp', 360)
+save_pose(cut_white(os.path.join(HERE, 'dash_run.png')), 'dash_run.webp', 360)
 save_pose(cut_checker(os.path.join(HERE, 'dash_jump.png')), 'dash_jump.webp', 300)
 
 # ロゴ: もともと背景が透明。透明の所を切りつめて縮小するだけ
