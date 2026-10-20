@@ -37,3 +37,18 @@ for name, head in HEAD_W.items():
     foot_x = xs[low].mean()
     im.save(os.path.join(OUT, f'slug_batter_{name}.webp'), quality=88, method=6)
     print(f"  {name}: {{ ox: {foot_x / im.width:.3f}, oy: {foot_y / im.height:.3f} }},  // {im.size}")
+
+# ピッチャーロボット(企画者の絵 3ポーズ)。白い背景と足元の影を消し、頭の幅でそろえる
+PITCHER_HEAD_W = {'ready': 480, 'windup': 460, 'throw': 440}
+PITCHER_TARGET_HEAD = 130
+for name, head in PITCHER_HEAD_W.items():
+    im = cut_white(os.path.join(HERE, f'slug_pitcher_{name}.png'), shadow=True)
+    im = im.crop(im.getchannel('A').point(lambda v: 255 if v > 20 else 0).getbbox())
+    k = PITCHER_TARGET_HEAD / head
+    im = im.resize((round(im.width * k), round(im.height * k)), Image.LANCZOS)
+    a = np.asarray(im)[..., 3]
+    ys, xs = np.where(a > 128)
+    foot_y = ys.max()
+    low = ys > foot_y - (foot_y - ys.min()) * 0.25
+    im.save(os.path.join(OUT, f'slug_pitcher_{name}.webp'), quality=88, method=6)
+    print(f"  {name}: {{ ox: {xs[low].mean() / im.width:.3f}, oy: {foot_y / im.height:.3f} }},  // {im.size}")

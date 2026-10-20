@@ -17,8 +17,17 @@ export const SLUG_BATTER_ART: Record<BatterPose, { ox: number; oy: number }> = {
   whiff: { ox: 0.325, oy: 0.998 },
 };
 export const slugBatterKey = (p: BatterPose) => `slug:bat:${p}`;
-/** 絵の大きさ(画面での倍率) */
-const BATTER_ART_SCALE = 0.82;
+/** 絵の大きさ(画面での倍率)。打つ範囲(ストライクゾーン)にかからない大きさ */
+const BATTER_ART_SCALE = 0.72;
+
+/** ピッチャーロボットの絵(企画者の絵 3ポーズ)。数字は design/minigame/make_slugger_assets.py の出力 */
+export const SLUG_PITCHER_ART: Record<PitcherPose, { ox: number; oy: number }> = {
+  ready: { ox: 0.55, oy: 0.997 },
+  windup: { ox: 0.67, oy: 0.998 },
+  throw: { ox: 0.521, oy: 0.998 },
+};
+export const slugPitcherKey = (p: PitcherPose) => `slug:pit:${p}`;
+const PITCHER_ART_SCALE = 0.5;
 
 /** 球場の背景(企画者の絵) */
 export const SLUGGER_BG_KEY = 'slug:bg';
@@ -34,7 +43,8 @@ const CTRL = {
   sensitivity: 1.15,
 };
 /** バッターの立つ所(足元)と大きさ */
-const BATTER = { x: 150, y: 1110, scale: 0.9, alpha: 1 };
+/** バッターの立つ所(足元)。打つ範囲(ストライクゾーン)にかからないよう、左に寄せる(2026-10-20 企画者の指摘) */
+const BATTER = { x: 92, y: 1115, scale: 0.9, alpha: 1 };
 /** ボールの半径(ゾーンの半分を 1 とした長さ) */
 const BALL_R = 0.2;
 /** ボールの絵の大きさ(px) */
@@ -124,6 +134,7 @@ export class SluggerScene extends Phaser.Scene {
 
     const mound = project(0, GROUND_Y, 1);
     this.pitcher = this.add.image(mound.x, mound.y + 8, 'slug:pitcher:ready').setOrigin(0.5, 1).setScale(0.62);
+    this.setPitcher('ready');
     this.shadow = this.add.ellipse(0, 0, 40, 12, 0x000000, 0.35).setVisible(false);
     this.fx = this.add.graphics().setDepth(4);
     this.marker = this.add.graphics().setDepth(6);
@@ -350,6 +361,15 @@ export class SluggerScene extends Phaser.Scene {
     this.ball.setVisible(false);
     this.shadow.setVisible(false);
     this.setBatter('idle');
+  }
+
+  /** ピッチャーのポーズ。企画者の絵があればそれ(足元をそろえる)、なければプログラムで描いた仮の絵 */
+  private setPitcher(p: PitcherPose): void {
+    const key = slugPitcherKey(p);
+    if (this.textures.exists(key)) {
+      const a = SLUG_PITCHER_ART[p];
+      this.pitcher.setTexture(key).setOrigin(a.ox, a.oy).setScale(PITCHER_ART_SCALE);
+    } else this.pitcher.setTexture(`slug:pitcher:${p}`).setOrigin(0.5, 1).setScale(0.62);
   }
 
   /** バッターのポーズ。企画者の絵があればそれ(足元をそろえる)、なければプログラムで描いた仮の絵 */
@@ -702,7 +722,7 @@ export class SluggerScene extends Phaser.Scene {
     const p = this.pitch!;
     if (this.pitchPhase === 'windup') {
       const pose: PitcherPose = this.timer < SLUG.windup * 0.45 ? 'ready' : this.timer < SLUG.windup * 0.85 ? 'windup' : 'throw';
-      this.pitcher.setTexture(`slug:pitcher:${pose}`);
+      this.setPitcher(pose);
       if (this.timer >= SLUG.windup) {
         this.pitchPhase = 'flight';
         this.timer -= SLUG.windup;
@@ -715,7 +735,7 @@ export class SluggerScene extends Phaser.Scene {
       // 見のがし: ボールが通りすぎた
       if (passed(p, this.timer)) this.finishPitch(judge(p, null, this.cursor));
     } else if (this.pitchPhase === 'result') {
-      if (this.timer > 0.25) this.pitcher.setTexture('slug:pitcher:ready');
+      if (this.timer > 0.25) this.setPitcher('ready');
       if (this.timer >= SLUG.afterPitch) {
         if (this.s.over) this.gameOver();
         else this.beginWindup();
