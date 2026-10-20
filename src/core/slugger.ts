@@ -21,6 +21,13 @@ const range = (rng: Rng, a: number, b: number) => a + (b - a) * rng();
 export const SLUG = {
   /** タイミングのずれ(秒)。この中なら その判定 */
   timing: { perfect: 0.04, great: 0.075, good: 0.12 },
+  /**
+   * いちばん良いタイミング: ボールがホームに着く何秒前か(企画者の指示 2026-10-20「はやい」が多いので、少し早めに打てるように)。
+   * 見た目では、ボールがカーソルに重なって見えるのが着くより少し前のため
+   */
+  idealBefore: 0.05,
+  /** 早めにずれたときは、ずれをこの割合に小さく数える(早めには甘く) */
+  earlyLenient: 0.7,
   /** タイミングが good より少しだけずれたらファウル(この幅まで) */
   foul: 0.07,
   /** 位置のずれ(ゾーンの半分を 1 とした長さ)。この中なら その判定。good の外は空振り */
@@ -28,7 +35,7 @@ export const SLUG = {
   /** ボールの当たり所(上下)で打球を分ける境目(カーソルの半径に対する割合) */
   contactSplit: 0.33,
   /** スイングを受けつける時間: ボールが着く何秒前から(これより早いと空振り) */
-  swingEarly: 0.25,
+  swingEarly: 0.32,
   /** アウトの数でゲームおしまい */
   maxOuts: 3,
   /** 投げるまでの時間(構え→振りかぶり)と、打ったあとの間(秒) */
@@ -113,7 +120,7 @@ export interface SwingResult {
   outcome: Outcome;
   /** 打球の種類(バットに当たったときだけ) */
   contact?: Contact;
-  /** タイミングのずれ(秒。- は早い、+ は遅い) と 位置のずれ */
+  /** タイミングのずれ(秒。- は早い、+ は遅い。早い方は earlyLenient をかけたもの) と 位置のずれ */
   timing: number;
   offset: number;
   /** 打球の飛んだ距離(m)。当たらなければ 0 */
@@ -238,7 +245,8 @@ export const HOMERUN_MIN = 105;
 export function judge(p: Pitch, swingAt: number | null, cursor: { x: number; y: number }, rng: Rng = Math.random): SwingResult {
   const none = (outcome: Outcome, timing: number, offset: number): SwingResult => ({ grade: 'miss', outcome, timing, offset, distance: 0, homerun: false, points: 0, dir: 0, atBatEnd: null });
   if (swingAt === null) return none(isStrike(p) ? 'strikeTaken' : 'ball', Infinity, Infinity);
-  const timing = swingAt - p.flight;
+  const raw = swingAt - (p.flight - SLUG.idealBefore);
+  const timing = raw < 0 ? raw * SLUG.earlyLenient : raw;
   const offset = Math.hypot(cursor.x - p.tx, (cursor.y - p.ty) * 1.15);
   const pos = step(offset, SLUG.position);
   if (pos === 3) return none('swingMiss', timing, offset);
@@ -322,7 +330,7 @@ export function markerLead(pitchIndex: number): number {
 /** スイングを受けつけるか(早すぎると空振り扱い)。t: 手を離れてからの秒数 */
 export const canSwing = (p: Pitch, t: number): boolean => t >= p.flight - SLUG.swingEarly;
 /** もう見送りが決まったか(ボールが通りすぎた) */
-export const passed = (p: Pitch, t: number): boolean => t > p.flight + SLUG.timing.good + SLUG.foul;
+export const passed = (p: Pitch, t: number): boolean => t > p.flight - SLUG.idealBefore + SLUG.timing.good + SLUG.foul;
 
 /**
  * 【仮】報酬(数字は未確定。企画者が決める)。ほかのミニゲームと大きくずれないよう、ヒットの数で決める。

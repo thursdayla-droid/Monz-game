@@ -442,6 +442,8 @@ export class SluggerScene extends Phaser.Scene {
     this.impact(at.x, at.y, big ? 0xffd23a : great ? 0x2fe0ff : 0xffffff, big ? 1.6 : great ? 1.15 : 0.8);
     this.time.delayedCall(big ? 150 : 60, () => this.setBatter(r.homerun ? 'homer' : 'hit'));
     this.popText(big ? 'PERFECT!!' : great ? 'GREAT!' : 'GOOD', big ? '#ffd23a' : great ? '#2fe0ff' : '#ffffff', big ? 96 : great ? 80 : 64, 560);
+    // タイミングがずれていたら、どちらにずれたか小さく出す(練習しやすいように)
+    if (!big && Math.abs(r.timing) > SLUG.timing.perfect) this.popText(r.timing < 0 ? '少しはやい' : '少しおそい', '#ffffff', 32, 620);
     this.flyBall(r);
     // 打球の結果は、ボールが落ちるころに出す(ホームランは flyBall が出す)
     if (!r.homerun)
@@ -702,7 +704,8 @@ export class SluggerScene extends Phaser.Scene {
     const p = this.pitch;
     // 着く所の目印。出る時間は球数で短くなる。輪が縮みきった時がボールの着く時
     if (p && this.phase === 'play' && (this.pitchPhase === 'windup' || this.pitchPhase === 'flight') && !this.swung) {
-      const toArrive = this.pitchPhase === 'windup' ? SLUG.windup - this.timer + p.flight : p.flight - this.timer;
+      // 輪が縮みきるのは、いちばん良いタイミング(着くより少し前)
+      const toArrive = (this.pitchPhase === 'windup' ? SLUG.windup - this.timer + p.flight : p.flight - this.timer) - SLUG.idealBefore;
       if (toArrive <= markerLead(this.s.pitches) && toArrive > -0.05) {
         const c = project(p.tx, p.ty, 0);
         const r = BALL_R * VIEW.zs;

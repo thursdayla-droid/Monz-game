@@ -3,6 +3,8 @@ import { applyResult, ballAt, canSwing, HOMERUN_MIN, isHit, isStrike, judge, lev
 
 const pitch = (tx = 0, ty = 0, flight = 1.2): Pitch => ({ kind: 'straight', flight, tx, ty, bx: 0, by: 0 });
 const fixed = (v: number) => () => v;
+/** 1.2秒で着く球の、いちばん良いスイングの時間 */
+const IDEAL = 1.2 - SLUG.idealBefore;
 
 describe('MONZ SLUGGER', () => {
   it('the ball leaves the pitcher and arrives exactly at its target, even when it breaks', () => {
@@ -32,12 +34,12 @@ describe('MONZ SLUGGER', () => {
 
   it('judges position and timing; outside the cursor is a swing and miss, a little off timing is a foul', () => {
     const p = pitch(0.2, -0.1);
-    expect(judge(p, 1.2, { x: 0.2, y: -0.1 }, fixed(0.5)).grade).toBe('perfect');
-    expect(judge(p, 1.26, { x: 0.2, y: -0.1 }, fixed(0.5)).grade).toBe('great');
-    expect(judge(p, 1.2, { x: 0.6, y: -0.1 }, fixed(0.5)).grade).toBe('good');
-    expect(judge(p, 1.2, { x: -0.6, y: -0.1 }).outcome).toBe('swingMiss');
-    expect(judge(p, 1.2 + SLUG.timing.good + 0.03, { x: 0.2, y: -0.1 }).outcome).toBe('foul');
-    expect(judge(p, 1.2 - SLUG.timing.good - 0.03, { x: 0.2, y: -0.1 }).outcome).toBe('foul');
+    expect(judge(p, IDEAL, { x: 0.2, y: -0.1 }, fixed(0.5)).grade).toBe('perfect');
+    expect(judge(p, IDEAL + 0.06, { x: 0.2, y: -0.1 }, fixed(0.5)).grade).toBe('great');
+    expect(judge(p, IDEAL, { x: 0.6, y: -0.1 }, fixed(0.5)).grade).toBe('good');
+    expect(judge(p, IDEAL, { x: -0.6, y: -0.1 }).outcome).toBe('swingMiss');
+    expect(judge(p, IDEAL + SLUG.timing.good + 0.03, { x: 0.2, y: -0.1 }).outcome).toBe('foul');
+    expect(judge(p, IDEAL - (SLUG.timing.good + 0.03) / SLUG.earlyLenient, { x: 0.2, y: -0.1 }).outcome).toBe('foul');
     expect(judge(p, 0.6, { x: 0.2, y: -0.1 }).outcome).toBe('swingMiss');
     // 見送り: ゾーンの中はストライク、外はボール
     expect(judge(pitch(0, 0), null, { x: 0, y: 0 }).outcome).toBe('strikeTaken');
@@ -47,15 +49,15 @@ describe('MONZ SLUGGER', () => {
   it('where the ball meets the cursor decides grounder / liner / fly', () => {
     const p = pitch(0, 0);
     // カーソルがボールより上 → ゴロ / まん中 → ライナー / 下 → フライ
-    expect(judge(p, 1.2, { x: 0, y: 0.3 }, fixed(0.99)).contact).toBe('grounder');
-    expect(judge(p, 1.2, { x: 0, y: 0 }, fixed(0.99)).contact).toBe('liner');
-    expect(judge(p, 1.2, { x: 0, y: -0.3 }, fixed(0.99)).contact).toBe('fly');
+    expect(judge(p, IDEAL, { x: 0, y: 0.3 }, fixed(0.99)).contact).toBe('grounder');
+    expect(judge(p, IDEAL, { x: 0, y: 0 }, fixed(0.99)).contact).toBe('liner');
+    expect(judge(p, IDEAL, { x: 0, y: -0.3 }, fixed(0.99)).contact).toBe('fly');
     // PERFECT のフライは必ずホームラン
-    const r = judge(p, 1.2, { x: 0, y: -0.12 }, fixed(0.5));
+    const r = judge(p, IDEAL, { x: 0, y: -0.12 }, fixed(0.5));
     if (r.grade === 'perfect' && r.contact === 'fly') expect(r.outcome).toBe('homerun');
     // 早いと引っぱり(左)、遅いと流し(右)
-    expect(judge(p, 1.15, { x: 0, y: 0 }, fixed(0.5)).dir).toBeLessThan(0);
-    expect(judge(p, 1.25, { x: 0, y: 0 }, fixed(0.5)).dir).toBeGreaterThan(0);
+    expect(judge(p, IDEAL - 0.05, { x: 0, y: 0 }, fixed(0.5)).dir).toBeLessThan(0);
+    expect(judge(p, IDEAL + 0.05, { x: 0, y: 0 }, fixed(0.5)).dir).toBeGreaterThan(0);
   });
 
   it('every contact is a hit or a home run, decided by distance', () => {
@@ -63,7 +65,7 @@ describe('MONZ SLUGGER', () => {
     let homers = 0;
     for (let i = 0; i < 300; i++) {
       const dy = [-0.3, 0, 0.3][i % 3];
-      const r = judge(pitch(0, 0), 1.2 + (i % 5) * 0.02, { x: 0, y: dy }, rng);
+      const r = judge(pitch(0, 0), IDEAL + (i % 5) * 0.02, { x: 0, y: dy }, rng);
       expect(isHit(r.outcome)).toBe(true);
       expect(r.homerun).toBe(r.distance >= HOMERUN_MIN);
       if (r.homerun) homers++;
@@ -121,12 +123,22 @@ describe('MONZ SLUGGER', () => {
     expect(s.homeruns).toBe(1);
   });
 
+  it('the best timing is a little before the ball arrives, and early swings are judged more gently', () => {
+    const p = pitch(0, 0);
+    expect(judge(p, 1.2, { x: 0, y: 0 }, fixed(0.5)).grade).not.toBe('perfect');
+    expect(judge(p, IDEAL, { x: 0, y: 0 }, fixed(0.5)).grade).toBe('perfect');
+    // 同じだけずれても、早い方が良い判定になりやすい
+    const early = judge(p, IDEAL - 0.1, { x: 0, y: 0 }, fixed(0.5));
+    const late = judge(p, IDEAL + 0.1, { x: 0, y: 0 }, fixed(0.5));
+    expect(Math.abs(early.timing)).toBeLessThan(Math.abs(late.timing));
+  });
+
   it('swing window: too early is not accepted, the ball passes after the foul window', () => {
     const p = pitch(0, 0, 1);
     expect(canSwing(p, 0.5)).toBe(false);
     expect(canSwing(p, 1 - SLUG.swingEarly)).toBe(true);
-    expect(passed(p, 1 + SLUG.timing.good + SLUG.foul - 0.01)).toBe(false);
-    expect(passed(p, 1 + SLUG.timing.good + SLUG.foul + 0.01)).toBe(true);
+    expect(passed(p, 1 - SLUG.idealBefore + SLUG.timing.good + SLUG.foul - 0.01)).toBe(false);
+    expect(passed(p, 1 - SLUG.idealBefore + SLUG.timing.good + SLUG.foul + 0.01)).toBe(true);
   });
 
   it('gets harder step by step with the number of hits, never suddenly', () => {
@@ -165,7 +177,7 @@ describe('MONZ SLUGGER', () => {
     const rng = rngOf(good);
     for (let i = 0; i < 300; i++) {
       const p = nextPitch(good);
-      applyResult(good, judge(p, isStrike(p) ? p.flight + 0.01 : null, { x: p.tx, y: p.ty }, rng));
+      applyResult(good, judge(p, isStrike(p) ? p.flight - SLUG.idealBefore + 0.01 : null, { x: p.tx, y: p.ty }, rng));
     }
     expect(good.over).toBe(false);
     expect(good.score).toBe(good.totalDistance);
