@@ -457,6 +457,7 @@ export class HomeScene extends Phaser.Scene {
 
   private startStroke(p: Phaser.Input.Pointer): void {
     if (this.busy || !this.life) return;
+    if (this.strokeHand) this.tweens.killTweensOf(this.strokeHand);
     this.stroke = { x: p.x, y: p.y, dist: 0, sinceTick: 0, ticks: 0, happy: 0, angry: false };
     // 触ったらすぐ手を出す(指で隠れないよう、指の少し上に)
     this.showStrokeHand(p.x, p.y);
@@ -497,13 +498,17 @@ export class HomeScene extends Phaser.Scene {
   private endStroke(): void {
     const s = this.stroke;
     this.stroke = null;
-    this.hideStrokeHand();
-    if (!s || !this.life) return;
-    // ほとんど動かしていなければタップ
+    if (!s || !this.life) {
+      this.hideStrokeHand();
+      return;
+    }
+    // ほとんど動かしていなければタップ: 手で「ちょん」とつついてから消す
     if (s.ticks === 0 && s.dist < 18) {
+      this.pokeHand();
       this.tapMonz();
       return;
     }
+    this.hideStrokeHand();
     // なで終わり: 機嫌と経験値(1回のなでるにつき1回ぶん)
     if (s.ticks > 0) this.record?.pet(!s.angry && s.happy > 0);
   }
@@ -520,12 +525,37 @@ export class HomeScene extends Phaser.Scene {
       }
     }
     const wobble = Math.sin(this.t * 14) * 8;
-    if (useImage) this.strokeHand.setVisible(true).setPosition(x - 4, y - 55).setAngle(wobble);
+    if (useImage) this.strokeHand.setVisible(true).setAlpha(1).setPosition(x - 4, y - 55).setAngle(wobble);
     else this.strokeHand.setVisible(true).setPosition(x + 16, y - 90).setAngle(180 + wobble);
   }
 
   private hideStrokeHand(): void {
-    this.strokeHand?.setVisible(false);
+    if (!this.strokeHand) return;
+    this.tweens.killTweensOf(this.strokeHand);
+    this.strokeHand.setVisible(false).setAlpha(1);
+  }
+
+  /** タップしたとき: 手が少しつつく動きをして、ふわっと消える */
+  private pokeHand(): void {
+    const h = this.strokeHand;
+    if (!h) return;
+    this.tweens.killTweensOf(h);
+    h.setVisible(true).setAlpha(1);
+    this.tweens.chain({
+      targets: h,
+      tweens: [
+        { x: h.x + 6, y: h.y + 12, duration: 90, ease: 'Quad.easeOut' },
+        { x: h.x, y: h.y, duration: 120, ease: 'Quad.easeIn' },
+        { alpha: 0, duration: 260, delay: 250, onComplete: () => this.hideStrokeHand() },
+      ],
+    });
+  }
+
+  /** 手の絵(企画者の指さしの手)を、大きさ size(px の高さ)で使えるようにする。キーを返す */
+  private handKey(): string {
+    if (this.textures.exists(HAND_KEY)) return HAND_KEY;
+    canvasTextureOnce(this, 'home:hand', 220, 220, (ctx) => drawIcon(ctx, 'pet', 110, 116, 82));
+    return 'home:hand';
   }
 
   /** ごはん: 骨付き肉が落ちてきて、3口で食べる(かじった跡が増えて、最後は消える) */
@@ -581,9 +611,12 @@ export class HomeScene extends Phaser.Scene {
     this.busy = true;
     life.pause(3.5);
     const sc = this.scaleAt(life.y);
-    canvasTextureOnce(this, 'home:hand', 220, 220, (ctx) => drawIcon(ctx, 'pet', 110, 116, 82));
-    const headY = life.y - MONZ_H * sc;
-    const hand = this.add.image(view.x, headY - 120, 'home:hand').setDepth(DEPTH.effect).setAlpha(0).setAngle(180).setScale(sc / SCALE_FRONT * 0.7);
+    const key = this.handKey();
+    const headY = life.y - MONZ_H * sc + 30;
+    // 企画者の手の絵は、人さし指の先で頭をなでる(指先を頭に合わせる)
+    const hand = this.add.image(view.x, headY - 120, key).setDepth(DEPTH.effect).setAlpha(0);
+    if (key === HAND_KEY) hand.setOrigin(HAND_TIP[0], HAND_TIP[1]).setScale(((sc / SCALE_FRONT) * 120) / 300);
+    else hand.setAngle(180).setScale((sc / SCALE_FRONT) * 0.7);
     this.tweens.add({ targets: hand, alpha: 1, y: headY, duration: 260, ease: 'Back.easeOut' });
     this.tweens.add({
       targets: hand,
