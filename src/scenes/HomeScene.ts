@@ -6,6 +6,7 @@ import { HOME_ACTIONS, HOME_ACTION_LABELS, HOME_ACTION_READY, HOME_LAYOUTS, clip
 import { MonzLife } from '../core/life';
 import { clearLife, LifeRecord, loadLife, saveLife } from '../core/lifeSave';
 import { mulberry32 } from '../core/rng';
+import { currentStats, fmt, speciesStats, STAT_KEYS, STAT_LABELS, type StatKey } from '../core/stats';
 import { clearSave, loadSave } from '../core/save';
 import { BUNK_MOTION, BunkView, cutoutKey, TEST_PERSONALITY } from '../render/bunkView';
 import { drawCoin, drawGarage, drawHeart, drawIcon, drawMeat, drawMeatImage, drawMenuButton, drawPanel, drawRoom } from '../ui/homeArt';
@@ -374,9 +375,15 @@ export class HomeScene extends Phaser.Scene {
   /** レベルアップの演出 */
   private levelUp(level: number): void {
     audio.se('sting');
+    const g = speciesStats(this.record?.monz.species ?? 'bunk').growth;
+    const parts = STAT_KEYS.map((k) => `${STAT_LABELS[k]} +${fmt(g[k])}`);
+    const gains = `${parts.slice(0, 3).join('  ')}\n${parts.slice(3).join('  ')}`;
     const t = this.text(W / 2, 470, `LEVEL UP!\nLv. ${level}`, 64, '#ffd23a').setDepth(DEPTH.popup).setScale(0.3);
+    const sub = this.text(W / 2, 590, `${gains}\nポイント +0.1`, 24, '#ffffff').setDepth(DEPTH.popup).setAlpha(0);
+    this.tweens.add({ targets: sub, alpha: 1, delay: 300, duration: 300 });
+    this.tweens.add({ targets: sub, alpha: 0, delay: 2600, duration: 500, onComplete: () => sub.destroy() });
     this.tweens.add({ targets: t, scale: 1, duration: 420, ease: 'Back.easeOut' });
-    this.tweens.add({ targets: t, alpha: 0, y: t.y - 60, delay: 1800, duration: 500, onComplete: () => t.destroy() });
+    this.tweens.add({ targets: t, alpha: 0, y: t.y - 60, delay: 2600, duration: 500, onComplete: () => t.destroy() });
     this.hearts(3);
   }
 
@@ -601,38 +608,93 @@ export class HomeScene extends Phaser.Scene {
   }
 
   /**
-   * ステータス画面。【未確定】ステータスの種類・初期値・上限は企画者が決めてから。
-   * 今は、レベル・経験値・振り分けられるポイント(レベル1ごとに0.1)だけを出す。
+   * ステータス画面: 6種類(HP・パワー・タフネス・スピード・テクニック・愛)と、自由ポイントの振り分け。
+   * 振り分けは、えらぶ → 確認(振り直しできません) → 決定。愛には振れない。
    */
   private openStatus(): void {
     const record = this.record;
     if (!record) return;
     this.busy = true;
     audio.se('select');
-    const m = record.monz;
-    const pw = 600;
-    const ph = 640;
+    const pw = 640;
+    const ph = 900;
     const px = (W - pw) / 2;
-    const py = 230;
-    const layer = this.add.container(0, 0).setDepth(DEPTH.popup);
-    const shade = this.add.rectangle(0, 0, W, H, 0x0d0614, 0.7).setOrigin(0, 0).setInteractive();
-    canvasTexture(this, 'home:statusPanel', pw, ph, (ctx) => drawPanel(ctx, pw, ph, 97));
-    const panel = this.add.image(px, py, 'home:statusPanel').setOrigin(0, 0);
+    const py = 170;
     const ink = '#16101c';
-    const t = (x: number, y: number, s: string, size: number, color = ink, origin = 0) =>
-      this.add.text(x, y, s, { fontFamily: UI_FONT, fontSize: `${size}px`, fontStyle: '900', color }).setOrigin(origin, 0);
-    const portrait = this.add.image(px + 40, py + 36, 'home:portrait').setOrigin(0, 0);
-    const name = this.add.text(px + 176, py + 44, m.name ?? speciesName(m.species), { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '44px', color: ink });
-    const lv = t(px + 178, py + 104, `Lv. ${m.level}`, 32);
-    const bar = this.add.graphics();
-    bar.fillStyle(0x16101c, 1).fillRoundedRect(px + 40, py + 190, pw - 80, 30, 15);
-    bar.fillStyle(0xd9c7a0, 1).fillRoundedRect(px + 45, py + 195, pw - 90, 20, 10);
-    bar.fillStyle(0x2fa8ff, 1).fillRoundedRect(px + 45, py + 195, Math.max(20, (pw - 90) * record.expRate), 20, 10);
-    const expLabel = t(px + 40, py + 228, `次のレベルまで ${Math.round(record.expRate * 100)}%`, 24);
-    const points = t(px + 40, py + 290, `振り分けられるポイント：${m.statPoints.toFixed(1)}`, 30);
-    const note = t(px + 40, py + 350, 'レベルが1上がるごとに 0.1 ポイント\nもらえます。\n\nステータスの種類は じゅんび中！', 26, '#5a4a66');
-    const close = t(W / 2, py + ph - 100, '  とじる  ', 38, ink, 0.5).setBackgroundColor('#ffd23a').setPadding(20, 10, 20, 12).setInteractive({ useHandCursor: true });
-    layer.add([shade, panel, portrait, name, lv, bar, expLabel, points, note, close]);
+    const layer = this.add.container(0, 0).setDepth(DEPTH.popup);
+    const shade = this.add.rectangle(0, 0, W, H, 0x0d0614, 0.75).setOrigin(0, 0).setInteractive();
+    canvasTextureOnce(this, 'home:statusPanel', pw, ph, (ctx) => drawPanel(ctx, pw, ph, 97));
+    layer.add([shade, this.add.image(px, py, 'home:statusPanel').setOrigin(0, 0)]);
+    const t = (x: number, y: number, s: string, size: number, color = ink, ox = 0) =>
+      this.add.text(x, y, s, { fontFamily: UI_FONT, fontSize: `${size}px`, fontStyle: '900', color }).setOrigin(ox, 0);
+    const content = this.add.container(0, 0);
+    layer.add(content);
+    const draw = () => {
+      content.removeAll(true);
+      const m = record.monz;
+      const st = currentStats(m);
+      content.add(this.add.image(px + 32, py + 30, 'home:portrait').setOrigin(0, 0));
+      content.add(this.add.text(px + 166, py + 36, m.name ?? speciesName(m.species), { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '42px', color: ink }));
+      content.add(t(px + 168, py + 94, `Lv. ${m.level}`, 30));
+      const bar = this.add.graphics();
+      bar.fillStyle(0x16101c, 1).fillRoundedRect(px + 290, py + 100, pw - 330, 26, 13);
+      bar.fillStyle(0xd9c7a0, 1).fillRoundedRect(px + 295, py + 105, pw - 340, 16, 8);
+      bar.fillStyle(0x2fa8ff, 1).fillRoundedRect(px + 295, py + 105, Math.max(16, (pw - 340) * record.expRate), 16, 8);
+      content.add(bar);
+      // ポイントの残り
+      const pts = m.statPoints;
+      content.add(t(px + 32, py + 168, pts > 0 ? `振り分けられるポイント：${fmt(pts)}` : '振り分けられるポイント：なし', 28, pts > 0 ? '#c2410c' : '#5a4a66'));
+      if (pts > 0) content.add(t(px + 32, py + 206, '＋をおすと 0.1 ずつ振り分けられます', 20, '#5a4a66'));
+      // 6種類
+      const rows: { label: string; value: string; key?: StatKey; color: number }[] = [
+        ...STAT_KEYS.map((k, i) => ({ label: STAT_LABELS[k], value: fmt(st[k]), key: k, color: [0xff4f5e, 0xff8a1f, 0x8a35e0, 0x2fa8ff, 0x2ed3c2][i] })),
+        { label: '愛', value: String(m.love), color: 0xff4fa3 },
+      ];
+      rows.forEach((r, i) => {
+        const y = py + 252 + i * 84;
+        const g = this.add.graphics();
+        g.fillStyle(0xffffff, 1).fillRoundedRect(px + 26, y, pw - 52, 70, 16);
+        g.lineStyle(4, 0x16101c, 1).strokeRoundedRect(px + 26, y, pw - 52, 70, 16);
+        g.fillStyle(r.color, 1).fillRoundedRect(px + 26, y, 20, 70, { tl: 16, bl: 16, tr: 0, br: 0 });
+        content.add(g);
+        content.add(t(px + 64, y + 16, r.label, 30));
+        content.add(t(pw + px - (r.key && pts > 0 ? 130 : 50), y + 14, r.value, 34, ink, 1));
+        if (r.key && pts > 0) {
+          const key = r.key;
+          const plus = t(px + pw - 82, y + 9, '＋', 34, ink, 0.5).setBackgroundColor('#ffd23a').setPadding(14, 4, 14, 6).setInteractive({ useHandCursor: true });
+          plus.on('pointerdown', () => confirm(key));
+          content.add(plus);
+        }
+      });
+      content.add(t(px + 32, py + 252 + 6 * 84 + 4, '愛はお世話で育ちます', 20, '#5a4a66'));
+    };
+    // 確認(振り直しはできない)
+    const confirm = (key: StatKey) => {
+      audio.se('tap');
+      const box = this.add.container(0, 0);
+      const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.5).setOrigin(0, 0).setInteractive();
+      const g = this.add.graphics();
+      g.fillStyle(0xfbf1dc, 1).fillRoundedRect(80, 470, W - 160, 330, 24);
+      g.lineStyle(8, 0x16101c, 1).strokeRoundedRect(80, 470, W - 160, 330, 24);
+      const msg = t(W / 2, 510, `${STAT_LABELS[key]}に 0.1\n振り分けますか？`, 36, ink, 0.5).setAlign('center');
+      const warn = t(W / 2, 620, '振り直しはできません', 24, '#c2410c', 0.5);
+      const yes = t(W / 2 + 110, 690, ' はい ', 34, ink, 0.5).setBackgroundColor('#ffd23a').setPadding(20, 8, 20, 10).setInteractive({ useHandCursor: true });
+      const no = t(W / 2 - 110, 690, 'やめる', 34, '#ffffff', 0.5).setBackgroundColor('#8a35e0').setPadding(20, 8, 20, 10).setInteractive({ useHandCursor: true });
+      box.add([dim, g, msg, warn, yes, no]);
+      layer.add(box);
+      yes.on('pointerdown', () => {
+        if (record.allocate(key)) audio.se('select');
+        box.destroy();
+        draw();
+      });
+      no.on('pointerdown', () => {
+        audio.se('back');
+        box.destroy();
+      });
+    };
+    draw();
+    const close = t(W / 2, py + ph - 92, '  とじる  ', 38, ink, 0.5).setBackgroundColor('#ffd23a').setPadding(20, 10, 20, 12).setInteractive({ useHandCursor: true });
+    layer.add(close);
     layer.setAlpha(0);
     this.tweens.add({ targets: layer, alpha: 1, duration: 160 });
     close.on('pointerdown', () => {
