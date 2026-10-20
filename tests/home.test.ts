@@ -145,6 +145,18 @@ describe('life record', () => {
     expect(rec.monz.statPoints).toBeCloseTo((rec.level - 1) * 0.1, 5);
   });
 
+  it('petting alone cannot fill the daily care exp', () => {
+    const store = memoryStore();
+    const rec = new LifeRecord(loadLife(store), store);
+    const now = Date.UTC(2026, 9, 20, 3);
+    for (let i = 0; i < 30; i++) rec.pet(true, now);
+    expect(rec.monz.exp).toBe(NEEDS_RULES.petDailyCap);
+    rec.feed(now);
+    rec.feed(now);
+    rec.feed(now);
+    expect(rec.monz.expToday).toBe(NEEDS_RULES.dailyExpCap);
+  });
+
   it('caring twice a day levels up in two to three days and pays coins', () => {
     const store = memoryStore();
     const rec = new LifeRecord(loadLife(store), store);

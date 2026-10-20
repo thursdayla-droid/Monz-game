@@ -35,9 +35,14 @@ export const NEEDS_RULES = {
   /** ごはん・なでるで上がる機嫌 */
   feedMood: 0.15,
   petMood: 0.12,
-  /** 経験値: ごはん・なでる1回ぶん、1日の上限 */
-  feedExp: 12,
+  /**
+   * お世話の経験値: ごはん・なでる1回ぶんと、1日の上限。
+   * 企画者決定(2026-10-20): 上限は残す。なでるだけで上限に届かないよう、なでるぶんは1日 petDailyCap まで。
+   * ごはん2回(30)+なでる5回(20)でちょうど50。
+   */
+  feedExp: 15,
   petExp: 4,
+  petDailyCap: 20,
   dailyExpCap: 50,
 } as const;
 

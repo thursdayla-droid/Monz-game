@@ -26,9 +26,10 @@ export interface MonzData {
   level: number;
   /** 今のレベルでたまった経験値 */
   exp: number;
-  /** 今日お世話でもらった経験値(お世話の1日の上限のため) */
+  /** 今日お世話でもらった経験値(お世話の1日の上限のため)。expPetToday はそのうち、なでるでもらったぶん */
   expDay: string;
   expToday: number;
+  expPetToday: number;
   /** まだ振り分けていないステータスポイント */
   statPoints: number;
   /** 振り分けたポイント(能力の名前 → ポイント)。【未確定】能力の種類は決まったら */
@@ -66,6 +67,7 @@ export const newMonz = (species: SpeciesId, uid: string, now = Date.now()): Monz
   exp: 0,
   expDay: dayKey(new Date(now)),
   expToday: 0,
+  expPetToday: 0,
   statPoints: 0,
   stats: {},
   needs: newNeeds(),
@@ -241,7 +243,7 @@ export class LifeRecord {
     if (this.data.claimed.includes(reward.runId)) return false;
     this.update({ claimed: [...this.data.claimed, reward.runId].slice(-CLAIMED_KEEP) });
     if (reward.coins) this.add(reward.coins);
-    if (reward.exp) this.gainExp(reward.exp, now, false);
+    if (reward.exp) this.gainExp(reward.exp, now, 'other');
     return true;
   }
 
@@ -268,24 +270,28 @@ export class LifeRecord {
   feed(now = Date.now()): void {
     const n = this.needs;
     this.update({}, { needs: { ...n, full: Math.min(1, n.full + NEEDS_RULES.feedFull), mood: Math.min(1, n.mood + NEEDS_RULES.feedMood) } });
-    this.gainExp(NEEDS_RULES.feedExp, now, true);
+    this.gainExp(NEEDS_RULES.feedExp, now, 'feed');
   }
 
   pet(happy: boolean, now = Date.now()): void {
     const n = this.needs;
     this.update({}, { needs: { ...n, mood: Math.min(1, n.mood + (happy ? NEEDS_RULES.petMood : NEEDS_RULES.petMood / 3)) } });
-    this.gainExp(NEEDS_RULES.petExp, now, true);
+    this.gainExp(NEEDS_RULES.petExp, now, 'pet');
   }
 
   /**
    * 経験値をためる。たまったらレベルが上がって、コインとステータスポイントがもらえる。
-   * care: お世話の経験値(1日の上限あり)。ミニゲームなどは上限なし。
+   * kind: お世話(feed・pet)は1日の上限あり(なでるぶんは、さらに少ない上限)。ミニゲームなど(other)は上限なし。
    */
-  private gainExp(amount: number, now: number, care: boolean): void {
+  private gainExp(amount: number, now: number, kind: 'feed' | 'pet' | 'other'): void {
     const m = this.monz;
     const today = dayKey(new Date(now));
     const used = m.expDay === today ? m.expToday : 0;
-    const got = care ? Math.max(0, Math.min(amount, NEEDS_RULES.dailyExpCap - used)) : Math.max(0, amount);
+    const usedPet = m.expDay === today ? (m.expPetToday ?? 0) : 0;
+    const care = kind !== 'other';
+    let room = care ? NEEDS_RULES.dailyExpCap - used : Infinity;
+    if (kind === 'pet') room = Math.min(room, NEEDS_RULES.petDailyCap - usedPet);
+    const got = Math.max(0, Math.min(amount, room));
     let { level, exp, statPoints } = m;
     exp += got;
     const ups: number[] = [];
@@ -295,7 +301,7 @@ export class LifeRecord {
       statPoints = Math.round((statPoints + STAT_POINTS_PER_LEVEL) * 10) / 10;
       ups.push(level);
     }
-    this.update({}, { level, exp, statPoints, expDay: today, expToday: care ? used + got : used });
+    this.update({}, { level, exp, statPoints, expDay: today, expToday: care ? used + got : used, expPetToday: kind === 'pet' ? usedPet + got : usedPet });
     for (const lv of ups) {
       const coins = levelUpCoins(lv);
       this.emit({ type: 'levelUp', level: lv, coins });
