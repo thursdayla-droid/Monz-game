@@ -7,10 +7,11 @@ import { COLORS, INK, roundRectPath, speckle, splat } from './paint';
  */
 
 /**
- * 見え方(3D風)。ホームベースの面の点 (x, y) と奥行き z(0 ホーム 〜 1 ピッチャー)を画面の位置にする。
+ * 見え方(3D風)。キャッチャーの後ろから見る(企画者決定 2026-10-20)。ゾーンが画面のまん中に大きく、ボールはまっすぐこちらへ来る。
+ *ホームベースの面の点 (x, y) と奥行き z(0 ホーム 〜 1 ピッチャー)を画面の位置にする。
  * vx, vy: 奥の消える点 / px, py: ストライクゾーンのまん中(ホームベースの上) / zs: ゾーンの半分の大きさ(画面のpx)
  */
-export const VIEW = { vx: 392, vy: 420, px: 410, py: 900, zs: 140, depth: 4 } as const;
+export const VIEW = { vx: 360, vy: 400, px: 360, py: 790, zs: 165, depth: 4 } as const;
 
 /** 奥へ行くほど小さく見える割合(z=0 で 1、z=1 で 0.2) */
 export const persp = (z: number): number => 1 / (1 + VIEW.depth * z);
