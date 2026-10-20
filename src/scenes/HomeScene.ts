@@ -134,7 +134,7 @@ export class HomeScene extends Phaser.Scene {
     this.input.on('pointerupoutside', () => this.endStroke());
     this.zText = this.text(0, 0, 'z', 34, '#ffffff').setVisible(false);
 
-    this.buildTop(speciesName(monz));
+    this.buildTop(record.monz.name ?? speciesName(monz));
     this.buildMenu();
     this.buildTestButtons();
 
@@ -622,7 +622,7 @@ export class HomeScene extends Phaser.Scene {
     const t = (x: number, y: number, s: string, size: number, color = ink, origin = 0) =>
       this.add.text(x, y, s, { fontFamily: UI_FONT, fontSize: `${size}px`, fontStyle: '900', color }).setOrigin(origin, 0);
     const portrait = this.add.image(px + 40, py + 36, 'home:portrait').setOrigin(0, 0);
-    const name = this.add.text(px + 176, py + 44, speciesName(m.species), { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '44px', color: ink });
+    const name = this.add.text(px + 176, py + 44, m.name ?? speciesName(m.species), { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '44px', color: ink });
     const lv = t(px + 178, py + 104, `Lv. ${m.level}`, 32);
     const bar = this.add.graphics();
     bar.fillStyle(0x16101c, 1).fillRoundedRect(px + 40, py + 190, pw - 80, 30, 15);

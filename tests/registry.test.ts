@@ -23,3 +23,15 @@ describe('registries', () => {
     expect(s).toBeLessThan(2 ** 32);
   });
 });
+
+import { cleanName, NAME_MAX } from '../src/core/naming';
+
+describe('naming', () => {
+  it('trims, limits length and falls back to the species name', () => {
+    expect(cleanName('  ポチ  ', 'BUNK')).toBe('ポチ');
+    expect(cleanName('', 'BUNK')).toBe('BUNK');
+    expect(cleanName('   ', 'BUNK')).toBe('BUNK');
+    expect(Array.from(cleanName('あいうえおかきくけこ', 'BUNK')).length).toBe(NAME_MAX);
+    expect(cleanName('a\nb', 'BUNK')).toBe('ab');
+  });
+});

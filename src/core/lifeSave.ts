@@ -23,6 +23,8 @@ export interface MonzData {
   /** この1匹の番号(同じ種類を2匹持っても区別できる) */
   uid: string;
   species: SpeciesId;
+  /** プレイヤーがつけた名前(生まれたときにつける)。なければ種類の名前 */
+  name?: string;
   level: number;
   /** 今のレベルでたまった経験値 */
   exp: number;
@@ -184,6 +186,11 @@ export class LifeRecord {
 
   get snapshot(): Readonly<LifeData> {
     return this.data;
+  }
+
+  /** 今のMONZの名前を決める(生まれたとき) */
+  setName(name: string): void {
+    this.update({}, { name });
   }
 
   /** 今お世話しているMONZ */

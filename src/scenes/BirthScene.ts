@@ -9,6 +9,9 @@ import { BUNK_MOTION, BunkView, TEST_PERSONALITY } from '../render/bunkView';
 import { SHELL_PIECES, drawCracks, drawGlow, drawRays, drawShell } from '../ui/birthArt';
 import { canvasTexture, UI_FONT } from '../ui/paint';
 import { createNameplate } from '../ui/nameplate';
+import { askName } from '../ui/nameInput';
+import { cleanName } from '../core/naming';
+import { LifeRecord, loadLife } from '../core/lifeSave';
 import { preloadPacks, releasePack } from '../render/packs';
 import { addSoundButton } from '../ui/soundButton';
 
@@ -309,19 +312,33 @@ export class BirthScene extends Phaser.Scene {
       audio.se(brain.pet());
     });
 
-    const name = speciesName(monz);
     this.time.delayedCall(1500, () => {
       // 目を開けて、うれしそうに少し跳ねる
       brain.reaction = { face: 'happy', kind: 'happy', left: 2.2, age: 0 };
       audio.se('happy');
-      const plate = createNameplate(this, name, W / 2, 250);
-      plate.reveal();
-      this.time.delayedCall(3600, () => {
-        plate.dock(true);
-        this.time.delayedCall(1400, () => {
-          this.cameras.main.fadeOut(500, 0, 0, 0);
-          this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('Home'));
-        });
+      // 名前をつける(企画者決定: 卵から生まれたときに)。決めた名前をスプレーで書く
+      this.time.delayedCall(900, () =>
+        askName(speciesName(monz), (input) => {
+          const name = cleanName(input, speciesName(monz));
+          const record = new LifeRecord(loadLife());
+          record.setName(name);
+          audio.se('select');
+          this.revealName(name, brain);
+        }),
+      );
+    });
+  }
+
+  /** 決めた名前を出して、お世話画面へ */
+  private revealName(name: string, brain: BunkBrain): void {
+    brain.reaction = { face: 'happy', kind: 'happy', left: 2.2, age: 0 };
+    const plate = createNameplate(this, name, W / 2, 250);
+    plate.reveal();
+    this.time.delayedCall(3600, () => {
+      plate.dock(true);
+      this.time.delayedCall(1400, () => {
+        this.cameras.main.fadeOut(500, 0, 0, 0);
+        this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('Home'));
       });
     });
   }
