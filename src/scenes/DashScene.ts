@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
-import { DASH, dashReward, DASH_REWARD, jump, meters, newDash, step, type DashState, type Platform } from '../core/dash';
+import { DASH, dashReward, DASH_REWARD, jump, meters, newDash, step, type DashState, type Platform, type Thing } from '../core/dash';
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { newSeed } from '../core/rng';
 import { preloadPacks } from '../render/packs';
@@ -18,6 +18,11 @@ export const DASH_PLAT_FILE = 'assets/minigame/dash_platform.webp';
 /** 各部分の幅と、絵の上から「足が乗る面」までの高さ */
 const PLAT = { left: 121, mid: 459, right: 123, h: 94, surface: 16 };
 
+/** トゲの絵 */
+export const DASH_SPIKE_KEY = 'dash:spike';
+export const DASH_SPIKE_FILE = 'assets/minigame/dash_spike.webp';
+const SPIKE_SIZE = 76;
+
 const W = 720;
 const H = 1280;
 const INK = '#16101c';
@@ -33,11 +38,11 @@ export class DashScene extends Phaser.Scene {
   private phase: Phase = 'ready';
   private record!: LifeRecord;
   private runId = '';
-  private world!: Phaser.GameObjects.Graphics;
   private runner?: Phaser.GameObjects.Image | Phaser.GameObjects.Rectangle;
   private distText!: Phaser.GameObjects.Text;
   private t = 0;
   private onHide?: () => void;
+  private spikeViews = new Map<Thing, Phaser.GameObjects.Image>();
   private platViews = new Map<Platform, { img: Phaser.GameObjects.Image; dx: number }[]>();
 
   constructor() {
@@ -61,7 +66,7 @@ export class DashScene extends Phaser.Scene {
       pt.add('right', 0, PLAT.left + PLAT.mid + 8, 0, PLAT.right, PLAT.h);
     }
     this.platViews = new Map();
-    this.world = this.add.graphics().setDepth(2);
+    this.spikeViews = new Map();
     if (this.textures.exists('cardimg:clearMonz')) this.runner = this.add.image(DASH.runnerX, 900, 'cardimg:clearMonz').setOrigin(0.5, 0.92).setScale(0.2);
     else this.runner = this.add.rectangle(DASH.runnerX, 900, DASH.runnerW, DASH.runnerH, 0x16101c).setOrigin(0.5, 1);
     this.runner.setDepth(3);
@@ -145,7 +150,7 @@ export class DashScene extends Phaser.Scene {
       '・画面をタップするとジャンプ！',
       '  （いつも同じ高さ。空中では跳べない）',
       '・足場から落ちたらゲームオーバー',
-      '・赤いトゲに当たってもゲームオーバー',
+      '・トゲに当たってもゲームオーバー',
       '・進むほど、だんだん速くなるよ',
       '',
       `報酬：${DASH_REWARD.metersPerCoin}mごとに1コイン`,
@@ -249,9 +254,7 @@ export class DashScene extends Phaser.Scene {
   }
 
   private drawWorld(): void {
-    const g = this.world;
     const s = this.s;
-    g.clear();
     const ox = -s.dist;
     const alive = new Set(s.platforms);
     for (const [p, view] of this.platViews) {
@@ -270,22 +273,24 @@ export class DashScene extends Phaser.Scene {
       }
       for (const v of view) v.img.setPosition(Math.round(x + v.dx), p.y - PLAT.surface).setVisible(visible);
     }
+    const things = new Set(s.things);
+    for (const [t, img] of this.spikeViews) {
+      if (things.has(t)) continue;
+      img.destroy();
+      this.spikeViews.delete(t);
+    }
     for (const t of s.things) {
+      if (t.kind !== 'danger') continue;
       const x = t.x + ox;
-      if (x > W || x + t.w < 0) continue;
-      if (t.kind === 'danger') {
-        // 赤いトゲ
-        g.fillStyle(0xff3b4f, 1).lineStyle(5, 0x16101c, 1);
-        g.beginPath();
-        g.moveTo(x, t.y + t.h);
-        g.lineTo(x + t.w * 0.25, t.y + 6);
-        g.lineTo(x + t.w * 0.5, t.y + t.h * 0.45);
-        g.lineTo(x + t.w * 0.75, t.y);
-        g.lineTo(x + t.w, t.y + t.h);
-        g.closePath();
-        g.fillPath();
-        g.strokePath();
+      const visible = x < W && x + t.w > 0;
+      let img = this.spikeViews.get(t);
+      if (!img) {
+        if (!visible) continue;
+        // 当たり判定より少し大きく描く(とがった先は当たらない)
+        img = this.add.image(0, 0, DASH_SPIKE_KEY).setDisplaySize(SPIKE_SIZE, SPIKE_SIZE).setDepth(2);
+        this.spikeViews.set(t, img);
       }
+      img.setPosition(Math.round(x + t.w / 2), t.y + t.h - SPIKE_SIZE / 2 + 6).setVisible(visible);
     }
     const runner = this.runner!;
     const bob = s.grounded ? Math.abs(Math.sin(this.t * 14)) * 6 : 0;

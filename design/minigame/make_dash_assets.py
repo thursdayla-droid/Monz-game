@@ -34,3 +34,10 @@ for name, p in parts:
     print('platform', name, 'x', x, 'w', p.width, 'h', p.height)
     x += p.width + 4
 strip.save(os.path.join(OUT, 'dash_platform.webp'), quality=88, method=6)
+
+# トゲ: 透明の所を切りつめて縮小するだけ
+sp = Image.open(os.path.join(HERE, 'dash_spike.png')).convert('RGBA')
+sp = sp.crop(sp.getchannel('A').point(lambda v: 255 if v > 20 else 0).getbbox())
+sp.thumbnail((160, 160), Image.LANCZOS)
+sp.save(os.path.join(OUT, 'dash_spike.webp'), quality=88, method=6)
+print('dash_spike.webp', sp.size)
