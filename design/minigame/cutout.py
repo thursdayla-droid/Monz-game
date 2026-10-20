@@ -37,11 +37,14 @@ def cut_checker(path: str) -> Image.Image:
     return out.crop(out.getchannel('A').point(lambda v: 255 if v > 20 else 0).getbbox())
 
 
-def cut_white(path: str) -> Image.Image:
-    """ふちからつながっている白い背景だけを透明にする(目の白など、線に囲まれた白は残す)"""
+def cut_white(path: str, shadow: bool = False) -> Image.Image:
+    """ふちからつながっている白い背景だけを透明にする(目の白など、線に囲まれた白は残す)。
+    shadow=True なら、白い背景につながっている うすい灰色の影(足元の影)も消す。真っ白(靴底など)は残す"""
     im = Image.open(path).convert('RGB')
     a = np.asarray(im).astype(int)
     bg = (a.min(2) > 225) & (a.max(2) - a.min(2) < 30)
+    if shadow:
+        bg |= (a.min(2) > 150) & (a.max(2) < 242) & (a.max(2) - a.min(2) < 22)
     labels, _ = ndimage.label(bg)
     border = set(np.unique(np.concatenate([labels[0], labels[-1], labels[:, 0], labels[:, -1]]))) - {0}
     keep = ~np.isin(labels, list(border))

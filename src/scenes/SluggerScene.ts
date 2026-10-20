@@ -8,6 +8,18 @@ import { drawPanel } from '../ui/homeArt';
 import { canvasTextureOnce, INK, UI_FONT } from '../ui/paint';
 import { BATTER_SIZE, drawBall, drawBatter, drawCursor, drawGlow, drawPitcher, drawStadium, GROUND_Y, PITCHER_SIZE, project, VIEW, type BatterPose, type PitcherPose } from '../ui/sluggerArt';
 
+/** バッターロボットの絵(企画者の絵 5ポーズ)。ox/oy: 足元の位置(絵の幅・高さに対する割合)。数字は design/minigame/make_slugger_assets.py の出力 */
+export const SLUG_BATTER_ART: Record<BatterPose, { ox: number; oy: number }> = {
+  idle: { ox: 0.502, oy: 0.997 },
+  swing: { ox: 0.28, oy: 0.998 },
+  hit: { ox: 0.519, oy: 0.998 },
+  homer: { ox: 0.579, oy: 0.997 },
+  whiff: { ox: 0.325, oy: 0.998 },
+};
+export const slugBatterKey = (p: BatterPose) => `slug:bat:${p}`;
+/** 絵の大きさ(画面での倍率) */
+const BATTER_ART_SCALE = 0.82;
+
 /** 球場の背景(企画者の絵) */
 export const SLUGGER_BG_KEY = 'slug:bg';
 export const SLUGGER_BG_FILE = 'assets/minigame/slugger_bg.webp';
@@ -22,7 +34,7 @@ const CTRL = {
   sensitivity: 1.15,
 };
 /** バッターの立つ所(足元)と大きさ */
-const BATTER = { x: 130, y: 1120, scale: 0.9, alpha: 1 };
+const BATTER = { x: 150, y: 1110, scale: 0.9, alpha: 1 };
 /** ボールの半径(ゾーンの半分を 1 とした長さ) */
 const BALL_R = 0.2;
 /** ボールの絵の大きさ(px) */
@@ -116,6 +128,7 @@ export class SluggerScene extends Phaser.Scene {
     this.fx = this.add.graphics().setDepth(4);
     this.marker = this.add.graphics().setDepth(6);
     this.batter = this.add.image(BATTER.x, BATTER.y, 'slug:batter:idle').setOrigin(0.5, 1).setScale(BATTER.scale).setAlpha(BATTER.alpha).setDepth(5);
+    this.setBatter('idle');
     this.cursorImg = this.add.image(0, 0, 'slug:cursor').setDepth(6);
     const cs = SLUG.position.good * VIEW.zs * 2;
     this.cursorImg.setDisplaySize(cs, cs * 0.87);
@@ -339,8 +352,13 @@ export class SluggerScene extends Phaser.Scene {
     this.setBatter('idle');
   }
 
+  /** バッターのポーズ。企画者の絵があればそれ(足元をそろえる)、なければプログラムで描いた仮の絵 */
   private setBatter(p: BatterPose): void {
-    this.batter.setTexture(`slug:batter:${p}`);
+    const key = slugBatterKey(p);
+    if (this.textures.exists(key)) {
+      const a = SLUG_BATTER_ART[p];
+      this.batter.setTexture(key).setOrigin(a.ox, a.oy).setScale(BATTER_ART_SCALE);
+    } else this.batter.setTexture(`slug:batter:${p}`).setOrigin(0.5, 1).setScale(BATTER.scale);
   }
 
   /** スイング。t: ボールが手を離れてからの秒数(投げる前は -1) */
