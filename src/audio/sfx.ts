@@ -19,7 +19,9 @@ export type SeName =
   | 'happy'
   | 'angry'
   | 'surprised'
-  | 'sting';
+  | 'sting'
+  | 'beep'
+  | 'beepLast';
 
 let noise: AudioBuffer | null = null;
 function noiseBuf(ctx: BaseAudioContext): AudioBuffer {
@@ -136,6 +138,16 @@ export function playSe(ctx: AudioContext, out: AudioNode, name: SeName, pitch: n
       break;
     case 'angry':
       tone(ctx, out, t, 'sawtooth', [[0, 150 * p], [0.3, 120 * p]], [[0, 0.0001], [0.02, 0.09], [0.35, 0.0001]], 0.37);
+      break;
+    case 'beep':
+      // カウントダウンの「ピッ」(残り3秒・2秒)
+      tone(ctx, out, t, 'square', [[0, 1320]], [[0, 0.0001], [0.005, 0.16], [0.11, 0.0001]], 0.12);
+      tone(ctx, out, t, 'sine', [[0, 2640]], [[0, 0.0001], [0.005, 0.08], [0.08, 0.0001]], 0.09);
+      break;
+    case 'beepLast':
+      // カウントダウンの最後(残り1秒)「ピー」
+      tone(ctx, out, t, 'square', [[0, 1760]], [[0, 0.0001], [0.005, 0.18], [0.3, 0.12], [0.42, 0.0001]], 0.44);
+      tone(ctx, out, t, 'sine', [[0, 3520]], [[0, 0.0001], [0.005, 0.07], [0.35, 0.0001]], 0.37);
       break;
     case 'sting': {
       // タイトルが出る瞬間の「ジャーン!」(低いドン + 明るい和音 + シンバル)

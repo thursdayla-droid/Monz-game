@@ -65,6 +65,7 @@ export class CardPlayScene extends Phaser.Scene {
   private big?: Phaser.GameObjects.Container;
   private scoreText?: Phaser.GameObjects.Text;
   private lastTick = 0;
+  private bigBar?: Phaser.GameObjects.Graphics;
   private onHide?: () => void;
   private backKey = 'card:back';
 
@@ -103,7 +104,9 @@ export class CardPlayScene extends Phaser.Scene {
       this.deckImg = this.add.image(DECK.x, DECK.y, this.backKey).setScale(DECK.scale);
     }
     this.deckLabel = this.add.text(DECK.x, DECK.y + 120, '', { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '900', color: '#ffffff', stroke: INK, strokeThickness: 7 }).setOrigin(0.5, 0);
-    this.scoreText = this.add.text(W / 2, 830, '', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '900', color: '#ffd23a', stroke: INK, strokeThickness: 7 }).setOrigin(0.5);
+    // 大きなタイマーのゲージ(手札のすぐ上)。緑 → 黄 → 赤
+    this.bigBar = this.add.graphics().setDepth(2);
+    this.scoreText = this.add.text(W / 2, 838, '', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '900', color: '#ffd23a', stroke: INK, strokeThickness: 7 }).setOrigin(0.5);
 
     this.startRound(1);
     audio.playBgm('card');
@@ -146,8 +149,37 @@ export class CardPlayScene extends Phaser.Scene {
     hit.on('pointerdown', () => this.openBigTracker());
   }
 
+  /** 残り3秒・2秒・1秒の知らせ(音と大きな数字、画面のふちが赤く光る) */
+  private countdown(sec: number): void {
+    audio.se(sec === 1 ? 'beepLast' : 'beep');
+    const n = this.add
+      .text(FIELD.x, FIELD.y, String(sec), { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '200px', color: '#ff4f5e', stroke: INK, strokeThickness: 18 })
+      .setOrigin(0.5)
+      .setDepth(30)
+      .setScale(1.6)
+      .setAlpha(0.95);
+    this.tweens.add({ targets: n, scale: 1, duration: 180, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: n, alpha: 0, delay: 500, duration: 300, onComplete: () => n.destroy() });
+    const edge = this.add.graphics().setDepth(29);
+    edge.lineStyle(26, 0xff2a3a, 0.7).strokeRect(0, 0, W, H);
+    this.tweens.add({ targets: edge, alpha: 0, duration: 600, onComplete: () => edge.destroy() });
+  }
+
   private drawTimer(): void {
     const t = Math.max(0, this.timeLeft);
+    // 大きなゲージ
+    const bb = this.bigBar;
+    if (bb) {
+      const k = t / TURN_SECONDS;
+      const color = k > 0.5 ? 0x4fd65a : k > 0.3 ? 0xffd23a : 0xff4f5e;
+      const bx = 40;
+      const by = 878;
+      const bw = W - 80;
+      bb.clear();
+      bb.fillStyle(0x16101c, 0.95).fillRoundedRect(bx - 6, by - 6, bw + 12, 40, 20);
+      bb.fillStyle(0x3a3546, 1).fillRoundedRect(bx, by, bw, 28, 14);
+      if (k > 0) bb.fillStyle(color, 1).fillRoundedRect(bx, by, Math.max(28, bw * k), 28, 14);
+    }
     const low = t <= 3;
     this.timerText?.setText(`00:${String(Math.ceil(t)).padStart(2, '0')}`).setColor(low ? '#ff4f5e' : '#ffffff');
     const g = this.timerBar!;
@@ -493,7 +525,8 @@ export class CardPlayScene extends Phaser.Scene {
     if (this.phase !== 'play') return;
     this.timeLeft -= delta / 1000;
     const sec = Math.ceil(this.timeLeft);
-    if (sec !== this.lastTick && sec <= 3 && sec > 0) audio.se('tap', { pitch: 0.7 });
+    // 残り3秒から「ピッ、ピッ、ピー」と、大きな数字
+    if (sec !== this.lastTick && sec <= 3 && sec > 0) this.countdown(sec);
     this.lastTick = sec;
     this.drawTimer();
     if (this.timeLeft <= 0) this.gameOver('時間切れ');
