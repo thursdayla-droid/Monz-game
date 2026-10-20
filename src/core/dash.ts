@@ -20,11 +20,11 @@ export const DASH = {
   jumpVelocity: 900,
   /** 足場から離れたあと、少しの間はまだジャンプできる(押し遅れのゆるし) */
   coyote: 0.08,
-  // 2026-10-20 企画者の指示で少しゆっくりに
+  // 2026-10-20 企画者の指示: はじめはゆっくり、だんだん速く(最高速を 680 → 950 に)
   startSpeed: 300,
-  maxSpeed: 680,
+  maxSpeed: 950,
   /** 1秒ごとに速くなる量 */
-  accel: 5,
+  accel: 6,
   /** これより下に落ちたらゲームオーバー */
   fallY: 1380,
   /** 足場の高さの範囲 */
@@ -133,25 +133,32 @@ function fill(s: DashState): void {
       continue;
     }
     // 短い足場(2026-10-20 企画者の指示): 一定の距離を越えたら出はじめ、進むほど増える。
-    // 着地できる幅がせまいので、ジャンプのタイミングが大事になる。高さはほとんど変えない。続けては出さない
+    // 着地できる幅がせまいので、ジャンプのタイミングが大事になる。高さはほとんど変えない
     const hard = Math.min(1, Math.max(0, (s.nextX - DASH.shortFrom) / DASH.shortRamp));
     if (hard > 0 && prev && prev.w > reach * 0.8 && rng() < 0.15 + 0.35 * hard) {
-      const x = s.nextX + range(rng, 0.6, 0.8) * reach;
-      const y = Math.max(DASH.minY, Math.min(DASH.maxY, s.lastY + range(rng, -40, 40)));
-      const w = range(rng, 0.55 - 0.15 * hard, 0.65 - 0.1 * hard) * reach;
-      s.platforms.push({ x, w, y });
-      s.nextX = x + w;
-      s.lastY = y;
+      // 進むほど、短い足場が続く(最初は1つ、いちばん難しいところで最大4つ)
+      const count = 1 + Math.floor(rng() * (1 + 3 * hard));
+      for (let i = 0; i < count; i++) {
+        const x = s.nextX + (i === 0 ? range(rng, 0.6, 0.8) : range(rng, 0.55, 0.7)) * reach;
+        const y = Math.max(DASH.minY, Math.min(DASH.maxY, s.lastY + (i === 0 ? range(rng, -40, 40) : range(rng, -25, 25))));
+        const w = range(rng, 0.55 - 0.15 * hard, 0.65 - 0.1 * hard) * reach;
+        s.platforms.push({ x, w, y });
+        s.nextX = x + w;
+        s.lastY = y;
+      }
       continue;
     }
     // 短い足場の次は、すき間と上りを少しひかえめにする(短い足場では、跳ぶ場所を選べないため)
     const afterShort = !!prev && prev.w < reach * 0.8;
-    const gap = range(rng, 0.35, afterShort ? 0.5 : 0.55 + 0.2 * level) * reach;
+    let gap = range(rng, 0.35, afterShort ? 0.5 : 0.55 + 0.2 * level) * reach;
     // 高さの差: 上は跳べる高さの7割まで、下は大きく降りることもある。上と下へ交互に行きやすくする
     const up = jumpHeight() * (afterShort ? 0.5 : 0.7);
     const goUp = s.lastY > (DASH.minY + DASH.maxY) / 2 ? rng() < 0.7 : rng() < 0.35;
     let y = s.lastY + (goUp ? -range(rng, up * 0.4, up) : range(rng, 40, 300));
     y = Math.max(DASH.minY, Math.min(DASH.maxY, y));
+    // 上る足場は、高いほどすき間をせまくする(遠くて高い足場は、端ぎりぎりで跳ばないと届かないため)。
+    // ただし近すぎると、上りきる前に足場の横にぶつかるので、いちばん近くても 0.35 は空ける
+    gap = Math.max(0.35 * reach, gap * (1 - 0.35 * (Math.max(0, s.lastY - y) / jumpHeight())));
     const x = s.nextX + gap;
     // 足場の上の危険な物。ジャンプで着地しそうな所(足場の始めのほう)と、終わりの近くには置かない。跳べば越えられる大きさ
     const drop = Math.max(0, y - s.lastY);

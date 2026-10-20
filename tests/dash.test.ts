@@ -83,6 +83,22 @@ describe('DASH MONZ', () => {
     expect(shorts).toBeGreaterThan(30);
   });
 
+  it('later on, short platforms come several in a row, and it gets faster', () => {
+    let chains = 0;
+    for (let seed = 1; seed <= 10; seed++) {
+      const all: { x: number; w: number }[] = [];
+      const known = new Set<object>();
+      const s = autoplay(seed, 240, (st) => st.platforms.forEach((p) => known.has(p) || (known.add(p), all.push(p))));
+      expect(s.speed).toBeGreaterThan(900);
+      let run = 0;
+      for (const p of all) {
+        run = p.w < 400 && p.x > DASH.shortFrom ? run + 1 : 0;
+        if (run === 3) chains++;
+      }
+    }
+    expect(chains).toBeGreaterThan(5);
+  });
+
   it('same seed gives the same course', () => {
     expect(autoplay(5, 20).dist).toBe(autoplay(5, 20).dist);
   });
