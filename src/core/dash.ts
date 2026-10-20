@@ -118,13 +118,15 @@ function fill(s: DashState): void {
     let y = s.lastY + (goUp ? -range(rng, up * 0.4, up) : range(rng, 40, 300));
     y = Math.max(DASH.minY, Math.min(DASH.maxY, y));
     const x = s.nextX + gap;
-    const w = range(rng, 0.9, 2.4 - 1.0 * level) * reach;
-    s.platforms.push({ x, w, y });
     // 足場の上の危険な物。ジャンプで着地しそうな所(足場の始めのほう)と、終わりの近くには置かない。跳べば越えられる大きさ
     const drop = Math.max(0, y - s.lastY);
     const landing = reach * (1.15 + (drop / jumpHeight()) * 0.5);
-    // 危険な物を跳び越えたあと、同じ足場に着地できる場所にだけ置く
-    if (w > landing + reach * 1.3 && rng() < 0.5 + 0.35 * level) {
+    // トゲを置く足場は、跳び越えたあと同じ足場に着地できる長さにする(2026-10-20 トゲが出ないことがあったため)
+    const spike = rng() < 0.45 + 0.3 * level;
+    let w = range(rng, 0.9, 2.4 - 1.0 * level) * reach;
+    if (spike) w = Math.max(w, landing + reach * range(rng, 1.4, 1.9));
+    s.platforms.push({ x, w, y });
+    if (spike) {
       const hx = x + range(rng, landing, w - reach * 1.15);
       s.things.push({ x: hx, y: y - 56, w: 54, h: 56, kind: 'danger' });
     }

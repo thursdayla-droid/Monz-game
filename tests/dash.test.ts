@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { airtime, DASH, dashReward, jump, jumpHeight, meters, newDash, step } from '../src/core/dash';
 
 /** 自動で遊ぶ: 足場の終わりが近づいたらジャンプ */
-function autoplay(seed: number, seconds: number) {
+function autoplay(seed: number, seconds: number, onStep?: (s: ReturnType<typeof newDash>) => void) {
   const s = newDash(seed);
   const dt = 1 / 60;
   for (let t = 0; t < seconds && !s.over; t += dt) {
@@ -11,6 +11,7 @@ function autoplay(seed: number, seconds: number) {
     const danger = s.things.find((th) => th.kind === 'danger' && th.x > fx && th.x - fx < s.speed * 0.22);
     if (s.grounded && ((cur && cur.x + cur.w - fx < s.speed * 0.06) || danger)) jump(s);
     step(s, dt);
+    onStep?.(s);
   }
   return s;
 }
@@ -35,6 +36,16 @@ describe('DASH MONZ', () => {
     expect(jump(s)).toBe(true);
     step(s, 0.2);
     expect(jump(s)).toBe(false);
+  });
+
+  it('spikes appear from early on', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      // 最初の30秒のうちに、トゲがいくつか出る
+      const seen = new Set<object>();
+      const s = autoplay(seed, 30, (st) => st.things.forEach((th) => th.kind === 'danger' && seen.add(th)));
+      expect(s.over).toBe(false);
+      expect(seen.size).toBeGreaterThan(3);
+    }
   });
 
   it('courses are always passable by a simple bot for a long time', () => {
