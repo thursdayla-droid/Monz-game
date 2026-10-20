@@ -23,7 +23,8 @@ export type SeName =
   | 'beep'
   | 'beepLast'
   | 'swing'
-  | 'bat';
+  | 'bat'
+  | 'cheer';
 
 let noise: AudioBuffer | null = null;
 function noiseBuf(ctx: BaseAudioContext): AudioBuffer {
@@ -173,12 +174,26 @@ export function playSe(ctx: AudioContext, out: AudioNode, name: SeName, pitch: n
       // MONZ SLUGGER: バットを振る「ブンッ」
       hiss(ctx, out, t, 'bandpass', [[0, 300], [0.16, 1400]], 1.5, [[0, 0.0001], [0.06, 0.45], [0.2, 0.0001]], 0.22);
       break;
-    case 'bat':
-      // MONZ SLUGGER: 芯でとらえた「カキーン!」(pitch で強さを変える。1.3 くらいでジャストミート)
-      hiss(ctx, out, t, 'highpass', [[0, 2600 * p]], 0.8, [[0, 0.6], [0.05, 0.0001]], 0.06);
-      tone(ctx, out, t, 'triangle', [[0, 1180 * p], [0.35, 1100 * p]], [[0, 0.35], [0.4 * p, 0.0001]], 0.5 * p);
-      tone(ctx, out, t, 'sine', [[0, 2360 * p]], [[0, 0.18], [0.25 * p, 0.0001]], 0.3 * p);
-      tone(ctx, out, t, 'sine', [[0, 140], [0.12, 60]], [[0, 0.5], [0.15, 0.0001]], 0.16);
+    case 'bat': {
+      // MONZ SLUGGER: 芯でとらえた「カキーーン!」。p: 強さ(0.9 ふつう 〜 1.3 ジャストミート)
+      const ring = 0.25 + 0.45 * (p - 0.9);
+      // 当たった瞬間の「カッ」(鋭いノイズ)と「ドン」(低い音)
+      hiss(ctx, out, t, 'highpass', [[0, 3500]], 0.7, [[0, 0.9], [0.025, 0.0001]], 0.03);
+      hiss(ctx, out, t, 'bandpass', [[0, 1400]], 2.5, [[0, 0.7], [0.06, 0.0001]], 0.07);
+      tone(ctx, out, t, 'sine', [[0, 180], [0.09, 55]], [[0, 0.9], [0.12, 0.0001]], 0.13);
+      // 金属バットの「キーン」(かさならない高さの音を重ねる)
+      for (const [f, g] of [[1720, 0.32], [2580, 0.2], [4650, 0.12], [6100, 0.06]] as const) {
+        tone(ctx, out, t + 0.004, 'sine', [[0, f * (0.98 + 0.04 * (p - 0.9))], [ring, f * 0.985]], [[0, g], [ring, 0.0001]], ring + 0.02);
+      }
+      // ひびき(少し遅れて小さく)
+      if (p > 1.05) for (const d of [0.07, 0.14]) tone(ctx, out, t + d, 'sine', [[0, 1720]], [[0, 0.1 / (d * 14)], [ring * 0.8, 0.0001]], ring);
+      break;
+    }
+    case 'cheer':
+      // MONZ SLUGGER: ホームランの歓声(ふくらんで消える ざわめき + 指笛)
+      hiss(ctx, out, t, 'bandpass', [[0, 700], [0.6, 1600], [1.8, 900]], 0.6, [[0, 0.0001], [0.35, 0.45], [1.9, 0.0001]], 2.0);
+      hiss(ctx, out, t + 0.05, 'bandpass', [[0, 2400], [1.5, 2000]], 1.2, [[0, 0.0001], [0.4, 0.18], [1.7, 0.0001]], 1.8);
+      tone(ctx, out, t + 0.25, 'sine', [[0, 1900], [0.18, 2600], [0.4, 2300]], [[0, 0.0001], [0.05, 0.12], [0.45, 0.0001]], 0.5);
       break;
   }
 }

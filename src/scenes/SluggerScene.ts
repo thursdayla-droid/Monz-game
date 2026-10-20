@@ -2,11 +2,11 @@ import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { newSeed, type Rng } from '../core/rng';
-import { applyResult, ballAt, canSwing, judge, newSlugger, nextPitch, passed, rngOf, SLUG, SLUG_REWARD, sluggerReward, type Pitch, type SluggerState, type SwingResult } from '../core/slugger';
+import { applyResult, ballAt, canSwing, judge, markerLead, newSlugger, nextPitch, passed, rngOf, SLUG, SLUG_REWARD, sluggerReward, type Pitch, type SluggerState, type SwingResult } from '../core/slugger';
 import { preloadPacks } from '../render/packs';
 import { drawPanel } from '../ui/homeArt';
 import { canvasTextureOnce, INK, UI_FONT } from '../ui/paint';
-import { BATTER_SIZE, drawBall, drawBatter, drawCursor, drawPitcher, drawStadium, GROUND_Y, PITCHER_SIZE, project, VIEW, type BatterPose, type PitcherPose } from '../ui/sluggerArt';
+import { BATTER_SIZE, drawBall, drawBatter, drawCursor, drawGlow, drawPitcher, drawStadium, GROUND_Y, PITCHER_SIZE, project, VIEW, type BatterPose, type PitcherPose } from '../ui/sluggerArt';
 
 const W = 720;
 const H = 1280;
@@ -14,38 +14,23 @@ const ARIAL = '"Arial Black", Impact, sans-serif';
 
 /** 【仮】操作の調整 */
 const CTRL = {
-  /** これ以上指が動いたら「ドラッグ」(スイングにしない)。px */
-  dragStart: 14,
-  /** 指を置いてから離すまでがこれより短ければ「タップ」= スイング(ミリ秒) */
-  tapMax: 280,
-  /** ドラッグの感度(指の動き × これ = カーソルの動き) */
+  /** 指の動きの感度(指の動き × これ = カーソルの動き) */
   sensitivity: 1.15,
-  /** スイングボタン */
-  button: { x: 600, y: 1170, r: 92 },
 };
 /** バッターの立つ所(足元)と大きさ */
 const BATTER = { x: 130, y: 1120, scale: 0.9 };
 /** ボールの半径(ゾーンの半分を 1 とした長さ) */
-const BALL_R = 0.15;
+const BALL_R = 0.2;
+/** ボールの絵の大きさ(px) */
+const BALL_PX = 128;
 
 type Phase = 'title' | 'play' | 'paused' | 'over';
 type PitchPhase = 'windup' | 'flight' | 'result';
 
-/** 指1本ぶんの記録(タップかドラッグかを見分ける) */
-interface Touch {
-  x: number;
-  y: number;
-  downAt: number;
-  /** 指を置いた時の、ボールが手を離れてからの秒数(投げる前なら null) */
-  flightT: number | null;
-  pitchNo: number;
-  drag: boolean;
-}
-
 /**
  * ミニゲーム「MONZ SLUGGER」(企画者の指示 2026-10-20)。エンドレスのバッティング。
- * 操作: 画面をドラッグしてミートカーソルを動かす / タップ(または右下の SWING ボタン)でスイング。
- * タップは「指を置いた瞬間」をスイングの時間にする(離すまでの遅れで判定がずれないように)。ドラッグはスイングにしない。
+ * 操作(企画者の指示 2026-10-20): 指で画面をなぞってミートカーソルを動かし、指を離したらスイング。
+ * ボールの着く所に目印が出る(最初の5球は投げる前から。だんだん出るのが遅くなる)。目印のまわりの輪が縮みきった時がタイミング。
  * ルール・判定・難しさは src/core/slugger.ts。【仮】絵はすべてプログラムで描いた仮の絵。
  */
 export class SluggerScene extends Phaser.Scene {
@@ -68,13 +53,15 @@ export class SluggerScene extends Phaser.Scene {
   /** PERFECT のときに一瞬止める残り時間(秒) */
   private freeze = 0;
   private cursor = { x: 0, y: 0 };
-  private touches = new Map<number, Touch>();
+  /** カーソルを動かしている指(離したらスイング) */
+  private aim: { id: number; x: number; y: number } | null = null;
   private trail: { x: number; y: number; r: number }[] = [];
   private onHide?: () => void;
 
   private batter!: Phaser.GameObjects.Image;
   private pitcher!: Phaser.GameObjects.Image;
   private ball!: Phaser.GameObjects.Image;
+  private ballGlow!: Phaser.GameObjects.Image;
   private shadow!: Phaser.GameObjects.Ellipse;
   private cursorImg!: Phaser.GameObjects.Image;
   private fx!: Phaser.GameObjects.Graphics;
@@ -83,6 +70,8 @@ export class SluggerScene extends Phaser.Scene {
   private missIcons: Phaser.GameObjects.Text[] = [];
   private hud!: Phaser.GameObjects.Container;
   private controls!: Phaser.GameObjects.Container;
+  /** 着く所の目印(輪が縮んでタイミングも教える) */
+  private marker!: Phaser.GameObjects.Graphics;
 
   constructor() {
     super('Slugger');
@@ -95,9 +84,8 @@ export class SluggerScene extends Phaser.Scene {
   create(): void {
     this.record = new LifeRecord(loadLife());
     this.phase = 'title';
-    this.touches = new Map();
+    this.aim = null;
     this.trail = [];
-    this.input.addPointer(2);
     this.makeTextures();
 
     this.add.image(0, 0, 'slug:stadium').setOrigin(0, 0);
@@ -116,11 +104,13 @@ export class SluggerScene extends Phaser.Scene {
     this.pitcher = this.add.image(mound.x, mound.y + 8, 'slug:pitcher:ready').setOrigin(0.5, 1).setScale(0.62);
     this.shadow = this.add.ellipse(0, 0, 40, 12, 0x000000, 0.35).setVisible(false);
     this.fx = this.add.graphics().setDepth(4);
+    this.marker = this.add.graphics().setDepth(6);
     this.batter = this.add.image(BATTER.x, BATTER.y, 'slug:batter:idle').setOrigin(0.5, 1).setScale(BATTER.scale).setDepth(5);
     this.cursorImg = this.add.image(0, 0, 'slug:cursor').setDepth(6);
     const cs = SLUG.position.good * VIEW.zs * 2;
     this.cursorImg.setDisplaySize(cs, cs * 0.87);
-    this.ball = this.add.image(0, 0, 'slug:ball').setDepth(7).setVisible(false);
+    this.ballGlow = this.add.image(0, 0, 'slug:glow').setDepth(7).setVisible(false).setTint(0x8ff4ff).setBlendMode(Phaser.BlendModes.ADD);
+    this.ball = this.add.image(0, 0, 'slug:ball2').setDepth(7).setVisible(false);
     this.placeCursor();
 
     this.buildHud();
@@ -143,7 +133,8 @@ export class SluggerScene extends Phaser.Scene {
     canvasTextureOnce(this, 'slug:stadium', W, H, (ctx) => drawStadium(ctx, W, H));
     for (const p of ['idle', 'swing', 'hit', 'homer', 'whiff'] as BatterPose[]) canvasTextureOnce(this, `slug:batter:${p}`, BATTER_SIZE.w, BATTER_SIZE.h, (ctx) => drawBatter(ctx, p));
     for (const p of ['ready', 'windup', 'throw'] as PitcherPose[]) canvasTextureOnce(this, `slug:pitcher:${p}`, PITCHER_SIZE.w, PITCHER_SIZE.h, (ctx) => drawPitcher(ctx, p));
-    canvasTextureOnce(this, 'slug:ball', 64, 64, (ctx) => drawBall(ctx, 64));
+    canvasTextureOnce(this, 'slug:ball2', BALL_PX, BALL_PX, (ctx) => drawBall(ctx, BALL_PX));
+    canvasTextureOnce(this, 'slug:glow', 128, 128, (ctx) => drawGlow(ctx, 128));
     canvasTextureOnce(this, 'slug:cursor', 160, 160, (ctx) => drawCursor(ctx, 160));
   }
 
@@ -170,56 +161,46 @@ export class SluggerScene extends Phaser.Scene {
 
   private buildControls(): void {
     this.controls = this.add.container(0, 0).setDepth(9);
-    const { x, y, r } = CTRL.button;
-    const btn = this.add.circle(x, y, r, 0xffd23a, 1).setStrokeStyle(10, 0x16101c).setInteractive({ useHandCursor: true });
-    const label = this.add.text(x, y, 'SWING', { fontFamily: ARIAL, fontSize: '36px', color: INK }).setOrigin(0.5);
-    btn.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
-      e.stopPropagation();
-      if (this.phase !== 'play') return;
-      this.tweens.add({ targets: [btn, label], scale: 0.9, duration: 60, yoyo: true });
-      this.swing(this.flightNow());
-    });
     const hint = this.add
-      .text(24, 1210, 'ドラッグ：カーソルを動かす\nタップ / SWING：打つ', { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '900', color: '#ffffff', stroke: INK, strokeThickness: 6, lineSpacing: 6 })
-      .setOrigin(0, 0.5);
-    this.controls.add([btn, label, hint]);
+      .text(W / 2, 1222, '指でなぞってカーソルを動かす → はなすとスイング！', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '900', color: '#ffffff', stroke: INK, strokeThickness: 7 })
+      .setOrigin(0.5);
+    this.controls.add([hint]);
     this.controls.setVisible(false);
   }
 
-  /** 画面のタッチ: 動かせばカーソル、動かさずにすぐ離せばスイング */
+  /** 画面のタッチ: 指を置いて動かすとカーソルが動き、指を離した瞬間にスイング(1本の指でぜんぶ) */
   private setupInput(): void {
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
-      if (this.phase !== 'play') return;
-      this.touches.set(p.id, { x: p.x, y: p.y, downAt: performance.now(), flightT: this.pitchPhase === 'flight' ? this.flightNow() : null, pitchNo: this.pitchNo, drag: false });
+      if (this.phase !== 'play' || this.aim) return;
+      this.aim = { id: p.id, x: p.x, y: p.y };
+      this.cursorImg.setScale(this.cursorImg.scaleX * 1.08, this.cursorImg.scaleY * 1.08);
     });
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
-      const t = this.touches.get(p.id);
-      if (!t || !p.isDown || this.phase !== 'play') return;
-      if (!t.drag && Math.hypot(p.x - t.x, p.y - t.y) < CTRL.dragStart) return;
-      if (!t.drag) {
-        // ドラッグになった: 動き始めの所から数える
-        t.drag = true;
-      }
-      const dx = p.x - t.x;
-      const dy = p.y - t.y;
-      t.x = p.x;
-      t.y = p.y;
+      const a = this.aim;
+      if (!a || a.id !== p.id || this.phase !== 'play') return;
+      const dx = p.x - a.x;
+      const dy = p.y - a.y;
+      a.x = p.x;
+      a.y = p.y;
       const L = SLUG.cursorLimit;
       this.cursor.x = Phaser.Math.Clamp(this.cursor.x + (dx / VIEW.zs) * CTRL.sensitivity, -L, L);
       this.cursor.y = Phaser.Math.Clamp(this.cursor.y - (dy / VIEW.zs) * CTRL.sensitivity, -L, L);
       this.placeCursor();
     });
     const up = (p: Phaser.Input.Pointer) => {
-      const t = this.touches.get(p.id);
-      this.touches.delete(p.id);
-      if (!t || t.drag || this.phase !== 'play') return;
-      if (performance.now() - t.downAt > CTRL.tapMax) return;
-      // 指を置いた瞬間をスイングの時間にする(同じ球のときだけ)
-      if (t.pitchNo === this.pitchNo && t.flightT !== null) this.swing(t.flightT);
-      else this.swing(this.flightNow());
+      const a = this.aim;
+      if (!a || a.id !== p.id) return;
+      this.aim = null;
+      this.resetCursorSize();
+      if (this.phase === 'play') this.swing(this.flightNow());
     };
     this.input.on('pointerup', up);
     this.input.on('pointerupoutside', up);
+  }
+
+  private resetCursorSize(): void {
+    const cs = SLUG.position.good * VIEW.zs * 2;
+    this.cursorImg.setDisplaySize(cs, cs * 0.87);
   }
 
   /** いま、ボールが手を離れてから何秒か(フレームの間も細かく) */
@@ -284,15 +265,16 @@ export class SluggerScene extends Phaser.Scene {
       '遊び方',
       '',
       '・ピッチャーが自動で投げてくるよ',
-      '・画面をドラッグして、黄色いカーソルを',
-      '  ボールが来る所に合わせよう',
-      '・ボールが来た瞬間にタップ！',
-      '  （右下の SWING ボタンでもOK）',
+      '・赤い目印が、ボールの来る所',
+      '  （黄色い輪が縮みきった時が打ちどき）',
+      '・指でなぞって、黄色いカーソルを',
+      '  目印に合わせよう',
+      '・指をはなすとスイング！',
       '・位置とタイミングがぴったりだと',
       '  PERFECT（特大ホームラン）',
       '・空振り・見のがしは MISS。3回でおしまい',
-      '・連続ヒットで点数アップ',
-      '・続けるほど、球が速く・変化球も来るよ',
+      '・続けるほど、球が速く・変化球も来て、',
+      '  目印が出るのもおそくなるよ',
       '',
       `報酬（仮）：${SLUG_REWARD.hitsPerCoin}ヒットごとに1コイン`,
     ].join('\n');
@@ -316,7 +298,8 @@ export class SluggerScene extends Phaser.Scene {
     this.pitchNo = 0;
     this.cursor = { x: 0, y: 0 };
     this.placeCursor();
-    this.touches.clear();
+    this.aim = null;
+    this.resetCursorSize();
     this.hud.setVisible(true);
     this.controls.setVisible(true);
     this.refreshHud();
@@ -355,6 +338,7 @@ export class SluggerScene extends Phaser.Scene {
     const p = this.pitch!;
     this.swung = true;
     this.setBatter('swing');
+    this.tweens.add({ targets: this.batter, angle: 5, duration: 60, yoyo: true });
     // 早すぎるスイングは空振り
     const r = canSwing(p, t) ? judge(p, t, this.cursor, this.rng) : judge(p, -999, this.cursor, this.rng);
     this.finishPitch(r);
@@ -401,60 +385,105 @@ export class SluggerScene extends Phaser.Scene {
 
   private showHit(r: SwingResult): void {
     const big = r.grade === 'perfect';
-    audio.se('bat', { pitch: big ? 1.3 : r.grade === 'great' ? 1.1 : 0.9 });
+    const great = r.grade === 'great';
+    const p = this.pitch!;
+    const at = project(p.tx, p.ty, 0);
+    audio.se('bat', { pitch: big ? 1.3 : great ? 1.12 : 0.92 });
+    // ヒットストップ(一瞬止める)・画面のゆれ・光
+    this.freeze = big ? 0.16 : great ? 0.07 : 0.03;
+    this.cameras.main.shake(big ? 260 : 160, big ? 0.016 : great ? 0.009 : 0.005);
     if (big) {
       audio.se('crackBig');
-      // ヒットストップ(一瞬止める)
-      this.freeze = 0.12;
-      this.cameras.main.flash(140, 255, 255, 255);
-      this.cameras.main.zoomTo(1.06, 70);
-      this.time.delayedCall(180, () => this.cameras.main.zoomTo(1, 200));
+      this.cameras.main.flash(160, 255, 255, 255);
+      this.cameras.main.zoomTo(1.1, 60);
+      this.time.delayedCall(220, () => this.cameras.main.zoomTo(1, 260, 'Cubic.easeOut'));
     }
-    this.time.delayedCall(big ? 120 : 60, () => this.setBatter(r.homerun ? 'homer' : 'hit'));
-    this.popText(big ? 'PERFECT!!' : r.grade === 'great' ? 'GREAT!' : 'GOOD', big ? '#ffd23a' : r.grade === 'great' ? '#2fe0ff' : '#ffffff', big ? 112 : 88);
+    this.impact(at.x, at.y, big ? 0xffd23a : great ? 0x2fe0ff : 0xffffff, big ? 1.6 : great ? 1.15 : 0.8);
+    this.time.delayedCall(big ? 150 : 60, () => this.setBatter(r.homerun ? 'homer' : 'hit'));
+    this.popText(big ? 'PERFECT!!' : great ? 'GREAT!' : 'GOOD!', big ? '#ffd23a' : great ? '#2fe0ff' : '#ffffff', big ? 116 : great ? 96 : 80);
+    this.scorePop(at.x, at.y, r.points);
     this.flyBall(r);
-    if (this.s.streak >= 2) {
-      this.tweens.add({ targets: this.comboText, scale: 1.35, duration: 90, yoyo: true });
+    if (this.s.streak >= 2) this.tweens.add({ targets: this.comboText, scale: 1.4, duration: 90, yoyo: true });
+  }
+
+  /** 打った瞬間: 光・広がる輪・飛びちる火花 */
+  private impact(x: number, y: number, color: number, power: number): void {
+    const glow = this.add.image(x, y, 'slug:glow').setTint(color).setBlendMode(Phaser.BlendModes.ADD).setDepth(12).setScale(0.6);
+    this.tweens.add({ targets: glow, scale: 3.6 * power, alpha: 0, duration: 260, ease: 'Cubic.easeOut', onComplete: () => glow.destroy() });
+    const ring = this.add.circle(x, y, 24).setStrokeStyle(10, color, 1).setDepth(12);
+    this.tweens.add({ targets: ring, scale: 6 * power, alpha: 0, duration: 320, ease: 'Cubic.easeOut', onComplete: () => ring.destroy() });
+    const n = Math.round(10 + 8 * power);
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + Math.random() * 0.3;
+      const len = Phaser.Math.Between(26, 46) * power;
+      const spark = this.add.rectangle(x, y, len, 7, i % 3 === 0 ? 0xffffff : color).setRotation(a).setDepth(12);
+      const d = Phaser.Math.Between(110, 200) * power;
+      this.tweens.add({ targets: spark, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, scaleX: 0.2, alpha: 0, duration: 330, ease: 'Cubic.easeOut', onComplete: () => spark.destroy() });
     }
   }
 
-  /** 打球が遠くへ飛んでいく */
+  /** 点数が飛んでいって、上の点数に入る */
+  private scorePop(x: number, y: number, points: number): void {
+    const t = this.add.text(x, y - 40, `+${points.toLocaleString()}`, { fontFamily: ARIAL, fontSize: '46px', color: '#ffd23a', stroke: INK, strokeThickness: 9 }).setOrigin(0.5).setDepth(16);
+    this.tweens.add({
+      targets: t,
+      x: W / 2,
+      y: 60,
+      scale: 0.6,
+      delay: 380,
+      duration: 420,
+      ease: 'Cubic.easeIn',
+      onComplete: () => {
+        t.destroy();
+        this.tweens.add({ targets: this.scoreText, scale: 1.25, duration: 80, yoyo: true });
+      },
+    });
+  }
+
+  /** 打球が遠くへ飛んでいく(光りながら、オレンジの尾を引く) */
   private flyBall(r: SwingResult): void {
     const p = this.pitch!;
     const from = project(p.tx, p.ty, 0);
-    const far = r.homerun ? 150 : r.grade === 'great' ? 330 : 420;
+    const far = r.homerun ? 210 : r.grade === 'great' ? 330 : 420;
     const toX = VIEW.vx + r.dir * (r.homerun ? 180 : 260);
-    const dur = r.homerun ? 1100 : 800;
-    const startScale = (BALL_R * VIEW.zs * 2) / 64;
+    const dur = r.homerun ? 1150 : 820;
+    const startScale = (BALL_R * VIEW.zs * 2) / BALL_PX;
     const fly = { u: 0 };
+    this.trail = [];
     this.ball.setVisible(true).setPosition(from.x, from.y).setScale(startScale);
+    this.ballGlow.setVisible(true).setTint(0xffb02a).setAlpha(0.9);
     this.shadow.setVisible(false);
     this.tweens.add({
       targets: fly,
       u: 1,
-      delay: this.freeze > 0 ? 120 : 0,
       duration: dur,
       ease: 'Cubic.easeOut',
       onUpdate: () => {
         const u = fly.u;
         // 山なりに上がって、小さくなっていく
         const x = from.x + (toX - from.x) * u;
-        const y = from.y + (far - from.y) * u - Math.sin(u * Math.PI) * (r.homerun ? 260 : 160);
-        this.ball.setPosition(x, y).setScale(startScale * (1 - 0.85 * u));
-        this.trail.push({ x, y, r: 10 * (1 - 0.8 * u) });
-        if (this.trail.length > 10) this.trail.shift();
+        const y = from.y + (far - from.y) * u - Math.sin(u * Math.PI) * (r.homerun ? 280 : 170);
+        const sc = startScale * (1.15 - 0.95 * u);
+        this.ball.setPosition(x, y).setScale(sc).setAngle(u * 1400);
+        this.ballGlow.setPosition(x, y).setScale((sc * BALL_PX * 2.4) / 128);
+        this.trail.push({ x, y, r: (sc * BALL_PX) / 2 });
+        if (this.trail.length > 14) this.trail.shift();
       },
       onComplete: () => {
         this.ball.setVisible(false);
-        const label = this.add.text(toX, far - 20, `${r.distance}m`, { fontFamily: ARIAL, fontSize: '42px', color: '#ffffff', stroke: INK, strokeThickness: 8 }).setOrigin(0.5).setDepth(15);
-        this.tweens.add({ targets: label, alpha: 0, y: label.y - 40, delay: 400, duration: 300, onComplete: () => label.destroy() });
+        this.ballGlow.setVisible(false).setTint(0x8ff4ff);
+        const label = this.add.text(toX, far - 20, `${r.distance}m`, { fontFamily: ARIAL, fontSize: r.homerun ? '56px' : '42px', color: '#ffffff', stroke: INK, strokeThickness: 9 }).setOrigin(0.5).setDepth(15).setScale(0.4);
+        this.tweens.add({ targets: label, scale: 1, duration: 140, ease: 'Back.easeOut' });
+        this.tweens.add({ targets: label, alpha: 0, y: label.y - 40, delay: 500, duration: 300, onComplete: () => label.destroy() });
         if (r.homerun) this.fireworks(toX, far);
       },
     });
     if (r.homerun) {
-      this.time.delayedCall(250, () => {
-        const t = this.popText('HOME RUN!', '#ff4fa3', 84, 470);
+      this.time.delayedCall(260, () => {
+        audio.se('cheer');
+        const t = this.popText('HOME RUN!', '#ff4fa3', 92, 470);
         t.setAngle(-6);
+        this.confetti();
       });
     }
   }
@@ -463,11 +492,25 @@ export class SluggerScene extends Phaser.Scene {
   private fireworks(x: number, y: number): void {
     audio.se('burst');
     const colors = [0xffd23a, 0x2fe0ff, 0xff4fa3, 0x4fd65a, 0xffffff];
-    for (let i = 0; i < 28; i++) {
-      const a = (i / 28) * Math.PI * 2;
-      const d = Phaser.Math.Between(90, 170);
-      const dot = this.add.circle(x, y, Phaser.Math.Between(5, 9), colors[i % colors.length]).setDepth(13);
-      this.tweens.add({ targets: dot, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d + 30, alpha: 0, scale: 0.4, duration: 650, ease: 'Cubic.easeOut', onComplete: () => dot.destroy() });
+    for (const [cx, cy, n] of [[x, y, 30], [x - 160, y + 60, 18], [x + 170, y + 40, 18]] as const) {
+      const g = this.add.image(cx, cy, 'slug:glow').setTint(colors[n % 5]).setBlendMode(Phaser.BlendModes.ADD).setDepth(12).setScale(0.5);
+      this.tweens.add({ targets: g, scale: 3, alpha: 0, duration: 500, onComplete: () => g.destroy() });
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2;
+        const d = Phaser.Math.Between(90, 190) * (n > 20 ? 1 : 0.7);
+        const dot = this.add.circle(cx, cy, Phaser.Math.Between(5, 10), colors[i % colors.length]).setDepth(13);
+        this.tweens.add({ targets: dot, x: cx + Math.cos(a) * d, y: cy + Math.sin(a) * d + 40, alpha: 0, scale: 0.4, duration: 750, ease: 'Cubic.easeOut', onComplete: () => dot.destroy() });
+      }
+    }
+  }
+
+  /** ホームランの紙ふぶき */
+  private confetti(): void {
+    const colors = [0xffd23a, 0x2fe0ff, 0xff4fa3, 0x4fd65a, 0xffffff, 0x8a35e0];
+    for (let i = 0; i < 46; i++) {
+      const x = Phaser.Math.Between(0, W);
+      const c = this.add.rectangle(x, -20 - Phaser.Math.Between(0, 200), Phaser.Math.Between(10, 18), Phaser.Math.Between(16, 26), colors[i % colors.length]).setDepth(13);
+      this.tweens.add({ targets: c, y: H * Phaser.Math.FloatBetween(0.55, 0.9), x: x + Phaser.Math.Between(-80, 80), angle: Phaser.Math.Between(-540, 540), alpha: 0, duration: Phaser.Math.Between(1100, 1700), ease: 'Sine.easeIn', onComplete: () => c.destroy() });
     }
   }
 
@@ -475,7 +518,8 @@ export class SluggerScene extends Phaser.Scene {
 
   private pause(): void {
     this.phase = 'paused';
-    this.touches.clear();
+    this.aim = null;
+    this.resetCursorSize();
     this.tweens.pauseAll();
     const box = this.add.container(0, 0).setDepth(30);
     const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.75).setOrigin(0, 0).setInteractive();
@@ -502,7 +546,7 @@ export class SluggerScene extends Phaser.Scene {
 
   private gameOver(): void {
     this.phase = 'over';
-    this.touches.clear();
+    this.aim = null;
     this.controls.setVisible(false);
     const s = this.s;
     const r = sluggerReward(s);
@@ -554,6 +598,8 @@ export class SluggerScene extends Phaser.Scene {
       this.freeze -= dt;
       dt = 0;
     }
+    // ヒットストップの間は、演出の動きもほぼ止める
+    this.tweens.timeScale = this.freeze > 0 ? 0.05 : 1;
     if (this.phase === 'play') this.tick(dt);
     this.draw();
   }
@@ -574,9 +620,8 @@ export class SluggerScene extends Phaser.Scene {
         audio.se('tap', { pitch: 0.6 });
       }
     } else if (this.pitchPhase === 'flight') {
-      // 見のがし: ボールが通りすぎた。ただしタップの途中(まだ離していない)なら少し待つ
-      const pendingTap = [...this.touches.values()].some((t) => !t.drag && t.pitchNo === this.pitchNo && performance.now() - t.downAt < CTRL.tapMax);
-      if (passed(p, this.timer) && !pendingTap) this.finishPitch(judge(p, null, this.cursor));
+      // 見のがし: ボールが通りすぎた
+      if (passed(p, this.timer)) this.finishPitch(judge(p, null, this.cursor));
     } else if (this.pitchPhase === 'result') {
       if (this.timer > 0.25) this.pitcher.setTexture('slug:pitcher:ready');
       if (this.timer >= SLUG.afterPitch) {
@@ -589,13 +634,29 @@ export class SluggerScene extends Phaser.Scene {
   private draw(): void {
     const g = this.fx;
     g.clear();
+    this.marker.clear();
     const p = this.pitch;
+    // 着く所の目印。出る時間は球数で短くなる。輪が縮みきった時がボールの着く時
+    if (p && this.phase === 'play' && (this.pitchPhase === 'windup' || this.pitchPhase === 'flight') && !this.swung) {
+      const toArrive = this.pitchPhase === 'windup' ? SLUG.windup - this.timer + p.flight : p.flight - this.timer;
+      if (toArrive <= markerLead(this.s.pitches) && toArrive > -0.05) {
+        const c = project(p.tx, p.ty, 0);
+        const r = BALL_R * VIEW.zs;
+        const m = this.marker;
+        m.lineStyle(5, 0xff3b4f, 0.9).strokeCircle(c.x, c.y, r);
+        m.lineStyle(3, 0xffffff, 0.9).lineBetween(c.x - r * 0.5, c.y, c.x + r * 0.5, c.y).lineBetween(c.x, c.y - r * 0.5, c.x, c.y + r * 0.5);
+        // タイミングの輪(着く0.8秒前から縮みはじめる)
+        const k = Math.min(1, Math.max(0, toArrive / 0.8));
+        m.lineStyle(4, 0xffd23a, 0.4 + 0.6 * (1 - k)).strokeCircle(c.x, c.y, r * (1 + 2.2 * k));
+      }
+    }
     // 飛んでくるボール(打たれたボールは flyBall が動かす)
     const flying = p && (this.pitchPhase === 'flight' || (this.pitchPhase === 'result' && this.result?.grade === 'miss'));
     if (flying && this.phase !== 'title') {
       const t = this.ballTime / p.flight;
       if (t > 1.25) {
         this.ball.setVisible(false);
+        this.ballGlow.setVisible(false);
         this.shadow.setVisible(false);
       } else {
         const b = ballAt(p, Math.min(t, 1));
@@ -603,17 +664,19 @@ export class SluggerScene extends Phaser.Scene {
         const z = t > 1 ? -(t - 1) * 0.9 : b.z;
         const sp = project(b.x, b.y, Math.max(z, -0.2));
         const r = BALL_R * VIEW.zs * sp.k;
-        this.ball.setVisible(true).setPosition(sp.x, sp.y).setScale((r * 2) / 64);
+        this.ball.setVisible(true).setPosition(sp.x, sp.y).setScale((r * 2) / BALL_PX).setAngle(this.ballTime * 900);
+        this.ballGlow.setVisible(true).setPosition(sp.x, sp.y).setScale((r * 4.2) / 128).setAlpha(0.75);
         const sh = project(b.x, GROUND_Y, Math.max(z, -0.2));
         this.shadow.setVisible(true).setPosition(sh.x, sh.y).setSize(r * 2.2, r * 0.7);
-        this.trail.push({ x: sp.x, y: sp.y, r: r * 0.8 });
-        if (this.trail.length > 7) this.trail.shift();
+        this.trail.push({ x: sp.x, y: sp.y, r: r * 0.9 });
+        if (this.trail.length > 9) this.trail.shift();
       }
     }
-    // ボールの軌跡(うすく残る)
+    // ボールの軌跡(投球はシアン、打球はオレンジ)
+    const hitTrail = this.pitchPhase === 'result' && this.result && this.result.grade !== 'miss';
     this.trail.forEach((d, i) => {
-      g.fillStyle(0x2fe0ff, ((i + 1) / this.trail.length) * 0.35);
-      g.fillCircle(d.x, d.y, d.r);
+      g.fillStyle(hitTrail ? 0xffb02a : 0x2fe0ff, ((i + 1) / this.trail.length) * (hitTrail ? 0.55 : 0.4));
+      g.fillCircle(d.x, d.y, d.r * (0.5 + (0.5 * (i + 1)) / this.trail.length));
     });
   }
 }

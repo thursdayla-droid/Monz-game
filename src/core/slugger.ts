@@ -216,6 +216,18 @@ export function applyResult(s: SluggerState, r: SwingResult): SwingResult {
   return { ...r, points };
 }
 
+/**
+ * 着く所の目印を、ボールが着く何秒前から出すか(企画者の指示 2026-10-20)。
+ * 最初の5球は投げる前から出す(Infinity)。そのあとは球数が進むほど短くして、最後は 0.3秒前。【仮】数字は調整前
+ */
+export const SLUG_MARKER = { easyPitches: 5, startLead: 1.1, endLead: 0.3, rampPitches: 40 } as const;
+export function markerLead(pitchIndex: number): number {
+  const M = SLUG_MARKER;
+  if (pitchIndex < M.easyPitches) return Infinity;
+  const k = Math.min(1, (pitchIndex - M.easyPitches) / M.rampPitches);
+  return M.startLead + (M.endLead - M.startLead) * k;
+}
+
 /** スイングを受けつけるか(早すぎると空振り扱い)。t: 手を離れてからの秒数 */
 export const canSwing = (p: Pitch, t: number): boolean => t >= p.flight - SLUG.swingEarly;
 /** もう見送りが決まったか(ボールが通りすぎた) */

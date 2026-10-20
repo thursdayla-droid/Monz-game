@@ -389,31 +389,55 @@ export function drawPitcher(ctx: CanvasRenderingContext2D, pose: PitcherPose): v
   ctx.restore();
 }
 
-/** ボール(白に、シアンのぬい目) */
+/** ボール: 白く光るボールに、赤とシアンのぬい目。size の正方形のまん中に描く */
 export function drawBall(ctx: CanvasRenderingContext2D, size: number): void {
-  const r = size / 2 - 3;
+  const r = size / 2 - 4;
   ctx.translate(size / 2, size / 2);
-  const g = ctx.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r);
+  const g = ctx.createRadialGradient(-r * 0.35, -r * 0.4, r * 0.05, 0, 0, r);
   g.addColorStop(0, '#ffffff');
-  g.addColorStop(1, '#cfd6e6');
+  g.addColorStop(0.7, '#f1f4ff');
+  g.addColorStop(1, '#b9c4e0');
   ctx.fillStyle = g;
   ctx.beginPath();
   ctx.arc(0, 0, r, 0, Math.PI * 2);
   ctx.fill();
-  ctx.lineWidth = 3;
+  ctx.lineWidth = size * 0.05;
   ctx.strokeStyle = INK;
   ctx.stroke();
-  ctx.strokeStyle = '#18c8ff';
-  ctx.lineWidth = 3;
-  for (const s of [-1, 1]) {
+  // ぬい目(左右のカーブ + 小さな縫い目)
+  for (const [s, color] of [[-1, '#ff3b4f'], [1, '#18c8ff']] as const) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = size * 0.045;
     ctx.beginPath();
-    ctx.arc(s * r * 1.25, 0, r * 0.85, Math.PI - 0.9, Math.PI + 0.9);
-    if (s < 0) {
-      ctx.beginPath();
-      ctx.arc(-r * 1.25, 0, r * 0.85, -0.9, 0.9);
-    }
+    ctx.arc(s * r * 1.3, 0, r * 0.9, s < 0 ? -0.95 : Math.PI - 0.95, s < 0 ? 0.95 : Math.PI + 0.95);
     ctx.stroke();
+    ctx.lineWidth = size * 0.025;
+    for (let i = -3; i <= 3; i++) {
+      const a = (s < 0 ? 0 : Math.PI) + i * 0.27;
+      const cx = s * r * 1.3 + Math.cos(a) * r * 0.9;
+      const cy = Math.sin(a) * r * 0.9;
+      ctx.beginPath();
+      ctx.moveTo(cx - s * size * 0.05, cy - size * 0.03);
+      ctx.lineTo(cx + s * size * 0.05, cy + size * 0.03);
+      ctx.stroke();
+    }
   }
+  // つや
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.beginPath();
+  ctx.ellipse(-r * 0.38, -r * 0.45, r * 0.22, r * 0.12, -0.6, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+/** やわらかい光(ボールのまわり・打った瞬間の光に使う。色は tint で変える) */
+export function drawGlow(ctx: CanvasRenderingContext2D, size: number): void {
+  const c = size / 2;
+  const g = ctx.createRadialGradient(c, c, 0, c, c, c);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.25, 'rgba(255,255,255,0.7)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
 }
 
 /** ミートカーソル(黄色い輪と十字。まん中ほど芯) */

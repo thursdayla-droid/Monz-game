@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyResult, ballAt, canSwing, judge, levelFor, newSlugger, nextPitch, passed, rngOf, SLUG, SLUG_LEVELS, sluggerReward } from '../src/core/slugger';
+import { applyResult, ballAt, canSwing, judge, levelFor, markerLead, newSlugger, nextPitch, passed, rngOf, SLUG, SLUG_LEVELS, sluggerReward } from '../src/core/slugger';
 
 describe('MONZ SLUGGER', () => {
   it('the ball leaves the pitcher and arrives exactly at its target, even when it breaks', () => {
@@ -97,6 +97,17 @@ describe('MONZ SLUGGER', () => {
     }
     expect(s.over).toBe(false);
     expect(s.hits).toBe(120);
+  });
+
+  it('the landing marker shows early for the first 5 pitches, then later and later', () => {
+    for (let i = 0; i < 5; i++) expect(markerLead(i)).toBe(Infinity);
+    let prev = markerLead(5);
+    expect(prev).toBeGreaterThan(1);
+    for (let i = 6; i < 80; i++) {
+      expect(markerLead(i)).toBeLessThanOrEqual(prev);
+      prev = markerLead(i);
+    }
+    expect(markerLead(200)).toBeCloseTo(0.3);
   });
 
   it('same seed gives the same pitches', () => {
