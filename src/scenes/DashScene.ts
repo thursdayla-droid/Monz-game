@@ -8,6 +8,10 @@ import { drawPanel } from '../ui/homeArt';
 import { canvasTextureOnce, UI_FONT } from '../ui/paint';
 import { homeIconKey } from './HomeScene';
 
+/** 背景の絵 */
+export const DASH_BG_KEY = 'dash:bg';
+export const DASH_BG_FILE = 'assets/minigame/dash_bg.webp';
+
 const W = 720;
 const H = 1280;
 const INK = '#16101c';
@@ -34,35 +38,15 @@ export class DashScene extends Phaser.Scene {
   }
 
   preload(): void {
-    preloadPacks(this, ['card', 'home']);
+    preloadPacks(this, ['card', 'home', 'dash']);
   }
 
   create(): void {
     this.record = new LifeRecord(loadLife());
     this.phase = 'ready';
-    // 【仮】背景: 空のグラデーションと遠くのビル
-    canvasTextureOnce(this, 'dash:sky', W, H, (ctx) => {
-      const g = ctx.createLinearGradient(0, 0, 0, H);
-      g.addColorStop(0, '#2a1a5e');
-      g.addColorStop(0.55, '#7a3fa0');
-      g.addColorStop(1, '#ff8a5c');
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, W, H);
-    });
-    this.add.image(0, 0, 'dash:sky').setOrigin(0, 0).setScrollFactor(0);
-    canvasTextureOnce(this, 'dash:city', 1440, 500, (ctx) => {
-      ctx.fillStyle = 'rgba(22,16,40,0.6)';
-      let x = 0;
-      let i = 0;
-      while (x < 1440) {
-        const w = 60 + ((i * 37) % 70);
-        const h = 120 + ((i * 53) % 260);
-        ctx.fillRect(x, 500 - h, w - 6, h);
-        x += w;
-        i++;
-      }
-    });
-    this.add.tileSprite(0, 520, W, 500, 'dash:city').setOrigin(0, 0).setName('city');
+    // 背景(企画者の絵)。元の絵と左右反転した絵を並べた1枚を、横にくり返して流す
+    const bg = this.add.tileSprite(0, 0, W, H, DASH_BG_KEY).setOrigin(0, 0).setName('city');
+    bg.setTileScale(H / bg.texture.getSourceImage().height);
     this.world = this.add.graphics();
     if (this.textures.exists('cardimg:clearMonz')) this.runner = this.add.image(DASH.runnerX, 900, 'cardimg:clearMonz').setOrigin(0.5, 0.92).setScale(0.2);
     else this.runner = this.add.rectangle(DASH.runnerX, 900, DASH.runnerW, DASH.runnerH, 0x16101c).setOrigin(0.5, 1);
@@ -264,7 +248,8 @@ export class DashScene extends Phaser.Scene {
     const runner = this.runner!;
     const bob = s.grounded ? Math.abs(Math.sin(this.t * 14)) * 6 : 0;
     runner.setPosition(DASH.runnerX, s.y - bob).setAngle(s.grounded ? Math.sin(this.t * 14) * 4 : s.vy < 0 ? -10 : 10);
-    (this.children.getByName('city') as Phaser.GameObjects.TileSprite | null)?.setTilePosition(s.dist * 0.2, 0);
+    const bg = this.children.getByName('city') as Phaser.GameObjects.TileSprite | null;
+    bg?.setTilePosition((s.dist * 0.2) / bg.tileScaleX, 0);
     this.distText.setText(`${meters(s)}m`);
   }
 

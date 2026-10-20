@@ -6,6 +6,7 @@ import { BUNK_POSE_IMAGES, bunkPoseKey, HAND_FILE, HAND_KEY, HOME_ICONS, HOME_IM
 import { TITLE_FILE, TITLE_IMAGE } from '../scenes/TitleScene';
 import { SELECT_IMAGE } from '../scenes/MinigameSelectScene';
 import { CARD_IMAGES } from '../ui/cardArt';
+import { DASH_BG_FILE, DASH_BG_KEY } from '../scenes/DashScene';
 import { loadBunk } from './bunkView';
 
 /**
@@ -18,8 +19,9 @@ import { loadBunk } from './bunkView';
  * - compare: 元画像との比較画面(開発用)
  * - minigame: ミニゲームのセレクト画面
  * - card: MONZ CARD(タイトル・ロゴ・カードの裏・山札)
+ * - dash: DASH MONZ(背景)
  */
-export type PackName = 'title' | 'bunk' | 'birth' | 'home' | 'compare' | 'minigame' | 'card';
+export type PackName = 'title' | 'bunk' | 'birth' | 'home' | 'compare' | 'minigame' | 'card' | 'dash';
 
 interface PackFile {
   key: string;
@@ -48,6 +50,8 @@ function packFiles(name: Exclude<PackName, 'bunk'>): PackFile[] {
       return [{ key: SELECT_IMAGE, url: 'assets/minigame/select.webp' }];
     case 'card':
       return Object.entries(CARD_IMAGES).map(([key, file]) => ({ key, url: `assets/minigame/${file}` }));
+    case 'dash':
+      return [{ key: DASH_BG_KEY, url: DASH_BG_FILE }];
   }
 }
 
