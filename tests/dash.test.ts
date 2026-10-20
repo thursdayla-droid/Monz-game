@@ -71,6 +71,18 @@ describe('DASH MONZ', () => {
     }
   });
 
+  it('short platforms appear after 150m and the bot can still run far', () => {
+    let shorts = 0;
+    for (let seed = 1; seed <= 15; seed++) {
+      const seen = new Set<object>();
+      const s = autoplay(seed, 240, (st) => st.platforms.forEach((p) => p.x > DASH.shortFrom && p.w < st.speed * airtime() * 0.66 && !p.magma && seen.add(p)));
+      expect(s.over, `seed ${seed} at ${meters(s)}m`).toBe(false);
+      expect(meters(s)).toBeGreaterThan(1000);
+      shorts += seen.size;
+    }
+    expect(shorts).toBeGreaterThan(30);
+  });
+
   it('same seed gives the same course', () => {
     expect(autoplay(5, 20).dist).toBe(autoplay(5, 20).dist);
   });

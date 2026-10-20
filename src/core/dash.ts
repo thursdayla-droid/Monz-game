@@ -37,6 +37,9 @@ export const DASH = {
   magmaChance: 0.12,
   /** マグマの床は、まわりの足場より少し低くする(分かりやすくするため 2026-10-20 企画者の指示) */
   magmaDrop: 40,
+  /** 短い足場が出はじめる距離(px。150m)と、いちばん多くなるまでの距離(さらに450m) */
+  shortFrom: 15000,
+  shortRamp: 45000,
 } as const;
 
 export interface Platform {
@@ -119,7 +122,7 @@ function fill(s: DashState): void {
     const level = Math.min(1, s.dist / 60000);
     // 【仮】ときどき、足場の続きの1つがマグマになる(すき間なし・少し低い。跳べば越えられる幅)。前の足場がマグマなら続けない
     const prev = s.platforms[s.platforms.length - 1];
-    if (s.nextX > 3000 && !prev?.magma && rng() < DASH.magmaChance) {
+    if (s.nextX > 3000 && !prev?.magma && prev && prev.w > reach * 0.8 && rng() < DASH.magmaChance) {
       const mw = range(rng, 0.4, 0.6) * reach;
       s.platforms.push({ x: s.nextX, w: mw, y: s.lastY + DASH.magmaDrop, magma: true });
       s.nextX += mw;
@@ -129,9 +132,23 @@ function fill(s: DashState): void {
       s.nextX += nw;
       continue;
     }
-    const gap = range(rng, 0.35, 0.55 + 0.2 * level) * reach;
+    // 短い足場(2026-10-20 企画者の指示): 一定の距離を越えたら出はじめ、進むほど増える。
+    // 着地できる幅がせまいので、ジャンプのタイミングが大事になる。高さはほとんど変えない。続けては出さない
+    const hard = Math.min(1, Math.max(0, (s.nextX - DASH.shortFrom) / DASH.shortRamp));
+    if (hard > 0 && prev && prev.w > reach * 0.8 && rng() < 0.15 + 0.35 * hard) {
+      const x = s.nextX + range(rng, 0.6, 0.8) * reach;
+      const y = Math.max(DASH.minY, Math.min(DASH.maxY, s.lastY + range(rng, -40, 40)));
+      const w = range(rng, 0.55 - 0.15 * hard, 0.65 - 0.1 * hard) * reach;
+      s.platforms.push({ x, w, y });
+      s.nextX = x + w;
+      s.lastY = y;
+      continue;
+    }
+    // 短い足場の次は、すき間と上りを少しひかえめにする(短い足場では、跳ぶ場所を選べないため)
+    const afterShort = !!prev && prev.w < reach * 0.8;
+    const gap = range(rng, 0.35, afterShort ? 0.5 : 0.55 + 0.2 * level) * reach;
     // 高さの差: 上は跳べる高さの7割まで、下は大きく降りることもある。上と下へ交互に行きやすくする
-    const up = jumpHeight() * 0.7;
+    const up = jumpHeight() * (afterShort ? 0.5 : 0.7);
     const goUp = s.lastY > (DASH.minY + DASH.maxY) / 2 ? rng() < 0.7 : rng() < 0.35;
     let y = s.lastY + (goUp ? -range(rng, up * 0.4, up) : range(rng, 40, 300));
     y = Math.max(DASH.minY, Math.min(DASH.maxY, y));
