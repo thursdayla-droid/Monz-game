@@ -40,6 +40,13 @@ export const DASH = {
   /** 短い足場が出はじめる距離(px。150m)と、いちばん多くなるまでの距離(さらに450m) */
   shortFrom: 15000,
   shortRamp: 45000,
+  /** 【仮】はねるトゲ: 出はじめる距離(200m)、1回はねる時間(秒)、はねる高さ、転がる速さ */
+  bounceFrom: 20000,
+  bouncePeriod: 1.3,
+  bounceHeight: 130,
+  bounceRoll: 90,
+  /** 【仮】難しくなると、足場の端の近くで跳ばないと届かないすき間が出る(すき間の最大を少し広げる) */
+  edgeGapExtra: 0.08,
 } as const;
 
 export interface Platform {
@@ -56,6 +63,8 @@ export interface Thing {
   h: number;
   /** danger: 当たるとゲームオーバー / safe: 当たっても大丈夫 */
   kind: 'danger' | 'safe';
+  /** はねるトゲ(2026-10-20 企画者の指示)。はねながら手前へ転がってくる。下をくぐるか、跳び越えてかわす */
+  bounce?: { baseY: number; x0: number; minX: number; t0: number; phase: number };
 }
 
 export interface DashState {
@@ -75,6 +84,8 @@ export interface DashState {
   lastY: number;
   over: false | 'fall' | 'hit' | 'magma';
   rngState: number;
+  /** ゲームが始まってからの時間(秒)。はねるトゲの動きに使う */
+  time: number;
 }
 
 /** 空中にいられる時間(秒) */
@@ -107,6 +118,7 @@ export function newDash(seed: number): DashState {
     lastY: 900,
     over: false,
     rngState: seed >>> 0,
+    time: 0,
   };
   fill(s);
   return s;
@@ -139,9 +151,11 @@ function fill(s: DashState): void {
       // 進むほど、短い足場が続く(最初は1つ、いちばん難しいところで最大4つ)
       const count = 1 + Math.floor(rng() * (1 + 3 * hard));
       for (let i = 0; i < count; i++) {
-        const x = s.nextX + (i === 0 ? range(rng, 0.6, 0.8) : range(rng, 0.55, 0.7)) * reach;
-        const y = Math.max(DASH.minY, Math.min(DASH.maxY, s.lastY + (i === 0 ? range(rng, -40, 40) : range(rng, -25, 25))));
         const w = range(rng, 0.55 - 0.15 * hard, 0.65 - 0.1 * hard) * reach;
+        // 短い足場から短い足場へ: 端の近くで跳んでも、跳びこしてしまわない近さにする(すき間+幅 が跳べる距離より少し長い)
+        const g = i === 0 ? range(rng, 0.6, 0.8) * reach : Math.max(range(rng, 0.5, 0.65) * reach, reach * 1.05 - w);
+        const x = s.nextX + g;
+        const y = Math.max(DASH.minY, Math.min(DASH.maxY, s.lastY + (i === 0 ? range(rng, -40, 40) : range(rng, -25, 25))));
         s.platforms.push({ x, w, y });
         s.nextX = x + w;
         s.lastY = y;
@@ -150,7 +164,7 @@ function fill(s: DashState): void {
     }
     // 短い足場の次は、すき間と上りを少しひかえめにする(短い足場では、跳ぶ場所を選べないため)
     const afterShort = !!prev && prev.w < reach * 0.8;
-    let gap = range(rng, 0.35, afterShort ? 0.5 : 0.55 + 0.2 * level) * reach;
+    let gap = range(rng, 0.35, afterShort ? 0.5 : 0.55 + 0.2 * level + DASH.edgeGapExtra * hard) * reach;
     // 高さの差: 上は跳べる高さの7割まで、下は大きく降りることもある。上と下へ交互に行きやすくする
     const up = jumpHeight() * (afterShort ? 0.5 : 0.7);
     const goUp = s.lastY > (DASH.minY + DASH.maxY) / 2 ? rng() < 0.7 : rng() < 0.35;
@@ -165,12 +179,25 @@ function fill(s: DashState): void {
     const landing = reach * (1.15 + (drop / jumpHeight()) * 0.5);
     // トゲを置く足場は、跳び越えたあと同じ足場に着地できる長さにする(2026-10-20 トゲが出ないことがあったため)
     const spike = rng() < 0.45 + 0.3 * level;
+    // 進むと、トゲの一部がはねるトゲになる。転がってきても、着地する所から少し先までは来ない(着地してから見てよけられるように)
+    const bouncy = Math.min(1, Math.max(0, (x - DASH.bounceFrom) / DASH.shortRamp));
+    const bounce = spike && bouncy > 0 && rng() < 0.25 + 0.35 * bouncy;
+    const start = landing + (bounce ? reach * 0.6 : 0);
     let w = range(rng, 0.9, 2.4 - 1.0 * level) * reach;
-    if (spike) w = Math.max(w, landing + reach * range(rng, 1.4, 1.9));
+    if (spike) w = Math.max(w, start + reach * range(rng, 1.4, 1.9));
     s.platforms.push({ x, w, y });
     if (spike) {
-      const hx = x + range(rng, landing, w - reach * 1.15);
-      s.things.push({ x: hx, y: y - 56, w: 54, h: 56, kind: 'danger' });
+      const hx = x + range(rng, start, w - reach * 1.15);
+      let b: Thing['bounce'];
+      if (bounce) {
+        // キャラクターの走る速さは、ジャンプしても変わらないので、トゲの所に来る時間は前もって分かる。
+        // その時にトゲが「高い所にいる(下をくぐる)」か「低い所にいる(跳び越える)」になるように、はねる時間をずらす
+        b = { baseY: y - 56, x0: hx, minX: x + start, t0: s.time, phase: 0 };
+        const meet = meetTime(s, b);
+        const target = rng() < 0.5 ? 0.5 : 0;
+        b.phase = target * DASH.bouncePeriod - (meet - s.time);
+      }
+      s.things.push({ x: hx, y: y - 56, w: 54, h: 56, kind: 'danger', bounce: b });
     }
     // さわっても大丈夫な物(星)は 2026-10-20 企画者の指示で廃止(まぎらわしいため)
     s.nextX = x + w;
@@ -193,11 +220,36 @@ export function jump(s: DashState): boolean {
 /** キャラクターの足もとのコース上の x */
 const footX = (s: DashState) => s.dist + DASH.runnerX;
 
+/** キャラクターが、はねるトゲの所に来る時間(ゲームの時間)。走る速さはジャンプに関係なく決まっているので計算できる */
+function meetTime(s: DashState, b: NonNullable<Thing['bounce']>): number {
+  let { time, speed, dist } = s;
+  const dt = 1 / 120;
+  for (let i = 0; i < 120 * 30; i++) {
+    const tx = Math.max(b.minX, b.x0 - DASH.bounceRoll * (time - b.t0));
+    if (dist + DASH.runnerX >= tx + 27) return time;
+    speed = Math.min(DASH.maxSpeed, speed + DASH.accel * dt);
+    dist += speed * dt;
+    time += dt;
+  }
+  return time;
+}
+
+/** はねるトゲの位置: 手前へ転がりながら、放物線ではねる */
+function moveBounce(t: Thing, time: number): void {
+  const b = t.bounce!;
+  const age = time - b.t0;
+  t.x = Math.max(b.minX, b.x0 - DASH.bounceRoll * age);
+  const u = (((age + b.phase) / DASH.bouncePeriod) % 1 + 1) % 1;
+  t.y = b.baseY - DASH.bounceHeight * 4 * u * (1 - u);
+}
+
 /** dt 秒すすめる */
 export function step(s: DashState, dt: number): void {
   if (s.over) return;
   s.speed = Math.min(DASH.maxSpeed, s.speed + DASH.accel * dt);
   s.dist += s.speed * dt;
+  s.time += dt;
+  for (const t of s.things) if (t.bounce) moveBounce(t, s.time);
   const prevY = s.y;
   s.vy += DASH.gravity * dt;
   s.y += s.vy * dt;
@@ -227,9 +279,12 @@ export function step(s: DashState, dt: number): void {
   const top = s.y - DASH.runnerH;
   for (const t of s.things) {
     if (t.kind !== 'danger') continue;
-    const tl = t.x + 6;
-    const tr = t.x + t.w - 6;
-    if (fx + half - 8 > tl && fx - half + 8 < tr && s.y - 4 > t.y && top < t.y + t.h) {
+    // はねるトゲは丸い形なので、当たる所を少し小さくする
+    const inset = t.bounce ? 10 : 6;
+    const vin = t.bounce ? 8 : 0;
+    const tl = t.x + inset;
+    const tr = t.x + t.w - inset;
+    if (fx + half - 8 > tl && fx - half + 8 < tr && s.y - 4 > t.y + vin && top < t.y + t.h - vin) {
       s.over = 'hit';
       return;
     }

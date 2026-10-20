@@ -1,15 +1,49 @@
 import { describe, expect, it } from 'vitest';
 import { airtime, DASH, dashReward, jump, jumpHeight, meters, newDash, step } from '../src/core/dash';
 
-/** 自動で遊ぶ: 足場の終わりが近づいたらジャンプ */
-function autoplay(seed: number, seconds: number, onStep?: (s: ReturnType<typeof newDash>) => void) {
+type State = ReturnType<typeof newDash>;
+
+/** かんたんな判断: 足場の終わりが近い、または止まっているトゲが近いならジャンプ */
+function simpleWants(s: State): boolean {
+  const fx = s.dist + DASH.runnerX;
+  const cur = s.platforms.find((p) => fx >= p.x && fx <= p.x + p.w);
+  const danger = s.things.find((th) => th.kind === 'danger' && !th.bounce && th.x > fx && th.x - fx < s.speed * 0.22);
+  // 足場の端から落ちはじめた直後(少しのあいだはまだ跳べる)
+  const justLeft = !s.grounded && s.vy >= 0 && s.airTime < DASH.coyote * 0.8;
+  return justLeft || (s.grounded && ((!!cur && cur.x + cur.w - fx < s.speed * 0.06) || !!danger));
+}
+
+/** 少し先まで試しに進めて、生きのこれるか。jumpAt: 何フレーム後にジャンプするか(-1 ならしない) */
+function survives(s0: State, jumpAt: number, frames: number): boolean {
+  const s = structuredClone(s0);
+  for (let i = 0; i < frames && !s.over; i++) {
+    if (i === jumpAt) jump(s);
+    else if (simpleWants(s)) jump(s);
+    step(s, 1 / 60);
+  }
+  return !s.over;
+}
+
+/**
+ * 自動で遊ぶ: 足場の終わりが近づいたらジャンプ。
+ * はねるトゲが近いときは「何もしない」と「今ジャンプ」を少し先まで試して、生きのこれる方を選ぶ(人が見てよけるのと同じ)
+ */
+function autoplay(seed: number, seconds: number, onStep?: (s: State) => void) {
   const s = newDash(seed);
   const dt = 1 / 60;
   for (let t = 0; t < seconds && !s.over; t += dt) {
     const fx = s.dist + DASH.runnerX;
-    const cur = s.platforms.find((p) => fx >= p.x && fx <= p.x + p.w);
-    const danger = s.things.find((th) => th.kind === 'danger' && th.x > fx && th.x - fx < s.speed * 0.22);
-    if (s.grounded && ((cur && cur.x + cur.w - fx < s.speed * 0.06) || danger)) jump(s);
+    if (simpleWants(s)) jump(s);
+    else if (s.grounded && s.things.some((th) => th.bounce && th.x + th.w > fx - 40 && th.x - fx < s.speed)) {
+      // 何もしなくて大丈夫なら何もしない。だめなら、いちばん早く跳べばよけられるタイミングを探す
+      if (!survives(s, -1, 90)) {
+        for (let k = 0; k < 40; k++) {
+          if (!survives(s, k, 90)) continue;
+          if (k === 0) jump(s);
+          break;
+        }
+      }
+    }
     step(s, dt);
     onStep?.(s);
   }
@@ -81,7 +115,7 @@ describe('DASH MONZ', () => {
       shorts += seen.size;
     }
     expect(shorts).toBeGreaterThan(30);
-  });
+  }, 30000);
 
   it('later on, short platforms come several in a row, and it gets faster', () => {
     let chains = 0;
@@ -97,7 +131,18 @@ describe('DASH MONZ', () => {
       }
     }
     expect(chains).toBeGreaterThan(5);
-  });
+  }, 30000);
+
+  it('bouncing spikes appear later and can be dodged', () => {
+    let bounces = 0;
+    for (let seed = 1; seed <= 15; seed++) {
+      const seen = new Set<object>();
+      const s = autoplay(seed, 240, (st) => st.things.forEach((th) => th.bounce && seen.add(th)));
+      expect(s.over, `seed ${seed} at ${meters(s)}m`).toBe(false);
+      bounces += seen.size;
+    }
+    expect(bounces).toBeGreaterThan(30);
+  }, 30000);
 
   it('same seed gives the same course', () => {
     expect(autoplay(5, 20).dist).toBe(autoplay(5, 20).dist);

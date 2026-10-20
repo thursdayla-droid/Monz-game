@@ -166,6 +166,7 @@ export class DashScene extends Phaser.Scene {
       '  （いつも同じ高さ。空中では跳べない）',
       '・足場から落ちたらゲームオーバー',
       '・トゲに当たってもゲームオーバー',
+      '  （はねるトゲは、下をくぐるか跳び越える）',
       '・マグマの足場をふんでもゲームオーバー',
       '・進むほど、だんだん速くなるよ',
       '',
@@ -334,6 +335,8 @@ export class DashScene extends Phaser.Scene {
         this.spikeViews.set(t, img);
       }
       img.setPosition(Math.round(x + t.w / 2), t.y + t.h - SPIKE_SIZE / 2 + 6).setVisible(visible);
+      // はねるトゲは、転がっているように回す
+      if (t.bounce) img.setAngle(-(s.time - t.bounce.t0) * 240);
     }
     const runner = this.runner!;
     const bob = s.grounded ? Math.abs(Math.sin(this.t * 14)) * 6 : 0;
