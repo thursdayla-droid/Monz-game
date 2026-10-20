@@ -8,6 +8,10 @@ import { drawPanel } from '../ui/homeArt';
 import { canvasTextureOnce, INK, UI_FONT } from '../ui/paint';
 import { BATTER_SIZE, drawBall, drawBatter, drawCursor, drawGlow, drawPitcher, drawStadium, GROUND_Y, PITCHER_SIZE, project, VIEW, type BatterPose, type PitcherPose } from '../ui/sluggerArt';
 
+/** 球場の背景(企画者の絵) */
+export const SLUGGER_BG_KEY = 'slug:bg';
+export const SLUGGER_BG_FILE = 'assets/minigame/slugger_bg.webp';
+
 const W = 720;
 const H = 1280;
 const ARIAL = '"Arial Black", Impact, sans-serif';
@@ -79,7 +83,7 @@ export class SluggerScene extends Phaser.Scene {
   }
 
   preload(): void {
-    preloadPacks(this, ['home']);
+    preloadPacks(this, ['home', 'slugger']);
   }
 
   create(): void {
@@ -89,7 +93,12 @@ export class SluggerScene extends Phaser.Scene {
     this.trail = [];
     this.makeTextures();
 
-    this.add.image(0, 0, 'slug:stadium').setOrigin(0, 0);
+    // 球場: 企画者の絵(読めなかったときだけプログラムで描いた仮の絵)
+    if (this.textures.exists(SLUGGER_BG_KEY)) this.add.image(0, 0, SLUGGER_BG_KEY).setOrigin(0, 0).setDisplaySize(W, H);
+    else {
+      canvasTextureOnce(this, 'slug:stadium', W, H, (ctx) => drawStadium(ctx, W, H));
+      this.add.image(0, 0, 'slug:stadium').setOrigin(0, 0);
+    }
     // ストライクゾーンの枠(うすく)
     const zone = this.add.graphics();
     const a = project(-1, 1, 0);
@@ -131,7 +140,6 @@ export class SluggerScene extends Phaser.Scene {
   }
 
   private makeTextures(): void {
-    canvasTextureOnce(this, 'slug:stadium', W, H, (ctx) => drawStadium(ctx, W, H));
     for (const p of ['idle', 'swing', 'hit', 'homer', 'whiff'] as BatterPose[]) canvasTextureOnce(this, `slug:batter:${p}`, BATTER_SIZE.w, BATTER_SIZE.h, (ctx) => drawBatter(ctx, p));
     for (const p of ['ready', 'windup', 'throw'] as PitcherPose[]) canvasTextureOnce(this, `slug:pitcher:${p}`, PITCHER_SIZE.w, PITCHER_SIZE.h, (ctx) => drawPitcher(ctx, p));
     canvasTextureOnce(this, 'slug:ball2', BALL_PX, BALL_PX, (ctx) => drawBall(ctx, BALL_PX));

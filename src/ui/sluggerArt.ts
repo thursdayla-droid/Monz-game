@@ -10,7 +10,8 @@ import { COLORS, INK, roundRectPath, speckle, splat } from './paint';
  * 見え方(3D風)。バッターの斜め後ろから見る(キャッチャー目線は試したが、企画者の判断でこちらに戻した 2026-10-20)。ホームベースの面の点 (x, y) と奥行き z(0 ホーム 〜 1 ピッチャー)を画面の位置にする。
  * vx, vy: 奥の消える点 / px, py: ストライクゾーンのまん中(ホームベースの上) / zs: ゾーンの半分の大きさ(画面のpx)
  */
-export const VIEW = { vx: 392, vy: 420, px: 410, py: 900, zs: 140, depth: 4 } as const;
+// 企画者の球場の絵(2026-10-20)に合わせた数字: ピッチャーマウンド(310,551)・ホームベース(357,1040)が絵の位置にくる
+export const VIEW = { vx: 298, vy: 429, px: 357, py: 774, zs: 140, depth: 4 } as const;
 
 /** 奥へ行くほど小さく見える割合(z=0 で 1、z=1 で 0.2) */
 export const persp = (z: number): number => 1 / (1 + VIEW.depth * z);
@@ -25,7 +26,7 @@ export function project(x: number, y: number, z: number): { x: number; y: number
 /** 地面の高さ(ボールの影を落とす所)。ゾーンの y=-1.9 あたりが地面 */
 export const GROUND_Y = -1.9;
 
-/** 球場: 夕方の空、街のビル、グラフィティの壁、金網、ネオン、グラウンド */
+/** 【仮】球場(企画者の絵が読めなかったときだけ使う): 夕方の空、街のビル、グラフィティの壁、金網、ネオン、グラウンド */
 export function drawStadium(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   const rng = mulberry32(77);
   const horizon = VIEW.vy + 10;
