@@ -18,7 +18,7 @@ export const SLUG_BATTER_ART: Record<BatterPose, { ox: number; oy: number }> = {
 };
 export const slugBatterKey = (p: BatterPose) => `slug:bat:${p}`;
 /** 絵の大きさ(画面での倍率)。打つ範囲(ストライクゾーン)にかからない大きさ */
-const BATTER_ART_SCALE = 0.72;
+const BATTER_ART_SCALE = 0.62;
 
 /** ピッチャーロボットの絵(企画者の絵 3ポーズ)。数字は design/minigame/make_slugger_assets.py の出力 */
 export const SLUG_PITCHER_ART: Record<PitcherPose, { ox: number; oy: number }> = {
@@ -43,8 +43,8 @@ const CTRL = {
   sensitivity: 1.15,
 };
 /** バッターの立つ所(足元)と大きさ */
-/** バッターの立つ所(足元)。打つ範囲(ストライクゾーン)にかからないよう、左に寄せる(2026-10-20 企画者の指摘) */
-const BATTER = { x: 92, y: 1115, scale: 0.9, alpha: 1 };
+/** バッターの立つ所(足元)。背景の絵の左のバッターボックスの中(線は y878 で x248、下へ行くほど左へ寄る)。打つ範囲にかからないように(2026-10-20 企画者の指摘) */
+const BATTER = { x: 104, y: 1005, scale: 0.9, alpha: 1 };
 /** ボールの半径(ゾーンの半分を 1 とした長さ) */
 const BALL_R = 0.2;
 /** ボールの絵の大きさ(px) */
