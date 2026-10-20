@@ -1,7 +1,7 @@
 /**
  * プレイヤーのデータの保存(コイン・持ち物・場所と、育てているMONZごとのレベル・経験値・ステータス・お腹などの様子)。
  * 最初の質問の保存(save.ts)とは別にして、今までのデータを壊さない。Phaserに依存しない。保存できない環境でも止まらない。
- * - 版(version)を持ち、古い形のデータは新しい形に引き継ぐ(1 → 2)
+ * - 版(version)を持ち、古い形のデータは新しい形に引き継ぐ(1 → 2 → 3)。引き継ぎは版が上がるので、2回かかることはない
  * - 保存するたびに、1つ前の正しいデータを予備(backup)に残す。読めなかったら予備から戻す
  * 【仮】コインの最初の枚数(0)。コインはレベルが上がったとき・ミニゲームでもらえる(企画者決定)。
  */
@@ -9,12 +9,11 @@ import { HOME_PLACES, type HomePlace } from './home';
 import { catchUp, dayKey, expToNext, levelUpCoins, newNeeds, NEEDS_RULES, stepNeeds, isNight, type Needs } from './needs';
 import type { KeyValueStore } from './save';
 import { isSpecies, type SpeciesId } from './species';
+import { addStats, autoGrowthAt, FREE_POINTS_PER_LEVEL, LOVE_RULES, speciesStats, STAT_KEYS, zeroStats, type StatBlock, type StatKey } from './stats';
 
 export const LIFE_KEY = 'monz:life';
 export const LIFE_BACKUP_KEY = 'monz:life:backup';
-export const LIFE_VERSION = 2;
-/** 企画者決定(2026-10-20): レベルが1上がるごとに 0.1 ステータスポイント */
-export const STAT_POINTS_PER_LEVEL = 0.1;
+export const LIFE_VERSION = 3;
 /** 同じ報酬を2回渡さないために覚えておく、最近の報酬の番号の数 */
 const CLAIMED_KEEP = 200;
 
@@ -32,10 +31,18 @@ export interface MonzData {
   expDay: string;
   expToday: number;
   expPetToday: number;
-  /** まだ振り分けていないステータスポイント */
+  /** まだ振り分けていない自由ポイント(0.1 を 1 とした整数) */
   statPoints: number;
-  /** 振り分けたポイント(能力の名前 → ポイント)。【未確定】能力の種類は決まったら */
-  stats: Record<string, number>;
+  /** レベルアップの自動成長の合計 / 自由に振り分けた合計(どちらも 0.1 を 1 とした整数。src/core/stats.ts) */
+  auto: StatBlock;
+  alloc: StatBlock;
+  /** 愛(お世話で育つ)。loveDay の日に、ごはん・なでるで増やした量 */
+  love: number;
+  loveDay: string;
+  loveFeedToday: number;
+  lovePetToday: number;
+  /** これまでのお世話の回数(将来の性格の変化に使う) */
+  careCount: { feed: number; pet: number };
   /** お腹・眠さ・機嫌(画面には数字を出さない) */
   needs: Needs;
   bornAt: number;
@@ -71,7 +78,13 @@ export const newMonz = (species: SpeciesId, uid: string, now = Date.now()): Monz
   expToday: 0,
   expPetToday: 0,
   statPoints: 0,
-  stats: {},
+  auto: zeroStats(),
+  alloc: zeroStats(),
+  love: LOVE_RULES.initial,
+  loveDay: dayKey(new Date(now)),
+  loveFeedToday: 0,
+  lovePetToday: 0,
+  careCount: { feed: 0, pet: 0 },
   needs: newNeeds(),
   bornAt: now,
 });
@@ -103,16 +116,43 @@ export function migrateLife(raw: unknown, now = Date.now()): LifeData | null {
   const base = newLife(now);
   if (d.version === 1) {
     // 版1: MONZ1匹ぶんのレベル・経験値・様子が、データのいちばん上にあった
-    // ステータスポイントは版2からなので、これまでに上がったレベルのぶんを渡す
     const level = num(d.level, 1, 1);
-    const m = { ...base.monz[0], level, statPoints: Math.round((level - 1) * STAT_POINTS_PER_LEVEL * 10) / 10, exp: num(d.exp, 0), expDay: String(d.expDay ?? base.monz[0].expDay), expToday: num(d.expToday, 0), needs: { ...newNeeds(), ...(d.needs as object) } };
+    const m = { ...base.monz[0], level, exp: num(d.exp, 0), expDay: String(d.expDay ?? base.monz[0].expDay), expToday: num(d.expToday, 0), needs: { ...newNeeds(), ...(d.needs as object) } };
     const items = Array.isArray(d.items) ? (d.items as unknown[]).map(String) : [];
     return migrateLife({ ...base, coins: d.coins, monz: [m], inventory: { owned: items, placed: [] }, place: d.place, lastSeen: d.lastSeen, version: 2 }, now);
   }
-  if (d.version !== 2) return null;
+  if (d.version === 2) {
+    // 版2 → 版3: ステータス6種を入れる(企画者決定 2026-10-20)。
+    // Lv.N なら、自動成長は (N−1) 回ぶん、自由ポイントは 0.1×(N−1) を未使用として入れる。
+    // 足すのではなく「レベルから決まる値」をそのまま入れるので、何度読み込んでも同じ結果になる。愛は初期値から。
+    const monz2 = (Array.isArray(d.monz) ? (d.monz as Record<string, unknown>[]) : []).map((m) => {
+      const level = num(m?.level, 1, 1);
+      const species = String(m?.species);
+      if (!isSpecies(species)) return m;
+      const { stats: _old, statPoints: _oldPoints, ...rest } = m;
+      return { ...rest, auto: autoGrowthAt(species, level), alloc: zeroStats(), statPoints: (level - 1) * FREE_POINTS_PER_LEVEL };
+    });
+    return migrateLife({ ...d, monz: monz2, version: 3 }, now);
+  }
+  if (d.version !== 3) return null;
+  const block = (v: unknown): StatBlock => Object.fromEntries(STAT_KEYS.map((k) => [k, Math.round(num((v as StatBlock | undefined)?.[k], 0))])) as StatBlock;
   const monz = (Array.isArray(d.monz) ? (d.monz as Partial<MonzData>[]) : [])
     .filter((m) => m && typeof m.uid === 'string' && isSpecies(String(m.species)))
-    .map((m) => ({ ...newMonz(m.species as SpeciesId, m.uid as string, now), ...m, level: num(m.level, 1, 1), exp: num(m.exp, 0), statPoints: num(m.statPoints, 0), needs: { ...newNeeds(), ...m.needs } }));
+    .map((m) => {
+      const fresh = newMonz(m.species as SpeciesId, m.uid as string, now);
+      return {
+        ...fresh,
+        ...m,
+        level: Math.floor(num(m.level, 1, 1)),
+        exp: num(m.exp, 0),
+        statPoints: Math.round(num(m.statPoints, 0)),
+        auto: block(m.auto),
+        alloc: block(m.alloc),
+        love: Math.min(LOVE_RULES.max, num(m.love, LOVE_RULES.initial)),
+        careCount: { ...fresh.careCount, ...m.careCount },
+        needs: { ...newNeeds(), ...m.needs },
+      };
+    });
   if (!monz.length) return null;
   const inv = (d.inventory ?? {}) as Partial<Inventory>;
   return {
@@ -285,14 +325,43 @@ export class LifeRecord {
 
   feed(now = Date.now()): void {
     const n = this.needs;
-    this.update({}, { needs: { ...n, full: Math.min(1, n.full + NEEDS_RULES.feedFull), mood: Math.min(1, n.mood + NEEDS_RULES.feedMood) } });
+    // 【仮】愛が増えるのは、お腹がすいている時のごはんだけ
+    if (n.full < LOVE_RULES.hungryBelow) this.gainLove('feed', now);
+    const m = this.monz;
+    this.update({}, { needs: { ...n, full: Math.min(1, n.full + NEEDS_RULES.feedFull), mood: Math.min(1, n.mood + NEEDS_RULES.feedMood) }, careCount: { ...m.careCount, feed: m.careCount.feed + 1 } });
     this.gainExp(NEEDS_RULES.feedExp, now, 'feed');
   }
 
   pet(happy: boolean, now = Date.now()): void {
     const n = this.needs;
-    this.update({}, { needs: { ...n, mood: Math.min(1, n.mood + (happy ? NEEDS_RULES.petMood : NEEDS_RULES.petMood / 3)) } });
+    // 【仮】愛が増えるのは、喜んだ時だけ
+    if (happy) this.gainLove('pet', now);
+    const m = this.monz;
+    this.update({}, { needs: { ...n, mood: Math.min(1, n.mood + (happy ? NEEDS_RULES.petMood : NEEDS_RULES.petMood / 3)) }, careCount: { ...m.careCount, pet: m.careCount.pet + 1 } });
     this.gainExp(NEEDS_RULES.petExp, now, 'pet');
+  }
+
+  /** 愛を増やす(1日に増やせる量まで。最大値まで) */
+  private gainLove(kind: 'feed' | 'pet', now: number): void {
+    const m = this.monz;
+    const today = dayKey(new Date(now));
+    const fed = m.loveDay === today ? m.loveFeedToday : 0;
+    const petted = m.loveDay === today ? m.lovePetToday : 0;
+    const want = kind === 'feed' ? LOVE_RULES.feed : LOVE_RULES.pet;
+    const room = kind === 'feed' ? LOVE_RULES.feedDailyCap - fed : LOVE_RULES.petDailyCap - petted;
+    const got = Math.max(0, Math.min(want, room, LOVE_RULES.max - m.love));
+    this.update({}, { love: m.love + got, loveDay: today, loveFeedToday: fed + (kind === 'feed' ? got : 0), lovePetToday: petted + (kind === 'pet' ? got : 0) });
+  }
+
+  /**
+   * 自由ポイントを1つ(0.1)振り分ける。振り直しはできない(企画者決定)。愛には振れない。
+   * ポイントが足りなければ false。
+   */
+  allocate(stat: StatKey): boolean {
+    const m = this.monz;
+    if (m.statPoints < 1 || !STAT_KEYS.includes(stat)) return false;
+    this.update({}, { statPoints: m.statPoints - 1, alloc: { ...m.alloc, [stat]: m.alloc[stat] + 1 } });
+    return true;
   }
 
   /**
@@ -308,16 +377,18 @@ export class LifeRecord {
     let room = care ? NEEDS_RULES.dailyExpCap - used : Infinity;
     if (kind === 'pet') room = Math.min(room, NEEDS_RULES.petDailyCap - usedPet);
     const got = Math.max(0, Math.min(amount, room));
-    let { level, exp, statPoints } = m;
+    let { level, exp, statPoints, auto } = m;
     exp += got;
     const ups: number[] = [];
     while (exp >= expToNext(level)) {
       exp -= expToNext(level);
       level++;
-      statPoints = Math.round((statPoints + STAT_POINTS_PER_LEVEL) * 10) / 10;
+      // 自動成長(合計+3.0、キャラクターごとの成長率で配る)と、自由ポイント+0.1
+      auto = addStats(auto, speciesStats(m.species).growth);
+      statPoints += FREE_POINTS_PER_LEVEL;
       ups.push(level);
     }
-    this.update({}, { level, exp, statPoints, expDay: today, expToday: care ? used + got : used, expPetToday: kind === 'pet' ? usedPet + got : usedPet });
+    this.update({}, { level, exp, statPoints, auto, expDay: today, expToday: care ? used + got : used, expPetToday: kind === 'pet' ? usedPet + got : usedPet });
     for (const lv of ups) {
       const coins = levelUpCoins(lv);
       this.emit({ type: 'levelUp', level: lv, coins });

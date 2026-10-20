@@ -107,7 +107,9 @@ describe('life record', () => {
     const rec = new LifeRecord(loadLife(store), store);
     expect(rec.coins).toBe(7);
     expect(rec.level).toBe(3);
-    expect(rec.monz.statPoints).toBe(0.2);
+    // Lv.3: 自動成長2回ぶん、自由ポイント0.2(=2)
+    expect(rec.monz.statPoints).toBe(2);
+    expect(rec.monz.auto.power).toBe(18);
     expect(rec.monz.exp).toBe(20);
     expect(rec.monz.species).toBe('bunk');
     expect(rec.needs.full).toBe(0.3);
@@ -143,7 +145,7 @@ describe('life record', () => {
     for (let i = 2; i < 10; i++) rec.grant({ runId: `card-${i}`, source: 'card', coins: 0, exp: 30 }, now);
     // 30 x 9 = 270 exp: お世話の上限(50)に関係なく、レベルが上がる
     expect(rec.level).toBeGreaterThanOrEqual(3);
-    expect(rec.monz.statPoints).toBeCloseTo((rec.level - 1) * 0.1, 5);
+    expect(rec.monz.statPoints).toBe(rec.level - 1);
   });
 
   it('petting alone cannot fill the daily care exp', () => {
