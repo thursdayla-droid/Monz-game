@@ -18,7 +18,7 @@ export interface MinigameInfo {
 export const MINIGAME_SLOTS = 5;
 
 export const MINIGAMES: readonly MinigameInfo[] = [
-  { id: 'card', title: 'MONZ CARD', ready: false, score: '出したカードの枚数', color: '#8a35e0' },
+  { id: 'card', title: 'MONZ CARD', ready: true, scene: 'CardTitle', score: '出したカードの枚数', color: '#8a35e0' },
   // 【企画段階】ルールが決まるまで作らない
   { id: 'jump', title: 'ダッシュモンズ', ready: false, score: '走った距離', color: '#ff8a1f' },
 ];

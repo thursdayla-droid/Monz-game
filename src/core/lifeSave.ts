@@ -67,6 +67,16 @@ export interface LifeData {
   lastSeen: number;
   /** 最近もらった報酬の番号(同じ報酬を2回もらわないため) */
   claimed: string[];
+  /** ミニゲームごとの自分の最高記録(将来のランキング用にも) */
+  records: Record<string, MinigameRecord>;
+}
+
+export interface MinigameRecord {
+  /** いちばん多く出した枚数・走った距離など(ゲームごとのスコア) */
+  bestScore: number;
+  /** いちばん進んだラウンドなど */
+  bestRound: number;
+  plays: number;
 }
 
 export const newMonz = (species: SpeciesId, uid: string, now = Date.now()): MonzData => ({
@@ -97,6 +107,7 @@ export const newLife = (now = Date.now(), species: SpeciesId = 'bunk'): LifeData
   inventory: { owned: [], placed: [] },
   lastSeen: now,
   claimed: [],
+  records: {},
 });
 
 const defaultStore = (): KeyValueStore | null => {
@@ -165,6 +176,7 @@ export function migrateLife(raw: unknown, now = Date.now()): LifeData | null {
     place: (HOME_PLACES as readonly string[]).includes(String(d.place)) ? (d.place as HomePlace) : undefined,
     lastSeen: num(d.lastSeen, now),
     claimed: Array.isArray(d.claimed) ? (d.claimed as unknown[]).map(String).slice(-CLAIMED_KEEP) : [],
+    records: d.records && typeof d.records === 'object' ? (d.records as Record<string, MinigameRecord>) : {},
   };
 }
 
@@ -302,6 +314,14 @@ export class LifeRecord {
     if (reward.coins) this.add(reward.coins);
     if (reward.exp) this.gainExp(reward.exp, now, 'other');
     return true;
+  }
+
+  /** ミニゲームの記録を残す。新記録なら true */
+  record(game: string, score: number, round: number): boolean {
+    const old = this.data.records[game] ?? { bestScore: 0, bestRound: 0, plays: 0 };
+    const best = score > old.bestScore;
+    this.update({ records: { ...this.data.records, [game]: { bestScore: Math.max(old.bestScore, score), bestRound: Math.max(old.bestRound, round), plays: old.plays + 1 } } });
+    return best;
   }
 
   /** 閉じていた間の変化をまとめて進める(画面を開いたとき) */
