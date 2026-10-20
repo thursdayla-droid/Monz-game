@@ -12,6 +12,9 @@ export const CARD_IMAGES = {
   'cardimg:logo': 'card_logo.webp',
   'cardimg:back': 'card_back.webp',
   'cardimg:deck': 'card_deck.webp',
+  'cardimg:bg': 'card_bg.webp',
+  'cardimg:clearMonz': 'card_clear_monz.webp',
+  'cardimg:overMonz': 'card_over_monz.webp',
 } as const;
 
 export const CARD_W = 220;

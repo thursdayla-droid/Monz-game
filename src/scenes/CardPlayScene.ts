@@ -87,8 +87,12 @@ export class CardPlayScene extends Phaser.Scene {
     const backImg = this.textures.exists('cardimg:back') ? (this.textures.get('cardimg:back').getSourceImage() as HTMLImageElement) : undefined;
     canvasTextureOnce(this, backImg ? 'card:backimg' : 'card:back', CARD_W, CARD_H, (ctx) => drawCardBack(ctx, backImg));
     this.backKey = backImg ? 'card:backimg' : 'card:back';
-    canvasTextureOnce(this, 'card:table', W, H, (ctx) => drawCardTable(ctx, W, H));
-    this.add.image(0, 0, 'card:table').setOrigin(0, 0);
+    // 背景(企画者の絵。なければ仮の壁)
+    if (this.textures.exists('cardimg:bg')) this.add.image(0, 0, 'cardimg:bg').setOrigin(0, 0).setDisplaySize(W, H);
+    else {
+      canvasTextureOnce(this, 'card:table', W, H, (ctx) => drawCardTable(ctx, W, H));
+      this.add.image(0, 0, 'card:table').setOrigin(0, 0);
+    }
 
     this.buildTop();
     // 山札(企画者の山札の絵。なければカードの裏を重ねる)
@@ -411,15 +415,19 @@ export class CardPlayScene extends Phaser.Scene {
     audio.se('sting');
     const box = this.add.container(0, 0).setDepth(50);
     const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.65).setOrigin(0, 0).setInteractive();
-    const t1 = this.add.image(W / 2, 330, this.graffiti(`ROUND ${n}`, '#ffffff', 90));
-    const t2 = this.add.image(W / 2, 450, this.graffiti('CLEAR!', '#ffd23a', 120));
+    const t1 = this.add.image(W / 2, 170, this.graffiti(`ROUND ${n}`, '#ffffff', 90));
+    const t2 = this.add.image(W / 2, 290, this.graffiti('CLEAR!', '#ffd23a', 120));
     canvasTextureOnce(this, 'card:clearpanel', 560, 330, (ctx) => drawPanel(ctx, 560, 330, 95));
-    const panel = this.add.image(W / 2, 720, 'card:clearpanel');
+    const panel = this.add.image(W / 2, 760, 'card:clearpanel');
+    // 喜ぶキャラクター(企画者の絵)
+    const monz = this.textures.exists('cardimg:clearMonz') ? this.add.image(W / 2, 475, 'cardimg:clearMonz').setScale(0.6) : null;
+    if (monz) this.tweens.add({ targets: monz, y: monz.y - 18, duration: 420, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     const txt = this.add
-      .text(W / 2, 720, `52枚すべて出しました！\n\nコイン  +${CARD_REWARD.clearCoins}\nEXP  +${CARD_REWARD.clearExp}\n\n今回の累計コイン  ${this.clears * CARD_REWARD.clearCoins}`, { fontFamily: UI_FONT, fontSize: '32px', fontStyle: '900', color: INK, align: 'center' })
+      .text(W / 2, 760, `52枚すべて出しました！\n\nコイン  +${CARD_REWARD.clearCoins}\nEXP  +${CARD_REWARD.clearExp}\n\n今回の累計コイン  ${this.clears * CARD_REWARD.clearCoins}`, { fontFamily: UI_FONT, fontSize: '32px', fontStyle: '900', color: INK, align: 'center' })
       .setOrigin(0.5);
-    const next = this.add.text(W / 2, 960, '  次のラウンドへ ▶  ', { fontFamily: UI_FONT, fontSize: '40px', fontStyle: '900', color: INK, backgroundColor: '#ffd23a', padding: { x: 20, y: 12 } }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    const next = this.add.text(W / 2, 1000, '  次のラウンドへ ▶  ', { fontFamily: UI_FONT, fontSize: '40px', fontStyle: '900', color: INK, backgroundColor: '#ffd23a', padding: { x: 20, y: 12 } }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     box.add([dim, t1, t2, panel, txt, next]);
+    if (monz) box.add(monz);
     [t1, t2].forEach((o, i) => {
       o.setScale(0.2);
       this.tweens.add({ targets: o, scale: 1, duration: 360, delay: i * 160, ease: 'Back.easeOut' });
@@ -447,18 +455,21 @@ export class CardPlayScene extends Phaser.Scene {
     this.time.delayedCall(500, () => {
       const box = this.add.container(0, 0).setDepth(50);
       const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.75).setOrigin(0, 0).setInteractive();
-      const title = this.add.image(W / 2, 300, this.graffiti('GAME OVER', '#c9c4d6', 100));
-      const why = this.add.text(W / 2, 410, reason, { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '900', color: '#ff8a9a' }).setOrigin(0.5);
+      const title = this.add.image(W / 2, 170, this.graffiti('GAME OVER', '#c9c4d6', 100));
+      // 倒れたキャラクター(企画者の絵)
+      const monz = this.textures.exists('cardimg:overMonz') ? this.add.image(W / 2, 395, 'cardimg:overMonz').setScale(0.62) : null;
+      const why = this.add.text(W / 2, 555, reason, { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '900', color: '#ff8a9a' }).setOrigin(0.5);
       canvasTextureOnce(this, 'card:overpanel', 560, 360, (ctx) => drawPanel(ctx, 560, 360, 96));
-      const panel = this.add.image(W / 2, 640, 'card:overpanel');
+      const panel = this.add.image(W / 2, 780, 'card:overpanel');
       const lines = [`到達ラウンド   ${this.r.round}`, `出した枚数   ${this.cardsPlayed}`, `獲得コイン   ${total.coins}`, `獲得EXP   ${total.exp}`];
-      const txt = this.add.text(W / 2, 640, lines.join('\n'), { fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: INK, align: 'center', lineSpacing: 16 }).setOrigin(0.5);
+      const txt = this.add.text(W / 2, 780, lines.join('\n'), { fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: INK, align: 'center', lineSpacing: 16 }).setOrigin(0.5);
       const note = this.add
-        .text(W / 2, 845, best ? '★ 自己ベスト！' : this.cardsPlayed < CARD_REWARD.minCardsForReward && this.clears === 0 ? `${CARD_REWARD.minCardsForReward}枚以上出すと報酬がもらえます` : '', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '900', color: '#ffd23a' })
+        .text(W / 2, 985, best ? '★ 自己ベスト！' : this.cardsPlayed < CARD_REWARD.minCardsForReward && this.clears === 0 ? `${CARD_REWARD.minCardsForReward}枚以上出すと報酬がもらえます` : '', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '900', color: '#ffd23a' })
         .setOrigin(0.5);
-      const toTitle = this.add.text(W / 2 - 150, 960, ' タイトルへ ', { fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: '#ffffff', backgroundColor: '#16101c', padding: { x: 16, y: 12 } }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      const again = this.add.text(W / 2 + 150, 960, ' もう一度 ', { fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: INK, backgroundColor: '#ffd23a', padding: { x: 16, y: 12 } }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      const toTitle = this.add.text(W / 2 - 150, 1090, ' タイトルへ ', { fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: '#ffffff', backgroundColor: '#16101c', padding: { x: 16, y: 12 } }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      const again = this.add.text(W / 2 + 150, 1090, ' もう一度 ', { fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: INK, backgroundColor: '#ffd23a', padding: { x: 16, y: 12 } }).setOrigin(0.5).setInteractive({ useHandCursor: true });
       box.add([dim, title, why, panel, txt, note, toTitle, again]);
+      if (monz) box.add(monz);
       title.setScale(0.3);
       this.tweens.add({ targets: title, scale: 1, duration: 380, ease: 'Back.easeOut' });
       this.updateCoins();
