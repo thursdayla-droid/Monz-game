@@ -124,14 +124,15 @@ export class MonzLife {
   /**
    * 指でなでられている(なぞった距離ごとに呼ぶ)。止まったまま、うれしそうにする。ときどき小さく跳ねる。
    * 眠っているときは起こさずに、気持ちよさそうに眠り続ける。機嫌が悪いと、ときどき嫌がる。
+   * enough: 今日はもう十分なでられた(お世話マックス)。なでると怒る(企画者の指示 2026-10-20)。
    */
-  stroked(): 'happy' | 'angry' | 'asleep' {
+  stroked(enough = false): 'happy' | 'angry' | 'asleep' {
     if (this.act === 'sleep') {
       this.pause(1.2, true);
       return 'asleep';
     }
     this.pause(1.2, true);
-    if (this.needs().mood < 0.3 && this.rng() < 0.35) {
+    if (enough || (this.needs().mood < 0.3 && this.rng() < 0.35)) {
       this.body.reaction = { face: 'angry', kind: 'angry', left: 1.2, age: 0 };
       return 'angry';
     }
@@ -198,10 +199,10 @@ export class MonzLife {
     this.body.dir = this.facing;
   }
 
-  /** なでられた(タップ・なでるボタン)。機嫌が悪いと怒りやすい */
-  petted(): 'happy' | 'angry' | 'surprised' {
+  /** なでられた(なでるボタン)。機嫌が悪いと怒りやすい。enough: お世話マックスなら怒る */
+  petted(enough = false): 'happy' | 'angry' | 'surprised' {
     const n = this.needs();
-    if (n.mood < 0.3 && this.act !== 'sleep' && this.rng() < 0.5) {
+    if ((enough && this.act !== 'sleep') || (n.mood < 0.3 && this.act !== 'sleep' && this.rng() < 0.5)) {
       this.body.start('idle');
       this.body.reaction = { face: 'angry', kind: 'angry', left: 1.4, age: 0 };
       return 'angry';

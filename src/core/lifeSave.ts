@@ -201,6 +201,13 @@ export class LifeRecord {
     return this.monz.needs;
   }
 
+  /** 今日はもう、なでても経験値が増えない(お世話マックス)か */
+  petMaxed(now = Date.now()): boolean {
+    const m = this.monz;
+    if (m.expDay !== dayKey(new Date(now))) return false;
+    return (m.expPetToday ?? 0) >= NEEDS_RULES.petDailyCap || m.expToday >= NEEDS_RULES.dailyExpCap;
+  }
+
   /** 次のレベルまでの進み具合(0〜1) */
   get expRate(): number {
     return Math.min(1, this.monz.exp / expToNext(this.monz.level));

@@ -84,7 +84,7 @@ export class HomeScene extends Phaser.Scene {
   private saveTimer = 0;
   private bubble?: Phaser.GameObjects.Image;
   /** 指でなでている途中(なぞった距離など)。null ならなでていない */
-  private stroke: { x: number; y: number; dist: number; sinceTick: number; ticks: number; happy: number; angry: boolean } | null = null;
+  private stroke: { x: number; y: number; dist: number; sinceTick: number; ticks: number; happy: number; angry: boolean; onMonz: boolean } | null = null;
   private strokeHand?: Phaser.GameObjects.Image;
   /** 行動に合わせた姿の絵(座る・眠る・伸び・見渡す・お腹がすいた・眠い)。出している間は BunkView を隠す */
   private poseImg?: Phaser.GameObjects.Image;
@@ -123,8 +123,10 @@ export class HomeScene extends Phaser.Scene {
     this.view = view;
     this.poseImg = this.add.image(life.x, life.y, '__DEFAULT').setOrigin(0.5, 1).setVisible(false);
     // 指でなでる・タップ: 画面のどこを触ったかで判断する(MONZの体のあたりなら反応。座る・眠るなどの絵のときも同じ)
-    this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
-      if (this.onMonz(p.x, p.y)) this.startStroke(p);
+    // 手のカーソルは画面のどこを触っても出る(ボタン・上の表示の所は除く)。MONZが反応するのは、MONZを触ったときだけ
+    this.input.on('pointerdown', (p: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
+      if (over.length || p.y < 170 || p.y > MENU.y - MENU.h / 2 - 14) return;
+      this.startStroke(p);
     });
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => this.moveStroke(p));
     this.input.on('pointerup', () => this.endStroke());
@@ -458,7 +460,7 @@ export class HomeScene extends Phaser.Scene {
   private startStroke(p: Phaser.Input.Pointer): void {
     if (this.busy || !this.life) return;
     if (this.strokeHand) this.tweens.killTweensOf(this.strokeHand);
-    this.stroke = { x: p.x, y: p.y, dist: 0, sinceTick: 0, ticks: 0, happy: 0, angry: false };
+    this.stroke = { x: p.x, y: p.y, dist: 0, sinceTick: 0, ticks: 0, happy: 0, angry: false, onMonz: this.onMonz(p.x, p.y) };
     // 触ったらすぐ手を出す(指で隠れないよう、指の少し上に)
     this.showStrokeHand(p.x, p.y);
   }
@@ -478,7 +480,7 @@ export class HomeScene extends Phaser.Scene {
     if (s.sinceTick < HomeScene.STROKE_STEP) return;
     s.sinceTick = 0;
     s.ticks++;
-    const kind = life.stroked();
+    const kind = life.stroked(this.record?.petMaxed() ?? false);
     if (kind === 'angry') {
       // 嫌がった: そこでやめる
       s.angry = true;
@@ -505,7 +507,7 @@ export class HomeScene extends Phaser.Scene {
     // ほとんど動かしていなければタップ: 手で「ちょん」とつついてから消す
     if (s.ticks === 0 && s.dist < 18) {
       this.pokeHand();
-      this.tapMonz();
+      if (s.onMonz) this.tapMonz();
       return;
     }
     this.hideStrokeHand();
@@ -628,7 +630,7 @@ export class HomeScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
       onStart: () => audio.se('spray', { pitch: 0.5 }),
       onComplete: () => {
-        const kind = life.petted();
+        const kind = life.petted(this.record?.petMaxed() ?? false);
         this.record?.pet(kind === 'happy');
         this.record?.setAsleep(false);
         audio.se(kind);

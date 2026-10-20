@@ -149,8 +149,10 @@ describe('life record', () => {
     const store = memoryStore();
     const rec = new LifeRecord(loadLife(store), store);
     const now = Date.UTC(2026, 9, 20, 3);
+    expect(rec.petMaxed(now)).toBe(false);
     for (let i = 0; i < 30; i++) rec.pet(true, now);
     expect(rec.monz.exp).toBe(NEEDS_RULES.petDailyCap);
+    expect(rec.petMaxed(now)).toBe(true);
     rec.feed(now);
     rec.feed(now);
     rec.feed(now);
