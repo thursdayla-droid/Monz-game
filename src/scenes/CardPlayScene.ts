@@ -14,7 +14,6 @@ import {
   remainingCount,
   SUIT_MARKS,
   SUITS,
-  topCard,
   TURN_SECONDS,
   type CardId,
   type Round,
@@ -251,11 +250,10 @@ export class CardPlayScene extends Phaser.Scene {
     this.drawTracker();
     this.drawTimer();
     this.updateCounts();
-    // 場札を1枚めくる → 手札を5枚配る(この間は時間が減らない)
-    const top = topCard(this.r);
-    this.field = this.add.image(DECK.x, DECK.y, cardKey(top)).setScale(DECK.scale);
+    // 手札を5枚配る(この間は時間が減らない)。場札はまだなく、1枚目は手札から好きなカードを出す
+    this.field = undefined;
+    this.showFirstHint(true);
     audio.se('next');
-    this.tweens.add({ targets: this.field, x: FIELD.x, y: FIELD.y, scale: FIELD.scale, duration: 300, ease: 'Cubic.easeOut' });
     this.r.hand.forEach((c, i) => {
       const img = this.add.image(DECK.x, DECK.y, cardKey(c!)).setScale(DECK.scale).setInteractive({ useHandCursor: true });
       img.on('pointerdown', () => this.tapHand(i));
@@ -267,6 +265,20 @@ export class CardPlayScene extends Phaser.Scene {
       this.timeLeft = TURN_SECONDS;
       this.refreshHand();
     });
+  }
+
+  /** 場札の場所の「好きなカードを出そう」 */
+  private showFirstHint(on: boolean): void {
+    let hint = this.children.getByName('firstHint') as Phaser.GameObjects.Container | null;
+    if (!hint) {
+      hint = this.add.container(FIELD.x, FIELD.y).setName('firstHint');
+      const g = this.add.graphics();
+      g.lineStyle(6, 0xffd23a, 0.9).strokeRoundedRect((-CARD_W * FIELD.scale) / 2, (-CARD_H * FIELD.scale) / 2, CARD_W * FIELD.scale, CARD_H * FIELD.scale, 20);
+      const t = this.add.text(0, 0, '好きな\nカードを\n出そう！', { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '900', color: '#ffd23a', align: 'center', stroke: INK, strokeThickness: 7 }).setOrigin(0.5);
+      hint.add([g, t]);
+      this.tweens.add({ targets: hint, alpha: 0.5, duration: 600, yoyo: true, repeat: -1 });
+    }
+    hint.setVisible(on);
   }
 
   private handX(i: number): number {
@@ -320,6 +332,7 @@ export class CardPlayScene extends Phaser.Scene {
       ease: 'Cubic.easeOut',
       onComplete: () => {
         old?.destroy();
+        this.showFirstHint(false);
         this.field = img;
         img.setDepth(1);
         this.cameras.main.shake(60, 0.002);
@@ -403,7 +416,7 @@ export class CardPlayScene extends Phaser.Scene {
     canvasTextureOnce(this, 'card:clearpanel', 560, 330, (ctx) => drawPanel(ctx, 560, 330, 95));
     const panel = this.add.image(W / 2, 720, 'card:clearpanel');
     const txt = this.add
-      .text(W / 2, 720, `52枚クリア！\n\nコイン  +${CARD_REWARD.clearCoins}\nEXP  +${CARD_REWARD.clearExp}\n\n今回の累計コイン  ${this.clears * CARD_REWARD.clearCoins}`, { fontFamily: UI_FONT, fontSize: '32px', fontStyle: '900', color: INK, align: 'center' })
+      .text(W / 2, 720, `52枚すべて出しました！\n\nコイン  +${CARD_REWARD.clearCoins}\nEXP  +${CARD_REWARD.clearExp}\n\n今回の累計コイン  ${this.clears * CARD_REWARD.clearCoins}`, { fontFamily: UI_FONT, fontSize: '32px', fontStyle: '900', color: INK, align: 'center' })
       .setOrigin(0.5);
     const next = this.add.text(W / 2, 960, '  次のラウンドへ ▶  ', { fontFamily: UI_FONT, fontSize: '40px', fontStyle: '900', color: INK, backgroundColor: '#ffd23a', padding: { x: 20, y: 12 } }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     box.add([dim, t1, t2, panel, txt, next]);

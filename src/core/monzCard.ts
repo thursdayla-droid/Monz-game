@@ -2,8 +2,8 @@ import { mulberry32, type Rng } from './rng';
 
 /**
  * ミニゲーム「MONZ CARD」のルール(企画者仕様 2026-10-20)。Phaserに依存しない。
- * - トランプ52枚(ジョーカーなし)。場札1枚・手札5枚・残りが山札
- * - 場札と同じ数字か同じマークのカードを出せる。出したら山札から1枚補充(山札がなければ補充なし)
+ * - トランプ52枚(ジョーカーなし)。手札5枚・残り47枚が山札。最初は場札なし(企画者決定 2026-10-20: 1枚目は手札から好きなカード)
+ * - 2枚目からは、場札と同じ数字か同じマークのカードを出せる。出したら山札から1枚補充(山札がなければ補充なし)
  * - 出せるカードがない、または時間切れでゲームオーバー
  * - 52枚すべてが場に出たら(山札も手札も0枚)ラウンドクリア → 新しい52枚で次のラウンド
  * カードの場所は1つの表(where)だけで持ち、手札・山札・CARD TRACKER はすべてここから作る(表示と中身がずれない)。
@@ -28,7 +28,8 @@ export const DECK_SIZE = 52;
 export const TURN_SECONDS = 10;
 
 /** 場札と同じ数字、または同じマークなら出せる */
-export const canPlayOn = (card: CardId, top: CardId): boolean => cardRank(card) === cardRank(top) || cardSuit(card) === cardSuit(top);
+/** top がない(まだ1枚も出していない)ときは、どのカードでも出せる */
+export const canPlayOn = (card: CardId, top: CardId | undefined): boolean => top === undefined || cardRank(card) === cardRank(top) || cardSuit(card) === cardSuit(top);
 
 export type CardPlace = 'deck' | 'hand' | 'used';
 
@@ -40,7 +41,7 @@ export interface Round {
   deck: CardId[];
   /** 手札(最大5枚。場所を保つため、出したところは補充したカードが入る) */
   hand: (CardId | null)[];
-  /** 場に出た順(最後が今の場札)。最初の場札も入る */
+  /** 場に出た順(最後が今の場札) */
   played: CardId[];
 }
 
@@ -55,22 +56,15 @@ export function shuffled(seed: number): CardId[] {
   return a;
 }
 
-/**
- * 新しいラウンド: 52枚をシャッフル → 場札1枚 → 手札5枚 → 残り46枚が山札。
- * 配った時点で出せるカードが1枚もないと、何もできずに終わってしまうので、そのときは配り直す
- * (種を1つずらしてシャッフルし直す。同じ種なら同じ結果になるのは変わらない)。
- */
+/** 新しいラウンド: 52枚をシャッフル → 手札5枚 → 残り47枚が山札。場札はまだない(1枚目は手札から好きに出せる) */
 export function newRound(round: number, seed: number): Round {
-  for (let s = seed; ; s = (s + 1) >>> 0) {
-    const cards = shuffled(s);
-    const top = cards.shift()!;
-    const hand = cards.splice(0, HAND_SIZE);
-    const r = { round, seed: s, deck: cards, hand, played: [top] };
-    if (playableSlots(r).length > 0) return r;
-  }
+  const cards = shuffled(seed);
+  const hand = cards.splice(0, HAND_SIZE);
+  return { round, seed, deck: cards, hand, played: [] };
 }
 
-export const topCard = (r: Round): CardId => r.played[r.played.length - 1];
+/** 今の場札(まだ1枚も出していなければ undefined) */
+export const topCard = (r: Round): CardId | undefined => r.played[r.played.length - 1];
 
 /** そのカードが今どこにあるか(CARD TRACKER の元) */
 export function placeOf(r: Round, c: CardId): CardPlace {

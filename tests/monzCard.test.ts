@@ -13,17 +13,14 @@ function checkInvariant(r: Round) {
 }
 
 describe('MONZ CARD rules', () => {
-  it('deals 1 field card, 5 in hand and 46 in the deck', () => {
+  it('deals 5 in hand and 47 in the deck with no field card; any card can start', () => {
     const r = newRound(1, 42);
-    expect(r.played.length).toBe(1);
+    expect(r.played.length).toBe(0);
     expect(r.hand.length).toBe(5);
-    expect(r.deck.length).toBe(46);
-    expect(remainingCount(r)).toBe(51);
+    expect(r.deck.length).toBe(47);
+    expect(remainingCount(r)).toBe(52);
+    expect(playableSlots(r)).toEqual([0, 1, 2, 3, 4]);
     checkInvariant(r);
-  });
-
-  it('never deals a hand with no playable card', () => {
-    for (let seed = 0; seed < 2000; seed++) expect(playableSlots(newRound(1, seed)).length).toBeGreaterThan(0);
   });
 
   it('same seed gives the same deal', () => {
@@ -66,7 +63,7 @@ describe('MONZ CARD rules', () => {
   });
 
   it('refuses a card that does not match', () => {
-    const r = newRound(1, 3);
+    const r = play(newRound(1, 3), 0)!;
     const bad = r.hand.findIndex((c) => c !== null && !canPlayOn(c, topCard(r)));
     if (bad >= 0) expect(play(r, bad)).toBeNull();
   });
