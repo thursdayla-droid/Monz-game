@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
-import { DASH, dashReward, DASH_REWARD, jump, meters, newDash, step, type DashState } from '../core/dash';
+import { DASH, dashReward, DASH_REWARD, jump, meters, newDash, step, type DashState, type Platform } from '../core/dash';
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { newSeed } from '../core/rng';
 import { preloadPacks } from '../render/packs';
@@ -11,6 +11,12 @@ import { homeIconKey } from './HomeScene';
 /** 背景の絵 */
 export const DASH_BG_KEY = 'dash:bg';
 export const DASH_BG_FILE = 'assets/minigame/dash_bg.webp';
+
+/** 足場の絵(左はし・まん中・右はし を横に並べた1枚)。数字は design/minigame/make_dash_assets.py の出力 */
+export const DASH_PLAT_KEY = 'dash:platform';
+export const DASH_PLAT_FILE = 'assets/minigame/dash_platform.webp';
+/** 各部分の幅と、絵の上から「足が乗る面」までの高さ */
+const PLAT = { left: 121, mid: 459, right: 123, h: 94, surface: 16 };
 
 const W = 720;
 const H = 1280;
@@ -32,6 +38,7 @@ export class DashScene extends Phaser.Scene {
   private distText!: Phaser.GameObjects.Text;
   private t = 0;
   private onHide?: () => void;
+  private platViews = new Map<Platform, { img: Phaser.GameObjects.Image; dx: number }[]>();
 
   constructor() {
     super('Dash');
@@ -47,7 +54,14 @@ export class DashScene extends Phaser.Scene {
     // 背景(企画者の絵)。元の絵と左右反転した絵を並べた1枚を、横にくり返して流す
     const bg = this.add.tileSprite(0, 0, W, H, DASH_BG_KEY).setOrigin(0, 0).setName('city');
     bg.setTileScale(H / bg.texture.getSourceImage().height);
-    this.world = this.add.graphics();
+    const pt = this.textures.get(DASH_PLAT_KEY);
+    if (!pt.has('left')) {
+      pt.add('left', 0, 0, 0, PLAT.left, PLAT.h);
+      pt.add('mid', 0, PLAT.left + 4, 0, PLAT.mid, PLAT.h);
+      pt.add('right', 0, PLAT.left + PLAT.mid + 8, 0, PLAT.right, PLAT.h);
+    }
+    this.platViews = new Map();
+    this.world = this.add.graphics().setDepth(2);
     if (this.textures.exists('cardimg:clearMonz')) this.runner = this.add.image(DASH.runnerX, 900, 'cardimg:clearMonz').setOrigin(0.5, 0.92).setScale(0.2);
     else this.runner = this.add.rectangle(DASH.runnerX, 900, DASH.runnerW, DASH.runnerH, 0x16101c).setOrigin(0.5, 1);
     this.runner.setDepth(3);
@@ -216,17 +230,45 @@ export class DashScene extends Phaser.Scene {
   }
 
   /** 【仮】足場・危険物・さわっても大丈夫な物を描く(コースの座標 → 画面の座標) */
+  /** 足場1つ分の絵を作る。左はし・まん中(くり返し)・右はし を並べる。短い足場は はしを半分ずつ使う */
+  private buildPlatform(width: number): { img: Phaser.GameObjects.Image; dx: number }[] {
+    const w = Math.round(width);
+    const { left, mid, right } = PLAT;
+    const piece = (frame: string, dx: number, cropX: number, cropW: number) => {
+      const img = this.add.image(0, 0, DASH_PLAT_KEY, frame).setOrigin(0, 0).setDepth(1).setCrop(cropX, 0, cropW, PLAT.h);
+      return { img, dx };
+    };
+    if (w < left + right) {
+      const half = Math.floor(w / 2);
+      return [piece('left', 0, 0, half), piece('right', w - right, right - (w - half), w - half)];
+    }
+    const out = [piece('left', 0, 0, left)];
+    for (let dx = left; dx < w - right; dx += mid) out.push(piece('mid', dx, 0, Math.min(mid, w - right - dx)));
+    out.push(piece('right', w - right, 0, right));
+    return out;
+  }
+
   private drawWorld(): void {
     const g = this.world;
     const s = this.s;
     g.clear();
     const ox = -s.dist;
+    const alive = new Set(s.platforms);
+    for (const [p, view] of this.platViews) {
+      if (alive.has(p)) continue;
+      view.forEach((v) => v.img.destroy());
+      this.platViews.delete(p);
+    }
     for (const p of s.platforms) {
       const x = p.x + ox;
-      if (x > W || x + p.w < 0) continue;
-      g.fillStyle(0x3b2f52, 1).fillRect(x, p.y, p.w, H - p.y);
-      g.fillStyle(0x6fd0ff, 1).fillRect(x, p.y, p.w, 16);
-      g.lineStyle(6, 0x16101c, 1).strokeRect(x, p.y, p.w, H - p.y + 10);
+      const visible = x < W && x + p.w > 0;
+      let view = this.platViews.get(p);
+      if (!view) {
+        if (!visible) continue;
+        view = this.buildPlatform(p.w);
+        this.platViews.set(p, view);
+      }
+      for (const v of view) v.img.setPosition(Math.round(x + v.dx), p.y - PLAT.surface).setVisible(visible);
     }
     for (const t of s.things) {
       const x = t.x + ox;

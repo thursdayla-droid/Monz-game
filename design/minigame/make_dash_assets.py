@@ -16,3 +16,21 @@ tile.paste(bg, (0, 0))
 tile.paste(ImageOps.mirror(bg), (bg.width, 0))
 tile.save(os.path.join(OUT, 'dash_bg.webp'), quality=82, method=6)
 print('dash_bg.webp', tile.size)
+
+# 足場: 一番上の長い足場を「左はし・まん中・右はし」に切る(切る所は金具のまん中)。
+# ゲームでは まん中 をくり返して、どんな長さの足場にも使う。3つを横に並べた1枚にする
+SCALE = 0.45
+TOP, BOTTOM = 110, 320
+CUTS = {'left': (19, 287), 'mid': (287, 1308), 'right': (1483, 1756)}
+pl = Image.open(os.path.join(HERE, 'dash_platform.png')).convert('RGBA')
+parts = []
+for name, (x0, x1) in CUTS.items():
+    p = pl.crop((x0, TOP, x1, BOTTOM))
+    parts.append((name, p.resize((round(p.width * SCALE), round(p.height * SCALE)), Image.LANCZOS)))
+strip = Image.new('RGBA', (sum(p.width for _, p in parts) + 4 * len(parts), parts[0][1].height))
+x = 0
+for name, p in parts:
+    strip.paste(p, (x, 0))
+    print('platform', name, 'x', x, 'w', p.width, 'h', p.height)
+    x += p.width + 4
+strip.save(os.path.join(OUT, 'dash_platform.webp'), quality=88, method=6)
