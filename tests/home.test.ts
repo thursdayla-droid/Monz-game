@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BunkBrain } from '../src/core/bunkBehavior';
 import { HOME_ACTIONS, HOME_ACTION_LABELS, HOME_LAYOUTS, HOME_PLACES, clipPolygonX, decideHomePlace, insidePolygon } from '../src/core/home';
 import { MonzLife, type LifeAct } from '../src/core/life';
-import { LIFE_KEY, LifeRecord, loadLife } from '../src/core/lifeSave';
+import { LIFE_BACKUP_KEY, LIFE_KEY, LifeRecord, loadLife, migrateLife, saveLife } from '../src/core/lifeSave';
 import { catchUp, expToNext, NEEDS_RULES, newNeeds, stepNeeds } from '../src/core/needs';
 import { needWeights } from '../src/core/life';
 import { mulberry32 } from '../src/core/rng';
@@ -92,7 +92,7 @@ describe('life record', () => {
     expect(rec.spend(10)).toBe(true);
     expect(seen).toEqual([25, 25, 15, -10]);
     expect(new LifeRecord(loadLife(store), store).coins).toBe(15);
-    expect(JSON.parse(store.data[LIFE_KEY]).items).toEqual([]);
+    expect(JSON.parse(store.data[LIFE_KEY]).inventory).toEqual({ owned: [], placed: [] });
   });
 
   it('ignores broken saved data', () => {
@@ -101,12 +101,48 @@ describe('life record', () => {
     expect(loadLife(store).coins).toBe(0);
   });
 
-  it('reads old saves without needs', () => {
+  it('carries over version 1 saves (coins, level, place, needs)', () => {
     const store = memoryStore();
-    store.setItem(LIFE_KEY, JSON.stringify({ version: 1, coins: 7, level: 1, exp: 0, lastSeen: 0, items: [] }));
-    const data = loadLife(store);
-    expect(data.coins).toBe(7);
-    expect(data.needs.full).toBeGreaterThan(0);
+    store.setItem(LIFE_KEY, JSON.stringify({ version: 1, coins: 7, level: 3, exp: 20, lastSeen: 5, items: [], place: 'garage', needs: { full: 0.3 } }));
+    const rec = new LifeRecord(loadLife(store), store);
+    expect(rec.coins).toBe(7);
+    expect(rec.level).toBe(3);
+    expect(rec.monz.exp).toBe(20);
+    expect(rec.monz.species).toBe('bunk');
+    expect(rec.needs.full).toBe(0.3);
+    expect(rec.snapshot.place).toBe('garage');
+    expect(rec.snapshot.lastSeen).toBe(5);
+  });
+
+  it('restores from the backup when the save is broken', () => {
+    const store = memoryStore();
+    const rec = new LifeRecord(loadLife(store), store);
+    rec.add(30);
+    rec.add(5);
+    store.setItem(LIFE_KEY, '{broken');
+    expect(loadLife(store).coins).toBe(30);
+    expect(store.data[LIFE_BACKUP_KEY]).toBeTruthy();
+    saveLife(loadLife(store), store);
+    expect(loadLife(store).coins).toBe(30);
+  });
+
+  it('rejects unknown data instead of crashing', () => {
+    expect(migrateLife({ version: 99 })).toBeNull();
+    expect(migrateLife({ version: 2, monz: [{ uid: 'x', species: 'nope' }] })).toBeNull();
+    expect(migrateLife('hello')).toBeNull();
+  });
+
+  it('pays a minigame reward only once per run, without the daily care cap', () => {
+    const store = memoryStore();
+    const rec = new LifeRecord(loadLife(store), store);
+    const now = Date.UTC(2026, 9, 20, 3);
+    expect(rec.grant({ runId: 'card-1', source: 'card', coins: 100, exp: 30 }, now)).toBe(true);
+    expect(rec.grant({ runId: 'card-1', source: 'card', coins: 100, exp: 30 }, now)).toBe(false);
+    expect(rec.coins).toBe(100);
+    for (let i = 2; i < 10; i++) rec.grant({ runId: `card-${i}`, source: 'card', coins: 0, exp: 30 }, now);
+    // 30 x 9 = 270 exp: お世話の上限(50)に関係なく、レベルが上がる
+    expect(rec.level).toBeGreaterThanOrEqual(3);
+    expect(rec.monz.statPoints).toBeCloseTo((rec.level - 1) * 0.1, 5);
   });
 
   it('caring twice a day levels up in two to three days and pays coins', () => {
@@ -129,10 +165,10 @@ describe('life record', () => {
     expect(firstUp).toBeLessThanOrEqual(2);
     expect(rec.coins).toBeGreaterThan(0);
     // 連打しても1日の上限より多くはたまらない
-    const before = rec.snapshot.exp + rec.snapshot.level * 1000;
+    const before = rec.monz.exp + rec.level * 1000;
     const now = t + 9 * day;
     for (let i = 0; i < 100; i++) rec.pet(true, now);
-    expect(rec.snapshot.exp + rec.snapshot.level * 1000 - before).toBeLessThanOrEqual(NEEDS_RULES.dailyExpCap + expToNext(1));
+    expect(rec.monz.exp + rec.level * 1000 - before).toBeLessThanOrEqual(NEEDS_RULES.dailyExpCap + expToNext(1));
   });
 });
 

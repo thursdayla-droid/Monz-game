@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { speciesName } from '../core/species';
 import { audio } from '../audio/engine';
 import { BunkBrain } from '../core/bunkBehavior';
 import { loadSave } from '../core/save';
@@ -13,7 +14,6 @@ import { addSoundButton } from '../ui/soundButton';
 
 const W = 720;
 const H = 1280;
-const NAMES: Record<string, string> = { bunk: 'BUNK' };
 
 /** 企画者の画像(design/birth/ → design/birth/make_assets.py で切り分け) */
 export const BIRTH_FILES = {
@@ -309,7 +309,7 @@ export class BirthScene extends Phaser.Scene {
       audio.se(brain.pet());
     });
 
-    const name = NAMES[monz] ?? monz.toUpperCase();
+    const name = speciesName(monz);
     this.time.delayedCall(1500, () => {
       // 目を開けて、うれしそうに少し跳ねる
       brain.reaction = { face: 'happy', kind: 'happy', left: 2.2, age: 0 };

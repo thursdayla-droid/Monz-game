@@ -37,3 +37,12 @@ export function randomSeed(): number {
   crypto.getRandomValues(buf);
   return buf[0];
 }
+
+/** 新しい種(1回のゲームごとに作る)。同じ種なら、カードの配り方などを同じに再現できる */
+export function newSeed(): number {
+  try {
+    return globalThis.crypto.getRandomValues(new Uint32Array(1))[0];
+  } catch {
+    return Math.floor(Math.random() * 0xffffffff) >>> 0;
+  }
+}

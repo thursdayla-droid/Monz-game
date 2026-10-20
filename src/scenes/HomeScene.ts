@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { speciesName } from '../core/species';
 import { audio } from '../audio/engine';
 import { BunkBrain } from '../core/bunkBehavior';
 import { HOME_ACTIONS, HOME_ACTION_LABELS, HOME_ACTION_READY, HOME_LAYOUTS, clipPolygonX, decideHomePlace, insidePolygon, type HomeAction, type HomePlace, type Pt } from '../core/home';
@@ -14,7 +15,6 @@ import { preloadPacks } from '../render/packs';
 
 const W = 720;
 const H = 1280;
-const NAMES: Record<string, string> = { bunk: 'BUNK' };
 /** MONZの大きさ(部屋の奥 → 手前)。部屋全体が見渡せるよう小さめ */
 const SCALE_BACK = 0.12;
 const SCALE_FRONT = 0.165;
@@ -127,7 +127,7 @@ export class HomeScene extends Phaser.Scene {
     this.input.on('pointerupoutside', () => this.endStroke());
     this.zText = this.text(0, 0, 'z', 34, '#ffffff').setVisible(false);
 
-    this.buildTop(NAMES[monz] ?? monz.toUpperCase());
+    this.buildTop(speciesName(monz));
     this.buildMenu();
     this.buildTestButtons();
 
@@ -187,7 +187,6 @@ export class HomeScene extends Phaser.Scene {
 
   private buildTop(name: string): void {
     const record = this.record!;
-    const data = record.snapshot;
 
     // 名前・レベルのカード
     canvasTexture(this, 'home:card', 430, 138, (ctx) => drawPanel(ctx, 430, 138, 91));
@@ -219,7 +218,7 @@ export class HomeScene extends Phaser.Scene {
     const ink = '#16101c';
     card.add(this.add.text(140, 18, name, { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '34px', color: ink }));
     // レベルと、次のレベルまでのゲージ(お世話で経験値がたまる)
-    const lv = this.add.text(140, 62, `Lv. ${data.level}`, { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '900', color: ink });
+    const lv = this.add.text(140, 62, `Lv. ${record.level}`, { fontFamily: UI_FONT, fontSize: '24px', fontStyle: '900', color: ink });
     card.add(lv);
     const bar = this.add.graphics();
     const drawBar = () => {
@@ -248,7 +247,7 @@ export class HomeScene extends Phaser.Scene {
     // 増えたり減ったりしたときは、数字が動いて、札が少しはねる
     record.on((e) => {
       drawBar();
-      lv.setText(`Lv. ${record.snapshot.level}`);
+      lv.setText(`Lv. ${record.level}`);
       if (e.type === 'levelUp') {
         this.levelUp(e.level);
         return;
