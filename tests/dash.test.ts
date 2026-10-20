@@ -17,8 +17,9 @@ function autoplay(seed: number, seconds: number) {
 
 describe('DASH MONZ', () => {
   it('jump height and airtime are fixed', () => {
-    expect(jumpHeight()).toBeGreaterThan(200);
-    expect(airtime()).toBeGreaterThan(0.7);
+    expect(jumpHeight()).toBeGreaterThan(130);
+    expect(jumpHeight()).toBeLessThan(170);
+    expect(airtime()).toBeGreaterThan(0.6);
   });
 
   it('runs right, speeds up, and falls off if you never jump', () => {

@@ -16,18 +16,21 @@ export const DASH = {
   runnerW: 70,
   runnerH: 80,
   gravity: 2700,
-  jumpVelocity: 1120,
+  // 2026-10-20 企画者の指示でジャンプを小さく(高さ約150px)
+  jumpVelocity: 900,
   /** 足場から離れたあと、少しの間はまだジャンプできる(押し遅れのゆるし) */
   coyote: 0.08,
-  startSpeed: 380,
-  maxSpeed: 920,
+  // 2026-10-20 企画者の指示で少しゆっくりに
+  startSpeed: 300,
+  maxSpeed: 680,
   /** 1秒ごとに速くなる量 */
-  accel: 9,
+  accel: 5,
   /** これより下に落ちたらゲームオーバー */
   fallY: 1380,
   /** 足場の高さの範囲 */
-  minY: 640,
-  maxY: 1020,
+  // 上り下りを大きく(2026-10-20 企画者の指示)
+  minY: 440,
+  maxY: 1080,
   /** 100px = 1m */
   pxPerMeter: 100,
 } as const;
@@ -108,19 +111,20 @@ function fill(s: DashState): void {
     const speed = Math.min(DASH.maxSpeed, s.speed + DASH.accel * ((s.nextX - s.dist) / s.speed));
     const reach = speed * airtime();
     const level = Math.min(1, s.dist / 60000);
-    const gap = range(rng, 0.25, 0.4 + 0.25 * level) * reach;
-    // 高さの差: 上は跳べる高さの6割まで、下は自由
-    const up = jumpHeight() * 0.6;
-    let y = s.lastY + range(rng, -up, 260);
+    const gap = range(rng, 0.35, 0.55 + 0.2 * level) * reach;
+    // 高さの差: 上は跳べる高さの7割まで、下は大きく降りることもある。上と下へ交互に行きやすくする
+    const up = jumpHeight() * 0.7;
+    const goUp = s.lastY > (DASH.minY + DASH.maxY) / 2 ? rng() < 0.7 : rng() < 0.35;
+    let y = s.lastY + (goUp ? -range(rng, up * 0.4, up) : range(rng, 40, 300));
     y = Math.max(DASH.minY, Math.min(DASH.maxY, y));
     const x = s.nextX + gap;
-    const w = range(rng, 1.1, 3.0 - 1.4 * level) * reach;
+    const w = range(rng, 0.9, 2.4 - 1.0 * level) * reach;
     s.platforms.push({ x, w, y });
     // 足場の上の危険な物。ジャンプで着地しそうな所(足場の始めのほう)と、終わりの近くには置かない。跳べば越えられる大きさ
     const drop = Math.max(0, y - s.lastY);
     const landing = reach * (1.15 + (drop / jumpHeight()) * 0.5);
     // 危険な物を跳び越えたあと、同じ足場に着地できる場所にだけ置く
-    if (w > landing + reach * 1.3 && rng() < 0.35 + 0.4 * level) {
+    if (w > landing + reach * 1.3 && rng() < 0.5 + 0.35 * level) {
       const hx = x + range(rng, landing, w - reach * 1.15);
       s.things.push({ x: hx, y: y - 56, w: 54, h: 56, kind: 'danger' });
     }
