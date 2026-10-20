@@ -3,12 +3,12 @@ import { audio } from '../audio/engine';
 import { BunkBrain } from '../core/bunkBehavior';
 import { loadSave } from '../core/save';
 import { mulberry32, range } from '../core/rng';
-import { assetUrl } from '../assetUrl';
 import LAYOUT from '../render/birthLayout.json';
 import { BUNK_MOTION, BunkView, TEST_PERSONALITY } from '../render/bunkView';
 import { SHELL_PIECES, drawCracks, drawGlow, drawRays, drawShell } from '../ui/birthArt';
 import { canvasTexture, UI_FONT } from '../ui/paint';
 import { createNameplate } from '../ui/nameplate';
+import { preloadPacks, releasePack } from '../render/packs';
 import { addSoundButton } from '../ui/soundButton';
 
 const W = 720;
@@ -16,7 +16,7 @@ const H = 1280;
 const NAMES: Record<string, string> = { bunk: 'BUNK' };
 
 /** 企画者の画像(design/birth/ → design/birth/make_assets.py で切り分け) */
-const FILES = {
+export const BIRTH_FILES = {
   sky: 'sky.webp',
   basket: 'basket.webp',
   basketFront: 'basket_front.webp',
@@ -25,11 +25,8 @@ const FILES = {
   wingNear: 'dragon_wing_near.webp',
   wingFar: 'dragon_wing_far.webp',
 } as const;
-const key = (name: keyof typeof FILES) => `birth:${name}`;
-
-export function loadBirth(load: Phaser.Loader.LoaderPlugin): void {
-  for (const [name, file] of Object.entries(FILES)) load.image(key(name as keyof typeof FILES), assetUrl(`assets/birth/${file}`));
-}
+export const birthKey = (name: keyof typeof BIRTH_FILES) => `birth:${name}`;
+const key = birthKey;
 
 // 籠の場面: ふつうの画面の位置。卵が落ちてきたら、ここへ切りかえる
 const BASKET_TOP = 0;
@@ -67,7 +64,13 @@ export class BirthScene extends Phaser.Scene {
     super('Birth');
   }
 
+  preload(): void {
+    preloadPacks(this, ['bunk', 'birth']);
+  }
+
   create(data: { intro?: boolean }): void {
+    // 誕生の絵は1回しか使わないので、この画面を離れたらメモリから外す(その場で作ったヒビ・殻・光の絵も)
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => releasePack(this, 'birth', 'birth:'));
     this.alive = false;
     this.t = 0;
     const monz = loadSave()?.firstMonz ?? 'bunk';

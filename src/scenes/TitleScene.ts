@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { loadSave } from '../core/save';
 import { addSoundButton } from '../ui/soundButton';
+import { prefetchPacks, preloadPacks, releasePack } from '../render/packs';
 
 const FONT = 'system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif';
 export const TITLE_IMAGE = 'title:image';
@@ -22,7 +23,15 @@ export class TitleScene extends Phaser.Scene {
     this.fromSplash = !!data?.fromSplash;
   }
 
+  preload(): void {
+    preloadPacks(this, ['title']);
+  }
+
   create(): void {
+    // タイトルを見ている間に、次の画面の素材を読んでおく(2回目からはお世話画面、初めてなら誕生シーン)
+    prefetchPacks(this, loadSave() ? ['bunk', 'home'] : ['bunk', 'birth']);
+    // タイトルの絵は大きいので、この画面を離れたらメモリから外す(戻ってきたら読み直す)
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => releasePack(this, 'title'));
     const { width, height } = this.scale;
     const img = this.add.image(width / 2, height / 2, TITLE_IMAGE);
     // 画面をすき間なくおおう大きさ(縦横比はほぼ同じなので、はみ出しはわずか)

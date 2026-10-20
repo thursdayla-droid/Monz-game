@@ -1,13 +1,7 @@
 import * as Phaser from 'phaser';
-import { assetUrl } from '../assetUrl';
 import { clearLife } from '../core/lifeSave';
 import { clearSave } from '../core/save';
-import { loadBunk } from '../render/bunkView';
-import { loadBirth } from './BirthScene';
-import { REFERENCE_CUTOUT, REFERENCE_FILES, REFERENCE_ORIGINAL } from './CompareScene';
-import { BUNK_POSE_IMAGES, bunkPoseKey, HOME_ICONS, HOME_IMAGES, homeIconKey, homeImageKey, MEAT_FILE, MEAT_KEY } from './HomeScene';
-import type { HomePlace } from '../core/home';
-import { TITLE_FILE, TITLE_IMAGE } from './TitleScene';
+import { preloadPacks } from '../render/packs';
 
 /** ふだんは「TAP TO START」→タイトル画面から始める。?parts でBUNKの動きのテスト画面、?compare で元画像との比較画面(開発用)を直接開く */
 const query = new URLSearchParams(location.search);
@@ -25,18 +19,8 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload(): void {
-    const { width, height } = this.scale;
-    const label = this.add.text(width / 2, height / 2, 'よみこみ中…', { fontSize: '32px', color: '#ffffff' }).setOrigin(0.5);
-    this.load.on('progress', (v: number) => label.setText(`よみこみ中… ${Math.round(v * 100)}%`));
-    this.load.image(TITLE_IMAGE, assetUrl(TITLE_FILE));
-    this.load.image(REFERENCE_ORIGINAL, assetUrl(REFERENCE_FILES.original));
-    this.load.image(REFERENCE_CUTOUT, assetUrl(REFERENCE_FILES.cutout));
-    loadBunk(this.load);
-    loadBirth(this.load);
-    for (const [place, file] of Object.entries(HOME_IMAGES)) this.load.image(homeImageKey(place as HomePlace), assetUrl(`assets/home/${file}`));
-    for (const name of HOME_ICONS) this.load.image(homeIconKey(name), assetUrl(`assets/home/icons/${name}.webp`));
-    this.load.image(MEAT_KEY, assetUrl(`assets/home/${MEAT_FILE}`));
-    for (const name of Object.keys(BUNK_POSE_IMAGES)) this.load.image(bunkPoseKey(name), assetUrl(`assets/bunk/poses/${name}.webp`));
+    // 起動時はタイトルの絵だけ。ほかの素材は、それぞれの画面を開くとき(または前の画面を見ている間)に読む
+    preloadPacks(this, START === 'Splash' ? ['title'] : []);
   }
 
   create(): void {

@@ -3,6 +3,7 @@ import { audio } from '../audio/engine';
 import { INTRO, QUESTIONS, decideFirstMonz, type Answers } from '../core/questions';
 import { SAVE_VERSION, writeSave } from '../core/save';
 import { addSoundButton } from '../ui/soundButton';
+import { prefetchPacks } from '../render/packs';
 import { canvasTexture, drawButton, drawCard, drawPaper, drawPlaceCard, drawProgress, drawStreet, richText, richTextHeight, COLORS, CREAM } from '../ui/paint';
 
 const W = 720;
@@ -41,6 +42,8 @@ export class QuestionScene extends Phaser.Scene {
     this.cameras.main.fadeIn(300, 0, 0, 0);
     audio.playBgm('main');
     addSoundButton(this, W - 46, 56);
+    // 質問に答えている間に、誕生シーンの素材を読んでおく
+    prefetchPacks(this, ['bunk', 'birth']);
   }
 
   /** 今の step の画面を作る。dir は切りかえの向き(1=進む, -1=戻る, 0=最初) */

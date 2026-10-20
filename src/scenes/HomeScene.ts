@@ -10,6 +10,7 @@ import { BUNK_MOTION, BunkView, cutoutKey, TEST_PERSONALITY } from '../render/bu
 import { drawCoin, drawGarage, drawHeart, drawIcon, drawMeat, drawMeatImage, drawMenuButton, drawPanel, drawRoom } from '../ui/homeArt';
 import { canvasTexture, canvasTextureOnce, drawPaper, drawStreet, UI_FONT } from '../ui/paint';
 import { openSoundSettings } from '../ui/soundButton';
+import { preloadPacks } from '../render/packs';
 
 const W = 720;
 const H = 1280;
@@ -30,6 +31,14 @@ const DEPTH = { monz: 10, effect: 30, ui: 40, popup: 60 };
  */
 export const HOME_IMAGES: Partial<Record<HomePlace, string>> = { alley: 'alley.webp', garage: 'garage.webp' };
 export const homeImageKey = (p: HomePlace) => `home:bg:${p}`;
+
+/** お世話画面の場所。いちばん最初に1回だけランダムで決めて保存し、そのあとはずっと同じ */
+export function homePlace(): HomePlace {
+  const life = loadLife();
+  const place = decideHomePlace(mulberry32(Date.now() & 0xffffffff), life.place);
+  if (life.place !== place) saveLife({ ...life, place });
+  return place;
+}
 /** 企画者のアイコン(design/home/icons.png → design/home/make_icons.py で切り分け) */
 export const HOME_ICONS = ['food', 'minigame', 'pet', 'battle', 'shop', 'settings', 'coin'] as const;
 export const homeIconKey = (name: string) => `home:icon:${name}`;
@@ -82,14 +91,15 @@ export class HomeScene extends Phaser.Scene {
     super('Home');
   }
 
+  preload(): void {
+    preloadPacks(this, ['bunk', 'home']);
+  }
+
   create(): void {
     this.t = 0;
     this.busy = false;
     const monz = loadSave()?.firstMonz ?? 'bunk';
-    // 場所はいちばん最初に1回だけランダムで決めて保存し、そのあとはずっと同じ
-    const life0 = loadLife();
-    this.place = decideHomePlace(mulberry32(Date.now() & 0xffffffff), life0.place);
-    if (life0.place !== this.place) saveLife({ ...life0, place: this.place });
+    this.place = homePlace();
     this.drawBackground();
 
     // お腹・眠さ・機嫌。閉じていた間のぶんを、まとめて進める

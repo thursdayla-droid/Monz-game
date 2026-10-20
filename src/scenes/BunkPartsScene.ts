@@ -1,7 +1,8 @@
 import * as Phaser from 'phaser';
 import { BunkBrain } from '../core/bunkBehavior';
 import type { BunkFace, BunkPoseName } from '../core/bunkPose';
-import { BUNK_MOTION, BunkView, TEST_PERSONALITY } from '../render/bunkView';
+import { BUNK_MOTION, BunkView, loadBunk, TEST_PERSONALITY } from '../render/bunkView';
+import { preloadPacks } from '../render/packs';
 
 const FONT = 'system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif';
 const SCALE = 0.42;
@@ -26,6 +27,12 @@ export class BunkPartsScene extends Phaser.Scene {
 
   constructor() {
     super('BunkParts');
+  }
+
+  preload(): void {
+    // パーツ確認用に、補った範囲の画像も読む(開発用)
+    preloadPacks(this, ['bunk']);
+    loadBunk(this.load, true);
   }
 
   create(): void {

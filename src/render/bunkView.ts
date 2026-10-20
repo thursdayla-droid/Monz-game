@@ -30,31 +30,49 @@ const fillKey = (pose: BunkPoseName, name: string) => `bunk:${pose}:fill:${name}
 const faceKey = (name: BunkFace) => `bunk:face:${name}`;
 export const cutoutKey = (pose: BunkPoseName) => `bunk:cutout:${pose}`;
 
-/** 読み込み。マニフェストを読んでから、パーツ・補った場所・表情の画像を読む */
-export function loadBunk(load: Phaser.Loader.LoaderPlugin): void {
+/**
+ * 読み込み。マニフェストを読んでから、パーツ・表情の画像を読む。もう読み込んである物は読まない。
+ * withFill: 隠れていた所を補った範囲の画像(パーツ確認画面だけで使う開発用)も読む。
+ * 戻り値: 読み込みに入れた数(0 なら全部そろっている)
+ */
+export function loadBunk(load: Phaser.Loader.LoaderPlugin, withFill = false): number {
+  const scene = load.scene;
+  let queued = 0;
+  const image = (key: string, url: string) => {
+    if (scene.textures.exists(key)) return;
+    load.image(key, url);
+    queued++;
+  };
   const json = (key: string, path: string, then: (data: never) => void) => {
+    const cached = scene.cache.json.get(key);
+    if (cached) {
+      then(cached as never);
+      return;
+    }
     const embedded = embeddedJson(path);
     if (embedded) {
-      load.scene.cache.json.add(key, embedded);
+      scene.cache.json.add(key, embedded);
       then(embedded as never);
       return;
     }
     load.json(key, path);
+    queued++;
     load.once(`filecomplete-json-${key}`, (_k: string, _t: string, data: never) => then(data));
   };
   for (const pose of POSES) {
     const dir = BUNK_MOTION.poses[pose].dir;
-    load.image(cutoutKey(pose), assetUrl(BUNK_MOTION.poses[pose].cutout));
+    image(cutoutKey(pose), assetUrl(BUNK_MOTION.poses[pose].cutout));
     json(manifestKey(pose), `${dir}/parts.json`, (data: PartsManifest) => {
       for (const [name, p] of Object.entries(data.parts)) {
-        load.image(partKey(pose, name), assetUrl(`${dir}/${name}.png`));
-        if (p.filledPx > 0) load.image(fillKey(pose, name), assetUrl(`${dir}/fill/${name}.png`));
+        image(partKey(pose, name), assetUrl(`${dir}/${name}.png`));
+        if (withFill && p.filledPx > 0) image(fillKey(pose, name), assetUrl(`${dir}/fill/${name}.png`));
       }
     });
   }
   json(FACES_KEY, `${BUNK_MOTION.faces.dir}/faces.json`, () => {
-    for (const name of BUNK_MOTION.faces.names) load.image(faceKey(name), assetUrl(`${BUNK_MOTION.faces.dir}/${name}.png`));
+    for (const name of BUNK_MOTION.faces.names) image(faceKey(name), assetUrl(`${BUNK_MOTION.faces.dir}/${name}.png`));
   });
+  return queued;
 }
 
 type Item = { name: string; objs: Phaser.GameObjects.Image[]; fist?: FistMotion; fistY?: number; jab?: boolean };
@@ -131,7 +149,8 @@ export class BunkView extends Phaser.GameObjects.Container {
         const p = manifest.parts[name];
         const img = scene.add.image(0, 0, partKey(pose, name));
         objs = [img];
-        if (p.filledPx > 0) objs.push(scene.add.image(0, 0, fillKey(pose, name)).setTint(0xff00c8).setAlpha(0.65).setVisible(false));
+        // 補った範囲の画像は、開発用に読み込んだときだけ
+        if (p.filledPx > 0 && scene.textures.exists(fillKey(pose, name))) objs.push(scene.add.image(0, 0, fillKey(pose, name)).setTint(0xff00c8).setAlpha(0.65).setVisible(false));
         const fist = pm.fists[name];
         const anchor: [number, number] = fist ? fist.pivot : [p.x, p.y];
         for (const o of objs) {

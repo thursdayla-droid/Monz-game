@@ -1,4 +1,6 @@
 import * as Phaser from 'phaser';
+import { cutoutKey } from '../render/bunkView';
+import { preloadPacks } from '../render/packs';
 
 const FONT = 'system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif';
 /** 元画像(高画質版)の大きさ(px)。両方この倍率で同じ大きさに表示する */
@@ -8,7 +10,8 @@ const PANEL_W = 340;
 const SCALE = (PANEL_W - 20) / SOURCE_W;
 
 export const REFERENCE_ORIGINAL = 'bunk:reference:original';
-export const REFERENCE_CUTOUT = 'bunk:reference:cutout';
+/** ゲーム表示の切り抜きは、BUNKの読み込みと同じ絵を使う(同じ絵を2回読み込まない) */
+export const REFERENCE_CUTOUT = cutoutKey('guard');
 export const REFERENCE_FILES = {
   original: 'assets/bunk/reference/bunk_original_hires.png',
   cutout: 'assets/bunk/reference/bunk_hires_cutout.png',
@@ -21,6 +24,10 @@ export const REFERENCE_FILES = {
 export class CompareScene extends Phaser.Scene {
   constructor() {
     super('Compare');
+  }
+
+  preload(): void {
+    preloadPacks(this, ['bunk', 'compare']);
   }
 
   create(): void {
