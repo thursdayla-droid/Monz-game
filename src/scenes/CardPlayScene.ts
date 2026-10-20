@@ -24,6 +24,7 @@ import { CARD_H, CARD_W, drawCardBack, drawCardFace, drawCardTable, drawGraffiti
 import { drawPanel } from '../ui/homeArt';
 import { canvasTextureOnce, UI_FONT } from '../ui/paint';
 import { homeIconKey } from './HomeScene';
+import { preloadPacks } from '../render/packs';
 
 const W = 720;
 const H = 1280;
@@ -66,9 +67,14 @@ export class CardPlayScene extends Phaser.Scene {
   private scoreText?: Phaser.GameObjects.Text;
   private lastTick = 0;
   private onHide?: () => void;
+  private backKey = 'card:back';
 
   constructor() {
     super('CardPlay');
+  }
+
+  preload(): void {
+    preloadPacks(this, ['card', 'home']);
   }
 
   create(): void {
@@ -79,19 +85,25 @@ export class CardPlayScene extends Phaser.Scene {
     this.hand = [];
     this.big = undefined;
     for (let c = 0; c < DECK_SIZE; c++) canvasTextureOnce(this, cardKey(c), CARD_W, CARD_H, (ctx) => drawCardFace(ctx, c));
-    canvasTextureOnce(this, 'card:back', CARD_W, CARD_H, (ctx) => drawCardBack(ctx));
+    const backImg = this.textures.exists('cardimg:back') ? (this.textures.get('cardimg:back').getSourceImage() as HTMLImageElement) : undefined;
+    canvasTextureOnce(this, backImg ? 'card:backimg' : 'card:back', CARD_W, CARD_H, (ctx) => drawCardBack(ctx, backImg));
+    this.backKey = backImg ? 'card:backimg' : 'card:back';
     canvasTextureOnce(this, 'card:table', W, H, (ctx) => drawCardTable(ctx, W, H));
     this.add.image(0, 0, 'card:table').setOrigin(0, 0);
 
     this.buildTop();
-    // 山札(重ねて見せる)
-    for (let i = 3; i > 0; i--) this.add.image(DECK.x + i * 4, DECK.y + i * 5, 'card:back').setScale(DECK.scale);
-    this.deckImg = this.add.image(DECK.x, DECK.y, 'card:back').setScale(DECK.scale);
+    // 山札(企画者の山札の絵。なければカードの裏を重ねる)
+    if (this.textures.exists('cardimg:deck')) {
+      this.deckImg = this.add.image(DECK.x + 10, DECK.y + 6, 'cardimg:deck').setDisplaySize(CARD_W * DECK.scale * 1.18, CARD_W * DECK.scale * 1.18 * (380 / 300));
+    } else {
+      for (let i = 3; i > 0; i--) this.add.image(DECK.x + i * 4, DECK.y + i * 5, this.backKey).setScale(DECK.scale);
+      this.deckImg = this.add.image(DECK.x, DECK.y, this.backKey).setScale(DECK.scale);
+    }
     this.deckLabel = this.add.text(DECK.x, DECK.y + 120, '', { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '900', color: '#ffffff', stroke: INK, strokeThickness: 7 }).setOrigin(0.5, 0);
     this.scoreText = this.add.text(W / 2, 830, '', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '900', color: '#ffd23a', stroke: INK, strokeThickness: 7 }).setOrigin(0.5);
 
     this.startRound(1);
-    audio.playBgm('main');
+    audio.playBgm('card');
 
     // アプリを閉じたら一時停止(手札を隠す)
     this.onHide = () => {

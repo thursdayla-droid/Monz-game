@@ -5,6 +5,7 @@ import { REFERENCE_FILES, REFERENCE_ORIGINAL } from '../scenes/CompareScene';
 import { BUNK_POSE_IMAGES, bunkPoseKey, HAND_FILE, HAND_KEY, HOME_ICONS, HOME_IMAGES, homeIconKey, homeImageKey, homePlace, MEAT_FILE, MEAT_KEY } from '../scenes/HomeScene';
 import { TITLE_FILE, TITLE_IMAGE } from '../scenes/TitleScene';
 import { SELECT_IMAGE } from '../scenes/MinigameSelectScene';
+import { CARD_IMAGES } from '../ui/cardArt';
 import { loadBunk } from './bunkView';
 
 /**
@@ -16,8 +17,9 @@ import { loadBunk } from './bunkView';
  * - home: お世話画面(今の場所の背景・アイコン・肉)
  * - compare: 元画像との比較画面(開発用)
  * - minigame: ミニゲームのセレクト画面
+ * - card: MONZ CARD(タイトル・ロゴ・カードの裏・山札)
  */
-export type PackName = 'title' | 'bunk' | 'birth' | 'home' | 'compare' | 'minigame';
+export type PackName = 'title' | 'bunk' | 'birth' | 'home' | 'compare' | 'minigame' | 'card';
 
 interface PackFile {
   key: string;
@@ -44,6 +46,8 @@ function packFiles(name: Exclude<PackName, 'bunk'>): PackFile[] {
       return [{ key: REFERENCE_ORIGINAL, url: REFERENCE_FILES.original }];
     case 'minigame':
       return [{ key: SELECT_IMAGE, url: 'assets/minigame/select.webp' }];
+    case 'card':
+      return Object.entries(CARD_IMAGES).map(([key, file]) => ({ key, url: `assets/minigame/${file}` }));
   }
 }
 

@@ -6,6 +6,14 @@ import { COLORS, INK, roundRectPath, speckle, splat, UI_FONT } from './paint';
  * MONZ CARD の絵(プログラムで描く)。【仮】企画者の画像が届いたら、背景・ロゴ・カードの裏・キャラクターは差しかえる。
  * カードの表(数字とマーク)は、このままプログラムで描く。
  */
+/** 企画者の絵(design/minigame/ → make_card_assets.py で切り抜き) */
+export const CARD_IMAGES = {
+  'cardimg:title': 'card_title.webp',
+  'cardimg:logo': 'card_logo.webp',
+  'cardimg:back': 'card_back.webp',
+  'cardimg:deck': 'card_deck.webp',
+} as const;
+
 export const CARD_W = 220;
 export const CARD_H = 310;
 const RED = '#e8243c';
@@ -50,10 +58,15 @@ export function drawCardFace(ctx: CanvasRenderingContext2D, c: CardId): void {
   ctx.fillText(mark, w - 44, h - 46);
 }
 
-/** カードの裏(青に王冠) */
-export function drawCardBack(ctx: CanvasRenderingContext2D): void {
+/** カードの裏。企画者の絵(img)があれば、それをカードの大きさに収めて描く。なければ仮の絵(青に王冠) */
+export function drawCardBack(ctx: CanvasRenderingContext2D, img?: CanvasImageSource & { width: number; height: number }): void {
   const w = CARD_W;
   const h = CARD_H;
+  if (img) {
+    const k = Math.min(w / img.width, h / img.height);
+    ctx.drawImage(img, (w - img.width * k) / 2, (h - img.height * k) / 2, img.width * k, img.height * k);
+    return;
+  }
   roundRectPath(ctx, 6, 6, w - 12, h - 12, 22);
   const g = ctx.createLinearGradient(0, 0, w, h);
   g.addColorStop(0, '#2f6fff');

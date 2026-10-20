@@ -540,7 +540,8 @@ export class HomeScene extends Phaser.Scene {
       }
     }
     const wobble = Math.sin(this.t * 14) * 8;
-    if (useImage) this.strokeHand.setVisible(true).setAlpha(1).setPosition(x - 4, y - 55).setAngle(wobble);
+    // 手の絵がまるごと指より上に見えるように(指先から下に手が描いてあるので、そのままだと本物の指に隠れる)
+    if (useImage) this.strokeHand.setVisible(true).setAlpha(1).setPosition(x - 10, y - 150).setAngle(wobble);
     else this.strokeHand.setVisible(true).setPosition(x + 16, y - 90).setAngle(180 + wobble);
   }
 

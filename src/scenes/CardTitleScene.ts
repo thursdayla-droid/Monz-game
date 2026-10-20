@@ -6,6 +6,7 @@ import { CARD_H, CARD_W, drawCardBack, drawCardFace, drawCardTable, drawGraffiti
 import { drawPanel } from '../ui/homeArt';
 import { canvasTextureOnce, UI_FONT } from '../ui/paint';
 import { homeIconKey } from './HomeScene';
+import { preloadPacks } from '../render/packs';
 
 const W = 720;
 const H = 1280;
@@ -13,14 +14,61 @@ const INK = '#16101c';
 
 /**
  * MONZ CARD のタイトル画面: PLAY・遊び方・もどる(ミニゲームのセレクトへ)。
- * 【仮】絵はプログラムで描いた仮の絵。企画者の画像(背景・ロゴ・キャラクター)が届いたら差しかえる。
+ * 絵は企画者のタイトルの絵(2026-10-20)。読み込めなかったときだけ、プログラムで描いた仮の絵を出す。
  */
 export class CardTitleScene extends Phaser.Scene {
   constructor() {
     super('CardTitle');
   }
 
+  preload(): void {
+    preloadPacks(this, ['card', 'home']);
+  }
+
   create(): void {
+    if (this.textures.exists('cardimg:title')) this.buildFromArt();
+    else this.buildDrawn();
+    this.cameras.main.fadeIn(250, 0, 0, 0);
+    audio.playBgm('card');
+  }
+
+  /** 企画者のタイトルの絵(design/minigame/card_title.png・941x1672)。押せる所は絵の座標で決める */
+  private buildFromArt(): void {
+    const sx = W / 941;
+    const sy = H / 1672;
+    this.add.image(0, 0, 'cardimg:title').setOrigin(0, 0).setDisplaySize(W, H);
+    const zone = ([x0, y0, x1, y1]: number[], onTap: () => void) => {
+      const z = this.add.rectangle(x0 * sx, y0 * sy, (x1 - x0) * sx, (y1 - y0) * sy, 0xffffff, 0).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+      z.on('pointerdown', () => {
+        z.setFillStyle(0xffffff, 0.25);
+        this.tweens.add({ targets: z, fillAlpha: 0, duration: 220 });
+        onTap();
+      });
+    };
+    zone([35, 40, 265, 115], () => this.back());
+    zone([140, 1210, 820, 1395], () => this.play());
+    zone([245, 1480, 690, 1585], () => this.howTo());
+    // 絵に描いてあるコインの数を隠して、本当の数を出す
+    this.add.rectangle(728 * sx, 46 * sy, 108 * sx, 46 * sy, 0x01060e, 1).setOrigin(0, 0);
+    const life = loadLife();
+    this.add.text(834 * sx, 69 * sy, life.coins.toLocaleString(), { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '28px', color: '#ffffff' }).setOrigin(1, 0.5);
+    const rec = life.records.card;
+    if (rec) this.add.text(W / 2, 1172 * sy, `自己ベスト：${rec.bestScore}枚（ラウンド${rec.bestRound}）`, { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '900', color: '#ffd23a', stroke: INK, strokeThickness: 8 }).setOrigin(0.5);
+  }
+
+  private back(): void {
+    audio.se('back');
+    this.scene.start('MinigameSelect');
+  }
+
+  private play(): void {
+    audio.se('sting');
+    this.cameras.main.fadeOut(250, 0, 0, 0);
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('CardPlay'));
+  }
+
+  /** 【仮】絵が読めなかったときの、プログラムで描いた画面 */
+  private buildDrawn(): void {
     canvasTextureOnce(this, 'card:table', W, H, (ctx) => drawCardTable(ctx, W, H));
     this.add.image(0, 0, 'card:table').setOrigin(0, 0);
     canvasTextureOnce(this, 'card:back', CARD_W, CARD_H, (ctx) => drawCardBack(ctx));
@@ -45,10 +93,7 @@ export class CardTitleScene extends Phaser.Scene {
 
     // もどる・コイン
     const back = this.add.text(24, 28, '◀', { fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: '#ffffff', backgroundColor: '#16101ccc', padding: { x: 18, y: 8 } }).setInteractive({ useHandCursor: true });
-    back.on('pointerdown', () => {
-      audio.se('back');
-      this.scene.start('MinigameSelect');
-    });
+    back.on('pointerdown', () => this.back());
     canvasTextureOnce(this, 'card:coinbox', 190, 70, (ctx) => drawPanel(ctx, 190, 70, 93));
     this.add.image(W - 20 - 95, 65, 'card:coinbox');
     if (this.textures.exists(homeIconKey('coin'))) this.add.image(W - 20 - 158, 65, homeIconKey('coin')).setDisplaySize(56, 56);
@@ -61,15 +106,9 @@ export class CardTitleScene extends Phaser.Scene {
     // PLAY・遊び方
     const play = this.add.text(W / 2, 1010, '  PLAY ▶  ', { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '58px', color: INK, backgroundColor: '#ffd23a', padding: { x: 30, y: 14 } }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     this.tweens.add({ targets: play, scale: 1.05, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    play.on('pointerdown', () => {
-      audio.se('sting');
-      this.cameras.main.fadeOut(250, 0, 0, 0);
-      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('CardPlay'));
-    });
+    play.on('pointerdown', () => this.play());
     const how = this.add.text(W / 2, 1150, '  📖 遊び方  ', { fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: '#ffffff', backgroundColor: '#16101c', padding: { x: 20, y: 10 } }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     how.on('pointerdown', () => this.howTo());
-    this.cameras.main.fadeIn(250, 0, 0, 0);
-    audio.playBgm('main');
   }
 
   private howTo(): void {
@@ -78,6 +117,7 @@ export class CardTitleScene extends Phaser.Scene {
     const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.7).setOrigin(0, 0).setInteractive();
     canvasTextureOnce(this, 'card:howpanel', 640, 900, (ctx) => drawPanel(ctx, 640, 900, 98));
     const panel = this.add.image(W / 2, H / 2, 'card:howpanel');
+    const logo = this.textures.exists('cardimg:logo') ? this.add.image(W / 2, H / 2 - 470, 'cardimg:logo').setScale(0.6) : null;
     const R = CARD_REWARD;
     const text = [
       '遊び方',
@@ -104,5 +144,6 @@ export class CardTitleScene extends Phaser.Scene {
       box.destroy();
     });
     box.add([dim, panel, t, close]);
+    if (logo) box.add(logo);
   }
 }
