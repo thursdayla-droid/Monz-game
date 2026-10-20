@@ -112,7 +112,7 @@ export class DashScene extends Phaser.Scene {
     this.drawWorld();
     this.showTitle();
     this.cameras.main.fadeIn(250, 0, 0, 0);
-    audio.playBgm('main');
+    audio.playBgm('dash');
   }
 
   // ---------------- タイトル ----------------
@@ -187,7 +187,7 @@ export class DashScene extends Phaser.Scene {
     this.s = newDash(newSeed());
     this.runId = `dash-${Date.now().toString(36)}-${newSeed().toString(36)}`;
     this.phase = 'run';
-    audio.playBgm('main');
+    audio.playBgm('dash');
   }
 
   private pause(): void {

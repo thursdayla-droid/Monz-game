@@ -4,8 +4,9 @@
  * - main: 「California Sunset Groove」タイトル・質問・誕生の場面(2026-10-19 企画者決定)
  * - home: 「Smooth Minimal Groove」お世話画面(ホーム)
  * - card: 「Countdown Tension」ミニゲーム MONZ CARD(2026-10-20)
+ * - dash: ミニゲーム DASH MONZ(2026-10-20 企画者決定。元は music/dash.m4a)
  */
-export type BgmName = 'main' | 'home' | 'card';
+export type BgmName = 'main' | 'home' | 'card' | 'dash';
 
 export interface BgmFile {
   file: string;
@@ -17,4 +18,5 @@ export const BGM_FILES: Record<BgmName, BgmFile> = {
   main: { file: 'main.mp3', loop: true },
   home: { file: 'home.mp3', loop: true },
   card: { file: 'card.mp3', loop: true },
+  dash: { file: 'dash.mp3', loop: true },
 };
