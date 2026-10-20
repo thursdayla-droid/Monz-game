@@ -96,11 +96,48 @@ export class MonzLife {
     this.timer = range(rng, ...IDLE_TIME);
   }
 
-  /** なでる・ごはんなどのあいだ、自分で動くのを止める(秒) */
-  pause(seconds: number): void {
+  /** なでる・ごはんなどのあいだ、自分で動くのを止める(秒)。keepAct: 今の行動(眠るなど)は続けたまま止まる */
+  pause(seconds: number, keepAct = false): void {
     this.paused = Math.max(this.paused, seconds);
     this.target = null;
+    if (keepAct) {
+      if (this.act !== 'sleep') this.body.start('idle');
+      return;
+    }
     if (this.act !== 'idle') this.begin('idle', range(this.rng, ...IDLE_TIME));
+  }
+
+  /** タップされた: 足を止めて、こっちを見る(眠っていたら起きて嫌がる) */
+  tapped(): 'look' | 'angry' {
+    if (this.act === 'sleep') {
+      this.pause(1.6);
+      this.body.pet();
+      return 'angry';
+    }
+    this.pause(1.6);
+    this.facing = 1;
+    this.body.setPose('guard');
+    this.body.reaction = { face: this.rng() < 0.5 ? 'happy' : null, kind: 'calm', left: 1.4, age: 0 };
+    return 'look';
+  }
+
+  /**
+   * 指でなでられている(なぞった距離ごとに呼ぶ)。止まったまま、うれしそうにする。ときどき小さく跳ねる。
+   * 眠っているときは起こさずに、気持ちよさそうに眠り続ける。機嫌が悪いと、ときどき嫌がる。
+   */
+  stroked(): 'happy' | 'angry' | 'asleep' {
+    if (this.act === 'sleep') {
+      this.pause(1.2, true);
+      return 'asleep';
+    }
+    this.pause(1.2, true);
+    if (this.needs().mood < 0.3 && this.rng() < 0.35) {
+      this.body.reaction = { face: 'angry', kind: 'angry', left: 1.2, age: 0 };
+      return 'angry';
+    }
+    const hop = this.rng() < 0.2;
+    this.body.reaction = { face: this.rng() < 0.85 ? 'happy' : 'closed', kind: hop ? 'happy' : 'calm', left: hop ? 1.0 : 0.8, age: 0 };
+    return 'happy';
   }
 
   get isPaused(): boolean {

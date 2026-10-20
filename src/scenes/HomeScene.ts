@@ -70,6 +70,9 @@ export class HomeScene extends Phaser.Scene {
   private record?: LifeRecord;
   private saveTimer = 0;
   private bubble?: Phaser.GameObjects.Image;
+  /** 指でなでている途中(なぞった距離など)。null ならなでていない */
+  private stroke: { x: number; y: number; dist: number; sinceTick: number; ticks: number; happy: number; angry: boolean } | null = null;
+  private strokeHand?: Phaser.GameObjects.Image;
   /** 行動に合わせた姿の絵(座る・眠る・伸び・見渡す・お腹がすいた・眠い)。出している間は BunkView を隠す */
   private poseImg?: Phaser.GameObjects.Image;
   private shownPose: BunkPoseImage | null = null;
@@ -104,9 +107,13 @@ export class HomeScene extends Phaser.Scene {
     const view = new BunkView(this, life.x, life.y, SCALE_BACK);
     view.still = false;
     this.view = view;
-    view.on('pointerdown', () => this.tapMonz());
+    view.on('pointerdown', (p: Phaser.Input.Pointer) => this.startStroke(p));
     this.poseImg = this.add.image(life.x, life.y, '__DEFAULT').setOrigin(0.5, 1).setVisible(false).setInteractive({ useHandCursor: true, pixelPerfect: false });
-    this.poseImg.on('pointerdown', () => this.tapMonz());
+    this.poseImg.on('pointerdown', (p: Phaser.Input.Pointer) => this.startStroke(p));
+    // 指でなぞってなでる: 指の動きを追う
+    this.input.on('pointermove', (p: Phaser.Input.Pointer) => this.moveStroke(p));
+    this.input.on('pointerup', () => this.endStroke());
+    this.input.on('pointerupoutside', () => this.endStroke());
     this.zText = this.text(0, 0, 'z', 34, '#ffffff').setVisible(false);
 
     this.buildTop(NAMES[monz] ?? monz.toUpperCase());
@@ -259,6 +266,8 @@ export class HomeScene extends Phaser.Scene {
   /** 今の行動に合う姿の絵(なければ null = ふつうのBUNKを動かす) */
   private poseFor(): BunkPoseImage | null {
     const life = this.life!;
+    // 眠っているときは、なでられていても眠った姿のまま
+    if (life.act === 'sleep' && this.textures.exists(bunkPoseKey('sleep'))) return 'sleep';
     if (life.isPaused || life.body.reaction?.kind === 'happy' || life.body.reaction?.kind === 'angry' || life.body.reaction?.kind === 'surprised') return null;
     const n = this.record?.needs;
     const has = (p: BunkPoseImage) => (this.textures.exists(bunkPoseKey(p)) ? p : null);
@@ -409,17 +418,83 @@ export class HomeScene extends Phaser.Scene {
 
   // ---------------- MONZとのふれあい ----------------
 
-  /** MONZをタップ: 足を止めて反応する(第2段階でなでる動きを足す) */
+  /** MONZをタップ: 足を止めて、こっちを見る(眠っていたら起きて嫌がる。眠ければ、またすぐ眠る) */
   private tapMonz(): void {
     if (this.busy || !this.life) return;
+    const kind = this.life.tapped();
+    if (kind === 'angry') {
+      this.record?.setAsleep(false);
+      audio.se('angry');
+    } else audio.se('surprised', { pitch: 1.3 });
+  }
+
+  // ---- 指でなぞってなでる ----
+  /** なでた距離(px)がこれだけたまるたびに反応する */
+  private static STROKE_STEP = 70;
+
+  private startStroke(p: Phaser.Input.Pointer): void {
+    if (this.busy || !this.life) return;
+    this.stroke = { x: p.x, y: p.y, dist: 0, sinceTick: 0, ticks: 0, happy: 0, angry: false };
+  }
+
+  private moveStroke(p: Phaser.Input.Pointer): void {
+    const s = this.stroke;
     const life = this.life;
-    life.pause(1.8);
-    const kind = life.petted();
-    this.record?.pet(kind === 'happy');
-    // 眠っていたら起こしてしまう(眠ければ、またすぐ眠る)
-    this.record?.setAsleep(false);
-    audio.se(kind);
-    if (kind === 'happy' && Math.random() < 0.7) this.hearts(2);
+    if (!s || !life || !p.isDown || s.angry) return;
+    const d = Math.hypot(p.x - s.x, p.y - s.y);
+    s.x = p.x;
+    s.y = p.y;
+    // MONZの体の上をなぞっているときだけ数える
+    const sc = this.scaleAt(life.y);
+    const onBody = Math.abs(p.x - life.x) < 600 * sc && p.y < life.y + 20 && p.y > life.y - MONZ_H * sc - 30;
+    if (!onBody) return;
+    s.dist += d;
+    s.sinceTick += d;
+    if (s.dist > 18) this.showStrokeHand(p.x, p.y);
+    if (s.sinceTick < HomeScene.STROKE_STEP) return;
+    s.sinceTick = 0;
+    s.ticks++;
+    const kind = life.stroked();
+    if (kind === 'angry') {
+      // 嫌がった: そこでやめる
+      s.angry = true;
+      audio.se('angry');
+      this.hideStrokeHand();
+      return;
+    }
+    s.happy++;
+    audio.se('tap', { pitch: kind === 'asleep' ? 0.8 : 1.25 + Math.random() * 0.2 });
+    // ときどきハート(眠っているときは小さく1つ)
+    if (s.ticks % 3 === 0 && Math.random() < 0.6) {
+      this.hearts(kind === 'asleep' ? 1 : 1 + Math.floor(Math.random() * 2));
+      if (kind === 'happy' && Math.random() < 0.5) audio.se('happy');
+    }
+  }
+
+  private endStroke(): void {
+    const s = this.stroke;
+    this.stroke = null;
+    this.hideStrokeHand();
+    if (!s || !this.life) return;
+    // ほとんど動かしていなければタップ
+    if (s.ticks === 0 && s.dist < 18) {
+      this.tapMonz();
+      return;
+    }
+    // なで終わり: 機嫌と経験値(1回のなでるにつき1回ぶん)
+    if (s.ticks > 0) this.record?.pet(!s.angry && s.happy > 0);
+  }
+
+  private showStrokeHand(x: number, y: number): void {
+    if (!this.strokeHand) {
+      canvasTexture(this, 'home:hand', 220, 220, (ctx) => drawIcon(ctx, 'pet', 110, 116, 82));
+      this.strokeHand = this.add.image(0, 0, 'home:hand').setDepth(DEPTH.effect).setScale(0.45).setAngle(180);
+    }
+    this.strokeHand.setVisible(true).setPosition(x + 10, y - 30).setAngle(180 + Math.sin(this.t * 14) * 8);
+  }
+
+  private hideStrokeHand(): void {
+    this.strokeHand?.setVisible(false);
   }
 
   /** ごはん: 骨付き肉が落ちてきて、3口で食べる(かじった跡が増えて、最後は消える) */
