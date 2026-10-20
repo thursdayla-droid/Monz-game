@@ -667,7 +667,9 @@ export class HomeScene extends Phaser.Scene {
         gauge.fillStyle(0x16101c, 1).fillRoundedRect(gx, y + 22, gw, 26, 13);
         gauge.fillStyle(0xe8dcc0, 1).fillRoundedRect(gx + 4, y + 26, gw - 8, 18, 9);
         const fill = Math.max(0, Math.min(1, r.value / r.max));
-        if (fill > 0) gauge.fillStyle(r.color, 1).fillRoundedRect(gx + 4, y + 26, Math.max(18, (gw - 8) * fill), 18, 9);
+        // 長さは数字そのまま(最大でいっぱい)
+        const fw = (gw - 8) * fill;
+        if (fw > 0) gauge.fillStyle(r.color, 1).fillRoundedRect(gx + 4, y + 26, fw, 18, Math.min(9, fw / 2));
         content.add(gauge);
         content.add(t(right, y + 14, String(r.value), 34, ink, 1));
         if (r.key && pts > 0 && r.value < STAT_MAX) {
