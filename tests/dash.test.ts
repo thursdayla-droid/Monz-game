@@ -75,8 +75,9 @@ describe('DASH MONZ', () => {
     expect(autoplay(5, 20).dist).toBe(autoplay(5, 20).dist);
   });
 
-  it('rewards 1 coin per 100m', () => {
-    expect(dashReward(99)).toEqual({ coins: 0, exp: 1 });
-    expect(dashReward(250)).toEqual({ coins: 2, exp: 3 });
+  it('rewards 1 coin per 500m', () => {
+    expect(dashReward(399)).toEqual({ coins: 0, exp: 0 });
+    expect(dashReward(499)).toEqual({ coins: 0, exp: 1 });
+    expect(dashReward(1250)).toEqual({ coins: 2, exp: 3 });
   });
 });
