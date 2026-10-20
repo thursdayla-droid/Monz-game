@@ -128,8 +128,7 @@ function fill(s: DashState): void {
       const hx = x + range(rng, landing, w - reach * 1.15);
       s.things.push({ x: hx, y: y - 56, w: 54, h: 56, kind: 'danger' });
     }
-    // 【仮】さわっても大丈夫な物(ナルトの代わり)。空中に浮かぶ
-    if (rng() < 0.45) s.things.push({ x: x + range(rng, 0, w), y: y - range(rng, 120, 220), w: 56, h: 56, kind: 'safe' });
+    // さわっても大丈夫な物(星)は 2026-10-20 企画者の指示で廃止(まぎらわしいため)
     s.nextX = x + w;
     s.lastY = y;
   }

@@ -148,7 +148,6 @@ export class DashScene extends Phaser.Scene {
       '  （いつも同じ高さ。空中では跳べない）',
       '・足場から落ちたらゲームオーバー',
       '・赤いトゲに当たってもゲームオーバー',
-      '・黄色い星はさわっても大丈夫',
       '・進むほど、だんだん速くなるよ',
       '',
       `報酬：${DASH_REWARD.metersPerCoin}mごとに1コイン`,
@@ -257,20 +256,6 @@ export class DashScene extends Phaser.Scene {
         g.lineTo(x + t.w * 0.5, t.y + t.h * 0.45);
         g.lineTo(x + t.w * 0.75, t.y);
         g.lineTo(x + t.w, t.y + t.h);
-        g.closePath();
-        g.fillPath();
-        g.strokePath();
-      } else {
-        // 黄色い星(さわっても大丈夫)
-        const cx = x + t.w / 2;
-        const cy = t.y + t.h / 2 + Math.sin(this.t * 3 + t.x) * 6;
-        g.fillStyle(0xffd23a, 1).lineStyle(5, 0x16101c, 1);
-        g.beginPath();
-        for (let i = 0; i < 10; i++) {
-          const a = (i / 10) * Math.PI * 2 - Math.PI / 2;
-          const r = i % 2 ? 11 : 26;
-          g.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
-        }
         g.closePath();
         g.fillPath();
         g.strokePath();
