@@ -59,3 +59,10 @@ def save_pose(im: Image.Image, name: str, width: int) -> None:
 
 save_pose(Image.open(os.path.join(HERE, 'dash_run.png')).convert('RGBA'), 'dash_run.webp', 360)
 save_pose(cut_checker(os.path.join(HERE, 'dash_jump.png')), 'dash_jump.webp', 300)
+
+# ロゴ: もともと背景が透明。透明の所を切りつめて縮小するだけ
+lg = Image.open(os.path.join(HERE, 'dash_logo.png')).convert('RGBA')
+lg = lg.crop(lg.getchannel('A').point(lambda v: 255 if v > 20 else 0).getbbox())
+h = round(lg.height * 680 / lg.width)
+lg.resize((680, h), Image.LANCZOS).save(os.path.join(OUT, 'dash_logo.webp'), quality=88, method=6)
+print('dash_logo.webp', (680, h))

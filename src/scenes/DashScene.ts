@@ -33,6 +33,10 @@ const POSES = {
   jump: { key: DASH_JUMP_KEY, height: 112, ox: 0.6, oy: 0.96 },
 };
 
+/** タイトルのロゴ(企画者の絵) */
+export const DASH_LOGO_KEY = 'dash:logo';
+export const DASH_LOGO_FILE = 'assets/minigame/dash_logo.webp';
+
 const W = 720;
 const H = 1280;
 const INK = '#16101c';
@@ -117,8 +121,8 @@ export class DashScene extends Phaser.Scene {
     this.phase = 'ready';
     const box = this.add.container(0, 0).setDepth(20);
     const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.35).setOrigin(0, 0).setInteractive();
-    const logo = this.add.text(W / 2, 300, 'DASH\nMONZ', { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '130px', color: '#ffd23a', stroke: INK, strokeThickness: 18, align: 'center', lineSpacing: -20 }).setOrigin(0.5).setAngle(-6);
-    const sub = this.add.text(W / 2, 470, 'ダッシュモンズ', { fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: '#ffffff', stroke: INK, strokeThickness: 8 }).setOrigin(0.5);
+    const logo = this.add.image(W / 2, 290, DASH_LOGO_KEY);
+    const sub = this.add.text(W / 2, 480, 'ダッシュモンズ', { fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: '#ffffff', stroke: INK, strokeThickness: 8 }).setOrigin(0.5);
     const rec = loadLife().records.dash;
     const best = this.add.text(W / 2, 560, rec ? `自己ベスト：${rec.bestScore}m` : '', { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '900', color: '#ffd23a', stroke: INK, strokeThickness: 8 }).setOrigin(0.5);
     const play = this.button(W / 2, 1010, '  PLAY ▶  ', '#ffd23a', INK, 58);
