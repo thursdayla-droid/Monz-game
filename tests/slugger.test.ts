@@ -75,46 +75,32 @@ describe('MONZ SLUGGER', () => {
     expect(homers).toBeGreaterThan(10);
   });
 
-  it('count: 3 strikes is a strikeout, 4 balls a walk, fouls with 2 strikes keep the count', () => {
+  it('three swings and misses end the game; taking a pitch or a foul changes nothing', () => {
     const s = newSlugger(1);
-    const r = (outcome: SwingResult['outcome']): SwingResult => ({ grade: 'miss', outcome, timing: 0, offset: 0, distance: 0, homerun: false, points: 0, dir: 0, atBatEnd: null });
-    applyResult(s, r('strikeTaken'));
-    applyResult(s, r('foul'));
-    expect(s.strikes).toBe(2);
-    applyResult(s, r('foul'));
-    applyResult(s, r('foul'));
-    expect(s.strikes).toBe(2);
-    expect(applyResult(s, r('swingMiss')).atBatEnd).toBe('strikeout');
-    expect(s.outs).toBe(1);
-    expect(s.strikes).toBe(0);
-    for (let i = 0; i < 3; i++) expect(applyResult(s, r('ball')).atBatEnd).toBe(null);
-    expect(applyResult(s, r('ball')).atBatEnd).toBe('walk');
-    expect(s.outs).toBe(1);
-    expect(s.balls).toBe(0);
-  });
-
-  it('three strikeouts end the game; a strikeout resets the hit streak, a walk does not', () => {
-    const s = newSlugger(1);
-    const hit: SwingResult = { grade: 'great', outcome: 'hit', contact: 'liner', timing: 0, offset: 0, distance: 60, homerun: false, points: 0, dir: 0, atBatEnd: null };
-    const ball: SwingResult = { ...hit, grade: 'miss', outcome: 'ball', distance: 0 };
-    const strike: SwingResult = { ...hit, grade: 'miss', outcome: 'swingMiss', distance: 0 };
+    const hit: SwingResult = { grade: 'great', outcome: 'hit', contact: 'liner', timing: 0, offset: 0, distance: 60, homerun: false, points: 0, dir: 0 };
+    const r = (outcome: SwingResult['outcome']): SwingResult => ({ ...hit, grade: 'miss', outcome, distance: 0 });
     applyResult(s, hit);
     applyResult(s, hit);
-    for (let i = 0; i < 4; i++) applyResult(s, ball);
+    for (let i = 0; i < 10; i++) {
+      applyResult(s, r('strikeTaken'));
+      applyResult(s, r('ball'));
+      applyResult(s, r('foul'));
+    }
+    expect(s.whiffs).toBe(0);
     expect(s.streak).toBe(2);
-    for (let i = 0; i < 3; i++) applyResult(s, strike);
-    expect(s.outs).toBe(1);
+    applyResult(s, r('swingMiss'));
+    expect(s.whiffs).toBe(1);
     expect(s.streak).toBe(0);
     expect(s.bestStreak).toBe(2);
-    for (let i = 0; i < 3; i++) applyResult(s, strike);
+    applyResult(s, r('swingMiss'));
     expect(s.over).toBe(false);
-    for (let i = 0; i < 3; i++) applyResult(s, strike);
+    applyResult(s, r('swingMiss'));
     expect(s.over).toBe(true);
   });
 
   it('the score is the total distance', () => {
     const s = newSlugger(1);
-    const hit: SwingResult = { grade: 'great', outcome: 'hit', contact: 'liner', timing: 0, offset: 0, distance: 60, homerun: false, points: 0, dir: 0, atBatEnd: null };
+    const hit: SwingResult = { grade: 'great', outcome: 'hit', contact: 'liner', timing: 0, offset: 0, distance: 60, homerun: false, points: 0, dir: 0 };
     expect(applyResult(s, hit).points).toBe(60);
     expect(applyResult(s, { ...hit, outcome: 'homerun', homerun: true, distance: 130 }).points).toBe(130);
     applyResult(s, { ...hit, grade: 'miss', outcome: 'ball', distance: 0 });
@@ -168,11 +154,15 @@ describe('MONZ SLUGGER', () => {
     expect(markerLead(200)).toBeCloseTo(0.3);
   });
 
-  it('a player who never swings ends by strikeouts; one who aims well keeps going', () => {
+  it('a player who swings at nothing never ends by itself; one who swings badly ends after 3 misses; one who aims well keeps going', () => {
     const lazy = newSlugger(4);
-    for (let i = 0; i < 500 && !lazy.over; i++) applyResult(lazy, judge(nextPitch(lazy), null, { x: 0, y: 0 }));
-    expect(lazy.over).toBe(true);
+    for (let i = 0; i < 200; i++) applyResult(lazy, judge(nextPitch(lazy), null, { x: 0, y: 0 }));
+    expect(lazy.over).toBe(false);
     expect(lazy.score).toBe(0);
+    const bad = newSlugger(4);
+    for (let i = 0; i < 200 && !bad.over; i++) applyResult(bad, judge(nextPitch(bad), 0.1, { x: 0, y: 0 }));
+    expect(bad.over).toBe(true);
+    expect(bad.whiffs).toBe(3);
     const good = newSlugger(7);
     const rng = rngOf(good);
     for (let i = 0; i < 300; i++) {

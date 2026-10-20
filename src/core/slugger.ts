@@ -5,10 +5,10 @@ import { mulberry32, type Rng } from './rng';
  * エンドレスのバッティング。ピッチャーが自動で投げ、プレイヤーはミートカーソルを動かしてスイングする。
  *
  * プロ野球ゲームのような打ち方(企画者決定 2026-10-20):
- * - ストライクとボールがある。ボール球は見送ってよい。3ストライクで三振(アウト)、4ボールでフォアボール
+ * - ゾーンの外に来る球(ボール球)もある。見送っても、ファウルでも、何も起きない
  * - 当たり所で打球が変わる。カーソルがボールより上だとゴロ、まん中だとライナー、下だとフライ。早く振ると引っぱり、遅いと流し打ち
  * - 打てば必ずヒットかホームラン(捕られてアウトはない。2026-10-20 企画者決定)。点数は飛距離の合計
- * - アウトは三振だけ。3アウト(3三振)でゲームおしまい
+ * - 空振りを3回したらゲームおしまい(2026-10-20 企画者決定。カウント・三振・フォアボールはなくした)
  *
  * 座標: ストライクゾーンのまん中が (0,0)。横 x は左が -、右が +。縦 y は下が -、上が +。ゾーンの端が ±1。
  * 奥行き z: 0 がホームベース(バッターの所)、1 がピッチャーの手。
@@ -36,8 +36,8 @@ export const SLUG = {
   contactSplit: 0.33,
   /** スイングを受けつける時間: ボールが着く何秒前から(これより早いと空振り) */
   swingEarly: 0.32,
-  /** アウトの数でゲームおしまい */
-  maxOuts: 3,
+  /** 空振りの回数でゲームおしまい */
+  maxWhiffs: 3,
   /** 投げるまでの時間(構え→振りかぶり)と、打ったあとの間(秒) */
   windup: 1.0,
   afterPitch: 1.2,
@@ -55,8 +55,6 @@ export type Contact = 'grounder' | 'liner' | 'fly';
  * swingMiss 空振り / strikeTaken 見のがしストライク / ball ボール(見送り)
  */
 export type Outcome = 'hit' | 'homerun' | 'foul' | 'swingMiss' | 'strikeTaken' | 'ball';
-/** 打席の終わり方 */
-export type AtBatEnd = 'hit' | 'strikeout' | 'walk';
 
 /**
  * 難しさ(ヒットの合計で決まる)。企画者の初期案(段の分け方):
@@ -130,8 +128,6 @@ export interface SwingResult {
   points: number;
   /** 打球の方向(-1 左 〜 +1 右)。早いと引っぱり(左)、遅いと流し打ち(右) */
   dir: number;
-  /** この球で打席が終わったら、その終わり方 */
-  atBatEnd: AtBatEnd | null;
 }
 
 export interface SluggerState {
@@ -139,20 +135,16 @@ export interface SluggerState {
   rngState: number;
   score: number;
   hits: number;
-  /** 連続ヒット(三振で 0 に戻る。フォアボールでは切れない)と その最高 */
+  /** 連続ヒット(空振りで 0 に戻る。見送り・ファウルでは切れない)と その最高 */
   streak: number;
   bestStreak: number;
   perfects: number;
   homeruns: number;
-  walks: number;
-  strikeouts: number;
   /** 飛距離の合計と最長 */
   totalDistance: number;
   longest: number;
-  /** いまの打席のカウントと、アウトの数 */
-  balls: number;
-  strikes: number;
-  outs: number;
+  /** 空振りの回数(3回でおしまい) */
+  whiffs: number;
   pitches: number;
   over: boolean;
 }
@@ -167,13 +159,9 @@ export function newSlugger(seed: number): SluggerState {
     bestStreak: 0,
     perfects: 0,
     homeruns: 0,
-    walks: 0,
-    strikeouts: 0,
     totalDistance: 0,
     longest: 0,
-    balls: 0,
-    strikes: 0,
-    outs: 0,
+    whiffs: 0,
     pitches: 0,
     over: false,
   };
@@ -195,8 +183,7 @@ export function nextPitch(s: SluggerState): Pitch {
   const L = levelFor(s.hits);
   // 同じ段の中でも、少し速さにばらつきを持たせる(±4%)
   const flight = L.flight * range(rng, 0.96, 1.04);
-  // 3ボールのときはストライクを投げやすい
-  const ballChance = s.balls >= 3 ? L.ballChance * 0.4 : L.ballChance;
+  const ballChance = L.ballChance;
   let tx: number;
   let ty: number;
   if (rng() < ballChance) {
@@ -243,7 +230,7 @@ export const HOMERUN_MIN = 105;
  * スイングの判定。swingAt: 手を離れてから何秒でスイングしたか(振らなかったら null)。cursor: ミートカーソルの位置
  */
 export function judge(p: Pitch, swingAt: number | null, cursor: { x: number; y: number }, rng: Rng = Math.random): SwingResult {
-  const none = (outcome: Outcome, timing: number, offset: number): SwingResult => ({ grade: 'miss', outcome, timing, offset, distance: 0, homerun: false, points: 0, dir: 0, atBatEnd: null });
+  const none = (outcome: Outcome, timing: number, offset: number): SwingResult => ({ grade: 'miss', outcome, timing, offset, distance: 0, homerun: false, points: 0, dir: 0 });
   if (swingAt === null) return none(isStrike(p) ? 'strikeTaken' : 'ball', Infinity, Infinity);
   const raw = swingAt - (p.flight - SLUG.idealBefore);
   const timing = raw < 0 ? raw * SLUG.earlyLenient : raw;
@@ -260,59 +247,32 @@ export function judge(p: Pitch, swingAt: number | null, cursor: { x: number; y: 
   const distance = Math.round(range(rng, d0, d1));
   const outcome: Outcome = distance >= HOMERUN_MIN ? 'homerun' : 'hit';
   const dir = Math.max(-1, Math.min(1, timing / SLUG.timing.good));
-  return { grade, outcome, contact, timing, offset, distance, homerun: outcome === 'homerun', points: 0, dir, atBatEnd: null };
+  return { grade, outcome, contact, timing, offset, distance, homerun: outcome === 'homerun', points: 0, dir };
 }
 
 export const isHit = (o: Outcome): boolean => o === 'hit' || o === 'homerun';
 
-/** 判定を記録に足す(カウント・アウト・点数もここで決まる)。点数は飛距離の合計。3アウトでゲームおしまい */
+/** 判定を記録に足す(点数もここで決まる)。点数は飛距離の合計。空振り3回でゲームおしまい */
 export function applyResult(s: SluggerState, r: SwingResult): SwingResult {
   s.pitches++;
-  let end: AtBatEnd | null = null;
   let points = 0;
-  switch (r.outcome) {
-    case 'ball':
-      s.balls++;
-      if (s.balls >= 4) {
-        end = 'walk';
-        s.walks++;
-      }
-      break;
-    case 'strikeTaken':
-    case 'swingMiss':
-      s.strikes++;
-      if (s.strikes >= 3) {
-        end = 'strikeout';
-        s.strikeouts++;
-      }
-      break;
-    case 'foul':
-      // 2ストライクからのファウルはカウントが増えない
-      if (s.strikes < 2) s.strikes++;
-      break;
-    default: {
-      end = 'hit';
-      s.hits++;
-      s.streak++;
-      s.bestStreak = Math.max(s.bestStreak, s.streak);
-      if (r.grade === 'perfect') s.perfects++;
-      if (r.homerun) s.homeruns++;
-      s.totalDistance += r.distance;
-      s.longest = Math.max(s.longest, r.distance);
-      points = r.distance;
-    }
-  }
-  if (end === 'strikeout') {
-    s.outs++;
+  if (r.outcome === 'swingMiss') {
+    s.whiffs++;
     s.streak = 0;
-    if (s.outs >= SLUG.maxOuts) s.over = true;
+    if (s.whiffs >= SLUG.maxWhiffs) s.over = true;
+  } else if (isHit(r.outcome)) {
+    s.hits++;
+    s.streak++;
+    s.bestStreak = Math.max(s.bestStreak, s.streak);
+    if (r.grade === 'perfect') s.perfects++;
+    if (r.homerun) s.homeruns++;
+    s.totalDistance += r.distance;
+    s.longest = Math.max(s.longest, r.distance);
+    points = r.distance;
   }
-  if (end) {
-    s.balls = 0;
-    s.strikes = 0;
-  }
+  // 見送り(ストライク・ボール)とファウルは、何も起きない
   s.score += points;
-  return { ...r, points, atBatEnd: end };
+  return { ...r, points };
 }
 
 /**
