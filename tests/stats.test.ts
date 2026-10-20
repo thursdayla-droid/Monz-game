@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { LIFE_KEY, LifeRecord, loadLife, migrateLife } from '../src/core/lifeSave';
 import type { KeyValueStore } from '../src/core/save';
 import { SPECIES } from '../src/core/species';
-import { autoGrowthAt, currentStats, levelUpRng, LOVE_RULES, rollAutoGrowth, SPECIES_STATS, STAT_KEYS, statsForMode, tryLoveSave } from '../src/core/stats';
+import { STAT_MAX, autoGrowthAt, currentStats, levelUpRng, LOVE_RULES, rollAutoGrowth, SPECIES_STATS, STAT_KEYS, statsForMode, tryLoveSave } from '../src/core/stats';
 
 const memoryStore = (): KeyValueStore & { data: Record<string, string> } => {
   const data: Record<string, string> = {};
@@ -30,6 +30,18 @@ describe('stats table', () => {
   it('the same MONZ and level always roll the same growth', () => {
     expect(autoGrowthAt('bunk', 'm1', 10)).toEqual(autoGrowthAt('bunk', 'm1', 10));
     expect(sum(autoGrowthAt('bunk', 'm1', 10))).toBe(27);
+  });
+});
+
+describe('stat max 150', () => {
+  it('auto growth never pushes a stat past 150 and free points cannot go there', () => {
+    const store = memoryStore();
+    const rec = new LifeRecord(loadLife(store), store);
+    for (let i = 0; i < 400; i++) rec.grant({ runId: `r${i}`, source: 'test', coins: 0, exp: 2000 });
+    const st = currentStats(rec.monz);
+    for (const k of STAT_KEYS) expect(st[k]).toBeLessThanOrEqual(STAT_MAX);
+    rec['data'].monz[0].alloc.hp = STAT_MAX;
+    expect(rec.allocate('hp')).toBe(false);
   });
 });
 

@@ -21,6 +21,8 @@ export const STAT_LABELS: Record<StatKey, string> = {
 /** 企画者決定(2026-10-20): レベルが1上がるごとに、自動でランダムに合計3、自由に振り分けるポイント1 */
 export const AUTO_GROWTH_PER_LEVEL = 3;
 export const FREE_POINTS_PER_LEVEL = 1;
+/** 企画者決定(2026-10-20): 通常ステータスの最大は150(ゲージも150でいっぱい) */
+export const STAT_MAX = 150;
 
 export const zeroStats = (): StatBlock => ({ hp: 0, power: 0, tough: 0, speed: 0, tech: 0 });
 
@@ -43,14 +45,20 @@ export const speciesStats = (species: SpeciesId) => SPECIES_STATS[species] ?? FA
 
 export const addStats = (a: StatBlock, b: StatBlock): StatBlock => Object.fromEntries(STAT_KEYS.map((k) => [k, a[k] + b[k]])) as StatBlock;
 
-/** レベルアップ1回ぶんの自動成長(合計3を、入りやすさの割合でランダムに) */
-export function rollAutoGrowth(species: SpeciesId, rng: Rng): StatBlock {
+/**
+ * レベルアップ1回ぶんの自動成長(合計3を、入りやすさの割合でランダムに)。
+ * now: 今のステータス。最大(150)の能力には入らず、ほかに回る(全部最大なら増えない)。
+ */
+export function rollAutoGrowth(species: SpeciesId, rng: Rng, now?: StatBlock): StatBlock {
   const w = speciesStats(species).weight;
-  const total = STAT_KEYS.reduce((s, k) => s + w[k], 0);
   const out = zeroStats();
   for (let i = 0; i < AUTO_GROWTH_PER_LEVEL; i++) {
-    let r = rng() * total;
-    const k = STAT_KEYS.find((key) => (r -= w[key]) < 0) ?? STAT_KEYS[STAT_KEYS.length - 1];
+    const room = (k: StatKey) => (now ? now[k] + out[k] < STAT_MAX : true);
+    const total = STAT_KEYS.reduce((s, k) => s + (room(k) ? w[k] : 0), 0);
+    const r0 = rng();
+    if (total <= 0) continue;
+    let r = r0 * total;
+    const k = STAT_KEYS.find((key) => room(key) && (r -= w[key]) < 0) ?? STAT_KEYS.filter(room).pop()!;
     out[k]++;
   }
   return out;
@@ -66,7 +74,8 @@ export function levelUpRng(uid: string, level: number): Rng {
 /** Lv.level までの自動成長の合計(Lv.2〜Lv.level に上がったぶん) */
 export function autoGrowthAt(species: SpeciesId, uid: string, level: number): StatBlock {
   let sum = zeroStats();
-  for (let lv = 2; lv <= level; lv++) sum = addStats(sum, rollAutoGrowth(species, levelUpRng(uid, lv)));
+  const base = speciesStats(species).base;
+  for (let lv = 2; lv <= level; lv++) sum = addStats(sum, rollAutoGrowth(species, levelUpRng(uid, lv), addStats(base, sum)));
   return sum;
 }
 

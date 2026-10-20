@@ -9,7 +9,7 @@ import { HOME_PLACES, type HomePlace } from './home';
 import { catchUp, dayKey, expToNext, levelUpCoins, newNeeds, NEEDS_RULES, stepNeeds, isNight, type Needs } from './needs';
 import type { KeyValueStore } from './save';
 import { isSpecies, type SpeciesId } from './species';
-import { addStats, autoGrowthAt, FREE_POINTS_PER_LEVEL, levelUpRng, LOVE_RULES, rollAutoGrowth, STAT_KEYS, zeroStats, type StatBlock, type StatKey } from './stats';
+import { addStats, autoGrowthAt, currentStats, FREE_POINTS_PER_LEVEL, levelUpRng, LOVE_RULES, rollAutoGrowth, STAT_KEYS, STAT_MAX, zeroStats, type StatBlock, type StatKey } from './stats';
 
 export const LIFE_KEY = 'monz:life';
 export const LIFE_BACKUP_KEY = 'monz:life:backup';
@@ -355,12 +355,12 @@ export class LifeRecord {
   }
 
   /**
-   * 自由ポイントを1つ振り分ける。振り直しはできない(企画者決定)。愛には振れない。
+   * 自由ポイントを1つ振り分ける。振り直しはできない(企画者決定)。愛には振れない。最大(150)の能力にも振れない。
    * ポイントが足りなければ false。
    */
   allocate(stat: StatKey): boolean {
     const m = this.monz;
-    if (m.statPoints < 1 || !STAT_KEYS.includes(stat)) return false;
+    if (m.statPoints < 1 || !STAT_KEYS.includes(stat) || currentStats(m)[stat] >= STAT_MAX) return false;
     this.update({}, { statPoints: m.statPoints - 1, alloc: { ...m.alloc, [stat]: m.alloc[stat] + 1 } });
     return true;
   }
@@ -386,7 +386,7 @@ export class LifeRecord {
       exp -= expToNext(level);
       level++;
       // 自動成長(ランダムに合計+3。得意な能力ほど入りやすい)と、自由ポイント+1
-      const gain = rollAutoGrowth(m.species, levelUpRng(m.uid, level));
+      const gain = rollAutoGrowth(m.species, levelUpRng(m.uid, level), currentStats({ ...m, auto }));
       auto = addStats(auto, gain);
       gains.push(gain);
       statPoints += FREE_POINTS_PER_LEVEL;

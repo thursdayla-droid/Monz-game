@@ -6,7 +6,7 @@ import { HOME_ACTIONS, HOME_ACTION_LABELS, HOME_ACTION_READY, HOME_LAYOUTS, clip
 import { MonzLife } from '../core/life';
 import { clearLife, LifeRecord, loadLife, saveLife } from '../core/lifeSave';
 import { mulberry32 } from '../core/rng';
-import { currentStats, LOVE_RULES, STAT_KEYS, STAT_LABELS, type StatBlock, type StatKey } from '../core/stats';
+import { currentStats, LOVE_RULES, STAT_KEYS, STAT_LABELS, STAT_MAX, type StatBlock, type StatKey } from '../core/stats';
 import { clearSave, loadSave } from '../core/save';
 import { BUNK_MOTION, BunkView, cutoutKey, TEST_PERSONALITY } from '../render/bunkView';
 import { drawCoin, drawGarage, drawHeart, drawIcon, drawMeat, drawMeatImage, drawMenuButton, drawPanel, drawRoom } from '../ui/homeArt';
@@ -645,12 +645,10 @@ export class HomeScene extends Phaser.Scene {
       const pts = m.statPoints;
       content.add(t(px + 32, py + 168, pts > 0 ? `振り分けられるポイント：${pts}` : '振り分けられるポイント：なし', 28, pts > 0 ? '#c2410c' : '#5a4a66'));
       if (pts > 0) content.add(t(px + 32, py + 206, '＋をおすと 1 ずつ振り分けられます', 20, '#5a4a66'));
-      // 【仮】ゲージのいっぱいの値: 通常ステータスは、いちばん高い能力が収まる10きざみ(最低20)。愛は最大値(100)
-      const top = Math.max(...STAT_KEYS.map((k) => st[k]));
-      const gaugeMax = Math.max(20, Math.ceil(top / 10) * 10);
+      // ゲージは数字そのまま: 通常ステータスは150、愛は100でいっぱい(企画者決定)
       // 6種類
       const rows: { label: string; value: number; max: number; key?: StatKey; color: number }[] = [
-        ...STAT_KEYS.map((k, i) => ({ label: STAT_LABELS[k], value: st[k], max: gaugeMax, key: k, color: [0xff4f5e, 0xff8a1f, 0x8a35e0, 0x2fa8ff, 0x2ed3c2][i] })),
+        ...STAT_KEYS.map((k, i) => ({ label: STAT_LABELS[k], value: st[k], max: STAT_MAX, key: k, color: [0xff4f5e, 0xff8a1f, 0x8a35e0, 0x2fa8ff, 0x2ed3c2][i] })),
         { label: '愛', value: m.love, max: LOVE_RULES.max, color: 0xff4fa3 },
       ];
       rows.forEach((r, i) => {
@@ -672,7 +670,7 @@ export class HomeScene extends Phaser.Scene {
         if (fill > 0) gauge.fillStyle(r.color, 1).fillRoundedRect(gx + 4, y + 26, Math.max(18, (gw - 8) * fill), 18, 9);
         content.add(gauge);
         content.add(t(right, y + 14, String(r.value), 34, ink, 1));
-        if (r.key && pts > 0) {
+        if (r.key && pts > 0 && r.value < STAT_MAX) {
           const key = r.key;
           const plus = t(px + pw - 82, y + 9, '＋', 34, ink, 0.5).setBackgroundColor('#ffd23a').setPadding(14, 4, 14, 6).setInteractive({ useHandCursor: true });
           plus.on('pointerdown', () => confirm(key));
