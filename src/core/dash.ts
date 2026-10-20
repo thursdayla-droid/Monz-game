@@ -237,6 +237,6 @@ export function step(s: DashState, dt: number): void {
 /** 走った距離(m) */
 export const meters = (s: DashState): number => Math.floor(s.dist / DASH.pxPerMeter);
 
-/** 報酬(企画者決定 2026-10-20: 簡単なので 100m → 500mで1コインに変更。EXPも同じ割合で 80m → 400mで1) */
-export const DASH_REWARD = { metersPerCoin: 500, metersPerExp: 400 } as const;
+/** 報酬(企画者決定 2026-10-20: 簡単なので 100m → 500mで1コインに変更。EXPは100mごとに1) */
+export const DASH_REWARD = { metersPerCoin: 500, metersPerExp: 100 } as const;
 export const dashReward = (m: number) => ({ coins: Math.floor(m / DASH_REWARD.metersPerCoin), exp: Math.floor(m / DASH_REWARD.metersPerExp) });
