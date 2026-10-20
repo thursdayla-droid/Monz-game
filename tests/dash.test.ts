@@ -48,6 +48,22 @@ describe('DASH MONZ', () => {
     }
   });
 
+  it('magma platforms appear sometimes, and running onto one ends the game', () => {
+    const seen = new Set<object>();
+    for (let seed = 1; seed <= 10; seed++) autoplay(seed, 60, (st) => st.platforms.forEach((p) => p.magma && seen.add(p)));
+    expect(seen.size).toBeGreaterThan(5);
+    // 跳ばずに走ると、マグマか落下で終わる。マグマのコースを探して確かめる
+    let magmaOver = false;
+    for (let seed = 1; seed <= 200 && !magmaOver; seed++) {
+      const s = newDash(seed);
+      s.platforms = [{ x: -400, w: 1000, y: 900 }, { x: 600, w: 200, y: 900, magma: true }, { x: 800, w: 2000, y: 900 }];
+      s.nextX = 2800;
+      for (let i = 0; i < 600 && !s.over; i++) step(s, 1 / 60);
+      magmaOver = s.over === 'magma';
+    }
+    expect(magmaOver).toBe(true);
+  });
+
   it('courses are always passable by a simple bot for a long time', () => {
     for (let seed = 1; seed <= 30; seed++) {
       const s = autoplay(seed, 90);

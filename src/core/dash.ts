@@ -33,12 +33,16 @@ export const DASH = {
   maxY: 1080,
   /** 100px = 1m */
   pxPerMeter: 100,
+  /** 【仮】足場の続きがマグマになる割合(足場1つごと) */
+  magmaChance: 0.12,
 } as const;
 
 export interface Platform {
   x: number;
   w: number;
   y: number;
+  /** マグマの足場(乗るとゲームオーバー。跳び越える)。2026-10-20 企画者の指示 */
+  magma?: boolean;
 }
 export interface Thing {
   x: number;
@@ -64,7 +68,7 @@ export interface DashState {
   /** 次に足場を置く場所(コースの座標) */
   nextX: number;
   lastY: number;
-  over: false | 'fall' | 'hit';
+  over: false | 'fall' | 'hit' | 'magma';
   rngState: number;
 }
 
@@ -111,6 +115,18 @@ function fill(s: DashState): void {
     const speed = Math.min(DASH.maxSpeed, s.speed + DASH.accel * ((s.nextX - s.dist) / s.speed));
     const reach = speed * airtime();
     const level = Math.min(1, s.dist / 60000);
+    // 【仮】ときどき、足場の続きの1つがマグマになる(すき間なし・同じ高さ。跳べば越えられる幅)。前の足場がマグマなら続けない
+    const prev = s.platforms[s.platforms.length - 1];
+    if (s.nextX > 3000 && !prev?.magma && rng() < DASH.magmaChance) {
+      const mw = range(rng, 0.4, 0.6) * reach;
+      s.platforms.push({ x: s.nextX, w: mw, y: s.lastY, magma: true });
+      s.nextX += mw;
+      // マグマの次の足場: すき間なし・同じ高さ。トゲは置かない
+      const nw = range(rng, 1.2, 2.0) * reach;
+      s.platforms.push({ x: s.nextX, w: nw, y: s.lastY });
+      s.nextX += nw;
+      continue;
+    }
     const gap = range(rng, 0.35, 0.55 + 0.2 * level) * reach;
     // 高さの差: 上は跳べる高さの7割まで、下は大きく降りることもある。上と下へ交互に行きやすくする
     const up = jumpHeight() * 0.7;
@@ -164,6 +180,12 @@ export function step(s: DashState, dt: number): void {
   const half = DASH.runnerW / 2;
   const under = s.platforms.find((p) => fx + half > p.x && fx - half < p.x + p.w && prevY <= p.y + 1 && s.y >= p.y);
   if (under && s.vy >= 0) {
+    // マグマ: 足もとのまん中がマグマの上に来たらゲームオーバー
+    const onMagma = s.platforms.find((p) => p.magma && fx > p.x + 8 && fx < p.x + p.w - 8 && Math.abs(p.y - under.y) < 1);
+    if (onMagma) {
+      s.over = 'magma';
+      return;
+    }
     s.y = under.y;
     s.vy = 0;
     s.grounded = true;

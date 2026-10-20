@@ -58,7 +58,7 @@ export class DashScene extends Phaser.Scene {
   private t = 0;
   private onHide?: () => void;
   private spikeViews = new Map<Thing, Phaser.GameObjects.Image>();
-  private platViews = new Map<Platform, { img: Phaser.GameObjects.Image; dx: number }[]>();
+  private platViews = new Map<Platform, { img: Phaser.GameObjects.Image | Phaser.GameObjects.Rectangle; dx: number; dy?: number }[]>();
 
   constructor() {
     super('Dash');
@@ -166,6 +166,7 @@ export class DashScene extends Phaser.Scene {
       '  （いつも同じ高さ。空中では跳べない）',
       '・足場から落ちたらゲームオーバー',
       '・トゲに当たってもゲームオーバー',
+      '・マグマの足場をふんでもゲームオーバー',
       '・進むほど、だんだん速くなるよ',
       '',
       `報酬：${DASH_REWARD.metersPerCoin}mごとに1コイン`,
@@ -226,7 +227,7 @@ export class DashScene extends Phaser.Scene {
       const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.7).setOrigin(0, 0).setInteractive();
       const title = this.add.text(W / 2, 200, 'GAME OVER', { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '96px', color: '#c9c4d6', stroke: INK, strokeThickness: 16 }).setOrigin(0.5);
       const monz = this.textures.exists('cardimg:overMonz') ? this.add.image(W / 2, 420, 'cardimg:overMonz').setScale(0.6) : null;
-      const why = this.add.text(W / 2, 575, this.s.over === 'hit' ? 'トゲに当たった！' : '落ちちゃった！', { fontFamily: UI_FONT, fontSize: '32px', fontStyle: '900', color: '#ff8a9a' }).setOrigin(0.5);
+      const why = this.add.text(W / 2, 575, this.s.over === 'hit' ? 'トゲに当たった！' : this.s.over === 'magma' ? 'マグマをふんだ！' : '落ちちゃった！', { fontFamily: UI_FONT, fontSize: '32px', fontStyle: '900', color: '#ff8a9a' }).setOrigin(0.5);
       canvasTextureOnce(this, 'dash:overpanel', 560, 300, (ctx) => drawPanel(ctx, 560, 300, 96));
       const panel = this.add.image(W / 2, 780, 'dash:overpanel');
       const txt = this.add.text(W / 2, 780, [`走った距離   ${m}m`, `獲得コイン   ${r.coins}`, `獲得EXP   ${r.exp}`].join('\n'), { fontFamily: UI_FONT, fontSize: '36px', fontStyle: '900', color: INK, align: 'center', lineSpacing: 18 }).setOrigin(0.5);
@@ -259,8 +260,22 @@ export class DashScene extends Phaser.Scene {
     this.runner.setScale(p.height / this.runner.height);
   }
 
-  /** 足場1つ分の絵を作る。左はし・まん中(くり返し)・右はし を並べる。短い足場は はしを半分ずつ使う */
-  private buildPlatform(width: number): { img: Phaser.GameObjects.Image; dx: number }[] {
+  /**
+   * 足場1つ分の絵を作る。左はし・まん中(くり返し)・右はし を並べる。短い足場は はしを半分ずつ使う。
+   * 【仮】マグマの足場: 同じ絵を赤くして、上の面に光るマグマを重ねる(企画者の絵が来たら差しかえる)
+   */
+  private buildPlatform(width: number, magma = false): { img: Phaser.GameObjects.Image | Phaser.GameObjects.Rectangle; dx: number; dy?: number }[] {
+    const parts = this.platformPieces(width);
+    if (!magma) return parts;
+    parts.forEach((v) => (v.img as Phaser.GameObjects.Image).setTint(0xff7a4a));
+    const w = Math.round(width);
+    const lava = this.add.rectangle(0, 0, w - 16, 22, 0xff4a10).setOrigin(0, 0).setDepth(1);
+    const glow = this.add.rectangle(0, 0, w - 24, 8, 0xffd23a).setOrigin(0, 0).setDepth(1);
+    this.tweens.add({ targets: glow, alpha: 0.35, duration: 420, yoyo: true, repeat: -1 });
+    return [...parts, { img: lava, dx: 8, dy: 3 }, { img: glow, dx: 12, dy: 6 }];
+  }
+
+  private platformPieces(width: number): { img: Phaser.GameObjects.Image | Phaser.GameObjects.Rectangle; dx: number; dy?: number }[] {
     const w = Math.round(width);
     const { left, mid, right } = PLAT;
     const piece = (frame: string, dx: number, cropX: number, cropW: number) => {
@@ -283,7 +298,10 @@ export class DashScene extends Phaser.Scene {
     const alive = new Set(s.platforms);
     for (const [p, view] of this.platViews) {
       if (alive.has(p)) continue;
-      view.forEach((v) => v.img.destroy());
+      view.forEach((v) => {
+        this.tweens.killTweensOf(v.img);
+        v.img.destroy();
+      });
       this.platViews.delete(p);
     }
     for (const p of s.platforms) {
@@ -292,10 +310,10 @@ export class DashScene extends Phaser.Scene {
       let view = this.platViews.get(p);
       if (!view) {
         if (!visible) continue;
-        view = this.buildPlatform(p.w);
+        view = this.buildPlatform(p.w, p.magma);
         this.platViews.set(p, view);
       }
-      for (const v of view) v.img.setPosition(Math.round(x + v.dx), p.y - PLAT.surface).setVisible(visible);
+      for (const v of view) v.img.setPosition(Math.round(x + v.dx), p.y - PLAT.surface + (v.dy ?? 0)).setVisible(visible);
     }
     const things = new Set(s.things);
     for (const [t, img] of this.spikeViews) {
