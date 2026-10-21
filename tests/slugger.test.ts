@@ -58,8 +58,8 @@ describe('MONZ SLUGGER', () => {
     expect(judge(p, IDEAL, { x: 0.55, y: -0.1 }, fixed(0.5)).grade).toBe('good');
     expect(judge(p, IDEAL, { x: -0.6, y: -0.1 }).outcome).toBe('swingMiss');
     expect(judge(p, IDEAL + SLUG.timing.good + 0.03, { x: 0.2, y: -0.1 }).outcome).toBe('foul');
-    expect(judge(p, IDEAL - SLUG.timing.good / SLUG.earlyLenient - 0.02, { x: 0.2, y: -0.1 }).outcome).toBe('foul');
-    // 大きく早いと、ファウルではなく空振り(ミス)
+    // 早すぎるのは、少しでもファウルではなく空振り(ミス)
+    expect(judge(p, IDEAL - SLUG.timing.good / SLUG.earlyLenient - 0.01, { x: 0.2, y: -0.1 }).outcome).toBe('swingMiss');
     expect(judge(p, IDEAL - SLUG.timing.good / SLUG.earlyLenient - 0.08, { x: 0.2, y: -0.1 }).outcome).toBe('swingMiss');
     expect(judge(p, 0.6, { x: 0.2, y: -0.1 }).outcome).toBe('swingMiss');
     // 見送り: ゾーンの中はストライク、外はボール
