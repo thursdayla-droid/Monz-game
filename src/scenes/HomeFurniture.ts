@@ -1,9 +1,9 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
-import { FURNITURE_ART_READY, furniture, furnitureKey, KIND_RULES } from '../core/furniture';
+import { FURNITURE_ART_READY, FURNITURE_TURN_ART_READY, furniture, furnitureKey, furnitureTurnFile, furnitureTurnKey, KIND_RULES } from '../core/furniture';
 import type { Pt } from '../core/home';
 import type { LifeRecord } from '../core/lifeSave';
-import { canPlace, footRect, inRect, isWalkable, type FloorItem } from '../core/roomLayout';
+import { canPlace, footRect, inRect, isWalkable, TURN_SHORTEN, type FloorItem } from '../core/roomLayout';
 import { canvasTextureOnce, UI_FONT } from '../ui/paint';
 import { assetUrl } from '../assetUrl';
 
@@ -20,11 +20,16 @@ interface Placed {
   x: number;
   y: number;
   flip: boolean;
+  /** 奥向き(左右の壁ぞいに、床の奥行きの線にそって置く) */
+  turn: boolean;
   img: Phaser.GameObjects.Image;
 }
 
 /** 【仮】かたむけ具合(1 = タイルの線にぴったり)。強くかたむけると柱まで斜めになるので、少しひかえめにする */
 const SHEAR_STRENGTH = 0.8;
+
+/** 奥向きに置けるのは、奥行きの線のかたむき(縦/横)がこれ以下の所 */
+const MAX_TURN_SLOPE = 1.6;
 
 /** 【仮】絵がまだない家具の見た目(シリーズの色の箱に名前) */
 const PLACEHOLDER: Record<string, string> = { street: '#2a2230', pop: '#ffb3d1', cyber: '#14243f' };
@@ -34,6 +39,7 @@ export function preloadFurniture(scene: Phaser.Scene, ids: string[]): void {
   for (const id of new Set(ids)) {
     const f = furniture(id);
     if (f && FURNITURE_ART_READY.includes(id) && !scene.textures.exists(furnitureKey(id))) scene.load.image(furnitureKey(id), assetUrl(f.file));
+    if (FURNITURE_TURN_ART_READY.includes(id) && !scene.textures.exists(furnitureTurnKey(id))) scene.load.image(furnitureTurnKey(id), assetUrl(furnitureTurnFile(id)));
   }
 }
 
@@ -89,7 +95,7 @@ export class HomeFurniture {
   ) {
     for (const p of record.snapshot.inventory.placed) {
       const [x, y] = this.toScreen(p.x, p.y);
-      this.items.push({ uid: p.uid, item: p.item, x, y, flip: p.flip, img: this.makeImage(p.item) });
+      this.items.push({ uid: p.uid, item: p.item, x, y, flip: p.flip, turn: p.turn === true, img: this.makeImage(p.item) });
     }
     this.items.forEach((it) => this.layout(it));
   }
@@ -106,8 +112,20 @@ export class HomeFurniture {
     return this.scene.add.image(0, 0, textureFor(this.scene, item)).setOrigin(0.5, 1);
   }
 
-  private floorItem(it: { item: string; x: number; y: number }): FloorItem {
-    return { item: it.item, x: it.x, y: it.y, persp: this.persp(it.y) };
+  private floorItem(it: { item: string; x: number; y: number; turn?: boolean }): FloorItem {
+    return { item: it.item, x: it.x, y: it.y, persp: this.persp(it.y), ...(it.turn ? { slope: this.slopeAt(it.x, it.y) } : {}) };
+  }
+
+  /** その場所での、床の奥行きの線のかたむき(画面の 縦/横)。0.05 きざみ */
+  private slopeAt(x: number, y: number): number {
+    const raw = (y - this.vanish[1]) / (x - this.vanish[0] || 0.001);
+    return Math.round(Phaser.Math.Clamp(raw, -MAX_TURN_SLOPE, MAX_TURN_SLOPE) * 20) / 20;
+  }
+
+  /** 奥向きに置けるのは、ななめの絵がある家具で、奥行きの線がそれほど立っていない所(部屋の左右より)だけ */
+  private canTurnAt(item: string, x: number, y: number): boolean {
+    if (!this.scene.textures.exists(furnitureTurnKey(item))) return false;
+    return Math.abs((y - this.vanish[1]) / (x - this.vanish[0] || 0.001)) <= MAX_TURN_SLOPE;
   }
 
   /**
@@ -136,13 +154,29 @@ export class HomeFurniture {
     return { key, ox: (w / 2 + off) / (w + Math.abs(sh) * h), base: w };
   }
 
+  /** 奥向きの絵(ななめの向きの絵)。右の壁ぞいはそのまま、左の壁ぞいは反転。下のまん中が足元 */
+  private turnedTexture(item: string, x: number, y: number): { key: string; ox: number; oy: number; base: number } {
+    const src = furnitureTurnKey(item);
+    const img = this.scene.textures.get(src).getSourceImage() as CanvasImageSource & { width: number; height: number };
+    const left = this.slopeAt(x, y) < 0;
+    const key = left ? `${src}:f` : src;
+    if (left)
+      canvasTextureOnce(this.scene, key, img.width, img.height, (ctx) => {
+        ctx.translate(img.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(img, 0, 0);
+      });
+    // 絵の横幅は、横向きの絵の TURN_SHORTEN 倍に見えるようにする
+    return { key, ox: 0.5, oy: 1, base: img.width / TURN_SHORTEN };
+  }
+
   /** 大きさ・向き・かたむき・重なりの順番を合わせる */
   private layout(it: Placed): void {
     const kind = furniture(it.item)?.kind ?? 'toy';
     const w = KIND_RULES[kind].width * this.persp(it.y);
-    const t = this.shearedTexture(it.item, it.flip, it.x, it.y);
+    const t = it.turn ? this.turnedTexture(it.item, it.x, it.y) : { ...this.shearedTexture(it.item, it.flip, it.x, it.y), oy: 1 };
     if (it.img.texture.key !== t.key) it.img.setTexture(t.key);
-    it.img.setOrigin(t.ox, 1).setPosition(it.x, it.y).setScale(w / t.base);
+    it.img.setOrigin(t.ox, t.oy).setPosition(it.x, it.y).setScale(w / t.base);
     // カーペットはいつもMONZの下
     it.img.setDepth(isWalkable(it.item) ? this.depthAt(this.floor[0][1]) - 2 : this.depthAt(it.y));
   }
@@ -201,7 +235,7 @@ export class HomeFurniture {
     const [rx, ry] = this.toRoom(spot[0], spot[1]);
     const uid = this.record.placeItem(item, rx, ry);
     if (!uid) return;
-    const it: Placed = { uid, item, x: spot[0], y: spot[1], flip: false, img: this.makeImage(item) };
+    const it: Placed = { uid, item, x: spot[0], y: spot[1], flip: false, turn: false, img: this.makeImage(item) };
     this.items.push(it);
     this.layout(it);
     this.select(it);
@@ -218,14 +252,13 @@ export class HomeFurniture {
     for (let y = Math.min(...ys); y <= Math.max(...ys); y += 20) for (let x = Math.min(...xs); x <= Math.max(...xs); x += 20) tries.push([x, y]);
     tries.sort((a, b) => Math.hypot(a[0] - cx, a[1] - cy) - Math.hypot(b[0] - cx, b[1] - cy));
     const others = this.items.map((o) => this.floorItem(o));
-    return tries.find(([x, y]) => x >= 30 && x <= this.scene.scale.width - 30 && canPlace({ item, x, y, persp: this.persp(y) }, others, this.floor, this.walkFloor)) ?? null;
+    return tries.find(([x, y]) => canPlace({ item, x, y, persp: this.persp(y) }, others, this.floor, this.walkFloor)) ?? null;
   }
 
-  private valid(it: Placed, x: number, y: number): boolean {
-    // 家具のまん中は画面の中(見えなくなって触れなくならないように)
-    if (x < 30 || x > this.scene.scale.width - 30) return false;
+  private valid(it: Placed, x: number, y: number, turn = it.turn): boolean {
+    if (turn && !this.canTurnAt(it.item, x, y)) return false;
     const others = this.items.filter((o) => o !== it).map((o) => this.floorItem(o));
-    return canPlace({ item: it.item, x, y, persp: this.persp(y) }, others, this.floor, this.walkFloor);
+    return canPlace(this.floorItem({ item: it.item, x, y, turn }), others, this.floor, this.walkFloor);
   }
 
   private select(it: Placed | undefined): void {
@@ -269,19 +302,36 @@ export class HomeFurniture {
       this.toast('そこには置けません');
     } else {
       const [rx, ry] = this.toRoom(it.x, it.y);
-      this.record.movePlaced(it.uid, rx, ry, it.flip);
+      this.record.movePlaced(it.uid, rx, ry, it.flip, it.turn);
     }
     it.img.setTint(0xfff1a8);
   }
 
+  /**
+   * 「向き」: 横向き → 横向き(反転) → 奥向き の順に変える。
+   * 奥向きは左右の壁ぞいに置くための向き(ななめの絵がある家具だけ)。その場所で置けない向きは飛ばす
+   */
   private flip(): void {
     const it = this.selected;
     if (!it) return;
-    it.flip = !it.flip;
-    this.layout(it);
-    const [rx, ry] = this.toRoom(it.x, it.y);
-    this.record.movePlaced(it.uid, rx, ry, it.flip);
-    audio.se('tap');
+    const order: [boolean, boolean][] = [
+      [false, false],
+      [false, true],
+      [true, false],
+    ];
+    const now = Math.max(0, order.findIndex(([t, f]) => t === it.turn && (t || f === it.flip)));
+    for (let k = 1; k < order.length; k++) {
+      const [turn, flip] = order[(now + k) % order.length];
+      if (!this.valid(it, it.x, it.y, turn)) continue;
+      it.turn = turn;
+      it.flip = flip;
+      this.layout(it);
+      const [rx, ry] = this.toRoom(it.x, it.y);
+      this.record.movePlaced(it.uid, rx, ry, it.flip, it.turn);
+      audio.se('tap');
+      return;
+    }
+    this.toast('ここでは向きを変えられません');
   }
 
   private store(): void {

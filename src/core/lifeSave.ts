@@ -59,13 +59,14 @@ export interface Inventory {
   placed: PlacedItem[];
 }
 
-/** 部屋に置いた家具1つ。x, y は足元(床に接する所)の位置で、部屋の絵の座標。flip: 左右反転 */
+/** 部屋に置いた家具1つ。x, y は足元(床に接する所)の位置で、部屋の絵の座標。flip: 左右反転。turn: 奥向き(左右の壁ぞいに置く向き) */
 export interface PlacedItem {
   uid: string;
   item: string;
   x: number;
   y: number;
   flip: boolean;
+  turn?: boolean;
 }
 
 export interface LifeData {
@@ -212,7 +213,7 @@ function fixInventory(inv: Partial<Inventory>): Inventory {
     let uid = typeof p.uid === 'string' && p.uid ? p.uid : `p${i + 1}`;
     while (uids.has(uid)) uid += '_';
     uids.add(uid);
-    placed.push({ uid, item, x: Number(p.x), y: Number(p.y), flip: p.flip === true });
+    placed.push({ uid, item, x: Number(p.x), y: Number(p.y), flip: p.flip === true, ...(p.turn === true ? { turn: true } : {}) });
   }
   return { owned, placed };
 }
@@ -386,9 +387,10 @@ export class LifeRecord {
   }
 
   /** 置いてある家具を動かす・向きを変える */
-  movePlaced(uid: string, x: number, y: number, flip?: boolean): void {
+  movePlaced(uid: string, x: number, y: number, flip?: boolean, turn?: boolean): void {
     const inv = this.data.inventory;
-    this.update({ inventory: { ...inv, placed: inv.placed.map((p) => (p.uid === uid ? { ...p, x, y, flip: flip ?? p.flip } : p)) } });
+    const t = turn ?? false;
+    this.update({ inventory: { ...inv, placed: inv.placed.map((p) => (p.uid === uid ? { uid, item: p.item, x, y, flip: flip ?? p.flip, ...((turn === undefined ? p.turn : t) ? { turn: true } : {}) } : p)) } });
   }
 
   /** 置いてある家具をしまう(アイテムボックスにもどす) */

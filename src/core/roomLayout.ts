@@ -14,23 +14,36 @@ export interface Rect {
   y1: number;
 }
 
-/** 置いた家具1つ(画面の座標)。persp: 奥行きによる大きさ(手前=1) */
+/** 置いた家具1つ(画面の座標)。persp: 奥行きによる大きさ(手前=1)。slope: 奥向きに置いたときの、床の奥行きの線のかたむき(画面の 縦/横) */
 export interface FloorItem {
   item: string;
   x: number;
   y: number;
   persp: number;
+  slope?: number;
 }
+
+/**
+ * 【仮】奥向き(左右の壁ぞい)に置いたときに、横にどれだけ縮んで見えるか。
+ * 企画者の指示(2026-10-21): 左右の壁ぎわには、角度を合わせて置きたい。奥へ向かう家具は、横から見たときより短く見える
+ */
+export const TURN_SHORTEN = 0.55;
 
 /** MONZの体の半分くらい。家具と家具、家具と壁のあいだは、この2倍あけないと通れない */
 export const PASS_CLEARANCE = 34;
 
-/** 床の上で占める範囲(足元 x, y が手前のまん中) */
+/** 床の上で占める範囲(足元 x, y が手前のまん中。奥向きのときは、長い辺のまん中) */
 export function footRect(f: FloorItem): Rect {
   const kind = furniture(f.item)?.kind ?? 'toy';
   const r = KIND_RULES[kind];
   const w = r.width * f.persp * 0.92;
   const d = r.width * f.persp * r.depth;
+  if (f.slope !== undefined) {
+    // 奥向き: 床の奥行きの線にそって、ななめに置く。重なりの判定は、それを囲む四角で見る
+    const l = w * TURN_SHORTEN;
+    const rise = Math.abs(f.slope) * l;
+    return { x0: f.x - l / 2, x1: f.x + l / 2, y0: f.y - rise / 2 - d, y1: f.y + rise / 2 };
+  }
   return { x0: f.x - w / 2, x1: f.x + w / 2, y0: f.y - d, y1: f.y };
 }
 
