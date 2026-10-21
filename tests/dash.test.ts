@@ -164,7 +164,7 @@ describe('DASH MONZ', () => {
     expect(dashReward(599)).toEqual({ coins: 1, exp: 1 });
     expect(dashReward(600)).toEqual({ coins: 1, exp: 2 });
     expect(dashReward(1250)).toEqual({ coins: 2, exp: 8 });
-    expect(dashReward(1400)).toEqual({ coins: 2, exp: 10 });
-    expect(dashReward(3000)).toEqual({ coins: 6, exp: 10 });
+    expect(dashReward(2400)).toEqual({ coins: 4, exp: 20 });
+    expect(dashReward(3000)).toEqual({ coins: 6, exp: 20 });
   });
 });
