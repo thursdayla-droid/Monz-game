@@ -31,7 +31,7 @@ interface KindRule {
 }
 
 export const KIND_RULES: Record<FurnitureKind, KindRule> = {
-  bed: { name: 'ベッド', price: 500, width: 400, depth: 0.3, walkable: false },
+  bed: { name: 'ベッド', price: 500, width: 460, depth: 0.3, walkable: false },
   sofa: { name: 'ソファ', price: 400, width: 380, depth: 0.32, walkable: false },
   table: { name: 'テーブル', price: 250, width: 230, depth: 0.4, walkable: false },
   carpet: { name: 'カーペット', price: 200, width: 420, depth: 0.42, walkable: true },
