@@ -4,7 +4,7 @@ import { audio } from '../audio/engine';
 import { BunkBrain } from '../core/bunkBehavior';
 import { HOME_ACTIONS, HOME_ACTION_LABELS, HOME_ACTION_READY, HOME_LAYOUTS, HOME_PLACES, clipPolygonX, insidePolygon, savedHomePlace, type HomeAction, type HomePlace, type Pt } from '../core/home';
 import { MonzLife } from '../core/life';
-import { moodWord } from '../core/needs';
+import { moodWord, NEEDS_RULES } from '../core/needs';
 import { clearLife, LifeRecord, loadLife } from '../core/lifeSave';
 import { mulberry32 } from '../core/rng';
 import { currentStats, LOVE_RULES, shownLove, STAT_KEYS, STAT_LABELS, STAT_MAX, type StatBlock, type StatKey } from '../core/stats';
@@ -54,8 +54,6 @@ export const bunkPoseKey = (name: string) => `bunk:pose:${name}`;
 
 /** 企画者の肉の絵(design/home/meat.png → design/home/make_meat.py で切り抜き) */
 export const MEAT_KEY = 'home:meatImage';
-/** お腹のゲージが これ以上(10目もりの 10 = 9.5 以上)なら満腹: ごはんを食べずに怒る */
-const FULL_MAX = 0.95;
 /** 企画者の手の絵(なでるときのカーソル)。HAND_TIP は人さし指の先の位置(絵の幅・高さに対する割合) */
 export const HAND_KEY = 'home:handImage';
 export const HAND_FILE = 'hand.webp';
@@ -521,7 +519,7 @@ export class HomeScene extends Phaser.Scene {
     if (s.sinceTick < HomeScene.STROKE_STEP) return;
     s.sinceTick = 0;
     s.ticks++;
-    const kind = life.stroked(this.record?.petMaxed() ?? false);
+    const kind = life.stroked();
     if (kind === 'angry') {
       // 嫌がった: そこでやめる
       s.angry = true;
@@ -620,7 +618,7 @@ export class HomeScene extends Phaser.Scene {
       onComplete: () => {
         audio.se('plop');
         // お腹がいっぱい(ゲージ MAX)なら、食べずに怒る(企画者決定 2026-10-21)。経験値・愛もふえない
-        if (this.record && this.record.needs.full >= FULL_MAX) {
+        if (this.record && this.record.needs.full >= NEEDS_RULES.gaugeMax) {
           this.time.delayedCall(250, () => {
             audio.se('angry');
             brain.reaction = { face: 'angry', kind: 'angry', left: 1.6, age: 0 };

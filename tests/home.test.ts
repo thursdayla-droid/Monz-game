@@ -152,17 +152,23 @@ describe('life record', () => {
     expect(rec.monz.statPoints).toBe(rec.level - 1);
   });
 
-  it('petting alone cannot fill the daily care exp', () => {
+  it('petting gives exp whenever the touch gauge is not MAX, with no daily limit', () => {
     const store = memoryStore();
     const rec = new LifeRecord(loadLife(store), store);
     const now = Date.UTC(2026, 9, 20, 3);
-    expect(rec.petMaxed(now)).toBe(false);
-    for (let i = 0; i < 30; i++) rec.pet(true, now);
-    expect(rec.monz.exp).toBe(NEEDS_RULES.petDailyCap);
-    expect(rec.petMaxed(now)).toBe(true);
-    rec.feed(now);
-    rec.feed(now);
-    rec.feed(now);
+    // 生まれたときのなでるゲージは5: 5回は経験値が入り、ゲージがMAX(10)になったら入らない
+    for (let i = 0; i < 5; i++) rec.pet(true, now);
+    expect(rec.touchFull).toBe(true);
+    expect(rec.monz.exp).toBe(NEEDS_RULES.petExp * 5);
+    rec.pet(true, now);
+    expect(rec.monz.exp).toBe(NEEDS_RULES.petExp * 5);
+    // ゲージが下がれば、同じ日でもまた入る(1日5回の上限はない)
+    rec.advance(3, now);
+    rec.pet(true, now);
+    rec.pet(true, now);
+    expect(rec.monz.exp).toBe(NEEDS_RULES.petExp * 7);
+    // ごはんの経験値の上限は、なでたぶんに関係なく残る
+    for (let i = 0; i < 5; i++) rec.feed(now);
     expect(rec.monz.expToday).toBe(NEEDS_RULES.dailyExpCap);
   });
 
@@ -185,11 +191,11 @@ describe('life record', () => {
     expect(firstUp).toBeGreaterThanOrEqual(1);
     expect(firstUp).toBeLessThanOrEqual(2);
     expect(rec.coins).toBeGreaterThan(0);
-    // 連打しても1日の上限より多くはたまらない
+    // なでるを連打しても、ゲージがMAXになったら経験値は入らない
     const before = rec.monz.exp + rec.level * 1000;
     const now = t + 9 * day;
     for (let i = 0; i < 100; i++) rec.pet(true, now);
-    expect(rec.monz.exp + rec.level * 1000 - before).toBeLessThanOrEqual(NEEDS_RULES.dailyExpCap + expToNext(1));
+    expect(rec.monz.exp + rec.level * 1000 - before).toBeLessThanOrEqual(NEEDS_RULES.petExp * 10 + expToNext(1));
   });
 });
 

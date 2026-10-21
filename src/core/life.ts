@@ -133,15 +133,15 @@ export class MonzLife {
   /**
    * 指でなでられている(なぞった距離ごとに呼ぶ)。止まったまま、うれしそうにする。ときどき小さく跳ねる。
    * 眠っているときは起こさずに、気持ちよさそうに眠り続ける。機嫌が悪いと、ときどき嫌がる。
-   * enough: 今日はもう十分なでられた(お世話マックス)。なでると怒る(企画者の指示 2026-10-20)。
+   * 企画者決定(2026-10-21): なでた回数では怒らない(1日5回の上限はやめた)。機嫌が悪いときだけ、ときどき嫌がる。
    */
-  stroked(enough = false): 'happy' | 'angry' | 'asleep' {
+  stroked(): 'happy' | 'angry' | 'asleep' {
     if (this.act === 'sleep') {
       this.pause(1.2, true);
       return 'asleep';
     }
     this.pause(1.2, true);
-    if (enough || (this.needs().mood < 0.3 && this.rng() < 0.35)) {
+    if (this.needs().mood < 0.3 && this.rng() < 0.35) {
       this.body.reaction = { face: 'angry', kind: 'angry', left: 1.2, age: 0 };
       return 'angry';
     }

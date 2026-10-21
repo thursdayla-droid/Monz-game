@@ -300,11 +300,9 @@ export class LifeRecord {
     return this.monz.needs;
   }
 
-  /** 今日はもう、なでても経験値が増えない(お世話マックス)か */
-  petMaxed(now = Date.now()): boolean {
-    const m = this.monz;
-    if (m.expDay !== dayKey(new Date(now))) return false;
-    return (m.expPetToday ?? 0) >= NEEDS_RULES.petDailyCap || m.expToday >= NEEDS_RULES.dailyExpCap;
+  /** なでるのゲージがMAXか(MAXのときは、なでても経験値が入らない) */
+  get touchFull(): boolean {
+    return (this.needs.touch ?? 0) >= NEEDS_RULES.gaugeMax;
   }
 
   /** 次のレベルまでの進み具合(0〜1) */
@@ -474,7 +472,8 @@ export class LifeRecord {
     if ((n.touch ?? 0) <= LOVE_RULES.petAtMost + 1e-9) this.gainLove('pet', now);
     const m = this.monz;
     this.update({}, { needs: { ...this.needs, touch: Math.min(1, (n.touch ?? 0) + NEEDS_RULES.petTouch), zeroTouchSec: 0, mood: Math.min(1, n.mood + (happy ? NEEDS_RULES.petMood : NEEDS_RULES.petMood / 3)) }, careCount: { ...m.careCount, pet: m.careCount.pet + 1 } });
-    this.gainExp(NEEDS_RULES.petExp, now, 'pet');
+    // 経験値は、なでるのゲージがMAXでなかったときだけ(企画者決定 2026-10-21)
+    if ((n.touch ?? 0) < NEEDS_RULES.gaugeMax) this.gainExp(NEEDS_RULES.petExp, now, 'pet');
   }
 
   /** 愛を増やす(最大値まで)。loveFeedToday・lovePetToday は記録だけ(上限には使わない) */
@@ -509,9 +508,9 @@ export class LifeRecord {
     const today = dayKey(new Date(now));
     const used = m.expDay === today ? m.expToday : 0;
     const usedPet = m.expDay === today ? (m.expPetToday ?? 0) : 0;
-    const care = kind !== 'other';
-    let room = care ? NEEDS_RULES.dailyExpCap - used : Infinity;
-    if (kind === 'pet') room = Math.min(room, NEEDS_RULES.petDailyCap - usedPet);
+    // 1日の上限があるのは、ごはんの経験値だけ(なでるはゲージで決まる。ミニゲームは上限なし)
+    const care = kind === 'feed';
+    const room = care ? NEEDS_RULES.dailyExpCap - used : Infinity;
     const got = Math.max(0, Math.min(amount, room));
     let { level, exp, statPoints, auto } = m;
     exp += got;

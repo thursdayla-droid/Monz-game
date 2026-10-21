@@ -329,7 +329,7 @@ export class BirthScene extends Phaser.Scene {
     });
   }
 
-  /** 決めた名前を出して、お世話画面へ */
+  /** 決めた名前を出して、部屋を選ぶ画面へ(企画者決定 2026-10-21: 名前のあとに、3つの部屋から選ぶ) */
   private revealName(name: string, brain: BunkBrain): void {
     brain.reaction = { face: 'happy', kind: 'happy', left: 2.2, age: 0 };
     const plate = createNameplate(this, name, W / 2, 250);
@@ -338,7 +338,7 @@ export class BirthScene extends Phaser.Scene {
       plate.dock(true);
       this.time.delayedCall(1400, () => {
         this.cameras.main.fadeOut(500, 0, 0, 0);
-        this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('Home'));
+        this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('RoomSelect'));
       });
     });
   }
