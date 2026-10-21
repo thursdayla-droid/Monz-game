@@ -182,7 +182,7 @@ export class SluggerScene extends Phaser.Scene {
     });
     this.scoreText = this.add.text(W / 2, 30, '0m', { fontFamily: ARIAL, fontSize: '56px', color: '#ffffff', stroke: INK, strokeThickness: 10 }).setOrigin(0.5, 0);
     this.comboText = this.add.text(W / 2, 108, '', { fontFamily: ARIAL, fontSize: '34px', color: '#ffd23a', stroke: INK, strokeThickness: 8 }).setOrigin(0.5, 0);
-    // ミスの残り(右上): 黄色い ● 3つ。空振り・見のがしストライクで赤い ✕ になる
+    // ミスの残り(右上): 黄色い ● 3つ。ヒットにならなかった球(空振り・見のがし・ファウル)で赤い ✕ になる
     const board = this.add.rectangle(W - 226, 26, 206, 118, 0x16101c, 0.82).setOrigin(0, 0).setStrokeStyle(4, 0xffffff, 0.25);
     const label = this.add.text(W - 123, 50, 'ミス あと', { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '900', color: '#ffffff' }).setOrigin(0.5);
     this.whiffMarks = [];
@@ -306,8 +306,8 @@ export class SluggerScene extends Phaser.Scene {
       '・はやく振ると左へ、おそいと右へ飛ぶ',
       '・打った飛距離の合計がスコア！',
       '  （遠くへ飛ばすとホームラン）',
-      '・空振りか見のがしストライクを3回でおしまい',
-      '  （ボール球の見送り・ファウルは大丈夫）',
+      '・ヒットにならなかったらミス',
+      '  （空振り・見のがし・ファウル）。3回ミスでおしまい',
       '・ヒットを打つほど、球が速く・変化球も来て',
       '  目印が出るのもおそくなるよ',
       '',
@@ -423,22 +423,21 @@ export class SluggerScene extends Phaser.Scene {
     return t;
   }
 
-  /** バットに当たらなかった球: 空振り・見のがしストライク(ミス)・ボール球の見送り */
+  /** バットに当たらなかった球: 空振り・見のがし(どちらもミス) */
   private showNoContact(r: SwingResult): void {
-    if (r.outcome === 'ball') {
-      // ボール球の見送りは何も起きない(うまく見送れた)
-      audio.se('tap', { pitch: 0.7 });
-      this.popText('ボール球 見送りOK', '#4fd65a', 52);
-      return;
-    }
     if (this.swung) this.time.delayedCall(120, () => this.setBatter('whiff'));
+    const early = this.swung && r.timing < 0 && r.offset <= SLUG.position.good;
+    this.showMiss(r.outcome === 'swingMiss' ? '空振り！' : '見のがし！', early ? 'ふるのが はやい' : '');
+  }
+
+  /** ミスの演出(赤く光る・ゆれる・残りの数) */
+  private showMiss(title: string, hint: string): void {
     audio.se('slam', { pitch: 0.9 });
     this.cameras.main.shake(200, 0.007);
     const red = this.add.rectangle(0, 0, W, H, 0xff2040, 0.25).setOrigin(0, 0).setDepth(14);
     this.tweens.add({ targets: red, alpha: 0, duration: 400, onComplete: () => red.destroy() });
-    const early = this.swung && r.timing < 0 && r.offset <= SLUG.position.good;
-    this.popText(r.outcome === 'strikeTaken' ? '見のがし！' : '空振り！', '#ff4f6a', 96);
-    if (early) this.popText('ふるのが はやい', '#ffffff', 34, 690);
+    this.popText(title, '#ff4f6a', 96);
+    if (hint) this.popText(hint, '#ffffff', 34, 690);
     const left = SLUG.maxWhiffs - this.s.whiffs;
     this.popText(left > 0 ? `あと${left}回ミスでおしまい` : 'ゲームオーバー', left === 1 ? '#ffd23a' : '#ffffff', 40, 760);
     // しるしが ✕ に変わるのを目立たせる
@@ -454,8 +453,8 @@ export class SluggerScene extends Phaser.Scene {
       audio.se('bat', { pitch: 0.8 });
       this.impact(at.x, at.y, 0xffffff, 0.5);
       this.setBatter('hit');
-      this.popText('ファウル', '#ffffff', 64);
       this.flyBall(r);
+      this.showMiss('ファウル', r.timing < 0 ? 'ふるのが 少しはやい' : 'ふるのが 少しおそい');
       return;
     }
     const big = r.grade === 'perfect';

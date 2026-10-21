@@ -5,10 +5,10 @@ import { mulberry32, type Rng } from './rng';
  * エンドレスのバッティング。ピッチャーが自動で投げ、プレイヤーはミートカーソルを動かしてスイングする。
  *
  * プロ野球ゲームのような打ち方(企画者決定 2026-10-20):
- * - ゾーンの外に来る球(ボール球)もある。ボール球の見送りとファウルは、何も起きない
+ * - 球はすべてゾーンに来る(ボール球はなし。2026-10-21 最初のルールに戻す)
  * - 当たり所で打球が変わる。カーソルがボールより上だとゴロ、まん中だとライナー、下だとフライ。早く振ると引っぱり、遅いと流し打ち
  * - 打てば必ずヒットかホームラン(捕られてアウトはない。2026-10-20 企画者決定)。点数は飛距離の合計
- * - 空振りか見のがしストライクを、合わせて3回したらゲームおしまい(2026-10-20 企画者決定。カウント・三振・フォアボールはなくした)
+ * - ヒットにならなかった球(空振り・見のがし・ファウル)はミス。3回ミスでゲームおしまい(企画者決定 2026-10-21: 最初のルール通り)
  *
  * 座標: ストライクゾーンのまん中が (0,0)。横 x は左が -、右が +。縦 y は下が -、上が +。ゾーンの端が ±1。
  * 奥行き z: 0 がホームベース(バッターの所)、1 がピッチャーの手。
@@ -36,7 +36,7 @@ export const SLUG = {
   contactSplit: 0.33,
   /** スイングを受けつける時間: ボールが着く何秒前から(これより早いと空振り) */
   swingEarly: 0.32,
-  /** ミス(空振り・見のがしストライク)の回数でゲームおしまい */
+  /** ミス(ヒットにならなかった球)の回数でゲームおしまい */
   maxWhiffs: 3,
   /** 投げるまでの時間(構え→振りかぶり)と、打ったあとの間(秒) */
   windup: 1.0,
@@ -60,7 +60,7 @@ export type Outcome = 'hit' | 'homerun' | 'foul' | 'swingMiss' | 'strikeTaken' |
  * 難しさ(ヒットの合計で決まる)。企画者の初期案(段の分け方):
  * 0〜9 遅いストレート / 10〜19 球速が上がる / 20〜29 コースが散らばる / 30〜49 変化球 / 50〜 速い球と変化球
  * flight: ボールが着くまでの秒数(短いほど速い)。spread: コースの広さ。breakChance: 変化球の割合。breakSize: 曲がる大きさ。
- * ballChance: ボール球の割合
+ * ballChance: ボール球の割合(2026-10-21 からすべて 0。ボール球を戻すときのために残す)
  */
 export interface Level {
   from: number;
@@ -71,11 +71,11 @@ export interface Level {
   ballChance: number;
 }
 export const SLUG_LEVELS: readonly Level[] = [
-  { from: 0, flight: [1.35, 1.35], spread: 0.35, breakChance: 0, breakSize: 0, ballChance: 0.2 },
-  { from: 10, flight: [1.35, 1.1], spread: 0.45, breakChance: 0, breakSize: 0, ballChance: 0.25 },
-  { from: 20, flight: [1.1, 1.05], spread: 0.8, breakChance: 0, breakSize: 0, ballChance: 0.3 },
-  { from: 30, flight: [1.05, 0.98], spread: 0.8, breakChance: 0.5, breakSize: 0.55, ballChance: 0.3 },
-  { from: 50, flight: [0.95, 0.82], spread: 0.85, breakChance: 0.6, breakSize: 0.7, ballChance: 0.35 },
+  { from: 0, flight: [1.35, 1.35], spread: 0.35, breakChance: 0, breakSize: 0, ballChance: 0 },
+  { from: 10, flight: [1.35, 1.1], spread: 0.45, breakChance: 0, breakSize: 0, ballChance: 0 },
+  { from: 20, flight: [1.1, 1.05], spread: 0.8, breakChance: 0, breakSize: 0, ballChance: 0 },
+  { from: 30, flight: [1.05, 0.98], spread: 0.8, breakChance: 0.5, breakSize: 0.55, ballChance: 0 },
+  { from: 50, flight: [0.95, 0.82], spread: 0.85, breakChance: 0.6, breakSize: 0.7, ballChance: 0 },
 ];
 
 /** ヒットの合計に合う難しさ。ひとつの段の中でも、少しずつ速くなる(急に難しくならないように) */
@@ -135,7 +135,7 @@ export interface SluggerState {
   rngState: number;
   score: number;
   hits: number;
-  /** 連続ヒット(ミスで 0 に戻る。ボール球の見送り・ファウルでは切れない)と その最高 */
+  /** 連続ヒット(ミスで 0 に戻る)と その最高 */
   streak: number;
   bestStreak: number;
   perfects: number;
@@ -143,7 +143,7 @@ export interface SluggerState {
   /** 飛距離の合計と最長 */
   totalDistance: number;
   longest: number;
-  /** ミス(空振り・見のがしストライク)の回数(3回でおしまい) */
+  /** ミス(ヒットにならなかった球)の回数(3回でおしまい) */
   whiffs: number;
   pitches: number;
   over: boolean;
@@ -256,7 +256,7 @@ export const isHit = (o: Outcome): boolean => o === 'hit' || o === 'homerun';
 export function applyResult(s: SluggerState, r: SwingResult): SwingResult {
   s.pitches++;
   let points = 0;
-  if (r.outcome === 'swingMiss' || r.outcome === 'strikeTaken') {
+  if (!isHit(r.outcome)) {
     s.whiffs++;
     s.streak = 0;
     if (s.whiffs >= SLUG.maxWhiffs) s.over = true;
@@ -270,7 +270,6 @@ export function applyResult(s: SluggerState, r: SwingResult): SwingResult {
     s.longest = Math.max(s.longest, r.distance);
     points = r.distance;
   }
-  // ボール球の見送りとファウルは、何も起きない
   s.score += points;
   return { ...r, points };
 }

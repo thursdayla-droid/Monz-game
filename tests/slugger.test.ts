@@ -24,12 +24,12 @@ describe('MONZ SLUGGER', () => {
     }
   });
 
-  it('some pitches are balls, most are strikes', () => {
+  it('every pitch comes into the strike zone (no ball pitches)', () => {
     const s = newSlugger(5);
-    let balls = 0;
-    for (let i = 0; i < 400; i++) if (!isStrike(nextPitch(s))) balls++;
-    expect(balls).toBeGreaterThan(40);
-    expect(balls).toBeLessThan(160);
+    for (const hits of [0, 15, 25, 40, 80]) {
+      s.hits = hits;
+      for (let i = 0; i < 200; i++) expect(isStrike(nextPitch(s))).toBe(true);
+    }
   });
 
   it('judges position and timing; outside the cursor is a swing and miss, a little off timing is a foul', () => {
@@ -75,19 +75,14 @@ describe('MONZ SLUGGER', () => {
     expect(homers).toBeGreaterThan(10);
   });
 
-  it('three misses (swing and miss or called strike) end the game; taking a ball or a foul changes nothing', () => {
+  it('any pitch that is not a hit is a miss (swing and miss, taking it, foul); three misses end the game', () => {
     const s = newSlugger(1);
     const hit: SwingResult = { grade: 'great', outcome: 'hit', contact: 'liner', timing: 0, offset: 0, distance: 60, homerun: false, points: 0, dir: 0 };
     const r = (outcome: SwingResult['outcome']): SwingResult => ({ ...hit, grade: 'miss', outcome, distance: 0 });
     applyResult(s, hit);
     applyResult(s, hit);
-    for (let i = 0; i < 10; i++) {
-      applyResult(s, r('ball'));
-      applyResult(s, r('foul'));
-    }
-    expect(s.whiffs).toBe(0);
     expect(s.streak).toBe(2);
-    applyResult(s, r('swingMiss'));
+    applyResult(s, r('foul'));
     expect(s.whiffs).toBe(1);
     expect(s.streak).toBe(0);
     expect(s.bestStreak).toBe(2);
@@ -95,6 +90,7 @@ describe('MONZ SLUGGER', () => {
     expect(s.whiffs).toBe(2);
     expect(s.over).toBe(false);
     applyResult(s, r('swingMiss'));
+    expect(s.whiffs).toBe(3);
     expect(s.over).toBe(true);
   });
 
@@ -103,7 +99,7 @@ describe('MONZ SLUGGER', () => {
     const hit: SwingResult = { grade: 'great', outcome: 'hit', contact: 'liner', timing: 0, offset: 0, distance: 60, homerun: false, points: 0, dir: 0 };
     expect(applyResult(s, hit).points).toBe(60);
     expect(applyResult(s, { ...hit, outcome: 'homerun', homerun: true, distance: 130 }).points).toBe(130);
-    applyResult(s, { ...hit, grade: 'miss', outcome: 'ball', distance: 0 });
+    applyResult(s, { ...hit, grade: 'miss', outcome: 'swingMiss', distance: 0 });
     expect(s.score).toBe(190);
     expect(s.totalDistance).toBe(190);
     expect(s.homeruns).toBe(1);
@@ -154,10 +150,11 @@ describe('MONZ SLUGGER', () => {
     expect(markerLead(200)).toBeCloseTo(0.3);
   });
 
-  it('a player who never swings ends by called strikes; one who swings badly ends after 3 misses; one who aims well keeps going', () => {
+  it('a player who never swings ends after 3 pitches; one who swings badly ends after 3 misses; one who aims well keeps going', () => {
     const lazy = newSlugger(4);
     for (let i = 0; i < 200 && !lazy.over; i++) applyResult(lazy, judge(nextPitch(lazy), null, { x: 0, y: 0 }));
     expect(lazy.over).toBe(true);
+    expect(lazy.pitches).toBe(3);
     expect(lazy.score).toBe(0);
     const bad = newSlugger(4);
     for (let i = 0; i < 200 && !bad.over; i++) applyResult(bad, judge(nextPitch(bad), 0.1, { x: 0, y: 0 }));
