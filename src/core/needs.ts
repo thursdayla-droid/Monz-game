@@ -57,7 +57,8 @@ export const NEEDS_RULES = {
 /** 夜(スマホの時計で22時〜7時)。夜はよく眠る */
 export const isNight = (date: Date): boolean => date.getHours() >= 22 || date.getHours() < 7;
 
-export const newNeeds = (): Needs => ({ full: 0.8, sleepy: 0.2, mood: 0.8, asleep: false, touch: 0.8, zeroFullSec: 0, zeroTouchSec: 0 });
+/** 生まれたときの様子。企画者決定(2026-10-21): お腹・なでるのゲージは10目もりの5から */
+export const newNeeds = (): Needs => ({ full: 0.5, sleepy: 0.2, mood: 0.8, asleep: false, touch: 0.5, zeroFullSec: 0, zeroTouchSec: 0 });
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 
