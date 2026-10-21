@@ -53,6 +53,11 @@ export interface BunkMotion {
   faces: { dir: string; z: number; names: BunkFace[] };
   poses: Record<BunkPoseName, PoseMotion>;
   behavior: BehaviorConfig;
+  /**
+   * 一時的に使わない物(2026-10-21 BUNK の絵の作り直し中)。新しい基本の絵と合わない古い絵を出さないため。
+   * 'down': 腕を下ろした姿(かわりに構えた姿を出す) / 'faces': 表情の顔(まばたき・怒る・喜ぶの顔を出さない)
+   */
+  disabled?: ('down' | 'faces')[];
 }
 
 export interface BreathPose {

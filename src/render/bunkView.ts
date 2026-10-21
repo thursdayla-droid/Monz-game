@@ -249,14 +249,17 @@ export class BunkView extends Phaser.GameObjects.Container {
     let face = brain.face();
     if (!face && !still && t < this.blinkUntil && !brain.switching) face = 'closed';
     if (still) face = brain.face();
+    // 作り直し中で使わない物(表情の顔・腕を下ろした姿)
+    if (m.disabled?.includes('faces')) face = null;
+    const pose: BunkPoseName = m.disabled?.includes('down') && brain.pose === 'down' ? 'guard' : brain.pose;
 
     const br = still ? { scaleX: 1, scaleY: 1 } : sleeping ? breathPose(m, t, b.sleepBreathScale, b.sleepBreathPeriod) : breathPose(m, t);
     const hopPhase = (t * Math.PI) / b.hopPeriod;
     const swing = walking ? Math.sin(hopPhase) * b.walkSwing : 0;
 
-    for (const pose of POSES) {
-      const v = this.views[pose];
-      const shown = pose === brain.pose;
+    for (const p of POSES) {
+      const v = this.views[p];
+      const shown = p === pose;
       v.root.setVisible(shown);
       if (!shown) continue;
       for (const g of v.groups) g.setScale(br.scaleX, br.scaleY);
@@ -264,7 +267,7 @@ export class BunkView extends Phaser.GameObjects.Container {
         if (!it.fist) continue;
         const f = still ? { angleRad: 0, bob: 0 } : fistPose(it.fist, t, (it.fist.pivot[0] < m.anchor[0] ? 1 : -1) * swing);
         const jab = it.jab && brain.jab !== null && !still ? jabAmount(brain.jab) : 0;
-        const pj = m.poses[pose].jab;
+        const pj = m.poses[p].jab;
         for (const o of it.objs) {
           o.setRotation(f.angleRad)
             .setPosition(it.fist.pivot[0] - m.breath.pivot[0] + (pj?.dx ?? 0) * jab, (it.fistY ?? 0) + f.bob + (pj?.dy ?? 0) * jab)
