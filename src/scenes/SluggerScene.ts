@@ -181,7 +181,7 @@ export class SluggerScene extends Phaser.Scene {
     });
     this.scoreText = this.add.text(W / 2, 30, '0m', { fontFamily: ARIAL, fontSize: '56px', color: '#ffffff', stroke: INK, strokeThickness: 10 }).setOrigin(0.5, 0);
     this.comboText = this.add.text(W / 2, 108, '', { fontFamily: ARIAL, fontSize: '34px', color: '#ffd23a', stroke: INK, strokeThickness: 8 }).setOrigin(0.5, 0);
-    // ミスの残り(右上): 黄色い ● 3つ。ヒットにならなかった球(空振り・見のがし・ファウル)で赤い ✕ になる
+    // ミスの残り(右上): 黄色い ● 3つ。空振り・見のがしで赤い ✕ になる(ファウルは大丈夫)
     const board = this.add.rectangle(W - 226, 26, 206, 118, 0x16101c, 0.82).setOrigin(0, 0).setStrokeStyle(4, 0xffffff, 0.25);
     const label = this.add.text(W - 123, 50, 'ミス あと', { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '900', color: '#ffffff' }).setOrigin(0.5);
     this.whiffMarks = [];
@@ -305,8 +305,8 @@ export class SluggerScene extends Phaser.Scene {
       '・はやく振ると左へ、おそいと右へ飛ぶ',
       '・打った飛距離の合計がスコア！',
       '  （遠くへ飛ばすとホームラン）',
-      '・ヒットにならなかったらミス',
-      '  （空振り・見のがし・ファウル）。3回ミスでおしまい',
+      '・空振り・見のがしはミス。3回でおしまい',
+      '  （ファウルは大丈夫）',
       '・ヒットを打つほど、球が速く・変化球も来て',
       '  目印が出るのもおそくなるよ',
       '',
@@ -453,7 +453,10 @@ export class SluggerScene extends Phaser.Scene {
       this.impact(at.x, at.y, 0xffffff, 0.5);
       this.setBatter('hit');
       this.flyBall(r);
-      this.showMiss('ファウル', r.timing < 0 ? 'ふるのが 少しはやい' : 'ふるのが 少しおそい');
+      // ファウルはミスにしない
+      audio.se('knock', { pitch: 1.2 });
+      this.popText('ファウル', '#ffffff', 72);
+      this.popText(r.timing < 0 ? 'ふるのが 少しはやい' : 'ふるのが 少しおそい', '#ffffff', 34, 690);
       return;
     }
     const big = r.grade === 'perfect';

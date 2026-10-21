@@ -8,7 +8,7 @@ import { mulberry32, type Rng } from './rng';
  * - 球はすべてゾーンに来る(ボール球はなし。2026-10-21 最初のルールに戻す)
  * - 当たり所で打球が変わる。カーソルがボールより上だとゴロ、まん中だとライナー、下だとフライ。早く振ると引っぱり、遅いと流し打ち
  * - 打てば必ずヒットかホームラン(捕られてアウトはない。2026-10-20 企画者決定)。点数は飛距離の合計
- * - ヒットにならなかった球(空振り・見のがし・ファウル)はミス。3回ミスでゲームおしまい(企画者決定 2026-10-21: 最初のルール通り)
+ * - 空振り・見のがしはミス。3回ミスでゲームおしまい(企画者決定 2026-10-21: 最初のルール通り)。ファウルはミスにしない(2026-10-21 企画者決定)
  *
  * 座標: ストライクゾーンのまん中が (0,0)。横 x は左が -、右が +。縦 y は下が -、上が +。ゾーンの端が ±1。
  * 奥行き z: 0 がホームベース(バッターの所)、1 がピッチャーの手。
@@ -36,7 +36,7 @@ export const SLUG = {
   contactSplit: 0.33,
   /** スイングを受けつける時間: ボールが着く何秒前から(これより早いと空振り) */
   swingEarly: 0.32,
-  /** ミス(ヒットにならなかった球)の回数でゲームおしまい */
+  /** ミス(空振り・見のがし)の回数でゲームおしまい。ファウルは数えない */
   maxWhiffs: 3,
   /** 投げるまでの時間(構え→振りかぶり)と、打ったあとの間(秒) */
   windup: 1.0,
@@ -143,7 +143,7 @@ export interface SluggerState {
   /** 飛距離の合計と最長 */
   totalDistance: number;
   longest: number;
-  /** ミス(ヒットにならなかった球)の回数(3回でおしまい) */
+  /** ミス(空振り・見のがし)の回数(3回でおしまい) */
   whiffs: number;
   pitches: number;
   over: boolean;
@@ -256,7 +256,8 @@ export const isHit = (o: Outcome): boolean => o === 'hit' || o === 'homerun';
 export function applyResult(s: SluggerState, r: SwingResult): SwingResult {
   s.pitches++;
   let points = 0;
-  if (!isHit(r.outcome)) {
+  // ファウルはミスにしない(連続ヒットも切れない)
+  if (r.outcome === 'swingMiss' || r.outcome === 'strikeTaken' || r.outcome === 'ball') {
     s.whiffs++;
     s.streak = 0;
     if (s.whiffs >= SLUG.maxWhiffs) s.over = true;

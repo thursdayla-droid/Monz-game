@@ -75,14 +75,16 @@ describe('MONZ SLUGGER', () => {
     expect(homers).toBeGreaterThan(10);
   });
 
-  it('any pitch that is not a hit is a miss (swing and miss, taking it, foul); three misses end the game', () => {
+  it('swing and miss or taking a pitch is a miss, a foul is not; three misses end the game', () => {
     const s = newSlugger(1);
     const hit: SwingResult = { grade: 'great', outcome: 'hit', contact: 'liner', timing: 0, offset: 0, distance: 60, homerun: false, points: 0, dir: 0 };
     const r = (outcome: SwingResult['outcome']): SwingResult => ({ ...hit, grade: 'miss', outcome, distance: 0 });
     applyResult(s, hit);
     applyResult(s, hit);
+    for (let i = 0; i < 10; i++) applyResult(s, r('foul'));
+    expect(s.whiffs).toBe(0);
     expect(s.streak).toBe(2);
-    applyResult(s, r('foul'));
+    applyResult(s, r('swingMiss'));
     expect(s.whiffs).toBe(1);
     expect(s.streak).toBe(0);
     expect(s.bestStreak).toBe(2);
