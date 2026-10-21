@@ -150,7 +150,10 @@ describe('DASH MONZ', () => {
 
   it('rewards 1 coin per 500m', () => {
     expect(dashReward(99)).toEqual({ coins: 0, exp: 0 });
-    expect(dashReward(499)).toEqual({ coins: 0, exp: 4 });
-    expect(dashReward(1250)).toEqual({ coins: 2, exp: 12 });
+    expect(dashReward(499)).toEqual({ coins: 0, exp: 0 });
+    expect(dashReward(500)).toEqual({ coins: 1, exp: 1 });
+    expect(dashReward(599)).toEqual({ coins: 1, exp: 1 });
+    expect(dashReward(600)).toEqual({ coins: 1, exp: 2 });
+    expect(dashReward(1250)).toEqual({ coins: 2, exp: 8 });
   });
 });
