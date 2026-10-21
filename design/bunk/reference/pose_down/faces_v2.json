@@ -11,7 +11,8 @@
   "neutral": "v2_neutral.png",
   "faces": {
     "closed": "v2_closed.png",
-    "angry": "v2_angry.png"
+    "angry": "v2_angry.png",
+    "sad": "v2_sad.png"
   },
   "keepOthers": false,
   "face": {
