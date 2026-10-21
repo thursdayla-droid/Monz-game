@@ -156,6 +156,8 @@ export class HomeScene extends Phaser.Scene {
     this.zText = this.text(0, 0, 'z', 34, '#ffffff').setVisible(false);
 
     // 家具(企画者決定 2026-10-21)。MONZは家具をよけて歩く
+    const layout0 = HOME_LAYOUTS[this.place];
+    const ox0 = this.roomView.ox;
     // 家具の大きさと重なりの順番は、MONZの歩ける床より奥(壁ぎわ)でも遠近が合うように、範囲の外ものばして計算する
     const t = (y: number) => (y - this.yBack) / (this.yFront - this.yBack);
     const furn = new HomeFurniture(
@@ -167,6 +169,7 @@ export class HomeScene extends Phaser.Scene {
       (y) => Phaser.Math.Linear(this.scaleRange[0], this.scaleRange[1], t(y)) / this.scaleRange[1],
       (y) => DEPTH.monz + t(y),
       MENU.y - MENU.h / 2 - 14,
+      [ox0 + layout0.vanish[0] * this.roomView.k, this.roomView.oy + layout0.vanish[1] * this.roomView.k],
     );
     this.furniture = furn;
     life.blocked = furn.blocked;

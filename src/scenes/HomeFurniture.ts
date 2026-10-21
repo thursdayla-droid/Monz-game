@@ -23,6 +23,9 @@ interface Placed {
   img: Phaser.GameObjects.Image;
 }
 
+/** 【仮】かたむけ具合(1 = タイルの線にぴったり)。強くかたむけると柱まで斜めになるので、少しひかえめにする */
+const SHEAR_STRENGTH = 0.8;
+
 /** 【仮】絵がまだない家具の見た目(シリーズの色の箱に名前) */
 const PLACEHOLDER: Record<string, string> = { street: '#2a2230', pop: '#ffb3d1', cyber: '#14243f' };
 
@@ -81,6 +84,8 @@ export class HomeFurniture {
     private readonly depthAt: (y: number) => number,
     /** もようがえの画面の下の帯の上の端 */
     private readonly panelTop: number,
+    /** 床のタイルの線が集まる点(画面の座標) */
+    private readonly vanish: Pt,
   ) {
     for (const p of record.snapshot.inventory.placed) {
       const [x, y] = this.toScreen(p.x, p.y);
@@ -105,11 +110,39 @@ export class HomeFurniture {
     return { item: it.item, x: it.x, y: it.y, persp: this.persp(it.y) };
   }
 
-  /** 大きさ・向き・重なりの順番を合わせる */
+  /**
+   * 床のタイルの線(奥の消える点 vanish に向かう線)に合わせて、家具の絵を斜めにかたむけた絵を作る(企画者の指示 2026-10-21)。
+   * 絵は描き直さず、下のはしを止めたまま上へいくほど横へずらすだけ。かたむきは 0.05 きざみで作って使い回す
+   */
+  private shearedTexture(item: string, flip: boolean, x: number, y: number): { key: string; ox: number; base: number } {
+    const src = textureFor(this.scene, item);
+    const raw = (this.vanish[0] - x) / Math.max(40, y - this.vanish[1]);
+    const sh = Math.round(Phaser.Math.Clamp(raw * SHEAR_STRENGTH, -1.2, 1.2) * 20) / 20;
+    const img = this.scene.textures.get(src).getSourceImage() as CanvasImageSource & { width: number; height: number };
+    const r = Math.min(1, 480 / img.width);
+    const w = Math.round(img.width * r);
+    const h = Math.round(img.height * r);
+    const off = sh < 0 ? -sh * h : 0;
+    const key = `${src}:sh:${flip ? 1 : 0}:${sh.toFixed(2)}`;
+    canvasTextureOnce(this.scene, key, w + Math.abs(sh) * h, h, (ctx) => {
+      // x' = x + sh * (h - y) + off(下のはしはそのまま、上ほどずらす)
+      ctx.setTransform(1, 0, -sh, 1, sh * h + off, 0);
+      if (flip) {
+        ctx.translate(w, 0);
+        ctx.scale(-1, 1);
+      }
+      ctx.drawImage(img, 0, 0, w, h);
+    });
+    return { key, ox: (w / 2 + off) / (w + Math.abs(sh) * h), base: w };
+  }
+
+  /** 大きさ・向き・かたむき・重なりの順番を合わせる */
   private layout(it: Placed): void {
     const kind = furniture(it.item)?.kind ?? 'toy';
     const w = KIND_RULES[kind].width * this.persp(it.y);
-    it.img.setPosition(it.x, it.y).setScale(w / it.img.width).setFlipX(it.flip);
+    const t = this.shearedTexture(it.item, it.flip, it.x, it.y);
+    if (it.img.texture.key !== t.key) it.img.setTexture(t.key);
+    it.img.setOrigin(t.ox, 1).setPosition(it.x, it.y).setScale(w / t.base);
     // カーペットはいつもMONZの下
     it.img.setDepth(isWalkable(it.item) ? this.depthAt(this.floor[0][1]) - 2 : this.depthAt(it.y));
   }
