@@ -52,3 +52,10 @@ for name, head in PITCHER_HEAD_W.items():
     low = ys > foot_y - (foot_y - ys.min()) * 0.25
     im.save(os.path.join(OUT, f'slug_pitcher_{name}.webp'), quality=88, method=6)
     print(f"  {name}: {{ ox: {xs[low].mean() / im.width:.3f}, oy: {foot_y / im.height:.3f} }},  // {im.size}")
+
+# タイトルロゴ(企画者の絵)。白い背景を消して縮小するだけ
+lg = cut_white(os.path.join(HERE, 'slugger_logo.png'))
+lg = lg.crop(lg.getchannel('A').point(lambda v: 255 if v > 20 else 0).getbbox())
+lh = round(lg.height * 700 / lg.width)
+lg.resize((700, lh), Image.LANCZOS).save(os.path.join(OUT, 'slugger_logo.webp'), quality=88, method=6)
+print('slugger_logo.webp', (700, lh))

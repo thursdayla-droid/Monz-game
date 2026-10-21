@@ -29,6 +29,10 @@ export const SLUG_PITCHER_ART: Record<PitcherPose, { ox: number; oy: number }> =
 export const slugPitcherKey = (p: PitcherPose) => `slug:pit:${p}`;
 const PITCHER_ART_SCALE = 0.5;
 
+/** タイトルロゴ(企画者の絵) */
+export const SLUGGER_LOGO_KEY = 'slug:logo';
+export const SLUGGER_LOGO_FILE = 'assets/minigame/slugger_logo.webp';
+
 /** 球場の背景(企画者の絵) */
 export const SLUGGER_BG_KEY = 'slug:bg';
 export const SLUGGER_BG_FILE = 'assets/minigame/slugger_bg.webp';
@@ -263,16 +267,20 @@ export class SluggerScene extends Phaser.Scene {
     this.controls.setVisible(false);
     const box = this.add.container(0, 0).setDepth(20);
     const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.45).setOrigin(0, 0).setInteractive();
-    // 【仮】ロゴ(企画者の絵が来たら差しかえる)
-    const logo1 = this.add.text(W / 2, 250, 'MONZ', { fontFamily: ARIAL, fontSize: '120px', color: '#2fe0ff', stroke: INK, strokeThickness: 18 }).setOrigin(0.5).setAngle(-6);
-    const logo2 = this.add.text(W / 2, 370, 'SLUGGER', { fontFamily: ARIAL, fontSize: '104px', color: '#ffd23a', stroke: INK, strokeThickness: 18 }).setOrigin(0.5).setAngle(-6);
-    const sub = this.add.text(W / 2, 480, 'モンズスラッガー', { fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: '#ffffff', stroke: INK, strokeThickness: 8 }).setOrigin(0.5);
+    // ロゴ(企画者の絵)。読めなかったときだけ文字で
+    const logo: Phaser.GameObjects.GameObject[] = this.textures.exists(SLUGGER_LOGO_KEY)
+      ? [this.add.image(W / 2, 300, SLUGGER_LOGO_KEY)]
+      : [
+          this.add.text(W / 2, 250, 'MONZ', { fontFamily: ARIAL, fontSize: '120px', color: '#2fe0ff', stroke: INK, strokeThickness: 18 }).setOrigin(0.5).setAngle(-6),
+          this.add.text(W / 2, 370, 'SLUGGER', { fontFamily: ARIAL, fontSize: '104px', color: '#ffd23a', stroke: INK, strokeThickness: 18 }).setOrigin(0.5).setAngle(-6),
+        ];
+    const sub = this.add.text(W / 2, 520, 'モンズスラッガー', { fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: '#ffffff', stroke: INK, strokeThickness: 8 }).setOrigin(0.5);
     const rec = loadLife().records.slugger;
-    const best = this.add.text(W / 2, 550, rec ? `自己ベスト：${rec.bestScore.toLocaleString()}m` : '', { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '900', color: '#ffd23a', stroke: INK, strokeThickness: 8 }).setOrigin(0.5);
+    const best = this.add.text(W / 2, 580, rec ? `自己ベスト：${rec.bestScore.toLocaleString()}m` : '', { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '900', color: '#ffd23a', stroke: INK, strokeThickness: 8 }).setOrigin(0.5);
     const play = this.button(W / 2, 1010, '  PLAY ▶  ', '#ffd23a', INK, 58);
     const how = this.button(W / 2, 1140, '  📖 遊び方  ', '#16101c', '#ffffff', 34);
     const back = this.button(70, 64, '◀', '#16101ccc', '#ffffff', 34);
-    box.add([dim, logo1, logo2, sub, best, play, how, back]);
+    box.add([dim, ...logo, sub, best, play, how, back]);
     play.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
       e.stopPropagation();
       audio.se('sting');

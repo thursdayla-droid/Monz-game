@@ -6,7 +6,7 @@ import { BUNK_POSE_IMAGES, bunkPoseKey, HAND_FILE, HAND_KEY, HOME_ICONS, HOME_IM
 import { TITLE_FILE, TITLE_IMAGE } from '../scenes/TitleScene';
 import { SELECT_IMAGE } from '../scenes/MinigameSelectScene';
 import { CARD_IMAGES } from '../ui/cardArt';
-import { SLUG_BATTER_ART, slugBatterKey, SLUG_PITCHER_ART, slugPitcherKey, SLUGGER_BG_FILE, SLUGGER_BG_KEY } from '../scenes/SluggerScene';
+import { SLUG_BATTER_ART, slugBatterKey, SLUG_PITCHER_ART, slugPitcherKey, SLUGGER_BG_FILE, SLUGGER_BG_KEY, SLUGGER_LOGO_FILE, SLUGGER_LOGO_KEY } from '../scenes/SluggerScene';
 import { DASH_BG_FILE, DASH_BG_KEY, DASH_LOGO_FILE, DASH_LOGO_KEY, DASH_JUMP_FILE, DASH_JUMP_KEY, DASH_RUN_FILE, DASH_RUN_KEY, DASH_PLAT_FILE, DASH_PLAT_KEY, DASH_SPIKE_FILE, DASH_SPIKE_KEY } from '../scenes/DashScene';
 import { loadBunk } from './bunkView';
 
@@ -21,7 +21,7 @@ import { loadBunk } from './bunkView';
  * - minigame: ミニゲームのセレクト画面
  * - card: MONZ CARD(タイトル・ロゴ・カードの裏・山札)
  * - dash: DASH MONZ(背景・足場・トゲ・走るモンズ・ロゴ)
- * - slugger: MONZ SLUGGER(球場の背景・バッター5ポーズ・ピッチャー3ポーズ)
+ * - slugger: MONZ SLUGGER(球場の背景・バッター5ポーズ・ピッチャー3ポーズ・ロゴ)
  */
 export type PackName = 'title' | 'bunk' | 'birth' | 'home' | 'compare' | 'minigame' | 'card' | 'dash' | 'slugger';
 
@@ -64,6 +64,7 @@ function packFiles(name: Exclude<PackName, 'bunk'>): PackFile[] {
     case 'slugger':
       return [
         { key: SLUGGER_BG_KEY, url: SLUGGER_BG_FILE },
+        { key: SLUGGER_LOGO_KEY, url: SLUGGER_LOGO_FILE },
         ...Object.keys(SLUG_BATTER_ART).map((p) => ({ key: slugBatterKey(p as keyof typeof SLUG_BATTER_ART), url: `assets/minigame/slug_batter_${p}.webp` })),
         ...Object.keys(SLUG_PITCHER_ART).map((p) => ({ key: slugPitcherKey(p as keyof typeof SLUG_PITCHER_ART), url: `assets/minigame/slug_pitcher_${p}.webp` })),
       ];
