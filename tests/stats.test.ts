@@ -123,7 +123,7 @@ describe('save migration to v4', () => {
 describe('love', () => {
   const day = Date.UTC(2026, 9, 20, 3);
 
-  it('starts at 20, grows +0.5 per meal only when the hidden hunger gauge is 8 or less, never from petting', () => {
+  it('starts at 20, grows +0.5 per meal (hunger gauge 8 or less) and +0.2 per pet (petting gauge 9 or less)', () => {
     const store = memoryStore();
     const rec = new LifeRecord(loadLife(store), store);
     expect(rec.monz.love).toBe(20);
@@ -140,8 +140,14 @@ describe('love', () => {
     }
     expect(rec.monz.love).toBe(23.5); // 1日の上限はない
     expect(shownLove(rec.monz.love)).toBe(23);
-    for (let i = 0; i < 10; i++) rec.pet(true, day);
+    rec['data'].monz[0].needs.touch = 1; // なでるのゲージが いっぱいなら増えない
+    rec.pet(true, day);
     expect(rec.monz.love).toBe(23.5);
+    rec['data'].monz[0].needs.touch = 0.9;
+    rec.pet(true, day);
+    expect(rec.monz.love).toBe(23.7);
+    rec.pet(true, day); // ゲージ 10 になったので、もう増えない
+    expect(rec.monz.love).toBe(23.7);
   });
 
   it('the hunger gauge goes down 1 of 10 per hour, and a meal gives back 2', () => {

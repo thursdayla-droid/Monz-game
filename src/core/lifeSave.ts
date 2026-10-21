@@ -369,8 +369,8 @@ export class LifeRecord {
 
   pet(happy: boolean, now = Date.now()): void {
     const n = this.needs;
-    // なでても愛は増えない(企画者決定 2026-10-21)
-    if (happy && LOVE_RULES.pet > 0) this.gainLove('pet', now);
+    // なでると愛 +0.2。なでるのゲージが 9 以下のときだけ(企画者決定 2026-10-21)
+    if ((n.touch ?? 0) <= LOVE_RULES.petAtMost + 1e-9) this.gainLove('pet', now);
     const m = this.monz;
     this.update({}, { needs: { ...this.needs, touch: Math.min(1, (n.touch ?? 0) + NEEDS_RULES.petTouch), zeroTouchSec: 0, mood: Math.min(1, n.mood + (happy ? NEEDS_RULES.petMood : NEEDS_RULES.petMood / 3)) }, careCount: { ...m.careCount, pet: m.careCount.pet + 1 } });
     this.gainExp(NEEDS_RULES.petExp, now, 'pet');
