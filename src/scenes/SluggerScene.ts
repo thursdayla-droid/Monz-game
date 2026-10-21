@@ -142,7 +142,7 @@ export class SluggerScene extends Phaser.Scene {
     this.setBatter('idle');
     this.cursorImg = this.add.image(0, 0, 'slug:cursor').setDepth(6);
     const cs = SLUG.position.good * VIEW.zs * 2;
-    this.cursorImg.setDisplaySize(cs, cs * 0.87);
+    this.cursorImg.setDisplaySize(cs, cs * (SLUG.cursorRy / SLUG.position.good));
     this.ballGlow = this.add.image(0, 0, 'slug:glow').setDepth(7).setVisible(false).setTint(0x8ff4ff).setBlendMode(Phaser.BlendModes.ADD);
     this.ball = this.add.image(0, 0, 'slug:ball2').setDepth(7).setVisible(false);
     this.placeCursor();
@@ -234,7 +234,7 @@ export class SluggerScene extends Phaser.Scene {
 
   private resetCursorSize(): void {
     const cs = SLUG.position.good * VIEW.zs * 2;
-    this.cursorImg.setDisplaySize(cs, cs * 0.87);
+    this.cursorImg.setDisplaySize(cs, cs * (SLUG.cursorRy / SLUG.position.good));
   }
 
   /** いま、ボールが手を離れてから何秒か(フレームの間も細かく) */
@@ -426,10 +426,9 @@ export class SluggerScene extends Phaser.Scene {
   /** バットに当たらなかった球: 空振り・見のがし(どちらもミス)・届かないボール球の見送り(ミスにならない) */
   private showNoContact(r: SwingResult): void {
     if (r.outcome === 'ball') {
-      // 届かないボール球を見送れた(ミスにならない)
-      audio.se('select');
-      this.popText('ナイス見送り！', '#4fd65a', 72);
-      this.popText('届かないボール球はミスにならないよ', '#ffffff', 30, 700);
+      // 届かないボール球を見送った(ミスにならない)
+      audio.se('tap', { pitch: 0.8 });
+      this.popText('ボール！', '#4fd65a', 80);
       return;
     }
     if (this.swung) this.time.delayedCall(120, () => this.setBatter('whiff'));

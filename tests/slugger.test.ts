@@ -55,7 +55,7 @@ describe('MONZ SLUGGER', () => {
     const p = pitch(0.2, -0.1);
     expect(judge(p, IDEAL, { x: 0.2, y: -0.1 }, fixed(0.5)).grade).toBe('perfect');
     expect(judge(p, IDEAL + 0.06, { x: 0.2, y: -0.1 }, fixed(0.5)).grade).toBe('great');
-    expect(judge(p, IDEAL, { x: 0.6, y: -0.1 }, fixed(0.5)).grade).toBe('good');
+    expect(judge(p, IDEAL, { x: 0.55, y: -0.1 }, fixed(0.5)).grade).toBe('good');
     expect(judge(p, IDEAL, { x: -0.6, y: -0.1 }).outcome).toBe('swingMiss');
     expect(judge(p, IDEAL + SLUG.timing.good + 0.03, { x: 0.2, y: -0.1 }).outcome).toBe('foul');
     expect(judge(p, IDEAL - (SLUG.timing.good + 0.03) / SLUG.earlyLenient, { x: 0.2, y: -0.1 }).outcome).toBe('foul');
@@ -68,9 +68,9 @@ describe('MONZ SLUGGER', () => {
   it('where the ball meets the cursor decides grounder / liner / fly', () => {
     const p = pitch(0, 0);
     // カーソルがボールより上 → ゴロ / まん中 → ライナー / 下 → フライ
-    expect(judge(p, IDEAL, { x: 0, y: 0.3 }, fixed(0.99)).contact).toBe('grounder');
+    expect(judge(p, IDEAL, { x: 0, y: 0.2 }, fixed(0.99)).contact).toBe('grounder');
     expect(judge(p, IDEAL, { x: 0, y: 0 }, fixed(0.99)).contact).toBe('liner');
-    expect(judge(p, IDEAL, { x: 0, y: -0.3 }, fixed(0.99)).contact).toBe('fly');
+    expect(judge(p, IDEAL, { x: 0, y: -0.2 }, fixed(0.99)).contact).toBe('fly');
     // PERFECT のフライは必ずホームラン
     const r = judge(p, IDEAL, { x: 0, y: -0.12 }, fixed(0.5));
     if (r.grade === 'perfect' && r.contact === 'fly') expect(r.outcome).toBe('homerun');
@@ -83,7 +83,7 @@ describe('MONZ SLUGGER', () => {
     const rng = rngOf(newSlugger(11));
     let homers = 0;
     for (let i = 0; i < 300; i++) {
-      const dy = [-0.3, 0, 0.3][i % 3];
+      const dy = [-0.2, 0, 0.2][i % 3];
       const r = judge(pitch(0, 0), IDEAL + (i % 5) * 0.02, { x: 0, y: dy }, rng);
       expect(isHit(r.outcome)).toBe(true);
       expect(r.homerun).toBe(r.distance >= HOMERUN_MIN);

@@ -31,7 +31,12 @@ export const SLUG = {
   /** タイミングが good より少しだけずれたらファウル(この幅まで) */
   foul: 0.07,
   /** 位置のずれ(ゾーンの半分を 1 とした長さ)。この中なら その判定。good の外は空振り */
-  position: { perfect: 0.16, great: 0.3, good: 0.48 },
+  position: { perfect: 0.14, great: 0.26, good: 0.42 },
+  /**
+   * ミートカーソルの形: 横に長い楕円(2026-10-21 企画者の指示「若干小さく、少し横に楕円」)。
+   * 横の半径は position.good、縦の半径は これ。位置のずれは、縦を横の長さにそろえて測る
+   */
+  cursorRy: 0.28,
   /** ボールの当たり所(上下)で打球を分ける境目(カーソルの半径に対する割合) */
   contactSplit: 0.33,
   /** スイングを受けつける時間: ボールが着く何秒前から(これより早いと空振り) */
@@ -201,8 +206,8 @@ export function nextPitch(s: SluggerState): Pitch {
     const reach = SLUG.cursorLimit + SLUG.position.good;
     const side = rng() < 0.5 ? -1 : 1;
     if (rng() < 0.7) [tx, ty] = [side * range(rng, reach + 0.06, reach + 0.18), range(rng, -0.6, 0.6)];
-    // 縦は当たり判定が 1.15倍きびしいので、届く高さは cursorLimit + good / 1.15
-    else [tx, ty] = [range(rng, -0.6, 0.6), SLUG.cursorLimit + SLUG.position.good / 1.15 + range(rng, 0.06, 0.16)];
+    // 縦はカーソルの縦の半径(cursorRy)までしか届かない
+    else [tx, ty] = [range(rng, -0.6, 0.6), SLUG.cursorLimit + SLUG.cursorRy + range(rng, 0.06, 0.16)];
     return { kind: 'straight', flight, tx, ty, bx: 0, by: 0 };
   } else {
     tx = range(rng, -L.spread, L.spread);
@@ -239,6 +244,10 @@ const DISTANCE: Record<Contact, Record<Exclude<Grade, 'miss'>, [number, number]>
 /** この飛距離(m)より遠くへ飛んだらホームラン。点数は飛距離そのまま(企画者決定 2026-10-20) */
 export const HOMERUN_MIN = 105;
 
+/** カーソルのまん中からボールまでのずれ(楕円の形に合わせて、縦は 横の半径/縦の半径 倍して測る) */
+export const cursorOffset = (cursor: { x: number; y: number }, p: Pick<Pitch, 'tx' | 'ty'>): number =>
+  Math.hypot(cursor.x - p.tx, (cursor.y - p.ty) * (SLUG.position.good / SLUG.cursorRy));
+
 /**
  * スイングの判定。swingAt: 手を離れてから何秒でスイングしたか(振らなかったら null)。cursor: ミートカーソルの位置
  */
@@ -247,14 +256,14 @@ export function judge(p: Pitch, swingAt: number | null, cursor: { x: number; y: 
   if (swingAt === null) return none(isStrike(p) ? 'strikeTaken' : 'ball', Infinity, Infinity);
   const raw = swingAt - (p.flight - SLUG.idealBefore);
   const timing = raw < 0 ? raw * SLUG.earlyLenient : raw;
-  const offset = Math.hypot(cursor.x - p.tx, (cursor.y - p.ty) * 1.15);
+  const offset = cursorOffset(cursor, p);
   const pos = step(offset, SLUG.position);
   if (pos === 3) return none('swingMiss', timing, offset);
   const time = step(timing, SLUG.timing);
   if (time === 3) return none(Math.abs(timing) <= SLUG.timing.good + SLUG.foul ? 'foul' : 'swingMiss', timing, offset);
   const grade = (['perfect', 'great', 'good'] as const)[Math.max(pos, time)];
   // 当たり所: ボールがカーソルより上(カーソルが下) → フライ / 下(カーソルが上) → ゴロ
-  const v = (p.ty - cursor.y) / SLUG.position.good;
+  const v = (p.ty - cursor.y) / SLUG.cursorRy;
   const contact: Contact = v > SLUG.contactSplit ? 'fly' : v < -SLUG.contactSplit ? 'grounder' : 'liner';
   const [d0, d1] = DISTANCE[contact][grade];
   const distance = Math.round(range(rng, d0, d1));

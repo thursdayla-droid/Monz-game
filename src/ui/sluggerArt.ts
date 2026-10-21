@@ -449,7 +449,8 @@ export function drawCursor(ctx: CanvasRenderingContext2D, size: number): void {
   ctx.lineWidth = 10;
   ctx.strokeStyle = 'rgba(22,16,28,0.8)';
   ctx.beginPath();
-  ctx.ellipse(0, 0, c - 8, (c - 8) * 0.87, 0, 0, Math.PI * 2);
+  // 画面では横長の楕円に引きのばして使う(絵は まるで描く)
+  ctx.ellipse(0, 0, c - 8, c - 8, 0, 0, Math.PI * 2);
   ctx.stroke();
   ctx.lineWidth = 5;
   ctx.strokeStyle = COLORS.yellow;
