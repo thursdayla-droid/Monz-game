@@ -156,7 +156,18 @@ export class HomeScene extends Phaser.Scene {
     this.zText = this.text(0, 0, 'z', 34, '#ffffff').setVisible(false);
 
     // 家具(企画者決定 2026-10-21)。MONZは家具をよけて歩く
-    const furn = new HomeFurniture(this, record, this.roomView, this.furnitureFloor, this.floor, (y) => this.scaleAt(y) / this.scaleRange[1], (y) => DEPTH.monz + this.depthOf(y), MENU.y - MENU.h / 2 - 14);
+    // 家具の大きさと重なりの順番は、MONZの歩ける床より奥(壁ぎわ)でも遠近が合うように、範囲の外ものばして計算する
+    const t = (y: number) => (y - this.yBack) / (this.yFront - this.yBack);
+    const furn = new HomeFurniture(
+      this,
+      record,
+      this.roomView,
+      this.furnitureFloor,
+      this.floor,
+      (y) => Phaser.Math.Linear(this.scaleRange[0], this.scaleRange[1], t(y)) / this.scaleRange[1],
+      (y) => DEPTH.monz + t(y),
+      MENU.y - MENU.h / 2 - 14,
+    );
     this.furniture = furn;
     life.blocked = furn.blocked;
     this.moveOutOfFurniture();
@@ -200,8 +211,8 @@ export class HomeScene extends Phaser.Scene {
     // 絵が画面より横に広いときは、はみ出した所を歩かないようにする(体の半分ぶん内側まで)
     const mapped = layout.floor.map(([x, y]) => [ox + x * sx * k, oy + y * sy * k] as Pt);
     this.floor = clipPolygonX(mapped, EDGE, W - EDGE);
-    // 家具は、MONZが歩けない床のはし(画面のはしの近く)にも置ける
-    this.furnitureFloor = clipPolygonX(mapped, 12, W - 12);
+    // 家具は、奥の壁・左右の壁のきわまで置ける(MONZが歩けない所にも)
+    this.furnitureFloor = clipPolygonX(layout.furniture.map(([x, y]) => [ox + x * sx * k, oy + y * sy * k] as Pt), 4, W - 4);
     this.roomView = { k, ox, oy };
     this.yBack = Math.min(...this.floor.map((p) => p[1]));
     this.yFront = Math.max(...this.floor.map((p) => p[1]));

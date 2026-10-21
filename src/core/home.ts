@@ -60,14 +60,16 @@ export interface HomeLayout {
   floor: Pt[];
   /** MONZの大きさ [床のいちばん奥, いちばん手前] */
   scale: [number, number];
+  /** 家具を置ける床(奥の壁・左右の壁のきわまで)。企画者の指示(2026-10-21): 奥や壁ぎわにも置けるように */
+  furniture: Pt[];
 }
 
 const ROOM_FLOOR: Pt[] = [[300, 640], [770, 640], [960, 800], [985, 1290], [40, 1290], [60, 800]];
 
 export const HOME_LAYOUTS: Record<HomePlace, HomeLayout> = {
-  street: { w: 1024, h: 1536, floor: ROOM_FLOOR, scale: [0.09, 0.19] },
-  pop: { w: 1024, h: 1536, floor: ROOM_FLOOR, scale: [0.09, 0.19] },
-  future: { w: 1024, h: 1536, floor: ROOM_FLOOR, scale: [0.09, 0.19] },
+  street: { w: 1024, h: 1536, floor: ROOM_FLOOR, scale: [0.09, 0.19], furniture: [[255, 562], [800, 562], [1024, 745], [1024, 1290], [0, 1290], [0, 715]] },
+  pop: { w: 1024, h: 1536, floor: ROOM_FLOOR, scale: [0.09, 0.19], furniture: [[205, 576], [815, 576], [1024, 740], [1024, 1290], [0, 1290], [0, 730]] },
+  future: { w: 1024, h: 1536, floor: ROOM_FLOOR, scale: [0.09, 0.19], furniture: [[240, 584], [815, 584], [1024, 735], [1024, 1290], [0, 1290], [0, 720]] },
 };
 
 /** 点が多角形の中にあるか */
