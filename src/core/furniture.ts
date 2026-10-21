@@ -76,7 +76,7 @@ export const furnitureKey = (id: string) => `furniture:${id}`;
  * 企画者の指示(2026-10-21): 左右の壁ぎわには、角度を合わせて置きたい。横から見た絵をかたむけるだけでは自然に見えないので、ななめの絵を使う。
  * 絵は「奥が左・手前が右」の向き(右の壁ぞい)。左の壁ぞいは反転して使う
  */
-export const FURNITURE_TURN_ART_READY: readonly string[] = ['street_bed'];
+export const FURNITURE_TURN_ART_READY: readonly string[] = [];
 export const furnitureTurnKey = (id: string) => `furniture:${id}:turn`;
 export const furnitureTurnFile = (id: string) => `assets/furniture/${id}_turn.webp`;
 
