@@ -249,6 +249,21 @@ export class HomeScene extends Phaser.Scene {
       else drawCoin(ctx, 44, 42, 27);
     });
     const coinCard = this.add.container(W - 16 - 126, 14 + 42).setDepth(DEPTH.ui);
+    // アイテムボタン(企画者決定 2026-10-21: コインの下に小さく)。アイテムボックスを開く
+    canvasTexture(this, 'home:itemButton', 150, 60, (ctx) => {
+      drawPanel(ctx, 150, 60, 95);
+      ctx.fillStyle = ink;
+      ctx.font = `900 26px ${UI_FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('アイテム', 75, 31);
+      ctx.textAlign = 'left';
+    });
+    this.add
+      .image(W - 16 - 75, 14 + 84 + 10 + 30, 'home:itemButton')
+      .setDepth(DEPTH.ui)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => this.openItems('box'));
     coinCard.add(this.add.image(0, 0, 'home:coinCard'));
     const shown = { v: record.coins };
     const label = this.add.text(104, 2, shown.v.toLocaleString(), { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '34px', color: ink }).setOrigin(1, 0.5);
@@ -415,18 +430,18 @@ export class HomeScene extends Phaser.Scene {
         .setDepth(DEPTH.ui)
         .setInteractive({ useHandCursor: true })
         .on('pointerdown', onTap);
-    button(110, '最初から', () => {
+    button(190, '最初から', () => {
       // お世話画面のデータ(場所・コイン)も消して、場所を決め直す
       clearSave();
       clearLife();
       this.scene.start('Title');
     });
-    button(152, '誕生をもう一度', () => this.scene.start('Birth', { intro: true }));
+    button(232, '誕生をもう一度', () => this.scene.start('Birth', { intro: true }));
     // 【仮】部屋を変えるのは、いずれショップでコインを使う(企画者決定)。ショップができるまでの確認用
-    button(278, '部屋を選び直す', () => this.scene.start('RoomSelect'));
-    button(194, '+10コイン', () => this.record?.add(10));
+    button(358, '部屋を選び直す', () => this.scene.start('RoomSelect'));
+    button(274, '+1000コイン', () => this.record?.add(1000));
     // 時間を進めて、お腹がすいたり眠くなったりするのを確かめる
-    button(236, '6時間すすめる', () => {
+    button(316, '6時間すすめる', () => {
       this.record?.advance(6);
       this.toast('6時間すすめました');
     });
@@ -441,12 +456,22 @@ export class HomeScene extends Phaser.Scene {
     if (this.busy) return;
     if (action === 'food') this.feed();
     else if (action === 'status') this.openStatus();
+    else if (action === 'shop') this.openItems('shop');
     else if (action === 'minigame') {
       audio.se('next');
       this.cameras.main.fadeOut(200, 0, 0, 0);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('MinigameSelect'));
     }
     else this.comingSoon(HOME_ACTION_LABELS[action]);
+  }
+
+  /** ショップ・アイテムボックス(ShopScene) */
+  private openItems(mode: 'shop' | 'box'): void {
+    if (this.busy) return;
+    this.busy = true;
+    audio.se('next');
+    this.cameras.main.fadeOut(200, 0, 0, 0);
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('Shop', { mode }));
   }
 
   // ---------------- MONZとのふれあい ----------------

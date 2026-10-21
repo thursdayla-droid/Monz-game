@@ -43,7 +43,7 @@ export const HOME_ACTION_READY: Record<HomeAction, boolean> = {
   minigame: true,
   status: true,
   battle: false,
-  shop: false,
+  shop: true,
   settings: true,
 };
 

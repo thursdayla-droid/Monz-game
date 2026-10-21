@@ -13,6 +13,7 @@ import { DashScene } from './scenes/DashScene';
 import { SluggerScene } from './scenes/SluggerScene';
 import { QuestionScene } from './scenes/QuestionScene';
 import { RoomSelectScene } from './scenes/RoomSelectScene';
+import { ShopScene } from './scenes/ShopScene';
 import { SplashScene } from './scenes/SplashScene';
 import { TitleScene } from './scenes/TitleScene';
 
@@ -29,7 +30,7 @@ const game = new Phaser.Game({
   },
   // 1回の描画で使うテクスチャを1枚に限定する。複数枚にすると一部の環境でパーツが欠けて描かれたため。
   render: { antialias: true, maxTextures: 1 },
-  scene: [BootScene, SplashScene, TitleScene, QuestionScene, BirthScene, RoomSelectScene, HomeScene, MinigameSelectScene, CardTitleScene, CardPlayScene, DashScene, SluggerScene, CompareScene, BunkPartsScene],
+  scene: [BootScene, SplashScene, TitleScene, QuestionScene, BirthScene, RoomSelectScene, HomeScene, ShopScene, MinigameSelectScene, CardTitleScene, CardPlayScene, DashScene, SluggerScene, CompareScene, BunkPartsScene],
 });
 
 // 開発中だけ、確認用にゲームを外から触れるようにする
