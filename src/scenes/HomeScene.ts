@@ -215,7 +215,8 @@ export class HomeScene extends Phaser.Scene {
     const mapped = layout.floor.map(([x, y]) => [ox + x * sx * k, oy + y * sy * k] as Pt);
     this.floor = clipPolygonX(mapped, EDGE, W - EDGE);
     // 家具は、奥の壁・左右の壁のきわまで置ける(MONZが歩けない所にも)
-    this.furnitureFloor = clipPolygonX(layout.furniture.map(([x, y]) => [ox + x * sx * k, oy + y * sy * k] as Pt), 4, W - 4);
+    // 企画者の指示(2026-10-21): 左右のはしにも置けるように、画面の外(部屋の絵のはしまで)はみ出して置いてもよい
+    this.furnitureFloor = layout.furniture.map(([x, y]) => [ox + x * sx * k, oy + y * sy * k] as Pt);
     this.roomView = { k, ox, oy };
     this.yBack = Math.min(...this.floor.map((p) => p[1]));
     this.yFront = Math.max(...this.floor.map((p) => p[1]));

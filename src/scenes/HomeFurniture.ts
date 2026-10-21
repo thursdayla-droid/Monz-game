@@ -218,10 +218,12 @@ export class HomeFurniture {
     for (let y = Math.min(...ys); y <= Math.max(...ys); y += 20) for (let x = Math.min(...xs); x <= Math.max(...xs); x += 20) tries.push([x, y]);
     tries.sort((a, b) => Math.hypot(a[0] - cx, a[1] - cy) - Math.hypot(b[0] - cx, b[1] - cy));
     const others = this.items.map((o) => this.floorItem(o));
-    return tries.find(([x, y]) => canPlace({ item, x, y, persp: this.persp(y) }, others, this.floor, this.walkFloor)) ?? null;
+    return tries.find(([x, y]) => x >= 30 && x <= this.scene.scale.width - 30 && canPlace({ item, x, y, persp: this.persp(y) }, others, this.floor, this.walkFloor)) ?? null;
   }
 
   private valid(it: Placed, x: number, y: number): boolean {
+    // 家具のまん中は画面の中(見えなくなって触れなくならないように)
+    if (x < 30 || x > this.scene.scale.width - 30) return false;
     const others = this.items.filter((o) => o !== it).map((o) => this.floorItem(o));
     return canPlace({ item: it.item, x, y, persp: this.persp(y) }, others, this.floor, this.walkFloor);
   }
