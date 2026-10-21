@@ -598,8 +598,6 @@ export class HomeScene extends Phaser.Scene {
           this.time.delayedCall(250, () => {
             audio.se('angry');
             brain.reaction = { face: 'angry', kind: 'angry', left: 1.6, age: 0 };
-            const word = this.text(view.x, life.y - MONZ_H * this.scaleAt(life.y) - 10, 'いらない！', 36, '#ff8a9a').setDepth(DEPTH.effect);
-            this.tweens.add({ targets: word, y: word.y - 50, alpha: 0, delay: 500, duration: 600, onComplete: () => word.destroy() });
             // 肉を押しのける
             this.tweens.add({ targets: bowl, x: bowl.x + side * 260 * s, y: bowl.y - 40, angle: side * 120, alpha: 0, duration: 520, ease: 'Cubic.easeOut', delay: 300, onComplete: () => bowl.destroy() });
             this.time.delayedCall(1700, () => (this.busy = false));
