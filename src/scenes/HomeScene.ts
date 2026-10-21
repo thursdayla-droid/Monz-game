@@ -596,7 +596,7 @@ export class HomeScene extends Phaser.Scene {
         // お腹がいっぱい(ゲージ MAX)なら、食べずに怒る(企画者決定 2026-10-21)。経験値・愛もふえない
         if (this.record && this.record.needs.full >= FULL_MAX) {
           this.time.delayedCall(250, () => {
-            audio.se('nope');
+            audio.se('angry');
             brain.reaction = { face: 'angry', kind: 'angry', left: 1.6, age: 0 };
             // 肉を押しのける
             this.tweens.add({ targets: bowl, x: bowl.x + side * 260 * s, y: bowl.y - 40, angle: side * 120, alpha: 0, duration: 520, ease: 'Cubic.easeOut', delay: 300, onComplete: () => bowl.destroy() });

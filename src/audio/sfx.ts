@@ -18,7 +18,6 @@ export type SeName =
   | 'slam'
   | 'happy'
   | 'angry'
-  | 'nope'
   | 'surprised'
   | 'sting'
   | 'beep'
@@ -136,11 +135,6 @@ export function playSe(ctx: AudioContext, out: AudioNode, name: SeName, pitch: n
       tone(ctx, out, t, 'square', [[0, 70], [0.1, 40]], [[0, 0.25], [0.15, 0.0001]], 0.18);
       hiss(ctx, out, t, 'bandpass', [[0, 1800]], 0.6, [[0, 0.5], [0.18, 0.0001]], 0.2);
       hiss(ctx, out, t, 'highpass', [[0, 6000]], 0.7, [[0, 0.25], [0.3, 0.0001]], 0.32);
-      break;
-    case 'nope':
-      // ブッブー(いらない)【仮】
-      tone(ctx, out, t, 'square', [[0, 220 * p]], [[0, 0.0001], [0.01, 0.14], [0.12, 0.1], [0.14, 0.0001]], 0.15);
-      tone(ctx, out, t + 0.18, 'square', [[0, 165 * p]], [[0, 0.0001], [0.01, 0.14], [0.36, 0.1], [0.4, 0.0001]], 0.42);
       break;
     case 'happy':
       tone(ctx, out, t, 'triangle', [[0, 300 * p], [0.12, 660 * p], [0.22, 480 * p]], [[0, 0.0001], [0.02, 0.2], [0.26, 0.0001]], 0.28);
