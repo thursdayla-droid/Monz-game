@@ -79,9 +79,9 @@ export const SLUG_LEVELS: readonly Level[] = [
   { from: 0, flight: [1.3, 1.25], spread: 0.45, breakChance: 0, breakSize: 0 },
   { from: 10, flight: [1.25, 1.1], spread: 0.6, breakChance: 0, breakSize: 0 },
   // 20球から変化球。最初はたまに(7球に1球くらい)・小さく曲がる
-  { from: 20, flight: [1.1, 1.02], spread: 0.75, breakChance: 0.15, breakSize: 0.45 },
-  { from: 35, flight: [1.02, 0.94], spread: 0.85, breakChance: 0.25, breakSize: 0.6 },
-  { from: 60, flight: [0.94, 0.82], spread: 0.85, breakChance: 0.35, breakSize: 0.7 },
+  { from: 20, flight: [1.1, 1.02], spread: 0.75, breakChance: 0.15, breakSize: 1.3 },
+  { from: 35, flight: [1.02, 0.94], spread: 0.85, breakChance: 0.25, breakSize: 1.6 },
+  { from: 60, flight: [0.94, 0.82], spread: 0.85, breakChance: 0.35, breakSize: 1.9 },
 ];
 
 /** 投げた球の数に合う難しさ。ひとつの段の中でも、少しずつ速くなる(急に難しくならないように) */
@@ -120,9 +120,12 @@ export const isStrike = (p: Pick<Pitch, 'tx' | 'ty'>): boolean => Math.abs(p.tx)
 /** ボールの位置。u: 0(手を離れた)〜1(ホームベース) */
 export function ballAt(p: Pitch, u: number): { x: number; y: number; z: number } {
   const { x: sx, y: sy } = SLUG.release;
-  // はじめは (着く所 - 曲がる量) へまっすぐ向かい、最後に曲がって着く所へ(u² で後半ほど大きく曲がる)
-  const x = sx + (p.tx - p.bx - sx) * u + p.bx * u * u;
-  const y = sy + (p.ty - p.by - sy) * u + p.by * u * u;
+  // はじめは (着く所 - 曲がる量) へまっすぐ向かい、最後に曲がって着く所へ。
+  // u⁴ なので手前でキュッと曲がる。まっすぐの道からのずれは いちばん大きい所で 曲がる量の約5割
+  // (2026-10-21 u² だと ずれが1/4しかなく、変化球に見えなかったため)
+  const u4 = u * u * u * u;
+  const x = sx + (p.tx - p.bx - sx) * u + p.bx * u4;
+  const y = sy + (p.ty - p.by - sy) * u + p.by * u4;
   return { x, y, z: 1 - u };
 }
 
