@@ -12,9 +12,10 @@ export const HOME_PLACES = ['street', 'pop', 'future'] as const;
 export type HomePlace = (typeof HOME_PLACES)[number];
 
 export const HOME_PLACE_LABELS: Record<HomePlace, string> = {
-  street: 'ストリートルーム',
-  pop: 'ポップルーム',
-  future: '近未来ルーム',
+  // 企画者決定(2026-10-21): 英語の名前にする
+  street: 'STREET ROOM',
+  pop: 'POP ROOM',
+  future: 'CYBER ROOM',
 };
 
 /** 保存されている部屋。まだ選んでいない・前の部屋(路地裏など)のときは undefined(選び直してもらう) */
