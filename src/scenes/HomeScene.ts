@@ -53,7 +53,7 @@ export const BUNK_POSE_IMAGES = {
   sleep: { height: 0.66 },
   stretch: { height: 1.12 },
   look: { height: 0.98 },
-  hungry: { height: 1.02 },
+  hungry: { height: 1.0 },
   sleepy: { height: 1.0 },
 } as const;
 export type BunkPoseImage = keyof typeof BUNK_POSE_IMAGES;
