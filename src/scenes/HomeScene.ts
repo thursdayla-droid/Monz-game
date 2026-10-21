@@ -4,6 +4,7 @@ import { audio } from '../audio/engine';
 import { BunkBrain } from '../core/bunkBehavior';
 import { HOME_ACTIONS, HOME_ACTION_LABELS, HOME_ACTION_READY, HOME_LAYOUTS, HOME_PLACES, clipPolygonX, insidePolygon, savedHomePlace, type HomeAction, type HomePlace, type Pt } from '../core/home';
 import { MonzLife } from '../core/life';
+import { moodWord } from '../core/needs';
 import { clearLife, LifeRecord, loadLife } from '../core/lifeSave';
 import { mulberry32 } from '../core/rng';
 import { currentStats, LOVE_RULES, shownLove, STAT_KEYS, STAT_LABELS, STAT_MAX, type StatBlock, type StatKey } from '../core/stats';
@@ -78,6 +79,7 @@ export class HomeScene extends Phaser.Scene {
   private busy = false;
   private record?: LifeRecord;
   private saveTimer = 0;
+  private moodText?: Phaser.GameObjects.Text;
   private bubble?: Phaser.GameObjects.Image;
   /** 指でなでている途中(なぞった距離など)。null ならなでていない */
   private stroke: { x: number; y: number; dist: number; sinceTick: number; ticks: number; happy: number; angry: boolean; onMonz: boolean } | null = null;
@@ -235,8 +237,9 @@ export class HomeScene extends Phaser.Scene {
     };
     drawBar();
     card.add(bar);
-    // 【仮】ひとこと
-    card.add(this.add.text(140, 98, '今日もよろしく！', { fontFamily: UI_FONT, fontSize: '20px', fontStyle: 'bold', color: ink }));
+    // 今の気分のひとこと(お腹・なでる・眠さ・機嫌で変わる)
+    this.moodText = this.add.text(140, 98, moodWord(record.needs), { fontFamily: UI_FONT, fontSize: '20px', fontStyle: 'bold', color: ink });
+    card.add(this.moodText);
 
     // コインのカード
     canvasTexture(this, 'home:coinCard', 252, 84, (ctx) => {
@@ -792,6 +795,8 @@ export class HomeScene extends Phaser.Scene {
       const save = this.saveTimer > 30;
       if (save) this.saveTimer = 0;
       record.tick(dt, Date.now(), save);
+      const word = moodWord(record.needs);
+      if (this.moodText && this.moodText.text !== word) this.moodText.setText(word);
     }
     // 奥ほど小さく、手前にいるほど前に描く
     const sc = this.scaleAt(life.y);

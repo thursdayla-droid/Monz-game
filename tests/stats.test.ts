@@ -216,3 +216,15 @@ describe('modes and love save', () => {
     expect(tryLoveSave(50, 0, () => 0.5, () => 0)).toBe(false);
   });
 });
+
+describe('mood word', () => {
+  it('shows the most urgent feeling first', async () => {
+    const { moodWord, newNeeds } = await import('../src/core/needs');
+    const n = { ...newNeeds(), mood: 0.5, sleepy: 0.2 };
+    expect(moodWord({ ...n, full: 0.2, touch: 0.2 })).toBe('おなか すいた…');
+    expect(moodWord({ ...n, touch: 0.2 })).toBe('さみしい… なでて');
+    expect(moodWord({ ...n, full: 1 })).toBe('おなか いっぱい！');
+    expect(moodWord({ ...n, asleep: true, full: 0 })).toBe('すやすや ねてる…');
+    expect(moodWord(n)).toBe('のんびり');
+  });
+});

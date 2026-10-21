@@ -108,3 +108,18 @@ export const levelUpCoins = (newLevel: number): number => newLevel * 10;
 
 /** ローカルの日付('2026-10-19')。1日の経験値の上限に使う */
 export const dayKey = (date: Date): string => `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+
+/**
+ * 今の気分のひとこと(お世話画面の左上、名前の下)。企画者決定(2026-10-21): 「今日もよろしく！」をやめて、今の気分を出す。
+ * 上から順に、当てはまった最初のものを出す。【仮】言葉と目安(ゲージ3以下など)
+ */
+export function moodWord(n: Needs): string {
+  if (n.asleep) return 'すやすや ねてる…';
+  if (n.full <= 0.3 + 1e-9) return 'おなか すいた…';
+  if ((n.touch ?? 1) <= 0.3 + 1e-9) return 'さみしい… なでて';
+  if (n.sleepy > 0.6) return 'ねむい…';
+  if (n.full >= 0.95) return 'おなか いっぱい！';
+  if (n.mood < 0.3) return 'ごきげん ななめ';
+  if (n.mood > 0.7) return 'ごきげん！';
+  return 'のんびり';
+}
