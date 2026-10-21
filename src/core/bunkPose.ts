@@ -58,6 +58,8 @@ export interface BunkMotion {
    * 'down': 腕を下ろした姿(かわりに構えた姿を出す) / 'faces': 表情の顔(まばたき・怒る・喜ぶの顔を出さない)
    */
   disabled?: ('down' | 'faces')[];
+  /** 表情の顔は腕を下ろした姿にだけ重ねる(新しい絵は、腕を下ろした姿に合わせて作っているため) */
+  facesOnlyDown?: boolean;
 }
 
 export interface BreathPose {

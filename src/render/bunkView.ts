@@ -256,7 +256,15 @@ export class BunkView extends Phaser.GameObjects.Container {
     if (still) face = brain.face();
     // 作り直し中で使わない物(表情の顔・腕を下ろした姿)
     if (m.disabled?.includes('faces')) face = null;
-    const pose: BunkPoseName = m.disabled?.includes('down') && brain.pose === 'down' ? 'guard' : brain.pose;
+    // 絵がまだない表情は出さない
+    if (face && !m.faces.names.includes(face)) face = null;
+    let pose: BunkPoseName = m.disabled?.includes('down') && brain.pose === 'down' ? 'guard' : brain.pose;
+    // 新しい絵の表情の顔は、腕を下ろした姿(正面)に合わせて作っている(2026-10-21〜)。
+    // 構えた姿(少し斜め)のときは、まばたきはしない。反応の顔(怒る・喜ぶなど)は、腕を下ろした姿にして出す
+    if (face && m.facesOnlyDown && pose === 'guard') {
+      if (face === brain.face()) pose = 'down';
+      else face = null;
+    }
 
     const br = still ? { scaleX: 1, scaleY: 1 } : sleeping ? breathPose(m, t, b.sleepBreathScale, b.sleepBreathPeriod) : breathPose(m, t);
     const hopPhase = (t * Math.PI) / b.hopPeriod;
