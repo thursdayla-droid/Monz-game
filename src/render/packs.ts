@@ -4,7 +4,7 @@ import { BIRTH_FILES, birthKey } from '../scenes/BirthScene';
 import { REFERENCE_FILES, REFERENCE_ORIGINAL } from '../scenes/CompareScene';
 import { BUNK_POSE_IMAGES, bunkPoseKey, HAND_FILE, HAND_KEY, HOME_ICONS, HOME_IMAGES, homeIconKey, homeImageKey, homePlace, MEAT_FILE, MEAT_KEY } from '../scenes/HomeScene';
 import { TITLE_FILE, TITLE_IMAGE } from '../scenes/TitleScene';
-import { SELECT_IMAGE } from '../scenes/MinigameSelectScene';
+import { SELECT_CARD_ART, SELECT_IMAGE } from '../scenes/MinigameSelectScene';
 import { CARD_IMAGES } from '../ui/cardArt';
 import { SLUG_BATTER_ART, slugBatterKey, SLUG_PITCHER_ART, slugPitcherKey, SLUGGER_BG_FILE, SLUGGER_BG_KEY, SLUGGER_LOGO_FILE, SLUGGER_LOGO_KEY } from '../scenes/SluggerScene';
 import { DASH_BG_FILE, DASH_BG_KEY, DASH_LOGO_FILE, DASH_LOGO_KEY, DASH_JUMP_FILE, DASH_JUMP_KEY, DASH_RUN_FILE, DASH_RUN_KEY, DASH_PLAT_FILE, DASH_PLAT_KEY, DASH_SPIKE_FILE, DASH_SPIKE_KEY } from '../scenes/DashScene';
@@ -49,7 +49,7 @@ function packFiles(name: Exclude<PackName, 'bunk'>): PackFile[] {
     case 'compare':
       return [{ key: REFERENCE_ORIGINAL, url: REFERENCE_FILES.original }];
     case 'minigame':
-      return [{ key: SELECT_IMAGE, url: 'assets/minigame/select.webp' }];
+      return [{ key: SELECT_IMAGE, url: 'assets/minigame/select.webp' }, ...Object.values(SELECT_CARD_ART).map((a) => ({ key: a.key, url: a.file }))];
     case 'card':
       return Object.entries(CARD_IMAGES).map(([key, file]) => ({ key, url: `assets/minigame/${file}` }));
     case 'dash':

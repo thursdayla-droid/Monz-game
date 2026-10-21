@@ -59,3 +59,10 @@ lg = lg.crop(lg.getchannel('A').point(lambda v: 255 if v > 20 else 0).getbbox())
 lh = round(lg.height * 700 / lg.width)
 lg.resize((700, lh), Image.LANCZOS).save(os.path.join(OUT, 'slugger_logo.webp'), quality=88, method=6)
 print('slugger_logo.webp', (700, lh))
+
+# セレクト画面の看板(企画者の絵)。もともと透明の背景。縮小するだけ。
+# 黄色い枠は 絵の x29〜2139・y141〜672(セレクト画面の枠に合わせるのに使う)
+card = Image.open(os.path.join(HERE, 'slugger_card.png')).convert('RGBA')
+cw = 900
+card.resize((cw, round(card.height * cw / card.width)), Image.LANCZOS).save(os.path.join(OUT, 'select_slugger.webp'), quality=88, method=6)
+print('select_slugger.webp', cw)
