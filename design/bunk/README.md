@@ -7,7 +7,7 @@
 - パーツ分けは `reference/split.json`（前の絵の設定は `split_v1.json`）。前の絵にあった右の角はなく、丸い耳は体の一部。とさかは線で囲まれているので、色のかたまりで切り出した。
 - 腕を下ろした姿（ふつう）も新しい絵 `reference/bunk_down_v2.png` にした（2026-10-21）。正面を向いているので、顔ではなく足元で位置をそろえた（(14,16) ずらす）。パーツ分けは `reference/pose_down/split.json`（目のパーツも入れて、反転したときの目の位置に使う）。
 - 表情の顔（新しい絵）は `tools/build_bunk_faces_v2.py design/bunk/reference/pose_down/faces_v2.json` で作る。表情の絵は ふつうの絵と少しだけ大きさ・位置がちがうので、線が重なるように合わせてから、ちがう所（顔）だけ切り出す。
-  - 2026-10-21：目を閉じた顔（`pose_down/v2_closed.png`）・怒った顔（`v2_angry.png`）・悲しい顔（`v2_sad.png`）。届いた表情から `faces_v2.json` の faces と `bunkMotion.json` の faces.names に足す。
+  - 2026-10-21：目を閉じた顔（`pose_down/v2_closed.png`）・怒った顔（`v2_angry.png`）・悲しい顔（`v2_sad.png`）・喜んだ顔（`v2_happy.png`）。表情は4つそろった。届いた表情から `faces_v2.json` の faces と `bunkMotion.json` の faces.names に足す。
   - 新しい表情の顔は腕を下ろした姿（正面）に合わせているので、構えた姿ではまばたきしない。反応の顔を出すときは腕を下ろした姿になる（`facesOnlyDown`）。お世話画面の6つの姿は、とどくまで前の絵のまま。
 
 以下は前の絵のときの記録。

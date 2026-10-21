@@ -12,7 +12,8 @@
   "faces": {
     "closed": "v2_closed.png",
     "angry": "v2_angry.png",
-    "sad": "v2_sad.png"
+    "sad": "v2_sad.png",
+    "happy": "v2_happy.png"
   },
   "keepOthers": false,
   "face": {
