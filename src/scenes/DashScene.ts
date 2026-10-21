@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
-import { DASH, dashReward, DASH_REWARD, jump, meters, newDash, step, type DashState, type Platform, type Thing } from '../core/dash';
+import { DASH, dashReward, jump, meters, newDash, step, type DashState, type Platform, type Thing } from '../core/dash';
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { newSeed } from '../core/rng';
 import { preloadPacks } from '../render/packs';
@@ -169,9 +169,6 @@ export class DashScene extends Phaser.Scene {
       '  （はねるトゲは、下をくぐるか跳び越える）',
       '・マグマの足場をふんでもゲームオーバー',
       '・進むほど、だんだん速くなるよ',
-      '',
-      `報酬：${DASH_REWARD.metersPerCoin}mごとに1コイン`,
-      `経験値：${DASH_REWARD.expFrom}mで1、そこから${DASH_REWARD.metersPerExp}mごとに1`,
     ].join('\n');
     const t = this.add.text(W / 2, H / 2 - 30, text, { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '800', color: INK, lineSpacing: 10 }).setOrigin(0.5);
     const close = this.button(W / 2, H / 2 + 310, '  とじる  ', '#ffd23a', INK, 36);

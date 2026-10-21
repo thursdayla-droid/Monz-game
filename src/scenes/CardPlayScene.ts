@@ -496,7 +496,7 @@ export class CardPlayScene extends Phaser.Scene {
       const lines = [`到達ラウンド   ${this.r.round}`, `出した枚数   ${this.cardsPlayed}`, `獲得コイン   ${total.coins}`, `獲得EXP   ${total.exp}`];
       const txt = this.add.text(W / 2, 780, lines.join('\n'), { fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: INK, align: 'center', lineSpacing: 16 }).setOrigin(0.5);
       const note = this.add
-        .text(W / 2, 985, best ? '★ 自己ベスト！' : this.cardsPlayed < CARD_REWARD.minCardsForReward && this.clears === 0 ? `${CARD_REWARD.minCardsForReward}枚以上出すと報酬がもらえます` : '', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '900', color: '#ffd23a' })
+        .text(W / 2, 985, best ? '★ 自己ベスト！' : '', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '900', color: '#ffd23a' })
         .setOrigin(0.5);
       const toTitle = this.add.text(W / 2 - 150, 1090, ' タイトルへ ', { fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: '#ffffff', backgroundColor: '#16101c', padding: { x: 16, y: 12 } }).setOrigin(0.5).setInteractive({ useHandCursor: true });
       const again = this.add.text(W / 2 + 150, 1090, ' もう一度 ', { fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: INK, backgroundColor: '#ffd23a', padding: { x: 16, y: 12 } }).setOrigin(0.5).setInteractive({ useHandCursor: true });

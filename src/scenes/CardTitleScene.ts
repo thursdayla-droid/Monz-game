@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { loadLife } from '../core/lifeSave';
-import { CARD_REWARD, TURN_SECONDS } from '../core/monzCard';
+import { TURN_SECONDS } from '../core/monzCard';
 import { CARD_H, CARD_W, drawCardBack, drawCardFace, drawCardTable, drawGraffitiText } from '../ui/cardArt';
 import { drawPanel } from '../ui/homeArt';
 import { canvasTextureOnce, UI_FONT } from '../ui/paint';
@@ -118,7 +118,6 @@ export class CardTitleScene extends Phaser.Scene {
     canvasTextureOnce(this, 'card:howpanel', 640, 900, (ctx) => drawPanel(ctx, 640, 900, 98));
     const panel = this.add.image(W / 2, H / 2, 'card:howpanel');
     const logo = this.textures.exists('cardimg:logo') ? this.add.image(W / 2, H / 2 - 470, 'cardimg:logo').setScale(0.6) : null;
-    const R = CARD_REWARD;
     const text = [
       '遊び方',
       '',
@@ -132,10 +131,6 @@ export class CardTitleScene extends Phaser.Scene {
       '  次のラウンドに進めるよ',
       '・上の CARD TRACKER で、まだ出ていない',
       '  カードがわかるよ（タップで大きく）',
-      '',
-      `報酬：ラウンドクリアで${R.clearCoins}コイン`,
-      `${R.minCardsForReward}枚以上出すと、出した枚数に応じて`,
-      'コインとEXPがもらえるよ',
     ].join('\n');
     const t = this.add.text(W / 2, H / 2 - 30, text, { fontFamily: UI_FONT, fontSize: '27px', fontStyle: '800', color: INK, lineSpacing: 8 }).setOrigin(0.5);
     const close = this.add.text(W / 2, H / 2 + 380, '  とじる  ', { fontFamily: UI_FONT, fontSize: '36px', fontStyle: '900', color: INK, backgroundColor: '#ffd23a', padding: { x: 18, y: 8 } }).setOrigin(0.5).setInteractive({ useHandCursor: true });
