@@ -61,6 +61,8 @@ export const bunkPoseKey = (name: string) => `bunk:pose:${name}`;
 
 /** 企画者の肉の絵(design/home/meat.png → design/home/make_meat.py で切り抜き) */
 export const MEAT_KEY = 'home:meatImage';
+/** お腹のゲージが これ以上(10目もりの 10 = 9.5 以上)なら満腹: ごはんを食べずに怒る */
+const FULL_MAX = 0.95;
 /** 企画者の手の絵(なでるときのカーソル)。HAND_TIP は人さし指の先の位置(絵の幅・高さに対する割合) */
 export const HAND_KEY = 'home:handImage';
 export const HAND_FILE = 'hand.webp';
@@ -591,6 +593,19 @@ export class HomeScene extends Phaser.Scene {
       ease: 'Bounce.easeOut',
       onComplete: () => {
         audio.se('plop');
+        // お腹がいっぱい(ゲージ MAX)なら、食べずに怒る(企画者決定 2026-10-21)。経験値・愛もふえない
+        if (this.record && this.record.needs.full >= FULL_MAX) {
+          this.time.delayedCall(250, () => {
+            audio.se('angry');
+            brain.reaction = { face: 'angry', kind: 'angry', left: 1.6, age: 0 };
+            const word = this.text(view.x, life.y - MONZ_H * this.scaleAt(life.y) - 10, 'いらない！', 36, '#ff8a9a').setDepth(DEPTH.effect);
+            this.tweens.add({ targets: word, y: word.y - 50, alpha: 0, delay: 500, duration: 600, onComplete: () => word.destroy() });
+            // 肉を押しのける
+            this.tweens.add({ targets: bowl, x: bowl.x + side * 260 * s, y: bowl.y - 40, angle: side * 120, alpha: 0, duration: 520, ease: 'Cubic.easeOut', delay: 300, onComplete: () => bowl.destroy() });
+            this.time.delayedCall(1700, () => (this.busy = false));
+          });
+          return;
+        }
         brain.reaction = { face: 'happy', kind: 'surprised', left: 0.6, age: 0 };
         for (let i = 0; i < 3; i++) {
           this.time.delayedCall(700 + i * 650, () => {
