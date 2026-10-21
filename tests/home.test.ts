@@ -190,12 +190,12 @@ describe('life record', () => {
 });
 
 describe('needs', () => {
-  it('gets hungry in about half a day and one meal brings back half', () => {
+  it('the hunger gauge (10) goes down 1 per hour and is empty after 10 hours', () => {
     let n = { ...newNeeds(), full: 1 };
-    n = stepNeeds(n, 6 * 3600, false);
+    n = stepNeeds(n, 5 * 3600, false);
     expect(n.full).toBeCloseTo(0.5, 1);
-    n = stepNeeds(n, 6 * 3600, false);
-    expect(n.full).toBe(0);
+    n = stepNeeds(n, 5 * 3600, false);
+    expect(n.full).toBeCloseTo(0, 5);
   });
 
   it('never goes below zero however long the app stays closed', () => {

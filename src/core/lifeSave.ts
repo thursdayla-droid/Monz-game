@@ -346,8 +346,8 @@ export class LifeRecord {
 
   feed(now = Date.now()): void {
     const n = this.needs;
-    // 【仮】愛が増えるのは、お腹がすいている時のごはんだけ
-    if (n.full < LOVE_RULES.hungryBelow) this.gainLove('feed', now);
+    // 愛が増えるのは、ごはんを2目もり ぜんぶ食べられるとき(ゲージ 8 以下)だけ(企画者決定 2026-10-21)
+    if (n.full <= LOVE_RULES.feedAtMost + 1e-9) this.gainLove('feed', now);
     const m = this.monz;
     this.update({}, { needs: { ...n, full: Math.min(1, n.full + NEEDS_RULES.feedFull), mood: Math.min(1, n.mood + NEEDS_RULES.feedMood) }, careCount: { ...m.careCount, feed: m.careCount.feed + 1 } });
     this.gainExp(NEEDS_RULES.feedExp, now, 'feed');
@@ -355,22 +355,21 @@ export class LifeRecord {
 
   pet(happy: boolean, now = Date.now()): void {
     const n = this.needs;
-    // 【仮】愛が増えるのは、喜んだ時だけ
-    if (happy) this.gainLove('pet', now);
+    // なでても愛は増えない(企画者決定 2026-10-21)
+    if (happy && LOVE_RULES.pet > 0) this.gainLove('pet', now);
     const m = this.monz;
     this.update({}, { needs: { ...n, mood: Math.min(1, n.mood + (happy ? NEEDS_RULES.petMood : NEEDS_RULES.petMood / 3)) }, careCount: { ...m.careCount, pet: m.careCount.pet + 1 } });
     this.gainExp(NEEDS_RULES.petExp, now, 'pet');
   }
 
-  /** 愛を増やす(1日に増やせる量まで。最大値まで) */
+  /** 愛を増やす(最大値まで)。loveFeedToday・lovePetToday は記録だけ(上限には使わない) */
   private gainLove(kind: 'feed' | 'pet', now: number): void {
     const m = this.monz;
     const today = dayKey(new Date(now));
     const fed = m.loveDay === today ? m.loveFeedToday : 0;
     const petted = m.loveDay === today ? m.lovePetToday : 0;
     const want = kind === 'feed' ? LOVE_RULES.feed : LOVE_RULES.pet;
-    const room = kind === 'feed' ? LOVE_RULES.feedDailyCap - fed : LOVE_RULES.petDailyCap - petted;
-    const got = Math.max(0, Math.min(want, room, LOVE_RULES.max - m.love));
+    const got = Math.max(0, Math.min(want, LOVE_RULES.max - m.love));
     this.update({}, { love: m.love + got, loveDay: today, loveFeedToday: fed + (kind === 'feed' ? got : 0), lovePetToday: petted + (kind === 'pet' ? got : 0) });
   }
 

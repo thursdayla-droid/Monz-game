@@ -17,10 +17,10 @@ export interface Needs {
 }
 
 export const NEEDS_RULES = {
-  /** 満腹からぺこぺこになるまで(時間) */
-  hungerHours: 12,
-  /** ごはん1回で戻るお腹 */
-  feedFull: 0.5,
+  /** 満腹からぺこぺこになるまで(時間)。企画者決定(2026-10-21): ゲージ10目もりが1時間に1へる */
+  hungerHours: 10,
+  /** ごはん1回で戻るお腹(企画者決定 2026-10-21: 2目もり) */
+  feedFull: 0.2,
   /** 何もしないとき、機嫌が1から0になるまで(時間)。お腹がすいていると早く下がる */
   moodHours: 14,
   hungryMoodFactor: 1.6,

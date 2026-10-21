@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { LIFE_KEY, LifeRecord, loadLife, migrateLife } from '../src/core/lifeSave';
 import type { KeyValueStore } from '../src/core/save';
 import { SPECIES } from '../src/core/species';
-import { STAT_MAX, autoGrowthAt, currentStats, levelUpRng, LOVE_RULES, rollAutoGrowth, SPECIES_STATS, STAT_KEYS, statsForMode, tryLoveSave } from '../src/core/stats';
+import { STAT_MAX, autoGrowthAt, currentStats, levelUpRng, LOVE_RULES, rollAutoGrowth, shownLove, SPECIES_STATS, STAT_KEYS, statsForMode, tryLoveSave } from '../src/core/stats';
+import { NEEDS_RULES, stepNeeds } from '../src/core/needs';
 
 const memoryStore = (): KeyValueStore & { data: Record<string, string> } => {
   const data: Record<string, string> = {};
@@ -122,33 +123,40 @@ describe('save migration to v4', () => {
 describe('love', () => {
   const day = Date.UTC(2026, 9, 20, 3);
 
-  it('starts at 20 and grows only from hungry meals and happy pets, with daily caps', () => {
+  it('starts at 20, grows +0.5 per meal only when the hidden hunger gauge is 8 or less, never from petting', () => {
     const store = memoryStore();
     const rec = new LifeRecord(loadLife(store), store);
     expect(rec.monz.love).toBe(20);
-    rec.feed(day); // お腹いっぱい(0.8)なので増えない
+    rec['data'].monz[0].needs.full = 0.9; // ゲージ 9: 2目もり ぜんぶは食べられないので増えない
+    rec.feed(day);
     expect(rec.monz.love).toBe(20);
-    rec['data'].monz[0].needs.full = 0.1;
+    rec['data'].monz[0].needs.full = 0.8; // ゲージ 8
     rec.feed(day);
-    expect(rec.monz.love).toBe(22);
-    rec['data'].monz[0].needs.full = 0.1;
-    rec.feed(day);
-    rec['data'].monz[0].needs.full = 0.1;
-    rec.feed(day); // 1日の上限(+4)
-    expect(rec.monz.love).toBe(24);
-    rec.pet(false, day);
-    expect(rec.monz.love).toBe(24);
+    expect(rec.monz.love).toBe(20.5);
+    expect(rec.needs.full).toBeCloseTo(1);
+    for (let i = 0; i < 6; i++) {
+      rec['data'].monz[0].needs.full = 0.3;
+      rec.feed(day);
+    }
+    expect(rec.monz.love).toBe(23.5); // 1日の上限はない
+    expect(shownLove(rec.monz.love)).toBe(23);
     for (let i = 0; i < 10; i++) rec.pet(true, day);
-    expect(rec.monz.love).toBe(27);
-    rec.pet(true, day + 24 * 3600 * 1000);
-    expect(rec.monz.love).toBe(28);
+    expect(rec.monz.love).toBe(23.5);
+  });
+
+  it('the hunger gauge goes down 1 of 10 per hour, and a meal gives back 2', () => {
+    expect(NEEDS_RULES.hungerHours).toBe(10);
+    expect(NEEDS_RULES.feedFull).toBeCloseTo(0.2);
+    const n = stepNeeds({ full: 1, sleepy: 0, mood: 1, asleep: false }, 3600, false);
+    expect(n.full).toBeCloseTo(0.9);
   });
 
   it('never goes above the max', () => {
     const store = memoryStore();
     const rec = new LifeRecord(loadLife(store), store);
     rec['data'].monz[0].love = LOVE_RULES.max;
-    rec.pet(true, day);
+    rec['data'].monz[0].needs.full = 0;
+    rec.feed(day);
     expect(rec.monz.love).toBe(LOVE_RULES.max);
   });
 });

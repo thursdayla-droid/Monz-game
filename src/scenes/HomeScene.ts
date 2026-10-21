@@ -6,7 +6,7 @@ import { HOME_ACTIONS, HOME_ACTION_LABELS, HOME_ACTION_READY, HOME_LAYOUTS, clip
 import { MonzLife } from '../core/life';
 import { clearLife, LifeRecord, loadLife, saveLife } from '../core/lifeSave';
 import { mulberry32 } from '../core/rng';
-import { currentStats, LOVE_RULES, STAT_KEYS, STAT_LABELS, STAT_MAX, type StatBlock, type StatKey } from '../core/stats';
+import { currentStats, LOVE_RULES, shownLove, STAT_KEYS, STAT_LABELS, STAT_MAX, type StatBlock, type StatKey } from '../core/stats';
 import { clearSave, loadSave } from '../core/save';
 import { BUNK_MOTION, BunkView, cutoutKey, TEST_PERSONALITY } from '../render/bunkView';
 import { drawCoin, drawGarage, drawHeart, drawIcon, drawMeat, drawMeatImage, drawMenuButton, drawPanel, drawRoom } from '../ui/homeArt';
@@ -655,7 +655,7 @@ export class HomeScene extends Phaser.Scene {
       // 6種類
       const rows: { label: string; value: number; max: number; key?: StatKey; color: number }[] = [
         ...STAT_KEYS.map((k, i) => ({ label: STAT_LABELS[k], value: st[k], max: STAT_MAX, key: k, color: [0xff4f5e, 0xff8a1f, 0x8a35e0, 0x2fa8ff, 0x2ed3c2][i] })),
-        { label: '愛', value: m.love, max: LOVE_RULES.max, color: 0xff4fa3 },
+        { label: '愛', value: shownLove(m.love), max: LOVE_RULES.max, color: 0xff4fa3 },
       ];
       rows.forEach((r, i) => {
         const y = py + 252 + i * 84;
