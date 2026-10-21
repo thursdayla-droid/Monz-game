@@ -14,6 +14,11 @@ export interface Needs {
   mood: number;
   /** いま眠っているか */
   asleep: boolean;
+  /** なでてほしさのゲージ(1=満たされている, 0=さみしい)。見えない。企画者決定(2026-10-21) */
+  touch: number;
+  /** お腹・なでるのゲージが 0 のまま続いている秒数(愛がへる。lifeSave の applyNeglect が使う) */
+  zeroFullSec: number;
+  zeroTouchSec: number;
 }
 
 export const NEEDS_RULES = {
@@ -21,6 +26,9 @@ export const NEEDS_RULES = {
   hungerHours: 10,
   /** ごはん1回で戻るお腹(企画者決定 2026-10-21: 2目もり) */
   feedFull: 0.2,
+  /** なでるのゲージ: 10目もりが1時間に1へる。なでると1目もりもどる(企画者決定 2026-10-21) */
+  touchHours: 10,
+  petTouch: 0.1,
   /** 何もしないとき、機嫌が1から0になるまで(時間)。お腹がすいていると早く下がる */
   moodHours: 14,
   hungryMoodFactor: 1.6,
@@ -49,7 +57,7 @@ export const NEEDS_RULES = {
 /** 夜(スマホの時計で22時〜7時)。夜はよく眠る */
 export const isNight = (date: Date): boolean => date.getHours() >= 22 || date.getHours() < 7;
 
-export const newNeeds = (): Needs => ({ full: 0.8, sleepy: 0.2, mood: 0.8, asleep: false });
+export const newNeeds = (): Needs => ({ full: 0.8, sleepy: 0.2, mood: 0.8, asleep: false, touch: 0.8, zeroFullSec: 0, zeroTouchSec: 0 });
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 
@@ -58,6 +66,11 @@ export function stepNeeds(n: Needs, seconds: number, night: boolean): Needs {
   const r = NEEDS_RULES;
   const h = seconds / 3600;
   const full = clamp01(n.full - h / r.hungerHours);
+  const touch = clamp01((n.touch ?? 1) - h / r.touchHours);
+  // 0 になってからの時間だけを数える(0 になる前の時間は数えない)
+  const atZero = (before: number, hours: number) => Math.max(0, seconds - before * hours * 3600);
+  const zeroFullSec = full <= 0 ? (n.zeroFullSec ?? 0) + atZero(n.full, r.hungerHours) : 0;
+  const zeroTouchSec = touch <= 0 ? (n.zeroTouchSec ?? 0) + atZero(n.touch ?? 1, r.touchHours) : 0;
   const mood = clamp01(n.mood - (h / r.moodHours) * (full < 0.25 ? r.hungryMoodFactor : 1));
   let sleepy = n.sleepy;
   let asleep = n.asleep;
@@ -69,7 +82,7 @@ export function stepNeeds(n: Needs, seconds: number, night: boolean): Needs {
     sleepy = clamp01(sleepy + (h / r.awakeHours) * (night ? r.nightFactor : 1));
     if (sleepy >= r.fallAsleepAt) asleep = true;
   }
-  return { full, sleepy, mood, asleep };
+  return { full, sleepy, mood, asleep, touch, zeroFullSec, zeroTouchSec };
 }
 
 /** 閉じていた間をまとめて進める(最大7日。1分ずつ、夜かどうかも時刻どおりに) */

@@ -327,16 +327,30 @@ export class LifeRecord {
   /** 閉じていた間の変化をまとめて進める(画面を開いたとき) */
   catchUp(now = Date.now()): void {
     this.update({ lastSeen: now }, { needs: catchUp(this.needs, this.data.lastSeen, now) });
+    this.applyNeglect();
   }
 
   /** 【テスト用】時間を hours 時間進めたことにする */
   advance(hours: number, now = Date.now()): void {
     this.update({ lastSeen: now }, { needs: catchUp(this.needs, now - hours * 3600 * 1000, now) });
+    this.applyNeglect();
   }
 
   /** 画面を開いている間、少しずつ進める。保存はたまに(save: true のとき)だけ */
   tick(seconds: number, now = Date.now(), save = false): void {
     this.update({ lastSeen: now }, { needs: stepNeeds(this.needs, seconds, isNight(new Date(now))) }, save);
+    this.applyNeglect(save);
+  }
+
+  /** お腹・なでるのゲージが 0 のまま続いた時間のぶん、愛をへらす(企画者決定 2026-10-21。0 より下にはならない) */
+  private applyNeglect(save = true): void {
+    const n = this.needs;
+    const per = LOVE_RULES.neglectSec;
+    const kf = Math.floor((n.zeroFullSec ?? 0) / per);
+    const kt = Math.floor((n.zeroTouchSec ?? 0) / per);
+    if (kf + kt === 0) return;
+    const love = Math.max(0, Math.round((this.monz.love - LOVE_RULES.neglect * (kf + kt)) * 10) / 10);
+    this.update({}, { love, needs: { ...n, zeroFullSec: (n.zeroFullSec ?? 0) - kf * per, zeroTouchSec: (n.zeroTouchSec ?? 0) - kt * per } }, save);
   }
 
   /** 眠らせる・起こす */
@@ -349,7 +363,7 @@ export class LifeRecord {
     // 愛が増えるのは、ごはんを2目もり ぜんぶ食べられるとき(ゲージ 8 以下)だけ(企画者決定 2026-10-21)
     if (n.full <= LOVE_RULES.feedAtMost + 1e-9) this.gainLove('feed', now);
     const m = this.monz;
-    this.update({}, { needs: { ...n, full: Math.min(1, n.full + NEEDS_RULES.feedFull), mood: Math.min(1, n.mood + NEEDS_RULES.feedMood) }, careCount: { ...m.careCount, feed: m.careCount.feed + 1 } });
+    this.update({}, { needs: { ...this.needs, zeroFullSec: 0, full: Math.min(1, n.full + NEEDS_RULES.feedFull), mood: Math.min(1, n.mood + NEEDS_RULES.feedMood) }, careCount: { ...m.careCount, feed: m.careCount.feed + 1 } });
     this.gainExp(NEEDS_RULES.feedExp, now, 'feed');
   }
 
@@ -358,7 +372,7 @@ export class LifeRecord {
     // なでても愛は増えない(企画者決定 2026-10-21)
     if (happy && LOVE_RULES.pet > 0) this.gainLove('pet', now);
     const m = this.monz;
-    this.update({}, { needs: { ...n, mood: Math.min(1, n.mood + (happy ? NEEDS_RULES.petMood : NEEDS_RULES.petMood / 3)) }, careCount: { ...m.careCount, pet: m.careCount.pet + 1 } });
+    this.update({}, { needs: { ...this.needs, touch: Math.min(1, (n.touch ?? 0) + NEEDS_RULES.petTouch), zeroTouchSec: 0, mood: Math.min(1, n.mood + (happy ? NEEDS_RULES.petMood : NEEDS_RULES.petMood / 3)) }, careCount: { ...m.careCount, pet: m.careCount.pet + 1 } });
     this.gainExp(NEEDS_RULES.petExp, now, 'pet');
   }
 
@@ -370,7 +384,8 @@ export class LifeRecord {
     const petted = m.loveDay === today ? m.lovePetToday : 0;
     const want = kind === 'feed' ? LOVE_RULES.feed : LOVE_RULES.pet;
     const got = Math.max(0, Math.min(want, LOVE_RULES.max - m.love));
-    this.update({}, { love: m.love + got, loveDay: today, loveFeedToday: fed + (kind === 'feed' ? got : 0), lovePetToday: petted + (kind === 'pet' ? got : 0) });
+    const love = Math.round((m.love + got) * 10) / 10;
+    this.update({}, { love, loveDay: today, loveFeedToday: fed + (kind === 'feed' ? got : 0), lovePetToday: petted + (kind === 'pet' ? got : 0) });
   }
 
   /**

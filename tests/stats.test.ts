@@ -3,7 +3,7 @@ import { LIFE_KEY, LifeRecord, loadLife, migrateLife } from '../src/core/lifeSav
 import type { KeyValueStore } from '../src/core/save';
 import { SPECIES } from '../src/core/species';
 import { STAT_MAX, autoGrowthAt, currentStats, levelUpRng, LOVE_RULES, rollAutoGrowth, shownLove, SPECIES_STATS, STAT_KEYS, statsForMode, tryLoveSave } from '../src/core/stats';
-import { NEEDS_RULES, stepNeeds } from '../src/core/needs';
+import { newNeeds, NEEDS_RULES, stepNeeds } from '../src/core/needs';
 
 const memoryStore = (): KeyValueStore & { data: Record<string, string> } => {
   const data: Record<string, string> = {};
@@ -147,8 +147,41 @@ describe('love', () => {
   it('the hunger gauge goes down 1 of 10 per hour, and a meal gives back 2', () => {
     expect(NEEDS_RULES.hungerHours).toBe(10);
     expect(NEEDS_RULES.feedFull).toBeCloseTo(0.2);
-    const n = stepNeeds({ full: 1, sleepy: 0, mood: 1, asleep: false }, 3600, false);
+    const n = stepNeeds({ ...newNeeds(), full: 1 }, 3600, false);
     expect(n.full).toBeCloseTo(0.9);
+  });
+
+  it('the petting gauge (10) goes down 1 per hour, one pet gives back 1', () => {
+    const store = memoryStore();
+    const rec = new LifeRecord(loadLife(store), store);
+    rec['data'].monz[0].needs.touch = 0.5;
+    rec.pet(true, day);
+    expect(rec.needs.touch).toBeCloseTo(0.6);
+    expect(stepNeeds({ ...newNeeds(), touch: 1 }, 3600, false).touch).toBeCloseTo(0.9);
+  });
+
+  it('love goes down 0.1 per 2 hours while a gauge stays at 0 (both: 0.2), never below 0', () => {
+    const store = memoryStore();
+    const rec = new LifeRecord(loadLife(store), store);
+    const n = rec['data'].monz[0].needs;
+    n.full = 0;
+    n.touch = 1;
+    rec.advance(4, day); // お腹 0 のまま4時間 → -0.2(なでるは 0.6 まで)
+    expect(rec.monz.love).toBeCloseTo(19.8);
+    rec.advance(1, day + 1); // まだ2時間たっていないぶんは へらない
+    expect(rec.monz.love).toBeCloseTo(19.8);
+    rec.advance(6, day + 2); // お腹 0 は合計7時間(−0.3)。なでるは5時間で 0 になり、0 は1時間(まだへらない)
+    expect(rec.monz.love).toBeCloseTo(19.5);
+    rec.advance(2, day + 3); // 両方 0 のまま2時間 → −0.1(お腹 9時間目)と −0.1(なでる)
+    expect(rec.monz.love).toBeCloseTo(19.3);
+    // ごはんで お腹の 0 の時間は数え直し
+    rec.feed(day + 4);
+    expect(rec.needs.zeroFullSec).toBe(0);
+    rec['data'].monz[0].love = 0.1;
+    rec['data'].monz[0].needs.full = 0;
+    rec['data'].monz[0].needs.touch = 0;
+    rec.advance(10, day + 5);
+    expect(rec.monz.love).toBe(0);
   });
 
   it('never goes above the max', () => {
