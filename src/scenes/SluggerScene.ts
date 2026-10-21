@@ -304,28 +304,19 @@ export class SluggerScene extends Phaser.Scene {
     audio.se('tap');
     const box = this.add.container(0, 0).setDepth(30);
     const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.7).setOrigin(0, 0).setInteractive();
-    canvasTextureOnce(this, 'slug:howpanel2', 660, 900, (ctx) => drawPanel(ctx, 660, 900, 101));
-    const panel = this.add.image(W / 2, H / 2, 'slug:howpanel2');
+    canvasTextureOnce(this, 'slug:howpanel3', 600, 460, (ctx) => drawPanel(ctx, 600, 460, 101));
+    const panel = this.add.image(W / 2, H / 2, 'slug:howpanel3');
     const text = [
       '遊び方',
       '',
-      '・指でなぞってカーソルを動かし、',
-      '  はなすとスイング',
-      '・赤い目印がボールの来る所',
-      '  （黄色い輪が縮んだ時が打ちどき）',
-      '・カーソルがボールより上ならゴロ、',
-      '  まん中ならライナー、下ならフライ',
-      '・はやく振ると左、おそいと右へ飛ぶ',
-      '・打った飛距離の合計がスコア',
-      '・空振り・見のがしはミス',
-      '  3回ミスでおしまい',
-      '・届かない球は見送ればOK',
-      '・打つほど球が速く、変化球も来るよ',
+      '・指でカーソルを動かして',
+      '  ボールに合わせよう',
+      '・指をはなすとスイング！',
     ].join('\n');
-    const t = this.add.text(W / 2, H / 2 - 50, text, { fontFamily: UI_FONT, fontSize: '27px', fontStyle: '800', color: INK, lineSpacing: 10 }).setOrigin(0.5);
+    const t = this.add.text(W / 2, H / 2 - 60, text, { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '800', color: INK, lineSpacing: 10 }).setOrigin(0.5);
     // 枠からはみ出すときは文字を小さくする(端末で文字の幅が少しちがうため)
     if (t.width > 580) t.setScale(580 / t.width);
-    const close = this.button(W / 2, H / 2 + 370, '  とじる  ', '#ffd23a', INK, 36);
+    const close = this.button(W / 2, H / 2 + 150, '  とじる  ', '#ffd23a', INK, 36);
     close.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
       e.stopPropagation();
       audio.se('back');

@@ -156,22 +156,16 @@ export class DashScene extends Phaser.Scene {
     audio.se('tap');
     const box = this.add.container(0, 0).setDepth(30);
     const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.7).setOrigin(0, 0).setInteractive();
-    canvasTextureOnce(this, 'dash:howpanel', 640, 760, (ctx) => drawPanel(ctx, 640, 760, 99));
-    const panel = this.add.image(W / 2, H / 2, 'dash:howpanel');
+    canvasTextureOnce(this, 'dash:howpanel2', 600, 420, (ctx) => drawPanel(ctx, 600, 420, 99));
+    const panel = this.add.image(W / 2, H / 2, 'dash:howpanel2');
     const text = [
       '遊び方',
       '',
-      '・モンズは自動で右へ走るよ',
+      '・モンズは自動で走るよ',
       '・画面をタップするとジャンプ！',
-      '  （いつも同じ高さ。空中では跳べない）',
-      '・足場から落ちたらゲームオーバー',
-      '・トゲに当たってもゲームオーバー',
-      '  （はねるトゲは、下をくぐるか跳び越える）',
-      '・マグマの足場をふんでもゲームオーバー',
-      '・進むほど、だんだん速くなるよ',
     ].join('\n');
-    const t = this.add.text(W / 2, H / 2 - 30, text, { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '800', color: INK, lineSpacing: 10 }).setOrigin(0.5);
-    const close = this.button(W / 2, H / 2 + 310, '  とじる  ', '#ffd23a', INK, 36);
+    const t = this.add.text(W / 2, H / 2 - 50, text, { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '800', color: INK, lineSpacing: 10 }).setOrigin(0.5);
+    const close = this.button(W / 2, H / 2 + 130, '  とじる  ', '#ffd23a', INK, 36);
     close.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
       e.stopPropagation();
       audio.se('back');
