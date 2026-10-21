@@ -205,7 +205,8 @@ export class MonzLife {
     const nx = this.x + (dx / dist) * speed * dt;
     const ny = this.y + (dy / dist) * speed * dt;
     // 床の外・家具の上には出ない(念のため)
-    if (insidePolygon([nx, ny], this.floor) && !this.blocked([nx, ny])) [this.x, this.y] = [nx, ny];
+    // (今もう家具の上にいるときは、外へ出られるように動いてよい)
+    if (insidePolygon([nx, ny], this.floor) && (!this.blocked([nx, ny]) || this.blocked([this.x, this.y]))) [this.x, this.y] = [nx, ny];
     else this.target = null;
     if (Math.abs(dx) > 4) this.facing = dx > 0 ? 1 : -1;
     this.body.dir = this.facing;

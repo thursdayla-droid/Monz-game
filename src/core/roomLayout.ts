@@ -97,7 +97,9 @@ export function floorConnected(floor: Pt[], blocks: Rect[], cell = 20): boolean 
 /** その家具を、その場所に置けるか。others: ほかに置いてある家具。walkFloor: MONZが歩ける床(通り道を調べる。なければ floor) */
 export function canPlace(f: FloorItem, others: FloorItem[], floor: Pt[], walkFloor = floor): boolean {
   const r = footRect(f);
-  const corners: Pt[] = [[r.x0, r.y0], [r.x1, r.y0], [r.x0, r.y1], [r.x1, r.y1]];
+  // 床からはみ出していないかは、左右を少し内側で見る(壁にぴったり寄せられるように。絵の角が壁に少しかかるのは自然に見える)
+  const ix = (r.x1 - r.x0) * 0.12;
+  const corners: Pt[] = [[r.x0 + ix, r.y0], [r.x1 - ix, r.y0], [r.x0 + ix, r.y1], [r.x1 - ix, r.y1]];
   if (!corners.every((p) => insidePolygon(p, floor))) return false;
   if (others.some((o) => rectsOverlap(r, footRect(o)))) return false;
   const blocks = [f, ...others].filter((o) => !isWalkable(o.item)).map(footRect);

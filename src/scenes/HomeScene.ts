@@ -166,7 +166,7 @@ export class HomeScene extends Phaser.Scene {
       this.roomView,
       this.furnitureFloor,
       this.floor,
-      (y) => Phaser.Math.Linear(this.scaleRange[0], this.scaleRange[1], t(y)) / this.scaleRange[1],
+      (y) => (Phaser.Math.Linear(this.scaleRange[0], this.scaleRange[1], t(y)) / this.scaleRange[1]) * (layout0.furnitureScale ?? 1),
       (y) => DEPTH.monz + t(y),
       MENU.y - MENU.h / 2 - 14,
       [ox0 + layout0.vanish[0] * this.roomView.k, this.roomView.oy + layout0.vanish[1] * this.roomView.k],
@@ -205,15 +205,16 @@ export class HomeScene extends Phaser.Scene {
     const img = this.add.image(W / 2, H / 2, homeImageKey(this.place)).setDepth(-10);
     const w = img.width;
     const h = img.height;
-    img.setScale(Math.max(W / w, H / h));
-    const k = Math.max(W / w, H / h);
+    const k = layout.fit === 'contain' ? Math.min(W / w, H / h) : Math.max(W / w, H / h);
+    img.setScale(k);
     const ox = (W - w * k) / 2;
     const oy = (H - h * k) / 2;
     const sx = w / layout.w;
     const sy = h / layout.h;
     // 絵が画面より横に広いときは、はみ出した所を歩かないようにする(体の半分ぶん内側まで)
     const mapped = layout.floor.map(([x, y]) => [ox + x * sx * k, oy + y * sy * k] as Pt);
-    this.floor = clipPolygonX(mapped, EDGE, W - EDGE);
+    const edge = layout.edge ?? EDGE;
+    this.floor = clipPolygonX(mapped, edge, W - edge);
     // 家具は、奥の壁・左右の壁のきわまで置ける(MONZが歩けない所にも)
     // 画面の外にははみ出さない(企画者の指示 2026-10-21)
     this.furnitureFloor = clipPolygonX(layout.furniture.map(([x, y]) => [ox + x * sx * k, oy + y * sy * k] as Pt), 4, W - 4);
