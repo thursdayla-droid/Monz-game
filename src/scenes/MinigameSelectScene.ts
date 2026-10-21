@@ -111,6 +111,10 @@ export class MinigameSelectScene extends Phaser.Scene {
         const img = this.add.image(0, 0, art.key).setOrigin(0, 0);
         img.setScale((kx * art.srcW) / img.width, (ky * art.srcW) / img.width);
         img.setPosition(ax0 * sx - fx0 * kx, ay0 * sy - fy0 * ky);
+        // 枠の外に飛び出した所(バットなど)は切る。枠の光のぶんだけ少し残す(2026-10-21 企画者の指示)
+        const r = img.width / art.srcW;
+        const glow = 14;
+        img.setCrop((fx0 - glow) * r, (fy0 - glow) * r, (fx1 - fx0 + glow * 2) * r, (fy1 - fy0 + glow * 2) * r);
         return;
       }
       const cover = ([x0, y0, x1, y1]: number[]) => this.add.rectangle((bx0 + x0) * sx, (by0 + y0) * sy, (x1 - x0) * sx, (y1 - y0) * sy, 0x0b0a12, 0.96).setOrigin(0, 0);
