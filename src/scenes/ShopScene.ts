@@ -309,13 +309,12 @@ export class ShopScene extends Phaser.Scene {
       this.dialog([{ text: `${f.name}は\nぜんぶ部屋に置いています`, size: 30 }], []);
       return;
     }
-    // 【仮】もようがえ(部屋に置く)は次の段階で作る
     this.dialog(
+      [{ text: `${f.name}を\n部屋に置く？`, size: 34 }],
       [
-        { text: f.name, size: 34 },
-        { text: '部屋に置く(もようがえ)は\nじゅんび中！', size: 28, color: '#5a4a66' },
+        { label: 'やめる', kind: 'no', onTap: () => audio.se('back') },
+        { label: '置く', kind: 'yes', onTap: () => this.goHome({ placeItem: f.id }) },
       ],
-      [],
     );
   }
 
@@ -329,10 +328,14 @@ export class ShopScene extends Phaser.Scene {
   }
 
   private leave(): void {
+    this.goHome();
+  }
+
+  private goHome(data?: { placeItem?: string }): void {
     if (this.busy) return;
     this.busy = true;
-    audio.se('back');
+    audio.se(data ? 'select' : 'back');
     this.cameras.main.fadeOut(200, 0, 0, 0);
-    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('Home'));
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('Home', data ?? {}));
   }
 }

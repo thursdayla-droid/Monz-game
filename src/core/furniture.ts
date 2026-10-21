@@ -21,21 +21,22 @@ interface KindRule {
   /** 【仮】値段(コイン)。企画者の仮の値段(2026-10-21) */
   price: number;
   /**
-   * 【仮】床の上で占める広さ [横, 奥行き](部屋の絵の座標、手前での大きさ)。重なりの判定とMONZがよける範囲に使う。
-   * 家具の絵が届いたら、絵に合わせて直す
+   * 【仮】部屋に置いたときの大きさ: 手前(MONZがいちばん大きく見える所)での横幅(画面のpx)。奥に置くほど小さく見える
    */
-  foot: [number, number];
+  width: number;
+  /** 【仮】床の上で占める奥行き(横幅に対する割合)。重なりの判定とMONZがよける範囲に使う */
+  depth: number;
   /** MONZがその上を歩けるか(カーペットは歩ける。ほかの家具とは重ねられない) */
   walkable: boolean;
 }
 
 export const KIND_RULES: Record<FurnitureKind, KindRule> = {
-  bed: { name: 'ベッド', price: 500, foot: [300, 150], walkable: false },
-  sofa: { name: 'ソファ', price: 400, foot: [260, 110], walkable: false },
-  table: { name: 'テーブル', price: 250, foot: [180, 100], walkable: false },
-  carpet: { name: 'カーペット', price: 200, foot: [320, 160], walkable: true },
-  light: { name: '照明', price: 300, foot: [70, 50], walkable: false },
-  toy: { name: 'おもちゃ', price: 150, foot: [70, 50], walkable: false },
+  bed: { name: 'ベッド', price: 500, width: 500, depth: 0.3, walkable: false },
+  sofa: { name: 'ソファ', price: 400, width: 380, depth: 0.32, walkable: false },
+  table: { name: 'テーブル', price: 250, width: 230, depth: 0.4, walkable: false },
+  carpet: { name: 'カーペット', price: 200, width: 420, depth: 0.42, walkable: true },
+  light: { name: '照明', price: 300, width: 110, depth: 0.6, walkable: false },
+  toy: { name: 'おもちゃ', price: 150, width: 80, depth: 0.8, walkable: false },
 };
 
 export interface FurnitureDef {

@@ -70,3 +70,24 @@ describe('item box', () => {
     expect(loadLife(store)).toMatchObject({ coins: 33, place: 'pop', inventory: { owned: [], placed: [] } });
   });
 });
+
+describe('room layout', async () => {
+  const { canPlace, floorConnected, footRect } = await import('../src/core/roomLayout');
+  const floor: [number, number][] = [[0, 0], [600, 0], [600, 400], [0, 400]];
+  const at = (item: string, x: number, y: number) => ({ item, x, y, persp: 1 });
+
+  it('keeps furniture on the floor and not on top of each other', () => {
+    expect(canPlace(at('street_bed', 300, 200), [], floor)).toBe(true);
+    expect(canPlace(at('street_bed', 50, 200), [], floor)).toBe(false);
+    expect(canPlace(at('pop_toy', 300, 190), [at('street_bed', 300, 200)], floor)).toBe(false);
+    // カーペットの上を歩けるが、ほかの家具と重ねては置けない
+    expect(canPlace(at('cyber_table', 300, 300), [at('pop_carpet', 300, 330)], floor)).toBe(false);
+  });
+
+  it('does not let furniture cut the floor in two', () => {
+    const wall = { x0: -10, x1: 610, y0: 180, y1: 220 };
+    expect(floorConnected(floor, [wall])).toBe(false);
+    expect(floorConnected(floor, [{ ...wall, x1: 400 }])).toBe(true);
+    expect(footRect(at('street_bed', 300, 200)).y1).toBe(200);
+  });
+});

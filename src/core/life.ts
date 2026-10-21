@@ -89,6 +89,8 @@ export class MonzLife {
   private paused = 0;
   private lookTimer = 0;
   private boxTimer = 0;
+  /** そこに家具があって歩けないか(お世話画面が家具の場所を入れる) */
+  blocked: (p: Pt) => boolean = () => false;
 
   constructor(
     readonly body: BunkBrain,
@@ -201,8 +203,8 @@ export class MonzLife {
     }
     const nx = this.x + (dx / dist) * speed * dt;
     const ny = this.y + (dy / dist) * speed * dt;
-    // 床の外には出ない(念のため)
-    if (insidePolygon([nx, ny], this.floor)) [this.x, this.y] = [nx, ny];
+    // 床の外・家具の上には出ない(念のため)
+    if (insidePolygon([nx, ny], this.floor) && !this.blocked([nx, ny])) [this.x, this.y] = [nx, ny];
     else this.target = null;
     if (Math.abs(dx) > 4) this.facing = dx > 0 ? 1 : -1;
     this.body.dir = this.facing;
@@ -335,11 +337,20 @@ export class MonzLife {
     this.facing = this.body.dir;
   }
 
-  /** 今いる場所から、だいたい min〜max 離れた床の上の点 */
+  /** そこからそこまで、家具にぶつからずにまっすぐ歩けるか */
+  private pathClear(to: Pt): boolean {
+    const d = Math.hypot(to[0] - this.x, to[1] - this.y);
+    const n = Math.max(1, Math.ceil(d / 10));
+    for (let i = 1; i <= n; i++) if (this.blocked([this.x + ((to[0] - this.x) * i) / n, this.y + ((to[1] - this.y) * i) / n])) return false;
+    return true;
+  }
+
+  /** 今いる場所から、だいたい min〜max 離れた床の上の点。家具の上と、家具をつきぬける道は選ばない(家具をよけて歩く) */
   private pickTarget(min: number, max: number): Pt {
-    let best: Pt = randomPointIn(this.rng, this.floor);
-    for (let i = 0; i < 20; i++) {
+    let best: Pt = [this.x, this.y];
+    for (let i = 0; i < 40; i++) {
       const p = randomPointIn(this.rng, this.floor);
+      if (!this.pathClear(p)) continue;
       const d = Math.hypot(p[0] - this.x, p[1] - this.y);
       best = p;
       if (d >= min && d <= max) break;

@@ -2,7 +2,7 @@ import * as Phaser from 'phaser';
 import { speciesName } from '../core/species';
 import { audio } from '../audio/engine';
 import { BunkBrain } from '../core/bunkBehavior';
-import { HOME_ACTIONS, HOME_ACTION_LABELS, HOME_ACTION_READY, HOME_LAYOUTS, HOME_PLACES, clipPolygonX, insidePolygon, savedHomePlace, type HomeAction, type HomePlace, type Pt } from '../core/home';
+import { HOME_ACTIONS, HOME_ACTION_LABELS, HOME_ACTION_READY, HOME_LAYOUTS, HOME_PLACES, clipPolygonX, insidePolygon, randomPointIn, savedHomePlace, type HomeAction, type HomePlace, type Pt } from '../core/home';
 import { MonzLife } from '../core/life';
 import { moodWord, NEEDS_RULES } from '../core/needs';
 import { clearLife, LifeRecord, loadLife } from '../core/lifeSave';
@@ -14,6 +14,7 @@ import { drawCoin, drawHeart, drawIcon, drawMeat, drawMeatImage, drawMenuButton,
 import { canvasTexture, canvasTextureOnce, drawPaper, UI_FONT } from '../ui/paint';
 import { openSoundSettings } from '../ui/soundButton';
 import { preloadPacks } from '../render/packs';
+import { HomeFurniture, preloadFurniture, type RoomView } from './HomeFurniture';
 
 const W = 720;
 const H = 1280;
@@ -86,14 +87,25 @@ export class HomeScene extends Phaser.Scene {
   private poseImg?: Phaser.GameObjects.Image;
   private shownPose: BunkPoseImage | null = null;
   place: HomePlace = 'street';
+  /** アイテムボックスから「部屋に置く」で来たときの家具 */
+  private pendingPlace?: string;
+  private furniture?: HomeFurniture;
+  private roomView: RoomView = { k: 1, ox: 0, oy: 0 };
+  /** 家具を置ける床(画面の座標) */
+  private furnitureFloor: Pt[] = [];
   private scaleRange: [number, number] = [0.09, 0.19];
 
   constructor() {
     super('Home');
   }
 
+  init(data: { placeItem?: string }): void {
+    this.pendingPlace = data?.placeItem;
+  }
+
   preload(): void {
     preloadPacks(this, ['bunk', 'home']);
+    preloadFurniture(this, [...loadLife().inventory.placed.map((p) => p.item), ...(this.pendingPlace ? [this.pendingPlace] : [])]);
   }
 
   create(): void {
@@ -143,9 +155,20 @@ export class HomeScene extends Phaser.Scene {
     this.input.on('pointerupoutside', () => this.endStroke());
     this.zText = this.text(0, 0, 'z', 34, '#ffffff').setVisible(false);
 
+    // 家具(企画者決定 2026-10-21)。MONZは家具をよけて歩く
+    const furn = new HomeFurniture(this, record, this.roomView, this.furnitureFloor, this.floor, (y) => this.scaleAt(y) / this.scaleRange[1], (y) => DEPTH.monz + this.depthOf(y), MENU.y - MENU.h / 2 - 14);
+    this.furniture = furn;
+    life.blocked = furn.blocked;
+    this.moveOutOfFurniture();
+    furn.onEnd = () => {
+      this.busy = false;
+      this.moveOutOfFurniture();
+    };
+
     this.buildTop(record.monz.name ?? speciesName(monz));
     this.buildMenu();
     this.buildTestButtons();
+    if (this.pendingPlace) this.startEdit(this.pendingPlace);
 
     this.cameras.main.fadeIn(400, 0, 0, 0);
     audio.playBgm('home');
@@ -175,7 +198,11 @@ export class HomeScene extends Phaser.Scene {
     const sx = w / layout.w;
     const sy = h / layout.h;
     // 絵が画面より横に広いときは、はみ出した所を歩かないようにする(体の半分ぶん内側まで)
-    this.floor = clipPolygonX(layout.floor.map(([x, y]) => [ox + x * sx * k, oy + y * sy * k] as Pt), EDGE, W - EDGE);
+    const mapped = layout.floor.map(([x, y]) => [ox + x * sx * k, oy + y * sy * k] as Pt);
+    this.floor = clipPolygonX(mapped, EDGE, W - EDGE);
+    // 家具は、MONZが歩けない床のはし(画面のはしの近く)にも置ける
+    this.furnitureFloor = clipPolygonX(mapped, 12, W - 12);
+    this.roomView = { k, ox, oy };
     this.yBack = Math.min(...this.floor.map((p) => p[1]));
     this.yFront = Math.max(...this.floor.map((p) => p[1]));
   }
@@ -262,6 +289,21 @@ export class HomeScene extends Phaser.Scene {
       .setDepth(DEPTH.ui)
       .setInteractive({ useHandCursor: true })
       .on('pointerdown', () => this.openItems('box'));
+    // もようがえボタン(置いてある家具を動かす・しまう)
+    canvasTexture(this, 'home:editButton', 150, 60, (ctx) => {
+      drawPanel(ctx, 150, 60, 96);
+      ctx.fillStyle = ink;
+      ctx.font = `900 22px ${UI_FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('もようがえ', 75, 31);
+      ctx.textAlign = 'left';
+    });
+    this.add
+      .image(W - 16 - 75, 14 + 84 + 10 + 30 + 68, 'home:editButton')
+      .setDepth(DEPTH.ui)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => this.startEdit());
     coinCard.add(this.add.image(0, 0, 'home:coinCard'));
     const shown = { v: record.coins };
     const label = this.add.text(104, 2, shown.v.toLocaleString(), { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '34px', color: ink }).setOrigin(1, 0.5);
@@ -428,18 +470,18 @@ export class HomeScene extends Phaser.Scene {
         .setDepth(DEPTH.ui)
         .setInteractive({ useHandCursor: true })
         .on('pointerdown', onTap);
-    button(190, '最初から', () => {
+    button(260, '最初から', () => {
       // お世話画面のデータ(場所・コイン)も消して、場所を決め直す
       clearSave();
       clearLife();
       this.scene.start('Title');
     });
-    button(232, '誕生をもう一度', () => this.scene.start('Birth', { intro: true }));
+    button(302, '誕生をもう一度', () => this.scene.start('Birth', { intro: true }));
     // 【仮】部屋を変えるのは、いずれショップでコインを使う(企画者決定)。ショップができるまでの確認用
-    button(358, '部屋を選び直す', () => this.scene.start('RoomSelect'));
-    button(274, '+1000コイン', () => this.record?.add(1000));
+    button(428, '部屋を選び直す', () => this.scene.start('RoomSelect'));
+    button(344, '+1000コイン', () => this.record?.add(1000));
     // 時間を進めて、お腹がすいたり眠くなったりするのを確かめる
-    button(316, '6時間すすめる', () => {
+    button(386, '6時間すすめる', () => {
       this.record?.advance(6);
       this.toast('6時間すすめました');
     });
@@ -461,6 +503,30 @@ export class HomeScene extends Phaser.Scene {
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('MinigameSelect'));
     }
     else this.comingSoon(HOME_ACTION_LABELS[action]);
+  }
+
+  /** もようがえ(家具を置く・動かす)。MONZはそのあいだ止まる */
+  private startEdit(newItem?: string): void {
+    if (!this.furniture || this.furniture.editing) return;
+    if (newItem === undefined && this.busy) return;
+    this.busy = true;
+    this.endStroke();
+    this.furniture.startEdit(newItem);
+  }
+
+  /** 家具の上にMONZがいたら、近くの空いている床に移す */
+  private moveOutOfFurniture(): void {
+    const life = this.life;
+    const furn = this.furniture;
+    if (!life || !furn || !furn.blocked([life.x, life.y])) return;
+    const rng = mulberry32((Date.now() >>> 5) & 0xffffffff);
+    for (let i = 0; i < 200; i++) {
+      const p = randomPointIn(rng, this.floor);
+      if (!furn.blocked(p)) {
+        [life.x, life.y] = p;
+        return;
+      }
+    }
   }
 
   /** ショップ・アイテムボックス(ShopScene) */
@@ -832,8 +898,10 @@ export class HomeScene extends Phaser.Scene {
     view.mirrored = life.facing < 0;
     view.setPosition(life.x, life.y).setScale(sc).setDepth(DEPTH.monz + this.depthOf(life.y));
     view.render(life.body, this.t);
-    // 影(300x46)は、MONZの大きさ 0.165 のときの大きさ
-    this.shadow?.setPosition(life.x, life.y + 2).setScale(sc / 0.165).setDepth(DEPTH.monz - 1);
+    // 影(300x46)は、MONZの大きさ 0.165 のときの大きさ。MONZのすぐ後ろ(手前の家具には隠れる)
+    this.shadow?.setPosition(life.x, life.y + 2).setScale(sc / 0.165).setDepth(DEPTH.monz + this.depthOf(life.y) - 0.001);
+    if (this.furniture?.editing) life.pause(0.2);
+    this.furniture?.update({ x: life.x, y: life.y, top: life.y - MONZ_H * sc, half: 330 * sc });
     const brain = life.body;
     // 眠っている姿の絵には「Z」が描いてあるので、そのときは出さない
     const sleeping = brain.activity === 'sleep' && !brain.switching && this.shownPose !== 'sleep';
