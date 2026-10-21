@@ -47,7 +47,20 @@ export const DASH = {
   bounceRoll: 90,
   /** 【仮】難しくなると、足場の端の近くで跳ばないと届かないすき間が出る(すき間の最大を少し広げる) */
   edgeGapExtra: 0.08,
+  /**
+   * 2026-10-21 企画者の指示(700mから先が簡単すぎる): 700m(ほかの難しさが最大になったあと)から、
+   * さらに 1300m かけて(2000mで最大)、速さ・短い足場・トゲ・マグマ・すき間を強くしていく
+   */
+  hardFrom: 70000,
+  hardRamp: 130000,
+  /** さらに難しくなったときの最高速 */
+  topSpeed: 1250,
 } as const;
+
+/** 700mから先の、さらに難しくなる度合い(0〜1) */
+const extraAt = (x: number) => Math.min(1, Math.max(0, (x - DASH.hardFrom) / DASH.hardRamp));
+/** その場所での最高速 */
+const speedCap = (x: number) => DASH.maxSpeed + (DASH.topSpeed - DASH.maxSpeed) * extraAt(x);
 
 export interface Platform {
   x: number;
@@ -129,12 +142,13 @@ function fill(s: DashState): void {
   const rng = rngOf(s);
   while (s.nextX < s.dist + 2400) {
     // この先を走るときの速さで、届くすき間を決める(余裕を持たせて最大の6割まで)
-    const speed = Math.min(DASH.maxSpeed, s.speed + DASH.accel * ((s.nextX - s.dist) / s.speed));
+    const speed = Math.min(speedCap(s.nextX), s.speed + DASH.accel * ((s.nextX - s.dist) / s.speed));
+    const extra = extraAt(s.nextX);
     const reach = speed * airtime();
     const level = Math.min(1, s.dist / 60000);
     // 【仮】ときどき、足場の続きの1つがマグマになる(すき間なし・少し低い。跳べば越えられる幅)。前の足場がマグマなら続けない
     const prev = s.platforms[s.platforms.length - 1];
-    if (s.nextX > 3000 && !prev?.magma && prev && prev.w > reach * 0.8 && rng() < DASH.magmaChance) {
+    if (s.nextX > 3000 && !prev?.magma && prev && prev.w > reach * 0.8 && rng() < DASH.magmaChance + 0.08 * extra) {
       const mw = range(rng, 0.4, 0.6) * reach;
       s.platforms.push({ x: s.nextX, w: mw, y: s.lastY + DASH.magmaDrop, magma: true });
       s.nextX += mw;
@@ -147,11 +161,11 @@ function fill(s: DashState): void {
     // 短い足場(2026-10-20 企画者の指示): 一定の距離を越えたら出はじめ、進むほど増える。
     // 着地できる幅がせまいので、ジャンプのタイミングが大事になる。高さはほとんど変えない
     const hard = Math.min(1, Math.max(0, (s.nextX - DASH.shortFrom) / DASH.shortRamp));
-    if (hard > 0 && prev && prev.w > reach * 0.8 && rng() < 0.15 + 0.35 * hard) {
-      // 進むほど、短い足場が続く(最初は1つ、いちばん難しいところで最大4つ)
-      const count = 1 + Math.floor(rng() * (1 + 3 * hard));
+    if (hard > 0 && prev && prev.w > reach * 0.8 && rng() < 0.15 + 0.35 * hard + 0.2 * extra) {
+      // 進むほど、短い足場が続く(最初は1つ、600mで最大4つ、2000mで最大6つ)
+      const count = 1 + Math.floor(rng() * (1 + 3 * hard + 2 * extra));
       for (let i = 0; i < count; i++) {
-        const w = range(rng, 0.55 - 0.15 * hard, 0.65 - 0.1 * hard) * reach;
+        const w = range(rng, 0.55 - 0.15 * hard - 0.08 * extra, 0.65 - 0.1 * hard - 0.08 * extra) * reach;
         // 短い足場から短い足場へ: 端の近くで跳んでも、跳びこしてしまわない近さにする(すき間+幅 が跳べる距離より少し長い)
         const g = i === 0 ? range(rng, 0.6, 0.8) * reach : Math.max(range(rng, 0.5, 0.65) * reach, reach * 1.05 - w);
         const x = s.nextX + g;
@@ -164,7 +178,7 @@ function fill(s: DashState): void {
     }
     // 短い足場の次は、すき間と上りを少しひかえめにする(短い足場では、跳ぶ場所を選べないため)
     const afterShort = !!prev && prev.w < reach * 0.8;
-    let gap = range(rng, 0.35, afterShort ? 0.5 : 0.55 + 0.2 * level + DASH.edgeGapExtra * hard) * reach;
+    let gap = range(rng, 0.35, afterShort ? 0.5 : 0.55 + 0.2 * level + DASH.edgeGapExtra * hard + 0.05 * extra) * reach;
     // 高さの差: 上は跳べる高さの7割まで、下は大きく降りることもある。上と下へ交互に行きやすくする
     const up = jumpHeight() * (afterShort ? 0.5 : 0.7);
     const goUp = s.lastY > (DASH.minY + DASH.maxY) / 2 ? rng() < 0.7 : rng() < 0.35;
@@ -178,12 +192,12 @@ function fill(s: DashState): void {
     const drop = Math.max(0, y - s.lastY);
     const landing = reach * (1.15 + (drop / jumpHeight()) * 0.5);
     // トゲを置く足場は、跳び越えたあと同じ足場に着地できる長さにする(2026-10-20 トゲが出ないことがあったため)
-    const spike = rng() < 0.45 + 0.3 * level;
+    const spike = rng() < 0.45 + 0.3 * level + 0.15 * extra;
     // 進むと、トゲの一部がはねるトゲになる。転がってきても、着地する所から少し先までは来ない(着地してから見てよけられるように)
     const bouncy = Math.min(1, Math.max(0, (x - DASH.bounceFrom) / DASH.shortRamp));
-    const bounce = spike && bouncy > 0 && rng() < 0.25 + 0.35 * bouncy;
+    const bounce = spike && bouncy > 0 && rng() < 0.25 + 0.35 * bouncy + 0.2 * extra;
     const start = landing + (bounce ? reach * 0.6 : 0);
-    let w = range(rng, 0.9, 2.4 - 1.0 * level) * reach;
+    let w = range(rng, 0.9, 2.4 - 1.0 * level - 0.4 * extra) * reach;
     if (spike) w = Math.max(w, start + reach * range(rng, 1.4, 1.9));
     s.platforms.push({ x, w, y });
     if (spike) {
@@ -227,7 +241,7 @@ function meetTime(s: DashState, b: NonNullable<Thing['bounce']>): number {
   for (let i = 0; i < 120 * 30; i++) {
     const tx = Math.max(b.minX, b.x0 - DASH.bounceRoll * (time - b.t0));
     if (dist + DASH.runnerX >= tx + 27) return time;
-    speed = Math.min(DASH.maxSpeed, speed + DASH.accel * dt);
+    speed = Math.min(speedCap(dist), speed + DASH.accel * dt);
     dist += speed * dt;
     time += dt;
   }
@@ -246,7 +260,7 @@ function moveBounce(t: Thing, time: number): void {
 /** dt 秒すすめる */
 export function step(s: DashState, dt: number): void {
   if (s.over) return;
-  s.speed = Math.min(DASH.maxSpeed, s.speed + DASH.accel * dt);
+  s.speed = Math.min(speedCap(s.dist), s.speed + DASH.accel * dt);
   s.dist += s.speed * dt;
   s.time += dt;
   for (const t of s.things) if (t.bounce) moveBounce(t, s.time);

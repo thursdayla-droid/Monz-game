@@ -133,6 +133,15 @@ describe('DASH MONZ', () => {
     expect(chains).toBeGreaterThan(5);
   }, 30000);
 
+  it('keeps getting harder after 700m (faster, up to 2000m) and is still passable', () => {
+    for (let seed = 1; seed <= 12; seed++) {
+      const s = autoplay(seed, 330);
+      expect(s.over, `seed ${seed} at ${meters(s)}m`).toBe(false);
+      expect(meters(s)).toBeGreaterThan(2500);
+      expect(s.speed).toBeGreaterThan(DASH.topSpeed - 1);
+    }
+  }, 60000);
+
   it('bouncing spikes appear later and can be dodged', () => {
     let bounces = 0;
     for (let seed = 1; seed <= 15; seed++) {
