@@ -182,6 +182,9 @@ describe('MONZ SLUGGER', () => {
 
   it('reward is based on hits (provisional numbers)', () => {
     expect(sluggerReward({ hits: 0 })).toEqual({ coins: 0, exp: 0 });
-    expect(sluggerReward({ hits: 14 })).toEqual({ coins: 2, exp: 4 });
+    expect(sluggerReward({ hits: 19 })).toEqual({ coins: 3, exp: 0 });
+    expect(sluggerReward({ hits: 20 })).toEqual({ coins: 4, exp: 1 });
+    expect(sluggerReward({ hits: 29 })).toEqual({ coins: 5, exp: 1 });
+    expect(sluggerReward({ hits: 30 })).toEqual({ coins: 6, exp: 2 });
   });
 });
