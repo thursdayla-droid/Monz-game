@@ -2,7 +2,7 @@ import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { newSeed, type Rng } from '../core/rng';
-import { applyResult, ballAt, canSwing, isHit, judge, markerLead, newSlugger, nextPitch, passed, rngOf, SLUG, SLUG_REWARD, sluggerReward, type Pitch, type SluggerState, type SwingResult } from '../core/slugger';
+import { applyResult, ballAt, canSwing, isHit, judge, markerLead, newSlugger, nextPitch, passed, rngOf, SLUG, sluggerReward, type Pitch, type SluggerState, type SwingResult } from '../core/slugger';
 import { preloadPacks } from '../render/packs';
 import { drawPanel } from '../ui/homeArt';
 import { canvasTextureOnce, INK, UI_FONT } from '../ui/paint';
@@ -97,6 +97,7 @@ export class SluggerScene extends Phaser.Scene {
   private fx!: Phaser.GameObjects.Graphics;
   private scoreText!: Phaser.GameObjects.Text;
   private comboText!: Phaser.GameObjects.Text;
+  private hitText!: Phaser.GameObjects.Text;
   /** 空振りできる残りの数のしるし(右上) */
   private whiffMarks: Phaser.GameObjects.Text[] = [];
   private hud!: Phaser.GameObjects.Container;
@@ -184,6 +185,8 @@ export class SluggerScene extends Phaser.Scene {
       if (this.phase === 'play') this.pause();
     });
     this.scoreText = this.add.text(W / 2, 30, '0m', { fontFamily: ARIAL, fontSize: '56px', color: '#ffffff', stroke: INK, strokeThickness: 10 }).setOrigin(0.5, 0);
+    // 今のヒット数(左上の Ⅱ の下に小さく)
+    this.hitText = this.add.text(24, 100, '', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '900', color: '#ffffff', stroke: INK, strokeThickness: 6 });
     this.comboText = this.add.text(W / 2, 108, '', { fontFamily: ARIAL, fontSize: '34px', color: '#ffd23a', stroke: INK, strokeThickness: 8 }).setOrigin(0.5, 0);
     // ミスの残り(右上): 黄色い ● 3つ。空振り・見のがしで赤い ✕ になる(ファウルは大丈夫)
     const board = this.add.rectangle(W - 226, 26, 206, 118, 0x16101c, 0.82).setOrigin(0, 0).setStrokeStyle(4, 0xffffff, 0.25);
@@ -193,7 +196,7 @@ export class SluggerScene extends Phaser.Scene {
       this.whiffMarks.push(this.add.text(W - 186 + i * 63, 104, '○', { fontFamily: ARIAL, fontSize: '40px', color: '#ffffff', stroke: INK, strokeThickness: 6 }).setOrigin(0.5));
     }
     const parts: Phaser.GameObjects.GameObject[] = [board, label, ...this.whiffMarks];
-    this.hud.add([pause, this.scoreText, this.comboText, ...parts]);
+    this.hud.add([pause, this.scoreText, this.hitText, this.comboText, ...parts]);
     this.hud.setVisible(false);
   }
 
@@ -301,29 +304,28 @@ export class SluggerScene extends Phaser.Scene {
     audio.se('tap');
     const box = this.add.container(0, 0).setDepth(30);
     const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.7).setOrigin(0, 0).setInteractive();
-    canvasTextureOnce(this, 'slug:howpanel', 640, 820, (ctx) => drawPanel(ctx, 640, 820, 101));
-    const panel = this.add.image(W / 2, H / 2, 'slug:howpanel');
+    canvasTextureOnce(this, 'slug:howpanel2', 660, 900, (ctx) => drawPanel(ctx, 660, 900, 101));
+    const panel = this.add.image(W / 2, H / 2, 'slug:howpanel2');
     const text = [
       '遊び方',
       '',
-      '・指でなぞってカーソルを動かし、はなすとスイング',
-      '・赤い目印がボールの来る所（輪が縮んだ時が打ちどき）',
-      '・カーソルがボールより上だとゴロ、',
-      '  まん中だとライナー、下だとフライ',
-      '・はやく振ると左へ、おそいと右へ飛ぶ',
-      '・打った飛距離の合計がスコア！',
-      '  （遠くへ飛ばすとホームラン）',
-      '・空振り・見のがしはミス。3回でおしまい',
-      '  （ファウルは大丈夫）',
-      '・たまに来る届かない球は、見送ればOK',
-      '・ヒットを打つほど、球が速く・変化球も来て',
-      '  目印が出るのもおそくなるよ',
-      '',
-      `報酬：${SLUG_REWARD.hitsPerCoin}ヒットごとに1コイン`,
-      `経験値：${SLUG_REWARD.expFrom}本で1、そこから${SLUG_REWARD.hitsPerExp}本ごとに1`,
+      '・指でなぞってカーソルを動かし、',
+      '  はなすとスイング',
+      '・赤い目印がボールの来る所',
+      '  （黄色い輪が縮んだ時が打ちどき）',
+      '・カーソルがボールより上ならゴロ、',
+      '  まん中ならライナー、下ならフライ',
+      '・はやく振ると左、おそいと右へ飛ぶ',
+      '・打った飛距離の合計がスコア',
+      '・空振り・見のがしはミス',
+      '  3回ミスでおしまい（ファウルはOK）',
+      '・届かない球は見送ればOK',
+      '・打つほど球が速く、変化球も来るよ',
     ].join('\n');
-    const t = this.add.text(W / 2, H / 2 - 40, text, { fontFamily: UI_FONT, fontSize: '27px', fontStyle: '800', color: INK, lineSpacing: 9 }).setOrigin(0.5);
-    const close = this.button(W / 2, H / 2 + 340, '  とじる  ', '#ffd23a', INK, 36);
+    const t = this.add.text(W / 2, H / 2 - 50, text, { fontFamily: UI_FONT, fontSize: '27px', fontStyle: '800', color: INK, lineSpacing: 10 }).setOrigin(0.5);
+    // 枠からはみ出すときは文字を小さくする(端末で文字の幅が少しちがうため)
+    if (t.width > 580) t.setScale(580 / t.width);
+    const close = this.button(W / 2, H / 2 + 370, '  とじる  ', '#ffd23a', INK, 36);
     close.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
       e.stopPropagation();
       audio.se('back');
@@ -414,6 +416,7 @@ export class SluggerScene extends Phaser.Scene {
 
   private refreshHud(): void {
     this.scoreText.setText(`${this.s.score.toLocaleString()}m`);
+    this.hitText.setText(`ヒット ${this.s.hits}本`);
     this.comboText.setText(this.s.streak >= 2 ? `${this.s.streak}連続ヒット！` : '');
     // ミスの数: 左から 1つずつ赤い ✕ になる(ミス1回 = ✕1つ)。まだのところは白い ○
     this.whiffMarks.forEach((t, i) => {
