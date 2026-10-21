@@ -105,10 +105,12 @@ export class MinigameSelectScene extends Phaser.Scene {
         const [ax0, ay0, ax1, ay1] = ART_CARDS[i];
         this.add.rectangle((ax0 - 6) * sx, (ay0 - 6) * sy, (ax1 - ax0 + 12) * sx, (ay1 - ay0 + 12) * sy, 0x0b0a12, 1).setOrigin(0, 0);
         const [fx0, fy0, fx1, fy1] = art.frame;
-        const k = Math.min(((ax1 - ax0) * sx) / (fx1 - fx0), ((ay1 - ay0) * sy) / (fy1 - fy0));
+        // 横と縦を別々に合わせて、ほかの看板と同じ幅・高さにする(縦横の比が少しちがうので、少しだけ縦を縮める)
+        const kx = ((ax1 - ax0) * sx) / (fx1 - fx0);
+        const ky = ((ay1 - ay0) * sy) / (fy1 - fy0);
         const img = this.add.image(0, 0, art.key).setOrigin(0, 0);
-        img.setScale((k * art.srcW) / img.width);
-        img.setPosition(((ax0 + ax1) / 2) * sx - ((fx0 + fx1) / 2) * k, ((ay0 + ay1) / 2) * sy - ((fy0 + fy1) / 2) * k);
+        img.setScale((kx * art.srcW) / img.width, (ky * art.srcW) / img.width);
+        img.setPosition(ax0 * sx - fx0 * kx, ay0 * sy - fy0 * ky);
         return;
       }
       const cover = ([x0, y0, x1, y1]: number[]) => this.add.rectangle((bx0 + x0) * sx, (by0 + y0) * sy, (x1 - x0) * sx, (y1 - y0) * sy, 0x0b0a12, 0.96).setOrigin(0, 0);
