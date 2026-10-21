@@ -106,7 +106,8 @@ export class BunkView extends Phaser.GameObjects.Container {
    */
   mirrored = false;
   /** 顔のまん中の線(元画像の x)。左右の目のまん中 */
-  private faceAxis = 0;
+  /** 顔のまん中の線(姿ごと。腕を下ろした姿は正面を向いているので、構えた姿と場所がちがう) */
+  private faceAxis: Record<BunkPoseName, number> = { guard: 0, down: 0 };
   showOriginal = false;
 
   constructor(scene: Phaser.Scene, x: number, y: number, scale: number) {
@@ -182,12 +183,16 @@ export class BunkView extends Phaser.GameObjects.Container {
    * 元画像(各姿の切り抜き)から目のまわりを楕円にぼかして切り出すだけで、描き直さない。
    */
   private addEyeFix(scene: Phaser.Scene): void {
-    const manifest = scene.cache.json.get(manifestKey('guard')) as PartsManifest;
-    const eyes = ['eye_l', 'eye_r'].map((n) => manifest.parts[n]).filter(Boolean);
-    if (eyes.length < 2) return;
-    this.faceAxis = eyes.reduce((s, e) => s + e.x + e.w / 2, 0) / eyes.length;
+    const guard = scene.cache.json.get(manifestKey('guard')) as PartsManifest;
+    const eyesOf = (mf: PartsManifest) => ['eye_l', 'eye_r'].map((n) => mf.parts[n]).filter(Boolean);
     const [bx, by] = BUNK_MOTION.breath.pivot;
     for (const pose of POSES) {
+      // 目の場所は、その姿に目のパーツがあればそれ、なければ構えた姿の目
+      const own = scene.cache.json.get(manifestKey(pose)) as PartsManifest | undefined;
+      const manifest = own && eyesOf(own).length === 2 ? own : guard;
+      const eyes = eyesOf(manifest);
+      if (eyes.length < 2) continue;
+      this.faceAxis[pose] = eyes.reduce((s, e) => s + e.x + e.w / 2, 0) / eyes.length;
       const v = this.views[pose];
       const src = scene.textures.get(cutoutKey(pose)).getSourceImage() as HTMLImageElement;
       const sx = src.width / manifest.width;
@@ -275,7 +280,7 @@ export class BunkView extends Phaser.GameObjects.Container {
         }
       }
       // 反転しているときは、顔のまん中の線を軸に、目と表情の顔だけもう一度反転して元の向きに戻す
-      const axis = this.faceAxis - m.breath.pivot[0];
+      const axis = this.faceAxis[p] - m.breath.pivot[0];
       const unflipX = (x: number) => (this.mirrored ? 2 * axis - x : x);
       if (face) {
         const fm = this.faces.faces[face];
@@ -323,7 +328,7 @@ export class BunkView extends Phaser.GameObjects.Container {
       }
     }
     // 反転は顔のまん中の線を軸にする(足元の中心とは少しずれている)
-    const flipShift = this.mirrored ? 2 * (this.faceAxis - m.anchor[0]) : 0;
+    const flipShift = this.mirrored ? 2 * (this.faceAxis[pose] - m.anchor[0]) : 0;
     this.actor.setPosition(x + flipShift, y).setRotation((rot * Math.PI) / 180).setScale(this.mirrored ? -sx : sx, sy);
   }
 }

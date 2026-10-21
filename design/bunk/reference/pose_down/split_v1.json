@@ -1,0 +1,14 @@
+{
+  "note": "BUNK「腕を下ろしたポーズ」(位置をそろえた後)のパーツ分け設定。座標は元画像のpx。z が大きいほど手前。",
+  "source": "public/assets/bunk/reference/bunk_down_cutout.png",
+  "darkLum": 80,
+  "outlineRadius": 14,
+  "fillIgnoreDark": 12,
+  "fillLocal": 60,
+  "edgeOverlap": 2,
+  "parts": {
+    "body":    { "z": 1 },
+    "glove_l": { "z": 5, "regions": [[153, 853]] },
+    "glove_r": { "z": 5, "regions": [[1070, 916], [897, 974]] }
+  }
+}

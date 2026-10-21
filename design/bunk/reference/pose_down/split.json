@@ -1,5 +1,5 @@
 {
-  "note": "BUNK「腕を下ろしたポーズ」(位置をそろえた後)のパーツ分け設定。座標は元画像のpx。z が大きいほど手前。",
+  "note": "BUNK 新しい「腕を下ろした姿」(2026-10-21 企画者: design/bunk/reference/bunk_down_v2.png)のパーツ分け。基本の絵と足元がそろうよう 1278x1230 の画面に (14,16) ずらして置いた座標。正面を向いているので、目のパーツも入れる(反転したときの目の位置に使う)。前の設定は split_v1.json",
   "source": "public/assets/bunk/reference/bunk_down_cutout.png",
   "darkLum": 80,
   "outlineRadius": 14,
@@ -7,8 +7,56 @@
   "fillLocal": 60,
   "edgeOverlap": 2,
   "parts": {
-    "body":    { "z": 1 },
-    "glove_l": { "z": 5, "regions": [[153, 853]] },
-    "glove_r": { "z": 5, "regions": [[1070, 916], [897, 974]] }
+    "body": {
+      "z": 1
+    },
+    "eye_l": {
+      "z": 4,
+      "regions": [
+        [
+          431,
+          419
+        ],
+        [
+          544,
+          487
+        ]
+      ]
+    },
+    "eye_r": {
+      "z": 4,
+      "regions": [
+        [
+          760,
+          419
+        ],
+        [
+          809,
+          488
+        ]
+      ]
+    },
+    "glove_l": {
+      "z": 5,
+      "regions": [
+        [
+          150,
+          815
+        ],
+        [
+          102,
+          673
+        ]
+      ]
+    },
+    "glove_r": {
+      "z": 5,
+      "regions": [
+        [
+          963,
+          835
+        ]
+      ]
+    }
   }
 }
