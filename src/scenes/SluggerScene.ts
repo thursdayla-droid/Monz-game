@@ -183,10 +183,10 @@ export class SluggerScene extends Phaser.Scene {
     this.comboText = this.add.text(W / 2, 108, '', { fontFamily: ARIAL, fontSize: '34px', color: '#ffd23a', stroke: INK, strokeThickness: 8 }).setOrigin(0.5, 0);
     // ミスの残り(右上): 黄色い ● 3つ。空振り・見のがしで赤い ✕ になる(ファウルは大丈夫)
     const board = this.add.rectangle(W - 226, 26, 206, 118, 0x16101c, 0.82).setOrigin(0, 0).setStrokeStyle(4, 0xffffff, 0.25);
-    const label = this.add.text(W - 123, 50, 'ミス あと', { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '900', color: '#ffffff' }).setOrigin(0.5);
+    const label = this.add.text(W - 123, 50, 'ミス（3回でおしまい）', { fontFamily: UI_FONT, fontSize: '19px', fontStyle: '900', color: '#ffffff' }).setOrigin(0.5);
     this.whiffMarks = [];
     for (let i = 0; i < SLUG.maxWhiffs; i++) {
-      this.whiffMarks.push(this.add.text(W - 186 + i * 63, 104, '●', { fontFamily: ARIAL, fontSize: '40px', color: '#ffd23a', stroke: INK, strokeThickness: 6 }).setOrigin(0.5));
+      this.whiffMarks.push(this.add.text(W - 186 + i * 63, 104, '○', { fontFamily: ARIAL, fontSize: '40px', color: '#ffffff', stroke: INK, strokeThickness: 6 }).setOrigin(0.5));
     }
     const parts: Phaser.GameObjects.GameObject[] = [board, label, ...this.whiffMarks];
     this.hud.add([pause, this.scoreText, this.comboText, ...parts]);
@@ -406,10 +406,10 @@ export class SluggerScene extends Phaser.Scene {
   private refreshHud(): void {
     this.scoreText.setText(`${this.s.score.toLocaleString()}m`);
     this.comboText.setText(this.s.streak >= 2 ? `${this.s.streak}連続ヒット！` : '');
-    // 左から使っていく: 残りは黄色い ●、空振りしたぶんは赤い ✕
+    // ミスの数: 左から 1つずつ赤い ✕ になる(ミス1回 = ✕1つ)。まだのところは白い ○
     this.whiffMarks.forEach((t, i) => {
-      const used = i >= SLUG.maxWhiffs - this.s.whiffs;
-      t.setText(used ? '✕' : '●').setColor(used ? '#ff3b4f' : '#ffd23a');
+      const used = i < this.s.whiffs;
+      t.setText(used ? '✕' : '○').setColor(used ? '#ff3b4f' : '#ffffff');
     });
   }
 
@@ -440,7 +440,7 @@ export class SluggerScene extends Phaser.Scene {
     const left = SLUG.maxWhiffs - this.s.whiffs;
     this.popText(left > 0 ? `あと${left}回ミスでおしまい` : 'ゲームオーバー', left === 1 ? '#ffd23a' : '#ffffff', 40, 760);
     // しるしが ✕ に変わるのを目立たせる
-    const mark = this.whiffMarks[SLUG.maxWhiffs - this.s.whiffs];
+    const mark = this.whiffMarks[this.s.whiffs - 1];
     if (mark) this.tweens.add({ targets: mark, scale: 1.8, duration: 120, yoyo: true });
   }
 
@@ -476,7 +476,7 @@ export class SluggerScene extends Phaser.Scene {
     this.time.delayedCall(big ? 150 : 60, () => this.setBatter(r.homerun ? 'homer' : 'hit'));
     this.popText(big ? 'PERFECT!!' : great ? 'GREAT!' : 'GOOD', big ? '#ffd23a' : great ? '#2fe0ff' : '#ffffff', big ? 96 : great ? 80 : 64, 560);
     // タイミングがずれていたら、どちらにずれたか小さく出す(練習しやすいように)
-    if (!big && Math.abs(r.timing) > SLUG.timing.perfect) this.popText(r.timing < 0 ? '少しはやい' : '少しおそい', '#ffffff', 32, 620);
+    if (Math.abs(r.timing) > SLUG.timing.great) this.popText(r.timing < 0 ? '少しはやい' : '少しおそい', '#ffffff', 32, 620);
     this.flyBall(r);
     // 打球の結果は、ボールが落ちるころに出す(ホームランは flyBall が出す)
     if (!r.homerun)
