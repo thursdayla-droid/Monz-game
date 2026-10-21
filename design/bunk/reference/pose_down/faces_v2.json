@@ -1,9 +1,28 @@
 {
   "note": "BUNK 新しい表情の顔(2026-10-21〜)。腕を下ろしたふつう(v2_neutral.png)に合わせて、ちがう所(顔)だけ切り出す。box は ふつうの絵(背景を消した物)での顔の範囲。place は ゲームの画面(1278x1230)に置くときのずらし(腕を下ろした姿と同じ)。",
-  "canvas": [1278, 1230],
-  "place": [14, 16],
+  "canvas": [
+    1278,
+    1230
+  ],
+  "place": [
+    14,
+    16
+  ],
   "neutral": "v2_neutral.png",
-  "faces": { "closed": "v2_closed.png" },
+  "faces": {
+    "closed": "v2_closed.png",
+    "angry": "v2_angry.png"
+  },
   "keepOthers": false,
-  "face": { "box": [320, 290, 940, 730], "diff": 45, "grow": 18, "feather": 6 }
+  "face": {
+    "box": [
+      320,
+      290,
+      940,
+      730
+    ],
+    "diff": 45,
+    "grow": 18,
+    "feather": 6
+  }
 }

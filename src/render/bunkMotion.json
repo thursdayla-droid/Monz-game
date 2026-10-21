@@ -1,5 +1,5 @@
 {
-  "note": "【仮】BUNK(元画像のパーツ)のテスト用の動き。座標は元画像のpx、時間は秒、角度は度。tools/check_motion.py も同じ値を使う。 2026-10-21: 基本の絵を新しい絵(bunk_main_v2)にした。表情の顔は、新しい絵がとどいた物から faces.names に入れる(今は closed だけ)。腕を下ろした姿に合わせた顔なので facesOnlyDown。腕を下ろした姿も新しい絵(bunk_down_v2)にした。",
+  "note": "【仮】BUNK(元画像のパーツ)のテスト用の動き。座標は元画像のpx、時間は秒、角度は度。tools/check_motion.py も同じ値を使う。 2026-10-21: 基本の絵を新しい絵(bunk_main_v2)にした。表情の顔は、新しい絵がとどいた物から faces.names に入れる(今は closed・angry)。腕を下ろした姿に合わせた顔なので facesOnlyDown。腕を下ろした姿も新しい絵(bunk_down_v2)にした。",
   "anchor": [
     640,
     1180
@@ -22,7 +22,8 @@
     "dir": "assets/bunk/faces",
     "z": 4.5,
     "names": [
-      "closed"
+      "closed",
+      "angry"
     ]
   },
   "poses": {
