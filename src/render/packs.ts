@@ -2,13 +2,14 @@ import * as Phaser from 'phaser';
 import { assetUrl } from '../assetUrl';
 import { BIRTH_FILES, birthKey } from '../scenes/BirthScene';
 import { REFERENCE_FILES, REFERENCE_ORIGINAL } from '../scenes/CompareScene';
-import { BUNK_POSE_IMAGES, bunkPoseKey, HAND_FILE, HAND_KEY, HOME_ICONS, HOME_IMAGES, homeIconKey, homeImageKey, homePlace, MEAT_FILE, MEAT_KEY } from '../scenes/HomeScene';
+import { BUNK_POSE_IMAGES, bunkPoseKey, HAND_FILE, HAND_KEY, HOME_ICONS, homeIconKey, homeImageFile, homeImageKey, homePlace, MEAT_FILE, MEAT_KEY } from '../scenes/HomeScene';
 import { TITLE_FILE, TITLE_IMAGE } from '../scenes/TitleScene';
 import { SELECT_CARD_ART, SELECT_IMAGE } from '../scenes/MinigameSelectScene';
 import { CARD_IMAGES } from '../ui/cardArt';
 import { SLUG_BATTER_ART, slugBatterKey, SLUG_PITCHER_ART, slugPitcherKey, SLUGGER_BG_FILE, SLUGGER_BG_KEY, SLUGGER_LOGO_FILE, SLUGGER_LOGO_KEY } from '../scenes/SluggerScene';
 import { DASH_BG_FILE, DASH_BG_KEY, DASH_LOGO_FILE, DASH_LOGO_KEY, DASH_JUMP_FILE, DASH_JUMP_KEY, DASH_RUN_FILE, DASH_RUN_KEY, DASH_PLAT_FILE, DASH_PLAT_KEY, DASH_SPIKE_FILE, DASH_SPIKE_KEY } from '../scenes/DashScene';
 import { loadBunk } from './bunkView';
+import { HOME_PLACES } from '../core/home';
 
 /**
  * 素材のまとまり(パック)。画面ごとに、必要なパックだけを読み込み、使い終わったら外す。
@@ -16,14 +17,15 @@ import { loadBunk } from './bunkView';
  * - title: タイトルの絵
  * - bunk: BUNKのパーツ・表情・元画像の切り抜き(目の反転防止に使う)・6つの姿
  * - birth: 誕生シーンの絵(空・ドラゴン・卵・籠)
- * - home: お世話画面(今の場所の背景・アイコン・肉)
+ * - home: お世話画面(今の部屋の背景・アイコン・肉)
+ * - rooms: 部屋を選ぶ画面(3つの部屋の絵と小さい絵)
  * - compare: 元画像との比較画面(開発用)
  * - minigame: ミニゲームのセレクト画面
  * - card: MONZ CARD(タイトル・ロゴ・カードの裏・山札)
  * - dash: DASH MONZ(背景・足場・トゲ・走るモンズ・ロゴ)
  * - slugger: MONZ SLUGGER(球場の背景・バッター5ポーズ・ピッチャー3ポーズ・ロゴ)
  */
-export type PackName = 'title' | 'bunk' | 'birth' | 'home' | 'compare' | 'minigame' | 'card' | 'dash' | 'slugger';
+export type PackName = 'title' | 'bunk' | 'birth' | 'home' | 'rooms' | 'compare' | 'minigame' | 'card' | 'dash' | 'slugger';
 
 interface PackFile {
   key: string;
@@ -38,14 +40,18 @@ function packFiles(name: Exclude<PackName, 'bunk'>): PackFile[] {
       return Object.entries(BIRTH_FILES).map(([n, file]) => ({ key: birthKey(n as keyof typeof BIRTH_FILES), url: `assets/birth/${file}` }));
     case 'home': {
       const place = homePlace();
-      const bg = HOME_IMAGES[place];
       return [
-        ...(bg ? [{ key: homeImageKey(place), url: `assets/home/${bg}` }] : []),
+        ...(place ? [{ key: homeImageKey(place), url: homeImageFile(place) }] : []),
         ...HOME_ICONS.map((n) => ({ key: homeIconKey(n), url: `assets/home/icons/${n}.webp` })),
         { key: MEAT_KEY, url: `assets/home/${MEAT_FILE}` },
         { key: HAND_KEY, url: `assets/home/${HAND_FILE}` },
       ];
     }
+    case 'rooms':
+      return HOME_PLACES.flatMap((p) => [
+        { key: homeImageKey(p), url: homeImageFile(p) },
+        { key: homeImageKey(p, true), url: homeImageFile(p, true) },
+      ]);
     case 'compare':
       return [{ key: REFERENCE_ORIGINAL, url: REFERENCE_FILES.original }];
     case 'minigame':

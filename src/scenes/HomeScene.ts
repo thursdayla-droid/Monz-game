@@ -2,23 +2,20 @@ import * as Phaser from 'phaser';
 import { speciesName } from '../core/species';
 import { audio } from '../audio/engine';
 import { BunkBrain } from '../core/bunkBehavior';
-import { HOME_ACTIONS, HOME_ACTION_LABELS, HOME_ACTION_READY, HOME_LAYOUTS, clipPolygonX, decideHomePlace, insidePolygon, type HomeAction, type HomePlace, type Pt } from '../core/home';
+import { HOME_ACTIONS, HOME_ACTION_LABELS, HOME_ACTION_READY, HOME_LAYOUTS, HOME_PLACES, clipPolygonX, insidePolygon, savedHomePlace, type HomeAction, type HomePlace, type Pt } from '../core/home';
 import { MonzLife } from '../core/life';
-import { clearLife, LifeRecord, loadLife, saveLife } from '../core/lifeSave';
+import { clearLife, LifeRecord, loadLife } from '../core/lifeSave';
 import { mulberry32 } from '../core/rng';
 import { currentStats, LOVE_RULES, shownLove, STAT_KEYS, STAT_LABELS, STAT_MAX, type StatBlock, type StatKey } from '../core/stats';
 import { clearSave, loadSave } from '../core/save';
 import { BUNK_MOTION, BunkView, cutoutKey, TEST_PERSONALITY } from '../render/bunkView';
-import { drawCoin, drawGarage, drawHeart, drawIcon, drawMeat, drawMeatImage, drawMenuButton, drawPanel, drawRoom } from '../ui/homeArt';
-import { canvasTexture, canvasTextureOnce, drawPaper, drawStreet, UI_FONT } from '../ui/paint';
+import { drawCoin, drawHeart, drawIcon, drawMeat, drawMeatImage, drawMenuButton, drawPanel } from '../ui/homeArt';
+import { canvasTexture, canvasTextureOnce, drawPaper, UI_FONT } from '../ui/paint';
 import { openSoundSettings } from '../ui/soundButton';
 import { preloadPacks } from '../render/packs';
 
 const W = 720;
 const H = 1280;
-/** MONZの大きさ(部屋の奥 → 手前)。部屋全体が見渡せるよう小さめ */
-const SCALE_BACK = 0.12;
-const SCALE_FRONT = 0.165;
 /** MONZの絵の高さ(大きさ1のとき)。ハートや吹き出しの位置に使う */
 const MONZ_H = 1150;
 /** 下のメニュー */
@@ -27,18 +24,13 @@ const MENU = { y: 1198, w: 111, h: 134, gap: 6 };
 const EDGE = 110;
 const DEPTH = { monz: 10, effect: 30, ui: 40, popup: 60 };
 
-/**
- * 企画者の背景画像(public/assets/home/)。届いていない場所は仮の絵(src/ui/homeArt.ts)を使う。
- */
-export const HOME_IMAGES: Partial<Record<HomePlace, string>> = { alley: 'alley.webp', garage: 'garage.webp' };
-export const homeImageKey = (p: HomePlace) => `home:bg:${p}`;
+/** 企画者の部屋の絵(design/home/rooms/ → public/assets/home/rooms/)。_thumb は部屋を選ぶ画面の小さい絵 */
+export const homeImageFile = (p: HomePlace, thumb = false) => `assets/home/rooms/${p}${thumb ? '_thumb' : ''}.webp`;
+export const homeImageKey = (p: HomePlace, thumb = false) => `home:bg:${p}${thumb ? ':thumb' : ''}`;
 
-/** お世話画面の場所。いちばん最初に1回だけランダムで決めて保存し、そのあとはずっと同じ */
-export function homePlace(): HomePlace {
-  const life = loadLife();
-  const place = decideHomePlace(mulberry32(Date.now() & 0xffffffff), life.place);
-  if (life.place !== place) saveLife({ ...life, place });
-  return place;
+/** 選んだお世話部屋。まだ選んでいなければ undefined(「どこで育てる？」の画面へ) */
+export function homePlace(): HomePlace | undefined {
+  return savedHomePlace(loadLife().place);
 }
 /** 企画者のアイコン(design/home/icons.png → design/home/make_icons.py で切り分け) */
 /** 企画者のアイコンがあるもの(ステータスはまだないので仮の絵) */
@@ -70,7 +62,7 @@ const HAND_TIP: [number, number] = [0.25, 0.03];
 export const MEAT_FILE = 'meat.webp';
 
 /**
- * お世話画面(第1段階)。場所は「部屋・路地裏・ガレージ」から、いちばん最初に1回だけランダムで決まる。
+ * お世話画面(第1段階)。部屋は「ストリート・ポップ・近未来」から、生まれた後にプレイヤーが選ぶ(RoomSelectScene)。
  * MONZは床の上を自分で歩き回り、立ち止まったり、休んだり、眠ったりする(src/core/life.ts)。
  * 上: 名前・レベル【仮】・コイン。下: ごはん・ミニゲーム・なでる・バトル・ショップ・設定。
  */
@@ -93,7 +85,8 @@ export class HomeScene extends Phaser.Scene {
   /** 行動に合わせた姿の絵(座る・眠る・伸び・見渡す・お腹がすいた・眠い)。出している間は BunkView を隠す */
   private poseImg?: Phaser.GameObjects.Image;
   private shownPose: BunkPoseImage | null = null;
-  place: HomePlace = 'room';
+  place: HomePlace = 'street';
+  private scaleRange: [number, number] = [0.09, 0.19];
 
   constructor() {
     super('Home');
@@ -106,8 +99,21 @@ export class HomeScene extends Phaser.Scene {
   create(): void {
     this.t = 0;
     this.busy = false;
+    this.view = undefined;
+    this.life = undefined;
     const monz = loadSave()?.firstMonz ?? 'bunk';
-    this.place = homePlace();
+    const place = homePlace();
+    if (!place) {
+      // まだ部屋を選んでいない(生まれた直後など)
+      this.scene.start('RoomSelect');
+      return;
+    }
+    this.place = place;
+    // 部屋を選ぶ画面で読んだ、ほかの部屋の絵はもう使わないので外す
+    for (const p of HOME_PLACES) {
+      if (this.textures.exists(homeImageKey(p, true))) this.textures.remove(homeImageKey(p, true));
+      if (p !== place && this.textures.exists(homeImageKey(p))) this.textures.remove(homeImageKey(p));
+    }
     this.drawBackground();
 
     // お腹・眠さ・機嫌。閉じていた間のぶんを、まとめて進める
@@ -122,7 +128,7 @@ export class HomeScene extends Phaser.Scene {
     const life = new MonzLife(brain, this.floor, mulberry32((Date.now() >>> 3) & 0xffffffff), (y) => this.depthOf(y), undefined, () => record.needs);
     this.life = life;
     this.shadow = this.add.ellipse(life.x, life.y, 300, 46, 0x000000, 0.28);
-    const view = new BunkView(this, life.x, life.y, SCALE_BACK);
+    const view = new BunkView(this, life.x, life.y, this.scaleRange[0]);
     view.still = false;
     this.view = view;
     this.poseImg = this.add.image(life.x, life.y, '__DEFAULT').setOrigin(0.5, 1).setVisible(false);
@@ -158,21 +164,11 @@ export class HomeScene extends Phaser.Scene {
   /** 背景と、歩ける床の範囲(画面の座標にする) */
   private drawBackground(): void {
     const layout = HOME_LAYOUTS[this.place];
-    const key = homeImageKey(this.place);
-    let w = layout.w;
-    let h = layout.h;
-    if (this.textures.exists(key)) {
-      const img = this.add.image(W / 2, H / 2, key).setDepth(-10);
-      w = img.width;
-      h = img.height;
-      img.setScale(Math.max(W / w, H / h));
-    } else {
-      const draw = { room: drawRoom, alley: drawStreet, garage: drawGarage }[this.place];
-      canvasTexture(this, `home:draw:${this.place}`, W, H, (ctx) => draw(ctx, W, H));
-      this.add.image(0, 0, `home:draw:${this.place}`).setOrigin(0, 0).setDepth(-10);
-      w = W;
-      h = H;
-    }
+    this.scaleRange = layout.scale;
+    const img = this.add.image(W / 2, H / 2, homeImageKey(this.place)).setDepth(-10);
+    const w = img.width;
+    const h = img.height;
+    img.setScale(Math.max(W / w, H / h));
     const k = Math.max(W / w, H / h);
     const ox = (W - w * k) / 2;
     const oy = (H - h * k) / 2;
@@ -190,7 +186,7 @@ export class HomeScene extends Phaser.Scene {
   }
 
   private scaleAt(y: number): number {
-    return Phaser.Math.Linear(SCALE_BACK, SCALE_FRONT, this.depthOf(y));
+    return Phaser.Math.Linear(this.scaleRange[0], this.scaleRange[1], this.depthOf(y));
   }
 
   // ---------------- 上の表示 ----------------
@@ -423,6 +419,8 @@ export class HomeScene extends Phaser.Scene {
       this.scene.start('Title');
     });
     button(152, '誕生をもう一度', () => this.scene.start('Birth', { intro: true }));
+    // 【仮】部屋を変えるのは、いずれショップでコインを使う(企画者決定)。ショップができるまでの確認用
+    button(278, '部屋を選び直す', () => this.scene.start('RoomSelect'));
     button(194, '+10コイン', () => this.record?.add(10));
     // 時間を進めて、お腹がすいたり眠くなったりするのを確かめる
     button(236, '6時間すすめる', () => {
@@ -577,7 +575,7 @@ export class HomeScene extends Phaser.Scene {
     this.busy = true;
     life.pause(6);
     audio.se('select');
-    const s = this.scaleAt(life.y) / SCALE_FRONT;
+    const s = this.scaleAt(life.y) / this.scaleRange[1];
     // ごはんは骨付き肉(企画者の絵)。ひとくちごとに、かじった跡が増える。絵を読み込めなかったときは仮の絵
     const meat = this.icon(MEAT_KEY, true);
     for (let b = 0; b <= 3; b++) canvasTextureOnce(this, `home:meat${b}`, 220, meat ? 143 : 150, (ctx) => (meat ? drawMeatImage(ctx, meat, 220, 143, b) : drawMeat(ctx, b)));
@@ -806,7 +804,8 @@ export class HomeScene extends Phaser.Scene {
     view.mirrored = life.facing < 0;
     view.setPosition(life.x, life.y).setScale(sc).setDepth(DEPTH.monz + this.depthOf(life.y));
     view.render(life.body, this.t);
-    this.shadow?.setPosition(life.x, life.y + 2).setScale(sc / SCALE_FRONT).setDepth(DEPTH.monz - 1);
+    // 影(300x46)は、MONZの大きさ 0.165 のときの大きさ
+    this.shadow?.setPosition(life.x, life.y + 2).setScale(sc / 0.165).setDepth(DEPTH.monz - 1);
     const brain = life.body;
     // 眠っている姿の絵には「Z」が描いてあるので、そのときは出さない
     const sleeping = brain.activity === 'sleep' && !brain.switching && this.shownPose !== 'sleep';

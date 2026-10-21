@@ -1,16 +1,25 @@
-import { pick, type Rng } from './rng';
+import type { Rng } from './rng';
 
 /**
  * ホーム(育てる画面)の決まりごと。Phaserに依存しない。
  */
 
-/** ホームの場所。企画者決定(2026-10-19): なにもない部屋・路地裏・ガレージからランダム */
-export const HOME_PLACES = ['room', 'alley', 'garage'] as const;
+/**
+ * お世話部屋。企画者決定(2026-10-21): ストリート・ポップ・近未来の3つ(前の 部屋・路地裏・ガレージ から置きかえ)。
+ * MONZが生まれた後に、プレイヤーが「どこで育てる？」で選ぶ。あとで変えるのはショップでコイン(値段は【未確定】)。
+ */
+export const HOME_PLACES = ['street', 'pop', 'future'] as const;
 export type HomePlace = (typeof HOME_PLACES)[number];
 
-/** 企画者決定(2026-10-19): 場所はいちばん最初に1回だけランダムで決め、そのあとはずっと同じ場所 */
-export function decideHomePlace(rng: Rng, saved?: string | null): HomePlace {
-  return (HOME_PLACES as readonly string[]).includes(saved ?? '') ? (saved as HomePlace) : pick(rng, HOME_PLACES);
+export const HOME_PLACE_LABELS: Record<HomePlace, string> = {
+  street: 'ストリートルーム',
+  pop: 'ポップルーム',
+  future: '近未来ルーム',
+};
+
+/** 保存されている部屋。まだ選んでいない・前の部屋(路地裏など)のときは undefined(選び直してもらう) */
+export function savedHomePlace(saved?: string | null): HomePlace | undefined {
+  return (HOME_PLACES as readonly string[]).includes(saved ?? '') ? (saved as HomePlace) : undefined;
 }
 
 /** ホームの下に並ぶボタン(左から順)。企画者決定(2026-10-19) */
@@ -40,22 +49,24 @@ export const HOME_ACTION_READY: Record<HomeAction, boolean> = {
 export type Pt = [number, number];
 
 /**
- * 場所ごとの絵の大きさと、MONZが歩ける床の範囲(足元の位置。絵の座標)。
- * 床の範囲は、壁・家具・画面の下のボタンにかからないように決める。凸の多角形にする(まっすぐ歩いても外に出ない)。
- * 【仮】room は仮の絵(720x1280 をプログラムで描画)。企画者の絵が届いたら差しかえる。
+ * 部屋ごとの絵の大きさと、MONZが歩ける床の範囲(足元の位置。絵の座標)、奥と手前でのMONZの大きさ。
+ * 床の範囲は、奥の壁・左右の壁・画面の下のボタンにかからないように決める。凸の多角形にする(まっすぐ歩いても外に出ない)。
+ * 3部屋とも同じ角度で描いてもらったので、床の範囲も同じにする(家具の置き場所を部屋が変わってもそろえるため)。
  */
 export interface HomeLayout {
   w: number;
   h: number;
   floor: Pt[];
+  /** MONZの大きさ [床のいちばん奥, いちばん手前] */
+  scale: [number, number];
 }
 
+const ROOM_FLOOR: Pt[] = [[300, 640], [770, 640], [960, 800], [985, 1290], [40, 1290], [60, 800]];
+
 export const HOME_LAYOUTS: Record<HomePlace, HomeLayout> = {
-  // 企画者の路地裏の絵(1024x1536)。奥のゴミ箱・右の段ボールと木の板・左の壁をよける
-  alley: { w: 1024, h: 1536, floor: [[120, 965], [815, 950], [985, 1035], [985, 1300], [60, 1300], [45, 1015]] },
-  room: { w: 720, h: 1280, floor: [[90, 880], [630, 880], [670, 1085], [50, 1085]] },
-  // 企画者のガレージの絵(1024x1536)。奥の棚・工具箱・作業台・右のタイヤとコーンの手前まで
-  garage: { w: 1024, h: 1536, floor: [[110, 935], [880, 920], [985, 975], [985, 1300], [40, 1300], [40, 975]] },
+  street: { w: 1024, h: 1536, floor: ROOM_FLOOR, scale: [0.09, 0.19] },
+  pop: { w: 1024, h: 1536, floor: ROOM_FLOOR, scale: [0.09, 0.19] },
+  future: { w: 1024, h: 1536, floor: ROOM_FLOOR, scale: [0.09, 0.19] },
 };
 
 /** 点が多角形の中にあるか */

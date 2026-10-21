@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BunkBrain } from '../src/core/bunkBehavior';
-import { HOME_ACTIONS, HOME_ACTION_LABELS, HOME_LAYOUTS, HOME_PLACES, clipPolygonX, decideHomePlace, insidePolygon } from '../src/core/home';
+import { HOME_ACTIONS, HOME_ACTION_LABELS, HOME_LAYOUTS, HOME_PLACES, clipPolygonX, insidePolygon, savedHomePlace } from '../src/core/home';
 import { MonzLife, type LifeAct } from '../src/core/life';
 import { LIFE_BACKUP_KEY, LIFE_KEY, LifeRecord, loadLife, migrateLife, saveLife } from '../src/core/lifeSave';
 import { catchUp, expToNext, NEEDS_RULES, newNeeds, stepNeeds } from '../src/core/needs';
@@ -17,13 +17,16 @@ const memoryStore = (): KeyValueStore & { data: Record<string, string> } => {
 };
 
 describe('home', () => {
-  it('picks a random place the first time, then always keeps it', () => {
-    const rng = mulberry32(1);
-    const seen = new Set<string>();
-    for (let i = 0; i < 60; i++) seen.add(decideHomePlace(rng));
-    expect(seen.size).toBe(HOME_PLACES.length);
-    for (let i = 0; i < 20; i++) expect(decideHomePlace(rng, 'garage')).toBe('garage');
-    expect(HOME_PLACES).toContain(decideHomePlace(rng, 'broken'));
+  it('has the three new rooms, and asks again for an old or missing room', () => {
+    expect(HOME_PLACES).toEqual(['street', 'pop', 'future']);
+    expect(savedHomePlace('pop')).toBe('pop');
+    expect(savedHomePlace('garage')).toBeUndefined();
+    expect(savedHomePlace(undefined)).toBeUndefined();
+    for (const p of HOME_PLACES) {
+      const l = HOME_LAYOUTS[p];
+      expect(l.scale[0]).toBeLessThan(l.scale[1]);
+      for (const pt of l.floor) expect(pt[0] >= 0 && pt[0] <= l.w && pt[1] >= 0 && pt[1] <= l.h).toBe(true);
+    }
   });
 
   it('has six menu buttons in the planner order', () => {
@@ -43,7 +46,7 @@ describe('floor', () => {
 
 describe('life', () => {
   const run = (seed: number, seconds: number) => {
-    const floor = HOME_LAYOUTS.alley.floor;
+    const floor = HOME_LAYOUTS.street.floor;
     const brain = new BunkBrain(motion.behavior as unknown as BehaviorConfig, seed, motion.testPersonality as unknown as Personality);
     const life = new MonzLife(brain, floor, mulberry32(seed), () => 0.5);
     const acts: LifeAct[] = [];
@@ -113,7 +116,8 @@ describe('life record', () => {
     expect(rec.monz.exp).toBe(20);
     expect(rec.monz.species).toBe('bunk');
     expect(rec.needs.full).toBe(0.3);
-    expect(rec.snapshot.place).toBe('garage');
+    // 前の部屋(ガレージ)は、新しい部屋を選び直してもらう
+    expect(rec.snapshot.place).toBeUndefined();
     expect(rec.snapshot.lastSeen).toBe(5);
   });
 

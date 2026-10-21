@@ -83,7 +83,7 @@ describe('save migration to v4', () => {
     activeMonz: 'm1',
     monz: [{ uid: 'm1', species: 'bunk', name: 'ポチ', level, exp: 12, statPoints: 0.4, stats: {}, needs: { full: 0.3 } }],
     inventory: { owned: ['x'], placed: [] },
-    place: 'alley',
+    place: 'pop',
     lastSeen: 1,
     claimed: ['card-1'],
   });
@@ -95,7 +95,7 @@ describe('save migration to v4', () => {
     expect(sum(m.auto)).toBe(12);
     expect(m.statPoints).toBe(4);
     expect(m.love).toBe(LOVE_RULES.initial);
-    expect([d.coins, m.name, m.level, m.exp, d.place, d.claimed[0], d.inventory.owned[0]]).toEqual([55, 'ポチ', 5, 12, 'alley', 'card-1', 'x']);
+    expect([d.coins, m.name, m.level, m.exp, d.place, d.claimed[0], d.inventory.owned[0]]).toEqual([55, 'ポチ', 5, 12, 'pop', 'card-1', 'x']);
     expect(m.needs.full).toBe(0.3);
   });
 
