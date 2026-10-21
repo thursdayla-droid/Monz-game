@@ -188,7 +188,7 @@ export class SluggerScene extends Phaser.Scene {
     // 今のヒット数(左上の Ⅱ の下に小さく)
     this.hitText = this.add.text(24, 100, '', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '900', color: '#ffffff', stroke: INK, strokeThickness: 6 });
     this.comboText = this.add.text(W / 2, 108, '', { fontFamily: ARIAL, fontSize: '34px', color: '#ffd23a', stroke: INK, strokeThickness: 8 }).setOrigin(0.5, 0);
-    // ミスの残り(右上): 黄色い ● 3つ。空振り・見のがしで赤い ✕ になる(ファウルは大丈夫)
+    // ミスの数(右上): 空振り・見のがしで赤い ✕ になる
     const board = this.add.rectangle(W - 226, 26, 206, 118, 0x16101c, 0.82).setOrigin(0, 0).setStrokeStyle(4, 0xffffff, 0.25);
     const label = this.add.text(W - 123, 50, 'ミス（3回でおしまい）', { fontFamily: UI_FONT, fontSize: '19px', fontStyle: '900', color: '#ffffff' }).setOrigin(0.5);
     this.whiffMarks = [];
@@ -318,7 +318,7 @@ export class SluggerScene extends Phaser.Scene {
       '・はやく振ると左、おそいと右へ飛ぶ',
       '・打った飛距離の合計がスコア',
       '・空振り・見のがしはミス',
-      '  3回ミスでおしまい（ファウルはOK）',
+      '  3回ミスでおしまい',
       '・届かない球は見送ればOK',
       '・打つほど球が速く、変化球も来るよ',
     ].join('\n');
@@ -439,8 +439,18 @@ export class SluggerScene extends Phaser.Scene {
       return;
     }
     if (this.swung) this.time.delayedCall(120, () => this.setBatter('whiff'));
-    const early = this.swung && r.timing < 0 && r.offset <= SLUG.position.good;
-    this.showMiss(r.outcome === 'swingMiss' ? '空振り！' : '見のがし！', early ? 'ふるのが はやい' : '');
+    // カーソルは合っていて、タイミングだけずれたときは、どちらにずれたか教える
+    const timingOnly = this.swung && Number.isFinite(r.timing) && Math.abs(r.timing) < 5 && r.offset <= SLUG.position.good;
+    const hint = !this.swung
+      ? ''
+      : r.timing < -5
+        ? 'ふるのが はやすぎ'
+        : timingOnly
+          ? r.timing < 0
+            ? 'ふるのが はやい'
+            : 'ふるのが おそい'
+          : 'カーソルがずれてる';
+    this.showMiss(r.outcome === 'swingMiss' ? '空振り！' : '見のがし！', hint);
   }
 
   /** ミスの演出(赤く光る・ゆれる・残りの数) */
@@ -458,21 +468,10 @@ export class SluggerScene extends Phaser.Scene {
     if (mark) this.tweens.add({ targets: mark, scale: 1.8, duration: 120, yoyo: true });
   }
 
-  /** バットに当たった球: ヒット・ホームラン・ファウル */
+  /** バットに当たった球: ヒット・ホームラン */
   private showContact(r: SwingResult): void {
     const p = this.pitch!;
     const at = project(p.tx, p.ty, 0);
-    if (r.outcome === 'foul') {
-      audio.se('bat', { pitch: 0.8 });
-      this.impact(at.x, at.y, 0xffffff, 0.5);
-      this.setBatter('hit');
-      this.flyBall(r);
-      // ファウルはミスにしない
-      audio.se('knock', { pitch: 1.2 });
-      this.popText('ファウル', '#ffffff', 72);
-      this.popText(r.timing < 0 ? 'ふるのが 少しはやい' : 'ふるのが 少しおそい', '#ffffff', 34, 690);
-      return;
-    }
     const big = r.grade === 'perfect';
     const great = r.grade === 'great';
     const hit = isHit(r.outcome);
@@ -538,17 +537,14 @@ export class SluggerScene extends Phaser.Scene {
 
   /**
    * 打球が飛んでいく(光りながら、オレンジの尾を引く)。
-   * ゴロ: 低くはねながら / ライナー: 低くまっすぐ / フライ: 高い山なり。ファウルは横の上へ
+   * ゴロ: 低くはねながら / ライナー: 低くまっすぐ / フライ: 高い山なり
    */
   private flyBall(r: SwingResult): void {
     const p = this.pitch!;
     const from = project(p.tx, p.ty, 0);
-    const foul = r.outcome === 'foul';
     const c = r.contact ?? 'liner';
     // 着く所(画面の y)・山の高さ・時間・はねる回数
-    const shape = foul
-      ? { far: -120, arc: 120, dur: 520, bounce: 0 }
-      : r.homerun
+    const shape = r.homerun
         ? { far: 210, arc: 300, dur: 1150, bounce: 0 }
         : c === 'grounder'
           ? { far: 470, arc: 0, dur: 700, bounce: 3 }
@@ -556,7 +552,7 @@ export class SluggerScene extends Phaser.Scene {
             ? { far: 400, arc: 50, dur: 720, bounce: 0 }
             : { far: 380, arc: 260, dur: 900, bounce: 0 };
     const far = shape.far;
-    const toX = foul ? (r.timing < 0 ? -80 : W + 80) : VIEW.vx + r.dir * (r.homerun ? 180 : c === 'grounder' ? 200 : 260);
+    const toX = VIEW.vx + r.dir * (r.homerun ? 180 : c === 'grounder' ? 200 : 260);
     const dur = shape.dur;
     const startScale = (BALL_R * VIEW.zs * 2) / BALL_PX;
     const fly = { u: 0 };
@@ -575,7 +571,7 @@ export class SluggerScene extends Phaser.Scene {
         const x = from.x + (toX - from.x) * u;
         const bounce = shape.bounce ? Math.abs(Math.sin(u * Math.PI * shape.bounce)) * 40 * (1 - u) : 0;
         const y = from.y + (far - from.y) * u - Math.sin(u * Math.PI) * shape.arc - bounce;
-        const sc = startScale * (foul ? 1.1 - 0.5 * u : 1.15 - 0.95 * u);
+        const sc = startScale * (1.15 - 0.95 * u);
         this.ball.setPosition(x, y).setScale(sc).setAngle(u * 1400);
         this.ballGlow.setPosition(x, y).setScale((sc * BALL_PX * 2.4) / 128);
         this.trail.push({ x, y, r: (sc * BALL_PX) / 2 });
@@ -584,7 +580,6 @@ export class SluggerScene extends Phaser.Scene {
       onComplete: () => {
         this.ball.setVisible(false);
         this.ballGlow.setVisible(false).setTint(0x8ff4ff);
-        if (foul) return;
         const label = this.add.text(toX, far - 20, `${r.distance}m`, { fontFamily: ARIAL, fontSize: r.homerun ? '56px' : '42px', color: '#ffffff', stroke: INK, strokeThickness: 9 }).setOrigin(0.5).setDepth(15).setScale(0.4);
         this.tweens.add({ targets: label, scale: 1, duration: 140, ease: 'Back.easeOut' });
         this.tweens.add({ targets: label, alpha: 0, y: label.y - 40, delay: 500, duration: 300, onComplete: () => label.destroy() });

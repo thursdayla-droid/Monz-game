@@ -8,7 +8,8 @@ import { mulberry32, type Rng } from './rng';
  * - 球はほぼゾーンに来る。15球に1球くらい、カーソルの届かないボール球が来る(見送ればミスにならない。2026-10-21)
  * - 当たり所で打球が変わる。カーソルがボールより上だとゴロ、まん中だとライナー、下だとフライ。早く振ると引っぱり、遅いと流し打ち
  * - 打てば必ずヒットかホームラン(捕られてアウトはない。2026-10-20 企画者決定)。点数は飛距離の合計
- * - 空振り・見のがしはミス。3回ミスでゲームおしまい(企画者決定 2026-10-21: 最初のルール通り)。ファウルはミスにしない(2026-10-21 企画者決定)
+ * - 空振り・見のがしはミス。3回ミスでゲームおしまい(企画者決定 2026-10-21: 最初のルール通り)。ファウルはない(2026-10-21 企画者決定)。
+ *   振ったら「当たる(ヒット・ホームラン)」か「空振り」のどちらか
  *
  * 座標: ストライクゾーンのまん中が (0,0)。横 x は左が -、右が +。縦 y は下が -、上が +。ゾーンの端が ±1。
  * 奥行き z: 0 がホームベース(バッターの所)、1 がピッチャーの手。
@@ -28,8 +29,6 @@ export const SLUG = {
   idealBefore: 0.09,
   /** 早めにずれたときは、ずれをこの割合に小さく数える(早めには甘く) */
   earlyLenient: 0.6,
-  /** タイミングが good より少しだけずれたらファウル(この幅まで) */
-  foul: 0.07,
   /** 位置のずれ(ゾーンの半分を 1 とした長さ)。この中なら その判定。good の外は空振り */
   position: { perfect: 0.14, great: 0.26, good: 0.42 },
   /**
@@ -41,7 +40,7 @@ export const SLUG = {
   contactSplit: 0.33,
   /** スイングを受けつける時間: ボールが着く何秒前から(これより早いと空振り) */
   swingEarly: 0.32,
-  /** ミス(空振り・見のがし)の回数でゲームおしまい。ファウルは数えない */
+  /** ミス(空振り・見のがし)の回数でゲームおしまい */
   maxWhiffs: 3,
   /** 投げるまでの時間(構え→振りかぶり)と、打ったあとの間(秒) */
   windup: 1.0,
@@ -56,10 +55,10 @@ export type Grade = 'perfect' | 'great' | 'good' | 'miss';
 export type PitchKind = 'straight' | 'curve' | 'slider' | 'drop';
 export type Contact = 'grounder' | 'liner' | 'fly';
 /**
- * 1球の結果。hit ヒット / homerun ホームラン / foul ファウル /
+ * 1球の結果。hit ヒット / homerun ホームラン /
  * swingMiss 空振り / strikeTaken 見のがしストライク / ball ボール(見送り)
  */
-export type Outcome = 'hit' | 'homerun' | 'foul' | 'swingMiss' | 'strikeTaken' | 'ball';
+export type Outcome = 'hit' | 'homerun' | 'swingMiss' | 'strikeTaken' | 'ball';
 
 /**
  * 難しさ(投げた球の数で決まる。2026-10-21 企画者の指示「簡単すぎる・20球ぐらいから変化球をたまに」)。
@@ -263,10 +262,8 @@ export function judge(p: Pitch, swingAt: number | null, cursor: { x: number; y: 
   const pos = step(offset, SLUG.position);
   if (pos === 3) return none('swingMiss', timing, offset);
   const time = step(timing, SLUG.timing);
-  // ファウルは「少し遅れた」ときだけ(ボールがバットの所まで来ているので、当たったように見える)。
-  // 早すぎたときは、ボールがまだ遠くて空振りに見えるので、必ず空振り(ミス)にする(2026-10-21 企画者の指摘)
-  const foul = timing > 0 && timing <= SLUG.timing.good + SLUG.foul;
-  if (time === 3) return none(foul ? 'foul' : 'swingMiss', timing, offset);
+  // タイミングが good の外なら空振り(ファウルはない)
+  if (time === 3) return none('swingMiss', timing, offset);
   const grade = (['perfect', 'great', 'good'] as const)[Math.max(pos, time)];
   // 当たり所: ボールがカーソルより上(カーソルが下) → フライ / 下(カーソルが上) → ゴロ
   const v = (p.ty - cursor.y) / SLUG.cursorRy;
@@ -284,7 +281,6 @@ export const isHit = (o: Outcome): boolean => o === 'hit' || o === 'homerun';
 export function applyResult(s: SluggerState, r: SwingResult): SwingResult {
   s.pitches++;
   let points = 0;
-  // ファウルはミスにしない(連続ヒットも切れない)
   // 届かないボール球の見送り(ball)もミスにしない
   if (r.outcome === 'swingMiss' || r.outcome === 'strikeTaken') {
     s.whiffs++;
@@ -319,7 +315,7 @@ export function markerLead(pitchIndex: number): number {
 /** スイングを受けつけるか(早すぎると空振り扱い)。t: 手を離れてからの秒数 */
 export const canSwing = (p: Pitch, t: number): boolean => t >= p.flight - SLUG.swingEarly;
 /** もう見送りが決まったか(ボールが通りすぎた) */
-export const passed = (p: Pitch, t: number): boolean => t > p.flight - SLUG.idealBefore + SLUG.timing.good + SLUG.foul;
+export const passed = (p: Pitch, t: number): boolean => t > p.flight - SLUG.idealBefore + SLUG.timing.good;
 
 /**
  * 報酬。ヒットの数で決める。

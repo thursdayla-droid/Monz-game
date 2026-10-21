@@ -51,14 +51,15 @@ describe('MONZ SLUGGER', () => {
     for (let i = 0; i < 8; i++) expect(isStrike(nextPitch(early))).toBe(true);
   });
 
-  it('judges position and timing; outside the cursor is a swing and miss, a little off timing is a foul', () => {
+  it('judges position and timing; outside the cursor or the timing window is a swing and miss (no fouls)', () => {
     const p = pitch(0.2, -0.1);
     expect(judge(p, IDEAL, { x: 0.2, y: -0.1 }, fixed(0.5)).grade).toBe('perfect');
     expect(judge(p, IDEAL + 0.06, { x: 0.2, y: -0.1 }, fixed(0.5)).grade).toBe('great');
     expect(judge(p, IDEAL, { x: 0.55, y: -0.1 }, fixed(0.5)).grade).toBe('good');
     expect(judge(p, IDEAL, { x: -0.6, y: -0.1 }).outcome).toBe('swingMiss');
-    expect(judge(p, IDEAL + SLUG.timing.good + 0.03, { x: 0.2, y: -0.1 }).outcome).toBe('foul');
-    // 早すぎるのは、少しでもファウルではなく空振り(ミス)
+    expect(judge(p, IDEAL + SLUG.timing.good + 0.01, { x: 0.2, y: -0.1 }).outcome).toBe('swingMiss');
+    expect(judge(p, IDEAL + SLUG.timing.good - 0.01, { x: 0.2, y: -0.1 }, fixed(0.5)).outcome).not.toBe('swingMiss');
+    // 早すぎるのも空振り(ミス)
     expect(judge(p, IDEAL - SLUG.timing.good / SLUG.earlyLenient - 0.01, { x: 0.2, y: -0.1 }).outcome).toBe('swingMiss');
     expect(judge(p, IDEAL - SLUG.timing.good / SLUG.earlyLenient - 0.08, { x: 0.2, y: -0.1 }).outcome).toBe('swingMiss');
     expect(judge(p, 0.6, { x: 0.2, y: -0.1 }).outcome).toBe('swingMiss');
@@ -96,13 +97,12 @@ describe('MONZ SLUGGER', () => {
     expect(homers).toBeGreaterThan(10);
   });
 
-  it('swing and miss or taking a pitch is a miss, a foul is not; three misses end the game', () => {
+  it('swing and miss or taking a pitch is a miss; three misses end the game', () => {
     const s = newSlugger(1);
     const hit: SwingResult = { grade: 'great', outcome: 'hit', contact: 'liner', timing: 0, offset: 0, distance: 60, homerun: false, points: 0, dir: 0 };
     const r = (outcome: SwingResult['outcome']): SwingResult => ({ ...hit, grade: 'miss', outcome, distance: 0 });
     applyResult(s, hit);
     applyResult(s, hit);
-    for (let i = 0; i < 10; i++) applyResult(s, r('foul'));
     expect(s.whiffs).toBe(0);
     expect(s.streak).toBe(2);
     applyResult(s, r('swingMiss'));
@@ -138,12 +138,12 @@ describe('MONZ SLUGGER', () => {
     expect(Math.abs(early.timing)).toBeLessThan(Math.abs(late.timing));
   });
 
-  it('swing window: too early is not accepted, the ball passes after the foul window', () => {
+  it('swing window: too early is not accepted, the ball passes after the good window', () => {
     const p = pitch(0, 0, 1);
     expect(canSwing(p, 0.5)).toBe(false);
     expect(canSwing(p, 1 - SLUG.swingEarly)).toBe(true);
-    expect(passed(p, 1 - SLUG.idealBefore + SLUG.timing.good + SLUG.foul - 0.01)).toBe(false);
-    expect(passed(p, 1 - SLUG.idealBefore + SLUG.timing.good + SLUG.foul + 0.01)).toBe(true);
+    expect(passed(p, 1 - SLUG.idealBefore + SLUG.timing.good - 0.01)).toBe(false);
+    expect(passed(p, 1 - SLUG.idealBefore + SLUG.timing.good + 0.01)).toBe(true);
   });
 
   it('gets harder step by step with the number of pitches, never suddenly', () => {
