@@ -65,9 +65,10 @@ BUNK の左目（画面で左）のまぶた（上のクリーム色の所）に
 消したファイル（`design/` の元画像はそのまま）:
 - `public/assets/bunk/reference/bunk_hires_cutout.png`・`bunk_down_cutout.png`
 - `public/assets/bunk/parts/eye_l.png`・`public/assets/bunk/down/body.png`
-- `public/assets/bunk/poses/hungry.webp`・`sit.webp`（ほかの姿には点がなかった）
+- `public/assets/bunk/poses/hungry.webp`・`sit.webp`・`look.webp`（見回す姿は、点が目のふちの線につながっていた）
+- `public/assets/bunk/faces/angry.png`（怒った顔は、左右両方のまぶたに、まゆの線につながった点があった）
 - `public/assets/title/title.png`（タイトルの絵の BUNK は、左右両方のまぶたに点があった）
-- 表情（faces）と、右目には点がなかった。
+- ほかの表情（喜ぶ・悲しい・目を閉じる）には点がなかった。
 
 元画像からパーツや姿を作り直したときは、もう一度これを実行する:
 ```
@@ -78,4 +79,7 @@ python3 tools/remove_eyelid_dots.py public/assets/bunk/down/body.png 434,356
 python3 tools/remove_eyelid_dots.py public/assets/bunk/poses/hungry.webp 207,165
 python3 tools/remove_eyelid_dots.py public/assets/bunk/poses/sit.webp 236,179
 python3 tools/remove_eyelid_dots.py public/assets/title/title.png 448,873 524,890
+python3 tools/remove_eyelid_dots.py public/assets/bunk/poses/look.webp 142,151,10,7
+python3 tools/remove_eyelid_dots.py public/assets/bunk/faces/angry.png 238,186,20,9 445,200,22,9
 ```
+（`x,y,r,t` は、線につながった点の消し方。くわしくは tools/remove_eyelid_dots.py の説明）
