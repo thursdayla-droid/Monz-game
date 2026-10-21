@@ -311,7 +311,7 @@ export class SluggerScene extends Phaser.Scene {
       '・ヒットを打つほど、球が速く・変化球も来て',
       '  目印が出るのもおそくなるよ',
       '',
-      `報酬：${SLUG_REWARD.hitsPerCoin}ヒットごとに1コイン（仮）`,
+      `報酬：${SLUG_REWARD.hitsPerCoin}ヒットごとに1コイン`,
       `経験値：${SLUG_REWARD.expFrom}本で1、そこから${SLUG_REWARD.hitsPerExp}本ごとに1`,
     ].join('\n');
     const t = this.add.text(W / 2, H / 2 - 40, text, { fontFamily: UI_FONT, fontSize: '27px', fontStyle: '800', color: INK, lineSpacing: 9 }).setOrigin(0.5);
