@@ -388,13 +388,9 @@ export class SluggerScene extends Phaser.Scene {
   /** スイング。t: ボールが手を離れてからの秒数(投げる前は -1) */
   private swing(t: number): void {
     if (this.phase !== 'play' || this.swung || this.pitchPhase === 'result') return;
+    // 投げる前に指を離したときは、カーソルを合わせ直しただけ(振らない。空振りに見えないように 2026-10-21)
+    if (this.pitchPhase === 'windup') return;
     audio.se('swing');
-    if (this.pitchPhase === 'windup') {
-      // 投げる前の素振りは数えない
-      this.setBatter('swing');
-      this.time.delayedCall(160, () => this.pitchPhase === 'windup' && this.setBatter('idle'));
-      return;
-    }
     const p = this.pitch!;
     this.swung = true;
     this.setBatter('swing');

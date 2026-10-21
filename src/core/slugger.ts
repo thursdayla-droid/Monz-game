@@ -30,6 +30,8 @@ export const SLUG = {
   earlyLenient: 0.6,
   /** タイミングが good より少しだけずれたらファウル(この幅まで) */
   foul: 0.07,
+  /** 早い方のファウルの幅(本当のずれで、good の外にこれだけ) */
+  foulEarly: 0.03,
   /** 位置のずれ(ゾーンの半分を 1 とした長さ)。この中なら その判定。good の外は空振り */
   position: { perfect: 0.14, great: 0.26, good: 0.42 },
   /**
@@ -260,7 +262,10 @@ export function judge(p: Pitch, swingAt: number | null, cursor: { x: number; y: 
   const pos = step(offset, SLUG.position);
   if (pos === 3) return none('swingMiss', timing, offset);
   const time = step(timing, SLUG.timing);
-  if (time === 3) return none(Math.abs(timing) <= SLUG.timing.good + SLUG.foul ? 'foul' : 'swingMiss', timing, offset);
+  // ファウルは good より少しだけずれたとき。早い方は甘くした判定(timing)ではなく、本当のずれ(raw)で せまく測る
+  // (大きく早く振ったのにファウルになって、ミスにならないことがあったため 2026-10-21)
+  const foul = timing > 0 ? timing <= SLUG.timing.good + SLUG.foul : raw >= -(SLUG.timing.good / SLUG.earlyLenient + SLUG.foulEarly);
+  if (time === 3) return none(foul ? 'foul' : 'swingMiss', timing, offset);
   const grade = (['perfect', 'great', 'good'] as const)[Math.max(pos, time)];
   // 当たり所: ボールがカーソルより上(カーソルが下) → フライ / 下(カーソルが上) → ゴロ
   const v = (p.ty - cursor.y) / SLUG.cursorRy;
