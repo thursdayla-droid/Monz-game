@@ -10,8 +10,9 @@ import { range, type Rng } from './rng';
  * 【仮】座る・伸び・横向きの絵がまだないので、今ある姿と動きで表す(素材が届いたら差しかえる)。
  * 第2段階: お腹・眠さ・機嫌(src/core/needs.ts)で、選ぶ行動と表情が変わる。
  *   お腹がすく → しょんぼりして、ごはんを欲しがる(beg) / 眠い → よく眠る / 機嫌がいい → よく跳ねる・こっちを見る / 悪い → じっとする
+ *   企画者決定(2026-10-21): お腹のゲージが3以下 → お腹すいた姿がとても多い / なでるのゲージが3以下 → 泣いている姿(cry)がとても多い
  */
-export type LifeAct = 'idle' | 'walk' | 'explore' | 'look' | 'rest' | 'sleep' | 'hop' | 'lookAtYou' | 'box' | 'stretch' | 'beg';
+export type LifeAct = 'idle' | 'walk' | 'explore' | 'look' | 'rest' | 'sleep' | 'hop' | 'lookAtYou' | 'box' | 'stretch' | 'beg' | 'cry';
 
 interface ActRule {
   weight: number;
@@ -32,16 +33,24 @@ export const LIFE_RULES: Record<Exclude<LifeAct, 'idle'>, ActRule> = {
   stretch: { weight: 1.2, time: [1.8, 2.4] },
   // お腹がすいたときだけ選ぶ
   beg: { weight: 0, time: [3, 5] },
+  // なでてほしいときだけ選ぶ(泣いている)
+  cry: { weight: 0, time: [3, 5] },
 };
 
 /** お腹・眠さ・機嫌による、行動の選ばれやすさの倍率 */
 export function needWeights(n: Needs): Partial<Record<Exclude<LifeAct, 'idle'>, number>> {
   const w: Partial<Record<Exclude<LifeAct, 'idle'>, number>> = {};
   const mul = (a: Exclude<LifeAct, 'idle'>, k: number) => (w[a] = (w[a] ?? 1) * k);
-  if (n.full < 0.3) {
-    w.beg = 5;
+  // ゲージ3以下(10目もりの3)。ほかの行動よりずっと選ばれやすくする
+  if (n.full <= 0.3 + 1e-9) {
+    w.beg = 12;
     mul('hop', 0.3);
     mul('box', 0.4);
+  }
+  if ((n.touch ?? 1) <= 0.3 + 1e-9) {
+    w.cry = 12;
+    mul('hop', 0.3);
+    mul('lookAtYou', 0.5);
   }
   if (n.sleepy > 0.6) {
     mul('sleep', 3);
@@ -234,7 +243,7 @@ export class MonzLife {
     const acts = Object.keys(LIFE_RULES) as Exclude<LifeAct, 'idle'>[];
     const byNeeds = needWeights(this.needs());
     const weights = acts.map((a) => {
-      let w = a === 'beg' ? (byNeeds.beg ?? 0) : LIFE_RULES[a].weight * (byNeeds[a] ?? 1);
+      let w = a === 'beg' || a === 'cry' ? (byNeeds[a] ?? 0) : LIFE_RULES[a].weight * (byNeeds[a] ?? 1);
       // 最近やったことは選びにくい(同じことのくり返しを避ける)
       const ago = this.recent.lastIndexOf(a);
       if (ago >= 0) w *= ago === this.recent.length - 1 ? 0.1 : 0.4;
@@ -287,6 +296,12 @@ export class MonzLife {
         break;
       case 'beg':
         // ごはんを欲しがる: こっちを向いて、しょんぼり顔(画面に肉の吹き出しを出す)
+        body.start('idle');
+        body.setPose('down');
+        body.reaction = { face: 'sad', kind: 'calm', left: seconds, age: 0 };
+        break;
+      case 'cry':
+        // なでてほしくて泣いている: 腕を下ろして、泣き顔
         body.start('idle');
         body.setPose('down');
         body.reaction = { face: 'sad', kind: 'calm', left: seconds, age: 0 };

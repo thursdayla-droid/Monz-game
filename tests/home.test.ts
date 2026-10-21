@@ -219,4 +219,11 @@ describe('needs', () => {
     expect(needWeights({ ...newNeeds(), mood: 0.1 }).hop).toBeLessThan(1);
     expect(needWeights(newNeeds()).beg).toBeUndefined();
   });
+
+  it('hunger gauge 3 or less: begs a lot; petting gauge 3 or less: cries a lot', () => {
+    expect(needWeights({ ...newNeeds(), full: 0.3 }).beg).toBeGreaterThanOrEqual(10);
+    expect(needWeights({ ...newNeeds(), full: 0.4 }).beg).toBeUndefined();
+    expect(needWeights({ ...newNeeds(), touch: 0.3 }).cry).toBeGreaterThanOrEqual(10);
+    expect(needWeights({ ...newNeeds(), touch: 0.4 }).cry).toBeUndefined();
+  });
 });
