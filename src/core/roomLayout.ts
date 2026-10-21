@@ -14,38 +14,34 @@ export interface Rect {
   y1: number;
 }
 
-/** 置いた家具1つ(画面の座標)。persp: 奥行きによる大きさ(手前=1)。slope: 奥向き(ななめの絵)に置いたとき(値は向き。重なりの判定には使わない) */
+/** 置いた家具1つ(画面の座標)。persp: 奥行きによる大きさ(手前=1)。turn: 縦向き */
 export interface FloorItem {
   item: string;
   x: number;
   y: number;
   persp: number;
-  slope?: number;
+  turn?: boolean;
 }
 
 /**
- * 【仮】奥向き(左右の壁ぞい)に置いたときの、横の大きさ(横向きのときの何倍に見えるか)。
- * 企画者の指示(2026-10-21): 左右の壁ぎわには、角度を合わせて置きたい。奥へ向かう家具は、横から見たときより短く見える
+ * 【仮】縦向き(頭が奥・足が手前)に置いたときの、横はば(横向きのときの横はばの何倍か)。
+ * 企画者の指示(2026-10-21): 左右の壁ぎわにも置きたい → 縦向きの絵を使う(タイルの線に合わせてかたむける)
  */
-export const TURN_SHORTEN = 0.8;
-/** ななめの絵の、家具の長い辺のかたむき(縦/横)。企画者のななめのベッドの絵から */
-const TURN_ART_SLOPE = 0.5;
+export const TURN_WIDTH = 0.5;
 
 /** MONZの体の半分くらい。家具と家具、家具と壁のあいだは、この2倍あけないと通れない */
 export const PASS_CLEARANCE = 34;
 
-/** 床の上で占める範囲(足元 x, y が手前のまん中。奥向きのときは、長い辺のまん中) */
+/** 床の上で占める範囲(足元 x, y が手前のまん中) */
 export function footRect(f: FloorItem): Rect {
   const kind = furniture(f.item)?.kind ?? 'toy';
   const r = KIND_RULES[kind];
   const w = r.width * f.persp * 0.92;
   const d = r.width * f.persp * r.depth;
-  if (f.slope !== undefined) {
-    // 奥向き: 床の奥行きの線にそって、ななめに置く。重なりの判定は、それを囲む四角で見る
-    const l = w * TURN_SHORTEN;
-    const rise = TURN_ART_SLOPE * l;
-    // 足元(x, y)は、いちばん手前の所
-    return { x0: f.x - l / 2, x1: f.x + l / 2, y0: f.y - rise - d, y1: f.y };
+  if (f.turn) {
+    // 縦向き: はばはせまく、奥へ長い(足元 x, y は手前のまん中)
+    const tw = w * TURN_WIDTH;
+    return { x0: f.x - tw / 2, x1: f.x + tw / 2, y0: f.y - r.width * f.persp * TURN_WIDTH * 0.95, y1: f.y };
   }
   return { x0: f.x - w / 2, x1: f.x + w / 2, y0: f.y - d, y1: f.y };
 }
