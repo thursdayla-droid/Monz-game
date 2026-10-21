@@ -78,18 +78,7 @@ export interface HomeLayout {
 const ROOM_FLOOR: Pt[] = [[300, 640], [770, 640], [960, 800], [985, 1290], [40, 1290], [60, 800]];
 
 export const HOME_LAYOUTS: Record<HomePlace, HomeLayout> = {
-  // 企画者の新しい絵(2026-10-21): 手前の壁を取りはずした箱のような部屋。部屋全体(手前の角まで)が見える。タイルはほぼ四角
-  street: {
-    w: 1024,
-    h: 1536,
-    floor: [[240, 570], [790, 570], [890, 1290], [125, 1290]],
-    scale: [0.118, 0.16],
-    furniture: [[190, 505], [835, 505], [950, 1322], [70, 1322]],
-    vanish: [519, -1735],
-    fit: 'contain',
-    furnitureScale: 0.65,
-    edge: 0,
-  },
+  street: { w: 1024, h: 1536, floor: ROOM_FLOOR, scale: [0.09, 0.19], furniture: [[255, 562], [800, 562], [1024, 745], [1024, 1290], [0, 1290], [0, 715]], vanish: [568, 365] },
   pop: { w: 1024, h: 1536, floor: ROOM_FLOOR, scale: [0.09, 0.19], furniture: [[205, 576], [815, 576], [1024, 740], [1024, 1290], [0, 1290], [0, 730]], vanish: [517, 342] },
   future: { w: 1024, h: 1536, floor: ROOM_FLOOR, scale: [0.09, 0.19], furniture: [[240, 584], [815, 584], [1024, 735], [1024, 1290], [0, 1290], [0, 720]], vanish: [562, 401] },
 };
