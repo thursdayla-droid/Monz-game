@@ -28,7 +28,7 @@ interface Placed {
 /** 【仮】かたむけ具合(1 = タイルの線にぴったり)。強くかたむけると柱まで斜めになるので、少しひかえめにする */
 const SHEAR_STRENGTH = 0.8;
 
-/** 奥向きに置けるのは、奥行きの線のかたむき(縦/横)がこれ以下の所 */
+/** 奥行きの線のかたむき(縦/横)の上限(まん中の近くで大きくなりすぎないように) */
 const MAX_TURN_SLOPE = 1.6;
 
 /** 【仮】絵がまだない家具の見た目(シリーズの色の箱に名前) */
@@ -122,10 +122,9 @@ export class HomeFurniture {
     return Math.round(Phaser.Math.Clamp(raw, -MAX_TURN_SLOPE, MAX_TURN_SLOPE) * 20) / 20;
   }
 
-  /** 奥向きに置けるのは、ななめの絵がある家具で、奥行きの線がそれほど立っていない所(部屋の左右より)だけ */
-  private canTurnAt(item: string, x: number, y: number): boolean {
-    if (!this.scene.textures.exists(furnitureTurnKey(item))) return false;
-    return Math.abs((y - this.vanish[1]) / (x - this.vanish[0] || 0.001)) <= MAX_TURN_SLOPE;
+  /** 奥向きに置けるのは、ななめの絵がある家具だけ */
+  private canTurnAt(item: string): boolean {
+    return this.scene.textures.exists(furnitureTurnKey(item));
   }
 
   /**
@@ -256,7 +255,7 @@ export class HomeFurniture {
   }
 
   private valid(it: Placed, x: number, y: number, turn = it.turn): boolean {
-    if (turn && !this.canTurnAt(it.item, x, y)) return false;
+    if (turn && !this.canTurnAt(it.item)) return false;
     const others = this.items.filter((o) => o !== it).map((o) => this.floorItem(o));
     return canPlace(this.floorItem({ item: it.item, x, y, turn }), others, this.floor, this.walkFloor);
   }
