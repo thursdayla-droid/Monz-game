@@ -307,6 +307,7 @@ export class SluggerScene extends Phaser.Scene {
       '  （遠くへ飛ばすとホームラン）',
       '・空振り・見のがしはミス。3回でおしまい',
       '  （ファウルは大丈夫）',
+      '・たまに来る届かない球は、見送ればOK',
       '・ヒットを打つほど、球が速く・変化球も来て',
       '  目印が出るのもおそくなるよ',
       '',
@@ -422,8 +423,15 @@ export class SluggerScene extends Phaser.Scene {
     return t;
   }
 
-  /** バットに当たらなかった球: 空振り・見のがし(どちらもミス) */
+  /** バットに当たらなかった球: 空振り・見のがし(どちらもミス)・届かないボール球の見送り(ミスにならない) */
   private showNoContact(r: SwingResult): void {
+    if (r.outcome === 'ball') {
+      // 届かないボール球を見送れた(ミスにならない)
+      audio.se('select');
+      this.popText('ナイス見送り！', '#4fd65a', 72);
+      this.popText('届かないボール球はミスにならないよ', '#ffffff', 30, 700);
+      return;
+    }
     if (this.swung) this.time.delayedCall(120, () => this.setBatter('whiff'));
     const early = this.swung && r.timing < 0 && r.offset <= SLUG.position.good;
     this.showMiss(r.outcome === 'swingMiss' ? '空振り！' : '見のがし！', early ? 'ふるのが はやい' : '');

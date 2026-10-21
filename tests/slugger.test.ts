@@ -24,12 +24,31 @@ describe('MONZ SLUGGER', () => {
     }
   });
 
-  it('every pitch comes into the strike zone (no ball pitches)', () => {
+  it('almost every pitch is in the zone; about 1 in 15 is a ball the cursor cannot reach, never two in a row', () => {
     const s = newSlugger(5);
-    for (const hits of [0, 15, 25, 40, 80]) {
-      s.hits = hits;
-      for (let i = 0; i < 200; i++) expect(isStrike(nextPitch(s))).toBe(true);
+    s.pitches = 30;
+    let far = 0;
+    let prevFar = false;
+    for (let i = 0; i < 3000; i++) {
+      const p = nextPitch(s);
+      const isFar = !isStrike(p);
+      if (isFar) {
+        far++;
+        expect(prevFar).toBe(false);
+        // カーソルをいちばん近くに置いても、当たらない
+        const cx = Math.max(-SLUG.cursorLimit, Math.min(SLUG.cursorLimit, p.tx));
+        const cy = Math.max(-SLUG.cursorLimit, Math.min(SLUG.cursorLimit, p.ty));
+        expect(judge(p, p.flight - SLUG.idealBefore, { x: cx, y: cy }).outcome).toBe('swingMiss');
+        // 見送ればミスにならない
+        expect(judge(p, null, { x: 0, y: 0 }).outcome).toBe('ball');
+      }
+      prevFar = isFar;
     }
+    expect(far / 3000).toBeGreaterThan(1 / 25);
+    expect(far / 3000).toBeLessThan(1 / 10);
+    // 最初の数球は出ない
+    const early = newSlugger(6);
+    for (let i = 0; i < 8; i++) expect(isStrike(nextPitch(early))).toBe(true);
   });
 
   it('judges position and timing; outside the cursor is a swing and miss, a little off timing is a foul', () => {
@@ -125,7 +144,7 @@ describe('MONZ SLUGGER', () => {
     expect(passed(p, 1 - SLUG.idealBefore + SLUG.timing.good + SLUG.foul + 0.01)).toBe(true);
   });
 
-  it('gets harder step by step with the number of hits, never suddenly', () => {
+  it('gets harder step by step with the number of pitches, never suddenly', () => {
     let prev = levelFor(0).flight;
     for (let n = 1; n <= 80; n++) {
       const L = levelFor(n);
@@ -134,10 +153,13 @@ describe('MONZ SLUGGER', () => {
       prev = L.flight;
     }
     expect(levelFor(0).breakChance).toBe(0);
-    expect(levelFor(25).breakChance).toBe(0);
-    expect(levelFor(35).breakChance).toBeGreaterThan(0);
+    expect(levelFor(19).breakChance).toBe(0);
+    // 20球から変化球。最初はたまに
+    expect(levelFor(20).breakChance).toBeGreaterThan(0);
+    expect(levelFor(20).breakChance).toBeLessThan(0.2);
+    expect(levelFor(40).breakChance).toBeGreaterThan(levelFor(20).breakChance);
     expect(levelFor(0).spread).toBeLessThan(levelFor(25).spread);
-    expect(SLUG_LEVELS.map((l) => l.from)).toEqual([0, 10, 20, 30, 50]);
+    expect(SLUG_LEVELS.map((l) => l.from)).toEqual([0, 10, 20, 35, 60]);
     expect(levelFor(500).flight).toBeGreaterThan(0.75);
   });
 

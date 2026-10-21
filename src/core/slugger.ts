@@ -5,7 +5,7 @@ import { mulberry32, type Rng } from './rng';
  * エンドレスのバッティング。ピッチャーが自動で投げ、プレイヤーはミートカーソルを動かしてスイングする。
  *
  * プロ野球ゲームのような打ち方(企画者決定 2026-10-20):
- * - 球はすべてゾーンに来る(ボール球はなし。2026-10-21 最初のルールに戻す)
+ * - 球はほぼゾーンに来る。15球に1球くらい、カーソルの届かないボール球が来る(見送ればミスにならない。2026-10-21)
  * - 当たり所で打球が変わる。カーソルがボールより上だとゴロ、まん中だとライナー、下だとフライ。早く振ると引っぱり、遅いと流し打ち
  * - 打てば必ずヒットかホームラン(捕られてアウトはない。2026-10-20 企画者決定)。点数は飛距離の合計
  * - 空振り・見のがしはミス。3回ミスでゲームおしまい(企画者決定 2026-10-21: 最初のルール通り)。ファウルはミスにしない(2026-10-21 企画者決定)
@@ -41,8 +41,8 @@ export const SLUG = {
   /** 投げるまでの時間(構え→振りかぶり)と、打ったあとの間(秒) */
   windup: 1.0,
   afterPitch: 1.2,
-  /** カーソルが動ける広さ(ボール球にも届く) */
-  cursorLimit: 1.6,
+  /** カーソルが動ける広さ(届かないボール球には届かない) */
+  cursorLimit: 1.3,
   /** ボールがピッチャーの手を離れる所 */
   release: { x: 0.12, y: 0.75 },
 } as const;
@@ -57,10 +57,9 @@ export type Contact = 'grounder' | 'liner' | 'fly';
 export type Outcome = 'hit' | 'homerun' | 'foul' | 'swingMiss' | 'strikeTaken' | 'ball';
 
 /**
- * 難しさ(ヒットの合計で決まる)。企画者の初期案(段の分け方):
- * 0〜9 遅いストレート / 10〜19 球速が上がる / 20〜29 コースが散らばる / 30〜49 変化球 / 50〜 速い球と変化球
+ * 難しさ(投げた球の数で決まる。2026-10-21 企画者の指示「簡単すぎる・20球ぐらいから変化球をたまに」)。
  * flight: ボールが着くまでの秒数(短いほど速い)。spread: コースの広さ。breakChance: 変化球の割合。breakSize: 曲がる大きさ。
- * ballChance: ボール球の割合(2026-10-21 からすべて 0。ボール球を戻すときのために残す)
+ * ballChance: 届かないボール球の割合(下の SLUG_FAR)。【仮】数字は調整前
  */
 export interface Level {
   from: number;
@@ -68,26 +67,33 @@ export interface Level {
   spread: number;
   breakChance: number;
   breakSize: number;
-  ballChance: number;
 }
 export const SLUG_LEVELS: readonly Level[] = [
-  { from: 0, flight: [1.35, 1.35], spread: 0.35, breakChance: 0, breakSize: 0, ballChance: 0 },
-  { from: 10, flight: [1.35, 1.1], spread: 0.45, breakChance: 0, breakSize: 0, ballChance: 0 },
-  { from: 20, flight: [1.1, 1.05], spread: 0.8, breakChance: 0, breakSize: 0, ballChance: 0 },
-  { from: 30, flight: [1.05, 0.98], spread: 0.8, breakChance: 0.5, breakSize: 0.55, ballChance: 0 },
-  { from: 50, flight: [0.95, 0.82], spread: 0.85, breakChance: 0.6, breakSize: 0.7, ballChance: 0 },
+  { from: 0, flight: [1.3, 1.25], spread: 0.45, breakChance: 0, breakSize: 0 },
+  { from: 10, flight: [1.25, 1.1], spread: 0.6, breakChance: 0, breakSize: 0 },
+  // 20球から変化球。最初はたまに(7球に1球くらい)・小さく曲がる
+  { from: 20, flight: [1.1, 1.02], spread: 0.75, breakChance: 0.15, breakSize: 0.45 },
+  { from: 35, flight: [1.02, 0.94], spread: 0.85, breakChance: 0.25, breakSize: 0.6 },
+  { from: 60, flight: [0.94, 0.82], spread: 0.85, breakChance: 0.35, breakSize: 0.7 },
 ];
 
-/** ヒットの合計に合う難しさ。ひとつの段の中でも、少しずつ速くなる(急に難しくならないように) */
-export function levelFor(hits: number): Omit<Level, 'from' | 'flight'> & { flight: number } {
+/** 投げた球の数に合う難しさ。ひとつの段の中でも、少しずつ速くなる(急に難しくならないように) */
+export function levelFor(pitches: number): Omit<Level, 'from' | 'flight'> & { flight: number } {
   let i = 0;
-  while (i + 1 < SLUG_LEVELS.length && hits >= SLUG_LEVELS[i + 1].from) i++;
+  while (i + 1 < SLUG_LEVELS.length && pitches >= SLUG_LEVELS[i + 1].from) i++;
   const L = SLUG_LEVELS[i];
   const next = SLUG_LEVELS[i + 1];
   const span = next ? next.from - L.from : 30;
-  const k = Math.min(1, (hits - L.from) / span);
-  return { flight: L.flight[0] + (L.flight[1] - L.flight[0]) * k, spread: L.spread, breakChance: L.breakChance, breakSize: L.breakSize, ballChance: L.ballChance };
+  const k = Math.min(1, (pitches - L.from) / span);
+  return { flight: L.flight[0] + (L.flight[1] - L.flight[0]) * k, spread: L.spread, breakChance: L.breakChance, breakSize: L.breakSize };
 }
+
+/**
+ * 届かないボール球(2026-10-21 企画者の指示「15球に1球ぐらい、ギリギリ届かない球」)。
+ * カーソルをいちばん端まで動かしても当たらない所に来る。見送ればミスにならない(振ると空振り)。
+ * from: 何球目から出るか。chance: 出る割合。2球続けては出さない
+ */
+export const SLUG_FAR = { from: 8, chance: 1 / 15 } as const;
 
 export interface Pitch {
   kind: PitchKind;
@@ -146,6 +152,8 @@ export interface SluggerState {
   /** ミス(空振り・見のがし)の回数(3回でおしまい) */
   whiffs: number;
   pitches: number;
+  /** 前の球が届かないボール球だったか(2球続けて出さないため) */
+  lastWasFar: boolean;
   over: boolean;
 }
 
@@ -163,6 +171,7 @@ export function newSlugger(seed: number): SluggerState {
     longest: 0,
     whiffs: 0,
     pitches: 0,
+    lastWasFar: false,
     over: false,
   };
 }
@@ -180,17 +189,21 @@ export function rngOf(s: SluggerState): Rng {
 /** 次の1球を決める */
 export function nextPitch(s: SluggerState): Pitch {
   const rng = rngOf(s);
-  const L = levelFor(s.hits);
+  const L = levelFor(s.pitches);
   // 同じ段の中でも、少し速さにばらつきを持たせる(±4%)
   const flight = L.flight * range(rng, 0.96, 1.04);
-  const ballChance = L.ballChance;
   let tx: number;
   let ty: number;
-  if (rng() < ballChance) {
-    // ボール球: ゾーンの少し外(横か縦にはずれる)
+  const far = s.pitches >= SLUG_FAR.from && !s.lastWasFar && rng() < SLUG_FAR.chance;
+  s.lastWasFar = far;
+  if (far) {
+    // 届かないボール球: カーソルの届く端(cursorLimit)+当たる幅(good)より、ほんの少し外。横か上にはずれる
+    const reach = SLUG.cursorLimit + SLUG.position.good;
     const side = rng() < 0.5 ? -1 : 1;
-    if (rng() < 0.6) [tx, ty] = [side * range(rng, 1.2, 1.45), range(rng, -0.8, 0.8)];
-    else [tx, ty] = [range(rng, -0.8, 0.8), side * range(rng, 1.2, 1.4)];
+    if (rng() < 0.7) [tx, ty] = [side * range(rng, reach + 0.06, reach + 0.18), range(rng, -0.6, 0.6)];
+    // 縦は当たり判定が 1.15倍きびしいので、届く高さは cursorLimit + good / 1.15
+    else [tx, ty] = [range(rng, -0.6, 0.6), SLUG.cursorLimit + SLUG.position.good / 1.15 + range(rng, 0.06, 0.16)];
+    return { kind: 'straight', flight, tx, ty, bx: 0, by: 0 };
   } else {
     tx = range(rng, -L.spread, L.spread);
     ty = range(rng, -L.spread * 0.8, L.spread * 0.8);
@@ -257,7 +270,8 @@ export function applyResult(s: SluggerState, r: SwingResult): SwingResult {
   s.pitches++;
   let points = 0;
   // ファウルはミスにしない(連続ヒットも切れない)
-  if (r.outcome === 'swingMiss' || r.outcome === 'strikeTaken' || r.outcome === 'ball') {
+  // 届かないボール球の見送り(ball)もミスにしない
+  if (r.outcome === 'swingMiss' || r.outcome === 'strikeTaken') {
     s.whiffs++;
     s.streak = 0;
     if (s.whiffs >= SLUG.maxWhiffs) s.over = true;
