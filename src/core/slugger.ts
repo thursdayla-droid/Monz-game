@@ -321,7 +321,8 @@ export const passed = (p: Pitch, t: number): boolean => t > p.flight - SLUG.idea
  * 報酬。ヒットの数で決める。
  * コインは10ヒットで1枚(企画者決定 2026-10-21)。経験値は下。
  */
-export const SLUG_REWARD = { hitsPerCoin: 10, expFrom: 20, hitsPerExp: 10 } as const;
+// 2026-10-21 企画者決定: 経験値は1回のプレイで上限あり(【仮】10)
+export const SLUG_REWARD = { hitsPerCoin: 10, expFrom: 20, hitsPerExp: 10, maxExp: 10 } as const;
 /** 経験値(企画者決定 2026-10-21): 20本で1、そこから10本ごとに1(19本までは0) */
-const sluggerExp = (hits: number) => (hits < SLUG_REWARD.expFrom ? 0 : 1 + Math.floor((hits - SLUG_REWARD.expFrom) / SLUG_REWARD.hitsPerExp));
+const sluggerExp = (hits: number) => (hits < SLUG_REWARD.expFrom ? 0 : Math.min(SLUG_REWARD.maxExp, 1 + Math.floor((hits - SLUG_REWARD.expFrom) / SLUG_REWARD.hitsPerExp)));
 export const sluggerReward = (s: Pick<SluggerState, 'hits'>) => ({ coins: Math.floor(s.hits / SLUG_REWARD.hitsPerCoin), exp: sluggerExp(s.hits) });

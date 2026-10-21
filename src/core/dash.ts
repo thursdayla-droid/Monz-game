@@ -314,7 +314,8 @@ export function step(s: DashState, dt: number): void {
 export const meters = (s: DashState): number => Math.floor(s.dist / DASH.pxPerMeter);
 
 /** 報酬(企画者決定 2026-10-20: 簡単なので 100m → 500mで1コインに変更) */
-export const DASH_REWARD = { metersPerCoin: 500, expFrom: 500, metersPerExp: 100 } as const;
+// 2026-10-21 企画者決定: 経験値は1回のプレイで上限あり(【仮】10)
+export const DASH_REWARD = { metersPerCoin: 500, expFrom: 500, metersPerExp: 100, maxExp: 10 } as const;
 /** 経験値(企画者決定 2026-10-21): 500mで1、そこから100mごとに1(499mまでは0) */
-const dashExp = (m: number) => (m < DASH_REWARD.expFrom ? 0 : 1 + Math.floor((m - DASH_REWARD.expFrom) / DASH_REWARD.metersPerExp));
+const dashExp = (m: number) => (m < DASH_REWARD.expFrom ? 0 : Math.min(DASH_REWARD.maxExp, 1 + Math.floor((m - DASH_REWARD.expFrom) / DASH_REWARD.metersPerExp)));
 export const dashReward = (m: number) => ({ coins: Math.floor(m / DASH_REWARD.metersPerCoin), exp: dashExp(m) });

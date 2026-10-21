@@ -209,5 +209,7 @@ describe('MONZ SLUGGER', () => {
     expect(sluggerReward({ hits: 20 })).toEqual({ coins: 2, exp: 1 });
     expect(sluggerReward({ hits: 29 })).toEqual({ coins: 2, exp: 1 });
     expect(sluggerReward({ hits: 30 })).toEqual({ coins: 3, exp: 2 });
+    expect(sluggerReward({ hits: 110 })).toEqual({ coins: 11, exp: 10 });
+    expect(sluggerReward({ hits: 300 })).toEqual({ coins: 30, exp: 10 });
   });
 });
