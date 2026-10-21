@@ -159,8 +159,7 @@ export class SluggerScene extends Phaser.Scene {
 
     this.showTitle();
     this.cameras.main.fadeIn(250, 0, 0, 0);
-    // 【仮】専用の曲が決まるまでメインの曲
-    audio.playBgm('main');
+    audio.playBgm('slugger');
   }
 
   private makeTextures(): void {

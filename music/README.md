@@ -9,6 +9,7 @@ Claude Code が、音量をそろえてから `public/assets/bgm/` に入れ、`
 | お世話画面（ホーム） | home_Smooth_Minimal_Groove.m4a | public/assets/bgm/home.mp3 |
 | MONZ CARD | card_Ten-Second_Timer.m4a | public/assets/bgm/card.mp3 |
 | DASH MONZ | dash.m4a | public/assets/bgm/dash.mp3 |
+| MONZ SLUGGER | slugger_Diamond_Glory.m4a | public/assets/bgm/slugger.mp3 |
 
 - 歌・ラップなし（インスト）。
 - アプリで公開してよい（商用利用できる）曲だけを使う。
