@@ -6,6 +6,7 @@
  * 【仮】コインの最初の枚数(0)。コインはレベルが上がったとき・ミニゲームでもらえる(企画者決定)。
  */
 import { HOME_PLACES, type HomePlace } from './home';
+import { isFurniture, itemPrice, MOVE_TICKET } from './furniture';
 import { catchUp, dayKey, expToNext, levelUpCoins, newNeeds, NEEDS_RULES, stepNeeds, isNight, type Needs } from './needs';
 import type { KeyValueStore } from './save';
 import { isSpecies, type SpeciesId } from './species';
@@ -48,10 +49,23 @@ export interface MonzData {
   bornAt: number;
 }
 
-/** 持ち物(第3段階: 家具・コスチューム)。アイテムの番号だけを保存する */
+/**
+ * 持ち物(アイテムボックス)。アイテムの番号だけを保存する(src/core/furniture.ts)。
+ * owned: 持っている物を1個ずつ(同じ家具を2つ買えば2つ並ぶ。引越し券も同じ)。
+ * placed: 部屋に置いてある家具(owned のうちのいくつか)。置いていない家具はアイテムボックスの中。
+ */
 export interface Inventory {
   owned: string[];
-  placed: { item: string; x: number; y: number }[];
+  placed: PlacedItem[];
+}
+
+/** 部屋に置いた家具1つ。x, y は足元(床に接する所)の位置で、部屋の絵の座標。flip: 左右反転 */
+export interface PlacedItem {
+  uid: string;
+  item: string;
+  x: number;
+  y: number;
+  flip: boolean;
 }
 
 export interface LifeData {
@@ -61,8 +75,10 @@ export interface LifeData {
   activeMonz: string;
   monz: MonzData[];
   inventory: Inventory;
-  /** お世話画面の場所(いちばん最初に1回だけ決める) */
+  /** お世話部屋(生まれた後に選ぶ。引越し券で変えられる) */
   place?: HomePlace;
+  /** 4つめの部屋を見つけたか(引越し券を買うと見つかる。一度見つけたら、次の引越しでも出る) */
+  secretRoom?: boolean;
   /** 最後に様子を進めた時刻(ミリ秒)。閉じていた時間に合わせて変化させる */
   lastSeen: number;
   /** 最近もらった報酬の番号(同じ報酬を2回もらわないため) */
@@ -172,12 +188,33 @@ export function migrateLife(raw: unknown, now = Date.now()): LifeData | null {
     coins: Math.floor(num(d.coins, 0)),
     activeMonz: monz.some((m) => m.uid === d.activeMonz) ? String(d.activeMonz) : monz[0].uid,
     monz,
-    inventory: { owned: Array.isArray(inv.owned) ? inv.owned.map(String) : [], placed: Array.isArray(inv.placed) ? inv.placed : [] },
+    inventory: fixInventory(inv),
     place: (HOME_PLACES as readonly string[]).includes(String(d.place)) ? (d.place as HomePlace) : undefined,
+    ...(d.secretRoom === true ? { secretRoom: true } : {}),
     lastSeen: num(d.lastSeen, now),
     claimed: Array.isArray(d.claimed) ? (d.claimed as unknown[]).map(String).slice(-CLAIMED_KEEP) : [],
     records: d.records && typeof d.records === 'object' ? (d.records as Record<string, MinigameRecord>) : {},
   };
+}
+
+/** 持ち物をそろえる。置いてある家具は、持っている数より多くならないようにする(おかしなデータは捨てる) */
+function fixInventory(inv: Partial<Inventory>): Inventory {
+  const owned = Array.isArray(inv.owned) ? inv.owned.map(String) : [];
+  const left = new Map<string, number>();
+  for (const id of owned) left.set(id, (left.get(id) ?? 0) + 1);
+  const placed: PlacedItem[] = [];
+  const uids = new Set<string>();
+  for (const [i, raw] of (Array.isArray(inv.placed) ? inv.placed : []).entries()) {
+    const p = (raw ?? {}) as Partial<PlacedItem>;
+    const item = String(p.item);
+    if (!(left.get(item) ?? 0) || !Number.isFinite(Number(p.x)) || !Number.isFinite(Number(p.y))) continue;
+    left.set(item, left.get(item)! - 1);
+    let uid = typeof p.uid === 'string' && p.uid ? p.uid : `p${i + 1}`;
+    while (uids.has(uid)) uid += '_';
+    uids.add(uid);
+    placed.push({ uid, item, x: Number(p.x), y: Number(p.y), flip: p.flip === true });
+  }
+  return { owned, placed };
 }
 
 const readKey = (store: KeyValueStore | null, key: string): LifeData | null => {
@@ -314,6 +351,70 @@ export class LifeRecord {
     if (reward.coins) this.add(reward.coins);
     if (reward.exp) this.gainExp(reward.exp, now, 'other');
     return true;
+  }
+
+  // ---------------- アイテム(家具・引越し券) ----------------
+
+  /** 持っている数(置いてある家具もふくむ) */
+  owns(id: string): number {
+    return this.data.inventory.owned.filter((o) => o === id).length;
+  }
+
+  /** アイテムボックスに入っている数(持っている数 − 部屋に置いてある数) */
+  inBox(id: string): number {
+    return this.owns(id) - this.data.inventory.placed.filter((p) => p.item === id).length;
+  }
+
+  /** ショップで買う。コインが足りない・知らない番号なら買わずに false */
+  buy(id: string): boolean {
+    const price = itemPrice(id);
+    if (price === undefined || !this.spend(price)) return false;
+    const inv = this.data.inventory;
+    // 引越し券を買うと、4つめの部屋が見つかる(それまでは存在を知らせない)
+    this.update({ inventory: { ...inv, owned: [...inv.owned, id] }, ...(id === MOVE_TICKET ? { secretRoom: true } : {}) });
+    return true;
+  }
+
+  /** アイテムボックスの家具を部屋に置く。置いた家具の番号(なければ null)。置ける場所かどうかは画面の側で確かめる */
+  placeItem(id: string, x: number, y: number, flip = false): string | null {
+    if (!isFurniture(id) || this.inBox(id) <= 0) return null;
+    const inv = this.data.inventory;
+    const used = new Set(inv.placed.map((p) => p.uid));
+    let n = inv.placed.length + 1;
+    while (used.has(`p${n}`)) n++;
+    const uid = `p${n}`;
+    this.update({ inventory: { ...inv, placed: [...inv.placed, { uid, item: id, x, y, flip }] } });
+    return uid;
+  }
+
+  /** 置いてある家具を動かす・向きを変える */
+  movePlaced(uid: string, x: number, y: number, flip?: boolean): void {
+    const inv = this.data.inventory;
+    this.update({ inventory: { ...inv, placed: inv.placed.map((p) => (p.uid === uid ? { ...p, x, y, flip: flip ?? p.flip } : p)) } });
+  }
+
+  /** 置いてある家具をしまう(アイテムボックスにもどす) */
+  storePlaced(uid: string): void {
+    const inv = this.data.inventory;
+    this.update({ inventory: { ...inv, placed: inv.placed.filter((p) => p.uid !== uid) } });
+  }
+
+  /**
+   * 引越し券を1枚使って引っ越す。券がない・今の部屋と同じなら false。
+   * 企画者決定(2026-10-21): 使った券はなくなる。置いてある家具はすべてアイテムボックスにもどる(新しい部屋で置き直し)。
+   * MONZのレベル・ステータス・お世話の様子・コイン・持ち物はそのまま。
+   */
+  moveTo(place: HomePlace): boolean {
+    const inv = this.data.inventory;
+    const i = inv.owned.indexOf(MOVE_TICKET);
+    if (i < 0 || place === this.data.place) return false;
+    this.update({ place, inventory: { owned: inv.owned.filter((_, k) => k !== i), placed: [] } });
+    return true;
+  }
+
+  /** 4つめの部屋を見つけた(引越し券を買ったとき) */
+  findSecretRoom(): void {
+    if (!this.data.secretRoom) this.update({ secretRoom: true });
   }
 
   /** ミニゲームの記録を残す。新記録なら true */
