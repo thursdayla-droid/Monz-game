@@ -11,8 +11,8 @@ import { COLORS, INK, roundRectPath, speckle, splat } from './paint';
  * vx, vy: 奥の消える点 / px, py: ストライクゾーンのまん中(ホームベースの上) / zs: ゾーンの半分の大きさ(画面のpx)
  */
 // 企画者の球場の絵(引きの絵 2026-10-20)に合わせた数字: ピッチャーマウンド(366,580)・ホームベース(360,905)が絵の位置にくる。
-// ゾーンの半分の大きさ zs=110、地面は ゾーンのまん中から 1.3×zs 下(ホームベースの所)
-export const VIEW = { vx: 368, vy: 499, px: 360, py: 762, zs: 110, depth: 4 } as const;
+// ゾーンの半分の大きさ zs=105(バッターが画面に収まり、ゾーンにかからないように)、地面は ゾーンのまん中から 1.3×zs 下(ホームベースの所)
+export const VIEW = { vx: 368, vy: 499, px: 360, py: 769, zs: 105, depth: 4 } as const;
 
 /** 奥へ行くほど小さく見える割合(z=0 で 1、z=1 で 0.2) */
 export const persp = (z: number): number => 1 / (1 + VIEW.depth * z);

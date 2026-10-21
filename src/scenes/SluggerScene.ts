@@ -18,7 +18,7 @@ export const SLUG_BATTER_ART: Record<BatterPose, { ox: number; oy: number }> = {
 };
 export const slugBatterKey = (p: BatterPose) => `slug:bat:${p}`;
 /** 絵の大きさ(画面での倍率)。打つ範囲(ストライクゾーン)にかからない大きさ */
-const BATTER_ART_SCALE = 0.78;
+const BATTER_ART_SCALE = 0.67;
 
 /** ピッチャーロボットの絵(企画者の絵 3ポーズ)。数字は design/minigame/make_slugger_assets.py の出力 */
 export const SLUG_PITCHER_ART: Record<PitcherPose, { ox: number; oy: number }> = {
@@ -44,7 +44,7 @@ const CTRL = {
 };
 /** バッターの立つ所(足元)と大きさ */
 /** バッターの立つ所(足元)。背景の絵(引きの絵)の左のバッターボックス(y843〜993、内側の線 x270〜290)の中。打つ範囲にかからないように */
-const BATTER = { x: 100, y: 985, scale: 0.9, alpha: 1 };
+const BATTER = { x: 128, y: 985, scale: 0.9, alpha: 1 };
 /** ボールの半径(ゾーンの半分を 1 とした長さ) */
 const BALL_R = 0.2;
 /** ボールの絵の大きさ(px) */
@@ -182,9 +182,9 @@ export class SluggerScene extends Phaser.Scene {
     });
     this.scoreText = this.add.text(W / 2, 30, '0m', { fontFamily: ARIAL, fontSize: '56px', color: '#ffffff', stroke: INK, strokeThickness: 10 }).setOrigin(0.5, 0);
     this.comboText = this.add.text(W / 2, 108, '', { fontFamily: ARIAL, fontSize: '34px', color: '#ffd23a', stroke: INK, strokeThickness: 8 }).setOrigin(0.5, 0);
-    // 空振りの残り(右上): 黄色いバット3本。空振りすると赤い ✕ になる
+    // ミスの残り(右上): 黄色い ● 3つ。空振り・見のがしストライクで赤い ✕ になる
     const board = this.add.rectangle(W - 226, 26, 206, 118, 0x16101c, 0.82).setOrigin(0, 0).setStrokeStyle(4, 0xffffff, 0.25);
-    const label = this.add.text(W - 123, 50, '空振り あと', { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '900', color: '#ffffff' }).setOrigin(0.5);
+    const label = this.add.text(W - 123, 50, 'ミス あと', { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '900', color: '#ffffff' }).setOrigin(0.5);
     this.whiffMarks = [];
     for (let i = 0; i < SLUG.maxWhiffs; i++) {
       this.whiffMarks.push(this.add.text(W - 186 + i * 63, 104, '●', { fontFamily: ARIAL, fontSize: '40px', color: '#ffd23a', stroke: INK, strokeThickness: 6 }).setOrigin(0.5));
@@ -306,8 +306,8 @@ export class SluggerScene extends Phaser.Scene {
       '・はやく振ると左へ、おそいと右へ飛ぶ',
       '・打った飛距離の合計がスコア！',
       '  （遠くへ飛ばすとホームラン）',
-      '・空振りを3回したらおしまい',
-      '  （見のがしても、ファウルでも大丈夫）',
+      '・空振りか見のがしストライクを3回でおしまい',
+      '  （ボール球の見送り・ファウルは大丈夫）',
       '・ヒットを打つほど、球が速く・変化球も来て',
       '  目印が出るのもおそくなるよ',
       '',
@@ -422,12 +422,12 @@ export class SluggerScene extends Phaser.Scene {
     return t;
   }
 
-  /** バットに当たらなかった球: 空振り・見のがし */
+  /** バットに当たらなかった球: 空振り・見のがしストライク(ミス)・ボール球の見送り */
   private showNoContact(r: SwingResult): void {
-    if (r.outcome !== 'swingMiss') {
-      // 見のがしは何も起きない(ボール球ならうまく見送れた)
+    if (r.outcome === 'ball') {
+      // ボール球の見送りは何も起きない(うまく見送れた)
       audio.se('tap', { pitch: 0.7 });
-      this.popText(r.outcome === 'ball' ? 'ボール球 見送り' : '見のがし', '#ffffff', 52);
+      this.popText('ボール球 見送りOK', '#4fd65a', 52);
       return;
     }
     if (this.swung) this.time.delayedCall(120, () => this.setBatter('whiff'));
@@ -436,10 +436,10 @@ export class SluggerScene extends Phaser.Scene {
     const red = this.add.rectangle(0, 0, W, H, 0xff2040, 0.25).setOrigin(0, 0).setDepth(14);
     this.tweens.add({ targets: red, alpha: 0, duration: 400, onComplete: () => red.destroy() });
     const early = this.swung && r.timing < 0 && r.offset <= SLUG.position.good;
-    this.popText('空振り！', '#ff4f6a', 96);
+    this.popText(r.outcome === 'strikeTaken' ? '見のがし！' : '空振り！', '#ff4f6a', 96);
     if (early) this.popText('ふるのが はやい', '#ffffff', 34, 690);
     const left = SLUG.maxWhiffs - this.s.whiffs;
-    this.popText(left > 0 ? `あと${left}回空振りでおしまい` : 'ゲームオーバー', left === 1 ? '#ffd23a' : '#ffffff', 40, 760);
+    this.popText(left > 0 ? `あと${left}回ミスでおしまい` : 'ゲームオーバー', left === 1 ? '#ffd23a' : '#ffffff', 40, 760);
     // しるしが ✕ に変わるのを目立たせる
     const mark = this.whiffMarks[SLUG.maxWhiffs - this.s.whiffs];
     if (mark) this.tweens.add({ targets: mark, scale: 1.8, duration: 120, yoyo: true });

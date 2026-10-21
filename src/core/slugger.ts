@@ -5,10 +5,10 @@ import { mulberry32, type Rng } from './rng';
  * エンドレスのバッティング。ピッチャーが自動で投げ、プレイヤーはミートカーソルを動かしてスイングする。
  *
  * プロ野球ゲームのような打ち方(企画者決定 2026-10-20):
- * - ゾーンの外に来る球(ボール球)もある。見送っても、ファウルでも、何も起きない
+ * - ゾーンの外に来る球(ボール球)もある。ボール球の見送りとファウルは、何も起きない
  * - 当たり所で打球が変わる。カーソルがボールより上だとゴロ、まん中だとライナー、下だとフライ。早く振ると引っぱり、遅いと流し打ち
  * - 打てば必ずヒットかホームラン(捕られてアウトはない。2026-10-20 企画者決定)。点数は飛距離の合計
- * - 空振りを3回したらゲームおしまい(2026-10-20 企画者決定。カウント・三振・フォアボールはなくした)
+ * - 空振りか見のがしストライクを、合わせて3回したらゲームおしまい(2026-10-20 企画者決定。カウント・三振・フォアボールはなくした)
  *
  * 座標: ストライクゾーンのまん中が (0,0)。横 x は左が -、右が +。縦 y は下が -、上が +。ゾーンの端が ±1。
  * 奥行き z: 0 がホームベース(バッターの所)、1 がピッチャーの手。
@@ -36,7 +36,7 @@ export const SLUG = {
   contactSplit: 0.33,
   /** スイングを受けつける時間: ボールが着く何秒前から(これより早いと空振り) */
   swingEarly: 0.32,
-  /** 空振りの回数でゲームおしまい */
+  /** ミス(空振り・見のがしストライク)の回数でゲームおしまい */
   maxWhiffs: 3,
   /** 投げるまでの時間(構え→振りかぶり)と、打ったあとの間(秒) */
   windup: 1.0,
@@ -135,7 +135,7 @@ export interface SluggerState {
   rngState: number;
   score: number;
   hits: number;
-  /** 連続ヒット(空振りで 0 に戻る。見送り・ファウルでは切れない)と その最高 */
+  /** 連続ヒット(ミスで 0 に戻る。ボール球の見送り・ファウルでは切れない)と その最高 */
   streak: number;
   bestStreak: number;
   perfects: number;
@@ -143,7 +143,7 @@ export interface SluggerState {
   /** 飛距離の合計と最長 */
   totalDistance: number;
   longest: number;
-  /** 空振りの回数(3回でおしまい) */
+  /** ミス(空振り・見のがしストライク)の回数(3回でおしまい) */
   whiffs: number;
   pitches: number;
   over: boolean;
@@ -252,11 +252,11 @@ export function judge(p: Pitch, swingAt: number | null, cursor: { x: number; y: 
 
 export const isHit = (o: Outcome): boolean => o === 'hit' || o === 'homerun';
 
-/** 判定を記録に足す(点数もここで決まる)。点数は飛距離の合計。空振り3回でゲームおしまい */
+/** 判定を記録に足す(点数もここで決まる)。点数は飛距離の合計。ミス3回でゲームおしまい */
 export function applyResult(s: SluggerState, r: SwingResult): SwingResult {
   s.pitches++;
   let points = 0;
-  if (r.outcome === 'swingMiss') {
+  if (r.outcome === 'swingMiss' || r.outcome === 'strikeTaken') {
     s.whiffs++;
     s.streak = 0;
     if (s.whiffs >= SLUG.maxWhiffs) s.over = true;
@@ -270,7 +270,7 @@ export function applyResult(s: SluggerState, r: SwingResult): SwingResult {
     s.longest = Math.max(s.longest, r.distance);
     points = r.distance;
   }
-  // 見送り(ストライク・ボール)とファウルは、何も起きない
+  // ボール球の見送りとファウルは、何も起きない
   s.score += points;
   return { ...r, points };
 }

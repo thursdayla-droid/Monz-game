@@ -75,14 +75,13 @@ describe('MONZ SLUGGER', () => {
     expect(homers).toBeGreaterThan(10);
   });
 
-  it('three swings and misses end the game; taking a pitch or a foul changes nothing', () => {
+  it('three misses (swing and miss or called strike) end the game; taking a ball or a foul changes nothing', () => {
     const s = newSlugger(1);
     const hit: SwingResult = { grade: 'great', outcome: 'hit', contact: 'liner', timing: 0, offset: 0, distance: 60, homerun: false, points: 0, dir: 0 };
     const r = (outcome: SwingResult['outcome']): SwingResult => ({ ...hit, grade: 'miss', outcome, distance: 0 });
     applyResult(s, hit);
     applyResult(s, hit);
     for (let i = 0; i < 10; i++) {
-      applyResult(s, r('strikeTaken'));
       applyResult(s, r('ball'));
       applyResult(s, r('foul'));
     }
@@ -92,7 +91,8 @@ describe('MONZ SLUGGER', () => {
     expect(s.whiffs).toBe(1);
     expect(s.streak).toBe(0);
     expect(s.bestStreak).toBe(2);
-    applyResult(s, r('swingMiss'));
+    applyResult(s, r('strikeTaken'));
+    expect(s.whiffs).toBe(2);
     expect(s.over).toBe(false);
     applyResult(s, r('swingMiss'));
     expect(s.over).toBe(true);
@@ -154,10 +154,10 @@ describe('MONZ SLUGGER', () => {
     expect(markerLead(200)).toBeCloseTo(0.3);
   });
 
-  it('a player who swings at nothing never ends by itself; one who swings badly ends after 3 misses; one who aims well keeps going', () => {
+  it('a player who never swings ends by called strikes; one who swings badly ends after 3 misses; one who aims well keeps going', () => {
     const lazy = newSlugger(4);
-    for (let i = 0; i < 200; i++) applyResult(lazy, judge(nextPitch(lazy), null, { x: 0, y: 0 }));
-    expect(lazy.over).toBe(false);
+    for (let i = 0; i < 200 && !lazy.over; i++) applyResult(lazy, judge(nextPitch(lazy), null, { x: 0, y: 0 }));
+    expect(lazy.over).toBe(true);
     expect(lazy.score).toBe(0);
     const bad = newSlugger(4);
     for (let i = 0; i < 200 && !bad.over; i++) applyResult(bad, judge(nextPitch(bad), 0.1, { x: 0, y: 0 }));
