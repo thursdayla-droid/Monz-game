@@ -63,6 +63,13 @@ export const FURNITURE: FurnitureDef[] = FURNITURE_SERIES.flatMap((series) =>
   })),
 );
 
+/**
+ * 企画者の絵が届いている家具(design/furniture/ → make_furniture.py で切り抜き)。届いていない家具は【仮】の見た目。
+ * 企画者決定(2026-10-21): 家具の絵は斜め横向き。反転で逆向きにも使う
+ */
+export const FURNITURE_ART_READY: readonly string[] = ['street_bed'];
+export const furnitureKey = (id: string) => `furniture:${id}`;
+
 const BY_ID = new Map(FURNITURE.map((f) => [f.id, f]));
 export const furniture = (id: string): FurnitureDef | undefined => BY_ID.get(id);
 export const isFurniture = (id: string): boolean => BY_ID.has(id);

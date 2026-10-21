@@ -1,10 +1,11 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
-import { FURNITURE, FURNITURE_SERIES, KIND_RULES, MOVE_TICKET, OTHER_ITEMS, SERIES_LABELS, type FurnitureDef, type FurnitureSeries } from '../core/furniture';
+import { FURNITURE, FURNITURE_ART_READY, FURNITURE_SERIES, furnitureKey, KIND_RULES, MOVE_TICKET, OTHER_ITEMS, SERIES_LABELS, type FurnitureDef, type FurnitureSeries } from '../core/furniture';
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { drawCoin, drawPanel } from '../ui/homeArt';
 import { canvasTexture, canvasTextureOnce, UI_FONT } from '../ui/paint';
 import { preloadPacks } from '../render/packs';
+import { assetUrl } from '../assetUrl';
 import { homeIconKey, homeImageKey, homePlace } from './HomeScene';
 
 const W = 720;
@@ -52,6 +53,10 @@ export class ShopScene extends Phaser.Scene {
 
   preload(): void {
     preloadPacks(this, ['home']);
+    for (const id of FURNITURE_ART_READY) {
+      const f = FURNITURE.find((x) => x.id === id);
+      if (f && !this.textures.exists(furnitureKey(id))) this.load.image(furnitureKey(id), assetUrl(f.file));
+    }
   }
 
   create(): void {
@@ -212,7 +217,12 @@ export class ShopScene extends Phaser.Scene {
     // 【仮】家具の絵の所(絵が届くまでは、シリーズの色と種類の名前)
     const col = SERIES_COLORS[f.series];
     g.fillStyle(col.bg, 1).fillRoundedRect(14, 14, CARD.w - 28, 130, 12);
-    c.add([g, this.t(CARD.w / 2, 79, KIND_RULES[f.kind].name, 34, col.fg)]);
+    c.add(g);
+    if (this.textures.exists(furnitureKey(f.id))) {
+      const img = this.add.image(CARD.w / 2, 79, furnitureKey(f.id));
+      img.setScale(Math.min((CARD.w - 40) / img.width, 118 / img.height));
+      c.add(img);
+    } else c.add(this.t(CARD.w / 2, 79, KIND_RULES[f.kind].name, 34, col.fg));
     c.add(this.t(18, 158, f.name, 24, INK, 0, 0));
     const owned = record.owns(f.id);
     if (this.mode === 'shop') {
