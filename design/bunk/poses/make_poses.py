@@ -21,7 +21,7 @@ HEIGHT = 520
 
 
 # 2026-10-21 からの新しい絵(チェック柄が明るい灰色と白)。remove_checker_v2 で切り抜く
-NEW_ART = {'hungry', 'look', 'sit', 'sleep'}
+NEW_ART = {'hungry', 'look', 'sit', 'sleep', 'sleepy'}
 
 
 def remove_checker_v2(im: Image.Image) -> Image.Image:
