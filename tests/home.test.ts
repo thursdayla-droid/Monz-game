@@ -237,3 +237,12 @@ describe('needs', () => {
     expect(needWeights({ ...newNeeds(), touch: 0.4 }).cry).toBeUndefined();
   });
 });
+
+describe('petting at MAX', () => {
+  it('gets angry when the touch gauge is MAX', () => {
+    const brain = new BunkBrain(motion.behavior as unknown as BehaviorConfig, 1, motion.testPersonality as unknown as Personality);
+    const life = new MonzLife(brain, HOME_LAYOUTS.street.floor, mulberry32(1), () => 0.5, undefined, () => ({ ...newNeeds(), mood: 1 }));
+    expect(life.stroked(true)).toBe('angry');
+    expect(life.stroked(false)).toBe('happy');
+  });
+});

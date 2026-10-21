@@ -585,7 +585,7 @@ export class HomeScene extends Phaser.Scene {
     if (s.sinceTick < HomeScene.STROKE_STEP) return;
     s.sinceTick = 0;
     s.ticks++;
-    const kind = life.stroked();
+    const kind = life.stroked(this.record?.touchFull ?? false);
     if (kind === 'angry') {
       // 嫌がった: そこでやめる
       s.angry = true;
