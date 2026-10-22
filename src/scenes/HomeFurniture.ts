@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
-import { FURNITURE_ART_READY, FURNITURE_TURN_LONG, NO_SHEAR_KINDS, FURNITURE_TURN_WIDE, FURNITURE_TURN_ART_READY, furniture, furnitureKey, furnitureTurnFile, furnitureTurnKey, KIND_RULES } from '../core/furniture';
+import { FURNITURE_ART_READY, FURNITURE_TURN_LONG, NO_SHEAR_KINDS, NO_SHEAR_ITEMS, FURNITURE_TURN_WIDE, FURNITURE_TURN_ART_READY, furniture, furnitureKey, furnitureTurnFile, furnitureTurnKey, KIND_RULES } from '../core/furniture';
 import type { Pt } from '../core/home';
 import type { LifeRecord } from '../core/lifeSave';
 import { canPlace, footRect, inRect, isWalkable, regionConnected, CARPET_SIZE_LABELS, CARPET_SIZES, TURN_HEIGHT, TURN_LENGTH, type FloorItem } from '../core/roomLayout';
@@ -136,7 +136,7 @@ export class HomeFurniture {
     // 縦向きの絵は、奥へのびる線がそのままタイルの線になるので、ぴったり(1倍)かたむける
     const src = turn ? furnitureTurnKey(item) : textureFor(this.scene, item);
     const raw = (this.vanish[0] - x) / Math.max(40, y - this.vanish[1]);
-    const upright = NO_SHEAR_KINDS.includes(furniture(item)?.kind ?? 'toy');
+    const upright = NO_SHEAR_KINDS.includes(furniture(item)?.kind ?? 'toy') || NO_SHEAR_ITEMS.includes(item);
     const sh = upright ? 0 : Math.round(Phaser.Math.Clamp(raw * SHEAR_STRENGTH, -SHEAR_MAX, SHEAR_MAX) * 20) / 20;
     const img = this.scene.textures.get(src).getSourceImage() as CanvasImageSource & { width: number; height: number };
     const r = Math.min(1, 480 / img.width);
