@@ -80,7 +80,7 @@ export const FURNITURE: FurnitureDef[] = FURNITURE_SERIES.flatMap((series) =>
  * 企画者の絵が届いている家具(design/furniture/ → make_furniture.py で切り抜き)。届いていない家具は【仮】の見た目。
  * 企画者決定(2026-10-21): 家具の絵は斜め横向き。反転で逆向きにも使う
  */
-export const FURNITURE_ART_READY: readonly string[] = ['street_bed', 'street_sofa', 'street_table', 'street_carpet', 'street_tv', 'street_light', 'street_plant', 'street_toy', 'pop_bed', 'pop_sofa', 'pop_table', 'pop_tv', 'pop_carpet', 'pop_light', 'pop_plant', 'pop_toy', 'cyber_bed', 'cyber_sofa', 'cyber_table', 'cyber_tv', 'cyber_carpet', 'cyber_light', 'cyber_plant', 'cyber_toy', 'vip_bed', 'vip_sofa', 'vip_table'];
+export const FURNITURE_ART_READY: readonly string[] = ['street_bed', 'street_sofa', 'street_table', 'street_carpet', 'street_tv', 'street_light', 'street_plant', 'street_toy', 'pop_bed', 'pop_sofa', 'pop_table', 'pop_tv', 'pop_carpet', 'pop_light', 'pop_plant', 'pop_toy', 'cyber_bed', 'cyber_sofa', 'cyber_table', 'cyber_tv', 'cyber_carpet', 'cyber_light', 'cyber_plant', 'cyber_toy', 'vip_bed', 'vip_sofa', 'vip_table', 'vip_tv'];
 export const furnitureKey = (id: string) => `furniture:${id}`;
 
 /**
