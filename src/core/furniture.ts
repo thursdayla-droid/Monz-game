@@ -44,7 +44,7 @@ export const KIND_RULES: Record<FurnitureKind, KindRule> = {
   // テレビ・植物: 企画者の追加(2026-10-22)。値段は【仮】。今は置くだけ(MONZは何もしない)
   tv: { name: 'テレビ', price: 400, width: 340, depth: 0.25, walkable: false },
   light: { name: '照明', price: 300, width: 150, depth: 0.5, walkable: false },
-  plant: { name: '植物', price: 150, width: 110, depth: 0.6, walkable: false },
+  plant: { name: '植物', price: 150, width: 200, depth: 0.3, walkable: false },
   toy: { name: 'おもちゃ', price: 150, width: 80, depth: 0.8, walkable: false },
 };
 
@@ -77,7 +77,7 @@ export const FURNITURE: FurnitureDef[] = FURNITURE_SERIES.flatMap((series) =>
  * 企画者の絵が届いている家具(design/furniture/ → make_furniture.py で切り抜き)。届いていない家具は【仮】の見た目。
  * 企画者決定(2026-10-21): 家具の絵は斜め横向き。反転で逆向きにも使う
  */
-export const FURNITURE_ART_READY: readonly string[] = ['street_bed', 'street_sofa', 'street_table', 'street_carpet', 'street_tv', 'street_light'];
+export const FURNITURE_ART_READY: readonly string[] = ['street_bed', 'street_sofa', 'street_table', 'street_carpet', 'street_tv', 'street_light', 'street_plant'];
 export const furnitureKey = (id: string) => `furniture:${id}`;
 
 /**
