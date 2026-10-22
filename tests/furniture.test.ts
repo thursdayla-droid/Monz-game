@@ -16,8 +16,9 @@ const recordWith = (coins: number) => {
 
 describe('furniture list', () => {
   it('has 3 series (+ VIP) x all kinds, with unique ids, not tied to any room', () => {
-    expect(FURNITURE).toHaveLength(FURNITURE_SERIES.length * FURNITURE_KINDS.length);
-    expect(new Set(FURNITURE.map((f) => f.id)).size).toBe(4 * FURNITURE_KINDS.length);
+    // ＋2: 金マッチョの当たり(2つの像)
+    expect(FURNITURE.filter((f) => !f.prize)).toHaveLength(FURNITURE_SERIES.length * FURNITURE_KINDS.length);
+    expect(new Set(FURNITURE.map((f) => f.id)).size).toBe(4 * FURNITURE_KINDS.length + 2);
     expect(FURNITURE.filter((f) => f.series !== 'vip')).toHaveLength(3 * FURNITURE_KINDS.length);
     expect(FURNITURE_KINDS).toContain('tv');
     expect(FURNITURE_KINDS).toContain('plant');
@@ -77,6 +78,24 @@ describe('item box', () => {
     // ほかの部屋に引っ越しても、VIPの家具は買えるまま
     expect(rec.moveTo('pop')).toBe(true);
     expect(rec.buy('vip_toy')).toBe(true);
+  });
+
+  it('金マッチョ: buying the mystery toy gives one of the two statues, half and half', async () => {
+    const { drawPrize, furniture: f } = await import('../src/core/furniture');
+    expect(drawPrize('vip_toy', 0.2)).toBe('vip_toy_a');
+    expect(drawPrize('vip_toy', 0.7)).toBe('vip_toy_b');
+    expect(drawPrize('vip_bed', 0.7)).toBe('vip_bed');
+    expect([f('vip_toy')?.name, f('vip_toy_a')?.name, f('vip_toy_b')?.name]).toEqual(['金マッチョ', '金マッチョ', '金マッチョ']);
+    const { rec } = recordWith(40000);
+    rec.buy(MOVE_TICKET);
+    rec.moveTo('room4');
+    expect(rec.buy('vip_toy', () => 0.9)).toBe(true);
+    expect(rec.lastBought).toBe('vip_toy_b');
+    expect([rec.owns('vip_toy'), rec.owns('vip_toy_b')]).toEqual([0, 1]);
+    // 当たりの家具は、ショップで直接は買えない
+    expect(rec.buy('vip_toy_a')).toBe(false);
+    // 前のデータの 中身が決まっていない金マッチョは、1つめの像になる
+    expect(migrateLife({ ...newLife(1), inventory: { owned: ['vip_toy'], placed: [{ item: 'vip_toy', x: 1, y: 2 }] } })!.inventory).toEqual({ owned: ['vip_toy_a'], placed: [{ uid: 'p1', item: 'vip_toy_a', x: 1, y: 2, flip: false }] });
   });
 
   it('cannot move into the VIP room before finding it', () => {

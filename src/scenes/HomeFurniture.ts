@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
-import { FURNITURE_ART_READY, FURNITURE_TURN_LONG, NO_SHEAR_KINDS, NO_SHEAR_ITEMS, FURNITURE_TURN_WIDE, FURNITURE_TURN_ART_READY, furniture, furnitureKey, furnitureTurnFile, furnitureTurnKey, KIND_RULES } from '../core/furniture';
+import { FURNITURE_ART_READY, FURNITURE_TURN_LONG, NO_SHEAR_KINDS, NO_SHEAR_ITEMS, FURNITURE_TURN_WIDE, FURNITURE_TURN_ART_READY, furniture, furnitureKey, furnitureTurnFile, furnitureTurnKey, itemWidthScale, KIND_RULES } from '../core/furniture';
 import type { Pt } from '../core/home';
 import type { LifeRecord } from '../core/lifeSave';
 import { canPlace, footRect, inRect, isWalkable, mainRegion, regionConnected, sizeLabel, sizeScale, sizeSteps, CARPET_SIZES, TURN_HEIGHT, TURN_LENGTH, type FloorItem } from '../core/roomLayout';
@@ -163,7 +163,7 @@ export class HomeFurniture {
     if (isWalkable(it.item)) it.fit = this.carpetFit(it, it.x, it.y) ?? it.fit ?? CARPET_SIZES[it.size];
     const kind = furniture(it.item)?.kind ?? 'toy';
     // テーブルなどの大きさ(カーペットは fit で決まる)
-    const w = KIND_RULES[kind].width * this.persp(it.y) * (isWalkable(it.item) ? 1 : sizeScale(it.item, it.size));
+    const w = KIND_RULES[kind].width * this.persp(it.y) * (isWalkable(it.item) ? 1 : sizeScale(it.item, it.size)) * itemWidthScale(it.item);
     // 企画者の指示(2026-10-22): 向きは 横・横の反転・縦・縦の反転 の4つ。置く場所で勝手に反転しない
     const t = this.shearedTexture(it.item, it.flip, it.x, it.y, it.turn);
     if (it.img.texture.key !== t.key) it.img.setTexture(t.key);

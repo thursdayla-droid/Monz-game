@@ -6,7 +6,7 @@
  * 【仮】コインの最初の枚数(0)。コインはレベルが上がったとき・ミニゲームでもらえる(企画者決定)。
  */
 import { ALL_PLACES, SECRET_PLACE, type HomePlace } from './home';
-import { furniture, isFurniture, itemPrice, MOVE_TICKET } from './furniture';
+import { drawPrize, furniture, isFurniture, itemPrice, MOVE_TICKET, MYSTERY_ITEMS } from './furniture';
 import { catchUp, dayKey, expToNext, levelUpCoins, newNeeds, NEEDS_RULES, stepNeeds, isNight, type Needs } from './needs';
 import type { KeyValueStore } from './save';
 import { isSpecies, type SpeciesId } from './species';
@@ -205,14 +205,16 @@ export function migrateLife(raw: unknown, now = Date.now()): LifeData | null {
 
 /** 持ち物をそろえる。置いてある家具は、持っている数より多くならないようにする(おかしなデータは捨てる) */
 function fixInventory(inv: Partial<Inventory>): Inventory {
-  const owned = Array.isArray(inv.owned) ? inv.owned.map(String) : [];
+  // 前に買った ふくびきの家具(中身が決まる前の金マッチョ)は、1つめの当たりにする(2026-10-22)
+  const opened = (id: string) => (MYSTERY_ITEMS[id] ? MYSTERY_ITEMS[id][0] : id);
+  const owned = Array.isArray(inv.owned) ? inv.owned.map(String).map(opened) : [];
   const left = new Map<string, number>();
   for (const id of owned) left.set(id, (left.get(id) ?? 0) + 1);
   const placed: PlacedItem[] = [];
   const uids = new Set<string>();
   for (const [i, raw] of (Array.isArray(inv.placed) ? inv.placed : []).entries()) {
     const p = (raw ?? {}) as Partial<PlacedItem>;
-    const item = String(p.item);
+    const item = opened(String(p.item));
     if (!(left.get(item) ?? 0) || !Number.isFinite(Number(p.x)) || !Number.isFinite(Number(p.y))) continue;
     left.set(item, left.get(item)! - 1);
     let uid = typeof p.uid === 'string' && p.uid ? p.uid : `p${i + 1}`;
@@ -369,15 +371,24 @@ export class LifeRecord {
     return this.owns(id) - this.data.inventory.placed.filter((p) => p.item === id).length;
   }
 
-  /** ショップで買う。コインが足りない・知らない番号なら買わずに false */
-  buy(id: string): boolean {
+  /** さいごに買って手に入れた物(ふくびきの家具なら、当たった家具) */
+  lastBought?: string;
+
+  /**
+   * ショップで買う。コインが足りない・知らない番号なら買わずに false。
+   * ふくびきの家具(金マッチョ)は、当たった家具がアイテムボックスに入る(lastBought)。rand: 当たりを選ぶ乱数
+   */
+  buy(id: string, rand: () => number = Math.random): boolean {
     const price = itemPrice(id);
-    // VIPの家具は、VIPルームを開放してから
+    // VIPの家具は、VIPルームを開放してから。当たりの家具はショップでは買えない
     if (furniture(id)?.series === 'vip' && !this.data.vipOpen) return false;
+    if (furniture(id)?.prize) return false;
     if (price === undefined || !this.spend(price)) return false;
     const inv = this.data.inventory;
+    const got = drawPrize(id, rand());
+    this.lastBought = got;
     // 引越し券を買うと、4つめの部屋が見つかる(それまでは存在を知らせない)
-    this.update({ inventory: { ...inv, owned: [...inv.owned, id] }, ...(id === MOVE_TICKET ? { secretRoom: true } : {}) });
+    this.update({ inventory: { ...inv, owned: [...inv.owned, got] }, ...(id === MOVE_TICKET ? { secretRoom: true } : {}) });
     return true;
   }
 

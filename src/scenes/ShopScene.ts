@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
-import { FURNITURE, FURNITURE_ART_READY, FURNITURE_SERIES, furnitureKey, KIND_RULES, MOVE_TICKET, OTHER_ITEMS, SERIES_LABELS, type FurnitureDef, type FurnitureSeries } from '../core/furniture';
+import { FURNITURE, FURNITURE_ART_READY, FURNITURE_SERIES, furnitureKey, KIND_RULES, MOVE_TICKET, MYSTERY_ITEMS, OTHER_ITEMS, SERIES_LABELS, type FurnitureDef, type FurnitureSeries } from '../core/furniture';
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { drawCoin, drawPanel } from '../ui/homeArt';
 import { canvasTexture, canvasTextureOnce, UI_FONT } from '../ui/paint';
@@ -13,6 +13,8 @@ const H = 1280;
 const INK = '#16101c';
 // 家具8種類(2026-10-22 テレビ・植物を追加)が1画面に入る大きさ
 const CARD = { w: 320, h: 206, gap: 14, top: 330 };
+/** 確認の箱に出す絵の高さ */
+const DIALOG_IMAGE_H = 320;
 
 /** ショップ(買う)か、アイテムボックス(持っている物を使う)か */
 export type ItemScreenMode = 'shop' | 'box';
@@ -163,7 +165,8 @@ export class ShopScene extends Phaser.Scene {
     list.removeAll(true);
     const record = this.record!;
     if (this.tab === 'furniture') {
-      const items = FURNITURE.filter((f) => f.series === this.series && (this.mode === 'shop' || record.owns(f.id) > 0));
+      // 当たりの家具(金マッチョの中身)はショップには出さない。アイテムボックスには出る
+      const items = FURNITURE.filter((f) => f.series === this.series && (this.mode === 'shop' ? !f.prize : record.owns(f.id) > 0));
       if (!items.length) {
         list.add(this.t(W / 2, 640, 'まだ ありません\nショップで 買えます', 32, '#ffffff'));
         return;
@@ -224,7 +227,10 @@ export class ShopScene extends Phaser.Scene {
     const col = SERIES_COLORS[f.series];
     g.fillStyle(col.bg, 1).fillRoundedRect(12, 12, CARD.w - 24, 100, 12);
     c.add(g);
-    if (this.textures.exists(furnitureKey(f.id))) {
+    if (MYSTERY_ITEMS[f.id]) {
+      // 中身は謎(企画者決定 2026-10-22)
+      c.add(this.t(CARD.w / 2, 62, '？', 64, '#ffd23a').setStroke('#16101c', 8));
+    } else if (this.textures.exists(furnitureKey(f.id))) {
       const img = this.add.image(CARD.w / 2, 62, furnitureKey(f.id));
       img.setScale(Math.min((CARD.w - 40) / img.width, 90 / img.height));
       c.add(img);
@@ -247,11 +253,11 @@ export class ShopScene extends Phaser.Scene {
   // ---------------- 買う・使う ----------------
 
   /** まん中に出す確認の箱。buttons が空なら、さわると閉じる */
-  private dialog(lines: { text: string; size: number; color?: string }[], buttons: { label: string; kind: 'yes' | 'no' | 'off'; onTap?: () => void }[]): void {
+  private dialog(lines: { text: string; size: number; color?: string; image?: string }[], buttons: { label: string; kind: 'yes' | 'no' | 'off'; onTap?: () => void }[]): void {
     this.busy = true;
     const box = this.add.container(0, 0).setDepth(100);
     const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.55).setOrigin(0, 0).setInteractive();
-    const h = 100 + lines.reduce((s, l) => s + l.size * 1.3 * l.text.split('\n').length + 14, 0) + (buttons.length ? 100 : 0);
+    const h = 100 + lines.reduce((s, l) => s + (l.image ? DIALOG_IMAGE_H : l.size * 1.3 * l.text.split('\n').length) + 14, 0) + (buttons.length ? 100 : 0);
     const top = H / 2 - h / 2;
     const g = this.add.graphics();
     g.fillStyle(0xfbf1dc, 1).fillRoundedRect(60, top, W - 120, h, 24);
@@ -259,6 +265,13 @@ export class ShopScene extends Phaser.Scene {
     box.add([dim, g]);
     let y = top + 50;
     for (const l of lines) {
+      if (l.image) {
+        const img = this.add.image(W / 2, y, l.image).setOrigin(0.5, 0);
+        img.setScale(Math.min(DIALOG_IMAGE_H / img.height, (W - 200) / img.width));
+        box.add(img);
+        y += DIALOG_IMAGE_H + 14;
+        continue;
+      }
       const tx = this.t(W / 2, y, l.text, l.size, l.color ?? INK, 0.5, 0);
       tx.setWordWrapWidth(W - 180, true);
       box.add(tx);
@@ -305,6 +318,12 @@ export class ShopScene extends Phaser.Scene {
     audio.se('select');
     this.showCoins();
     this.drawList();
+    const got = record.lastBought;
+    if (MYSTERY_ITEMS[id] && got && this.textures.exists(furnitureKey(got))) {
+      // 金マッチョ: 当たった像を見せる
+      this.dialog([{ text: 'これが当たった！', size: 34 }, { text: '', size: 0, image: furnitureKey(got) }, { text: 'アイテムボックスに入れました', size: 26 }], []);
+      return;
+    }
     this.dialog([{ text: 'アイテムボックスに\n入れました！', size: 34 }], []);
   }
 

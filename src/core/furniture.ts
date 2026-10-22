@@ -61,26 +61,60 @@ export interface FurnitureDef {
   /** 絵(public/ からの場所)。横向きの絵があるときは side も */
   file: string;
   side?: string;
+  /** ショップには出さない(ふくびきで当たる家具。アイテムボックスには出る) */
+  prize?: boolean;
 }
 
 export const furnitureId = (series: FurnitureSeries, kind: FurnitureKind) => `${series}_${kind}`;
 
-export const FURNITURE: FurnitureDef[] = FURNITURE_SERIES.flatMap((series) =>
-  FURNITURE_KINDS.map((kind) => ({
-    id: furnitureId(series, kind),
-    series,
-    kind,
-    name: `${SERIES_LABELS[series]} ${KIND_RULES[kind].name}`,
-    price: KIND_RULES[kind].price * (series === 'vip' ? VIP_PRICE : 1),
-    file: `assets/furniture/${series}_${kind}.webp`,
-  })),
+/**
+ * 買うと、中の どれか1つが当たる家具(ショップでは中身を見せない)。
+ * 企画者決定(2026-10-22): VIPのおもちゃは「金マッチョ」。中身は謎にして、買うと2つの像のどちらかが当たる。確率は半々
+ */
+export const MYSTERY_ITEMS: Record<string, readonly string[]> = { vip_toy: ['vip_toy_a', 'vip_toy_b'] };
+/**
+ * 種類の大きさ(KIND_RULES の width)にかける倍率。絵の形がほかと大きくちがう家具だけ【仮】。
+ * 金マッチョの2つは、高さがそろうようにする(細長い像は横はばをせまく)
+ */
+export const ITEM_WIDTH_SCALE: Record<string, number> = { vip_toy_a: (1140 / 640) / (1331 / 471) };
+export const itemWidthScale = (id: string): number => ITEM_WIDTH_SCALE[id] ?? 1;
+/** 家具の名前を、シリーズ＋種類の名前から変えるもの */
+const SPECIAL_NAMES: Record<string, string> = { vip_toy: '金マッチョ' };
+
+const BASE_FURNITURE: FurnitureDef[] = FURNITURE_SERIES.flatMap((series) =>
+  FURNITURE_KINDS.map((kind) => {
+    const id = furnitureId(series, kind);
+    return {
+      id,
+      series,
+      kind,
+      name: SPECIAL_NAMES[id] ?? `${SERIES_LABELS[series]} ${KIND_RULES[kind].name}`,
+      price: KIND_RULES[kind].price * (series === 'vip' ? VIP_PRICE : 1),
+      file: `assets/furniture/${series}_${kind}.webp`,
+    };
+  }),
 );
+
+export const FURNITURE: FurnitureDef[] = [
+  ...BASE_FURNITURE,
+  // 当たりの家具(名前・種類・値段は、ふくびきの家具と同じ)
+  ...Object.entries(MYSTERY_ITEMS).flatMap(([box, prizes]) => {
+    const b = BASE_FURNITURE.find((f) => f.id === box)!;
+    return prizes.map((id) => ({ ...b, id, file: `assets/furniture/${id}.webp`, prize: true }));
+  }),
+];
+
+/** ふくびきの家具を買ったときに当たる家具を選ぶ(r: 0以上1未満の乱数)。ふくびきでなければ、そのまま */
+export function drawPrize(id: string, r: number): string {
+  const prizes = MYSTERY_ITEMS[id];
+  return prizes ? prizes[Math.min(prizes.length - 1, Math.floor(r * prizes.length))] : id;
+}
 
 /**
  * 企画者の絵が届いている家具(design/furniture/ → make_furniture.py で切り抜き)。届いていない家具は【仮】の見た目。
  * 企画者決定(2026-10-21): 家具の絵は斜め横向き。反転で逆向きにも使う
  */
-export const FURNITURE_ART_READY: readonly string[] = ['street_bed', 'street_sofa', 'street_table', 'street_carpet', 'street_tv', 'street_light', 'street_plant', 'street_toy', 'pop_bed', 'pop_sofa', 'pop_table', 'pop_tv', 'pop_carpet', 'pop_light', 'pop_plant', 'pop_toy', 'cyber_bed', 'cyber_sofa', 'cyber_table', 'cyber_tv', 'cyber_carpet', 'cyber_light', 'cyber_plant', 'cyber_toy', 'vip_bed', 'vip_sofa', 'vip_table', 'vip_tv', 'vip_carpet', 'vip_light', 'vip_plant'];
+export const FURNITURE_ART_READY: readonly string[] = ['street_bed', 'street_sofa', 'street_table', 'street_carpet', 'street_tv', 'street_light', 'street_plant', 'street_toy', 'pop_bed', 'pop_sofa', 'pop_table', 'pop_tv', 'pop_carpet', 'pop_light', 'pop_plant', 'pop_toy', 'cyber_bed', 'cyber_sofa', 'cyber_table', 'cyber_tv', 'cyber_carpet', 'cyber_light', 'cyber_plant', 'cyber_toy', 'vip_bed', 'vip_sofa', 'vip_table', 'vip_tv', 'vip_carpet', 'vip_light', 'vip_plant', 'vip_toy_a', 'vip_toy_b'];
 export const furnitureKey = (id: string) => `furniture:${id}`;
 
 /**
@@ -98,8 +132,8 @@ export const FURNITURE_TURN_ART: Record<string, number> = { street_bed: 773 / 64
 export const FURNITURE_TURN_LONG: Record<string, number> = { street_tv: 1.5, pop_tv: 1.5, cyber_tv: 1.5, vip_tv: 1.5 };
 /** 床の線に合わせてかたむけない家具(上にのびた画面などが ななめに見えるため。企画者の指示 2026-10-22) */
 export const NO_SHEAR_KINDS: readonly FurnitureKind[] = ['tv', 'light', 'plant'];
-/** 種類にかかわらず、かたむけない家具(POPのおもちゃはぬいぐるみ、CYBERのおもちゃはロボットの犬なので、まっすぐ立てる) */
-export const NO_SHEAR_ITEMS: readonly string[] = ['pop_toy', 'cyber_toy'];
+/** 種類にかかわらず、かたむけない家具(POPのおもちゃはぬいぐるみ、CYBERはロボットの犬、VIPは金の像なので、まっすぐ立てる) */
+export const NO_SHEAR_ITEMS: readonly string[] = ['pop_toy', 'cyber_toy', 'vip_toy_a', 'vip_toy_b'];
 export const FURNITURE_TURN_FLOOR: Record<string, number> = { street_tv: 0.42, pop_tv: 0.42, cyber_tv: 0.42, vip_tv: 0.42 };
 export const FURNITURE_TURN_ART_READY: readonly string[] = Object.keys(FURNITURE_TURN_ART);
 /** 縦向きのとき、左右のはばだけを広げる倍率(企画者の指示 2026-10-22: ソファは若干広く)【仮】 */

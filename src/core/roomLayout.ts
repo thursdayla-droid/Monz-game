@@ -1,4 +1,4 @@
-import { furniture, FURNITURE_TURN_ART, FURNITURE_TURN_FLOOR, FURNITURE_TURN_LONG, FURNITURE_TURN_WIDE, KIND_RULES } from './furniture';
+import { furniture, itemWidthScale, FURNITURE_TURN_ART, FURNITURE_TURN_FLOOR, FURNITURE_TURN_LONG, FURNITURE_TURN_WIDE, KIND_RULES } from './furniture';
 import { insidePolygon, type Pt } from './home';
 
 /**
@@ -63,7 +63,7 @@ export function footRect(f: FloorItem): Rect {
   const kind = furniture(f.item)?.kind ?? 'toy';
   const r = KIND_RULES[kind];
   const k = r.walkable ? (f.scale ?? CARPET_SIZES[f.size ?? 0] ?? 1) : sizeScale(f.item, f.size);
-  const w = r.width * f.persp * 0.92 * k;
+  const w = r.width * f.persp * 0.92 * k * itemWidthScale(f.item);
   const d = r.width * f.persp * r.depth * k;
   if (f.turn) {
     // 縦向き: はばはせまく、奥へ長い(足元 x, y は手前のまん中)
