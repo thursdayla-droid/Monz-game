@@ -92,7 +92,9 @@ export const FURNITURE_TURN_ART: Record<string, number> = { street_bed: 773 / 64
 /**
  * 縦向きの絵の上下の長さの倍率と、そのうち床にのっている割合(テレビは画面が上にのびているので、床の部分は下の方だけ)【仮】
  */
-export const FURNITURE_TURN_LONG: Record<string, number> = { street_tv: 1.7 };
+export const FURNITURE_TURN_LONG: Record<string, number> = { street_tv: 1.5 };
+/** 床の線に合わせてかたむけない家具(上にのびた画面などが ななめに見えるため。企画者の指示 2026-10-22) */
+export const NO_SHEAR_KINDS: readonly FurnitureKind[] = ['tv', 'light', 'plant'];
 export const FURNITURE_TURN_FLOOR: Record<string, number> = { street_tv: 0.42 };
 export const FURNITURE_TURN_ART_READY: readonly string[] = Object.keys(FURNITURE_TURN_ART);
 /** 縦向きのとき、左右のはばだけを広げる倍率(企画者の指示 2026-10-22: ソファは若干広く)【仮】 */
