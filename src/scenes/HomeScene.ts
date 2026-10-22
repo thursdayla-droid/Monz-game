@@ -61,6 +61,8 @@ export const MEAT_KEY = 'home:meatImage';
 export const HAND_KEY = 'home:handImage';
 export const HAND_FILE = 'hand.webp';
 const HAND_TIP: [number, number] = [0.25, 0.03];
+/** 手のカーソルの指先を、本物の指からどれだけずらして出すか(指に隠れないように上へ) */
+const HAND_TIP_OFFSET: [number, number] = [-10, -150];
 export const MEAT_FILE = 'meat.webp';
 
 /**
@@ -575,12 +577,21 @@ export class HomeScene extends Phaser.Scene {
   /** なでた距離(px)がこれだけたまるたびに反応する */
   private static STROKE_STEP = 70;
 
-  /** その場所がMONZの体のあたりか(少し広めに取って、指で触りやすくする) */
+  /**
+   * 手のカーソルの人さし指の先(画面の座標)。企画者の指示(2026-10-22): 当たりは指先のあたりだけ。
+   * 手の絵は本物の指より上に出している(showStrokeHand)ので、その指先の所で判定する
+   */
+  private tipOf(x: number, y: number): Pt {
+    return [x + HAND_TIP_OFFSET[0], y + HAND_TIP_OFFSET[1]];
+  }
+
+  /** 指先がMONZの体の上か(体の絵より少し内側。広すぎると、そばを触ってもなでたことになるため) */
   private onMonz(x: number, y: number): boolean {
     const life = this.life;
     if (!life) return false;
+    const [tx, ty] = this.tipOf(x, y);
     const sc = this.scaleAt(life.y);
-    return Math.abs(x - life.x) < 620 * sc && y < life.y + 30 && y > life.y - MONZ_H * sc - 40;
+    return Math.abs(tx - life.x) < 430 * sc && ty < life.y - 40 * sc && ty > life.y - (MONZ_H - 80) * sc;
   }
 
   private startStroke(p: Phaser.Input.Pointer): void {
@@ -588,7 +599,7 @@ export class HomeScene extends Phaser.Scene {
     if (this.strokeHand) this.tweens.killTweensOf(this.strokeHand);
     const onMonz = this.onMonz(p.x, p.y);
     // 床を押さえたら、BUNKが指を追いかけてくる(企画者決定 2026-10-22。眠い・機嫌が悪い・お腹がすいているときは来ない)
-    const follow = !onMonz && this.life.follow([p.x, p.y]);
+    const follow = !onMonz && this.life.follow(this.tipOf(p.x, p.y));
     this.stroke = { x: p.x, y: p.y, dist: 0, sinceTick: 0, ticks: 0, happy: 0, angry: false, onMonz, follow };
     // 触ったらすぐ手を出す(指で隠れないよう、指の少し上に)
     this.showStrokeHand(p.x, p.y);
@@ -611,7 +622,7 @@ export class HomeScene extends Phaser.Scene {
         s.dist = 0;
         s.sinceTick = 0;
       } else {
-        life.follow([p.x, p.y]);
+        life.follow(this.tipOf(p.x, p.y));
         return;
       }
     }
@@ -675,7 +686,7 @@ export class HomeScene extends Phaser.Scene {
     }
     const wobble = Math.sin(this.t * 14) * 8;
     // 手の絵がまるごと指より上に見えるように(指先から下に手が描いてあるので、そのままだと本物の指に隠れる)
-    if (useImage) this.strokeHand.setVisible(true).setAlpha(1).setPosition(x - 10, y - 150).setAngle(wobble);
+    if (useImage) this.strokeHand.setVisible(true).setAlpha(1).setPosition(x + HAND_TIP_OFFSET[0], y + HAND_TIP_OFFSET[1]).setAngle(wobble);
     else this.strokeHand.setVisible(true).setPosition(x + 16, y - 90).setAngle(180 + wobble);
   }
 
