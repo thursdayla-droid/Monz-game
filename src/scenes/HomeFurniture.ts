@@ -32,6 +32,8 @@ interface Placed {
 /** 【仮】かたむけ具合(1 = タイルの線にぴったり)。強くかたむけると柱まで斜めになるので、少しひかえめにする */
 // 企画者の指示(2026-10-22): はしに置くとゆがんで見えるので、形はあまり変えない(ひかえめに・上限つき)
 const SHEAR_STRENGTH = 0.3;
+/** カーペットを床に入れるために小さくするのは、選んだ大きさのこの割合まで(企画者の指示 2026-10-22: 奥で小さくなりすぎない)【仮】 */
+const CARPET_MIN_FIT = 0.8;
 /** かたむけの上限(上へ1進むと横へいくつずれるか) */
 const SHEAR_MAX = 0.25;
 
@@ -251,13 +253,33 @@ export class HomeFurniture {
     return canPlace(this.floorItem({ item: it.item, x, y, turn, size: it.size }), others, this.floor, this.walkFloor);
   }
 
+  /** カーペットの、いちばん小さくしてよい倍率(選んだ大きさの8割まで。奥に行っても小さくなりすぎないように) */
+  private carpetMin(it: Placed): number {
+    return (CARPET_SIZES[it.size] ?? 1) * CARPET_MIN_FIT;
+  }
+
+  /** カーペットが、小さくなりすぎずに入るいちばん近い場所(なければ null)。奥へ行きすぎたら、手前へ寄せる */
+  private nearestFullFit(it: Placed, x: number, y: number): Pt | null {
+    const min = this.carpetMin(it);
+    const others = this.items.filter((o) => o !== it).map((o) => this.floorItem(o));
+    const ok = (px: number, py: number) => canPlace({ ...this.floorItem({ item: it.item, x: px, y: py, turn: it.turn }), scale: min }, others, this.floor, this.walkFloor);
+    if (ok(x, y)) return [x, y];
+    for (let r = 10; r <= 700; r += 10)
+      for (let a = 0; a < 24; a++) {
+        const px = x + Math.cos((a / 24) * Math.PI * 2) * r;
+        const py = y + Math.sin((a / 24) * Math.PI * 2) * r;
+        if (ok(px, py)) return [px, py];
+      }
+    return null;
+  }
+
   /** カーペットがそこに入る倍率(選んだ大きさから、床に入るまで小さくする)。入らなければ null */
   private carpetFit(it: Placed, x: number, y: number, turn = it.turn): number | null {
     const others = this.items.filter((o) => o !== it).map((o) => this.floorItem(o));
     const ok = (k: number) => canPlace({ ...this.floorItem({ item: it.item, x, y, turn }), scale: k }, others, this.floor, this.walkFloor);
     const want: number = CARPET_SIZES[it.size] ?? 1;
     if (ok(want)) return want;
-    let lo = 0.35;
+    let lo = Math.min(want, this.carpetMin(it));
     if (!ok(lo)) return null;
     let hi = want;
     for (let i = 0; i < 12; i++) {
@@ -291,6 +313,11 @@ export class HomeFurniture {
     const ys = this.floor.map((q) => q[1]);
     it.x = p.x - this.drag.dx;
     it.y = Phaser.Math.Clamp(p.y - this.drag.dy, Math.min(...ys), Math.max(...ys));
+    // カーペットは、選んだ大きさのまま入るいちばん近い所に寄せる(奥に行っても小さくなりすぎないように。企画者の指示 2026-10-22)
+    if (isWalkable(it.item)) {
+      const near = this.nearestFullFit(it, it.x, it.y);
+      if (near) [it.x, it.y] = near;
+    }
     this.layout(it);
     it.img.setTint(this.valid(it, it.x, it.y) ? 0xfff1a8 : 0xff6a6a);
   }
@@ -399,8 +426,13 @@ export class HomeFurniture {
       it.size = (was + k) % CARPET_SIZES.length;
       if (this.valid(it, it.x, it.y)) break;
     }
+    // 大きくして入らないときは、入る所まで少し動かす(小さくはしない)
+    const near = this.nearestFullFit(it, it.x, it.y);
+    if (near) [it.x, it.y] = near;
     this.layout(it);
     this.record.resizePlaced(it.uid, it.size);
+    const [rx, ry] = this.toRoom(it.x, it.y);
+    this.record.movePlaced(it.uid, rx, ry, it.flip, it.turn);
     audio.se('tap');
     this.toast(`大きさ：${CARPET_SIZE_LABELS[it.size]}`);
   }
