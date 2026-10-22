@@ -24,6 +24,8 @@ interface Placed {
   turn: boolean;
   /** カーペットの大きさ(0 小・1 中・2 大) */
   size: number;
+  /** カーペットの実際の倍率(床に入るように小さくしたもの) */
+  fit?: number;
   img: Phaser.GameObjects.Image;
 }
 
@@ -115,8 +117,8 @@ export class HomeFurniture {
     return this.scene.add.image(0, 0, textureFor(this.scene, item)).setOrigin(0.5, 1);
   }
 
-  private floorItem(it: { item: string; x: number; y: number; turn?: boolean; size?: number }): FloorItem {
-    return { item: it.item, x: it.x, y: it.y, persp: this.persp(it.y), ...(it.turn ? { turn: true } : {}), ...(it.size ? { size: it.size } : {}) };
+  private floorItem(it: { item: string; x: number; y: number; turn?: boolean; size?: number; fit?: number }): FloorItem {
+    return { item: it.item, x: it.x, y: it.y, persp: this.persp(it.y), ...(it.turn ? { turn: true } : {}), ...(it.size ? { size: it.size } : {}), ...(it.fit ? { scale: it.fit } : {}) };
   }
 
   /** 縦向きに置けるのは、縦向きの絵がある家具だけ */
@@ -153,6 +155,7 @@ export class HomeFurniture {
 
   /** 大きさ・向き・かたむき・重なりの順番を合わせる */
   private layout(it: Placed): void {
+    if (isWalkable(it.item)) it.fit = this.carpetFit(it, it.x, it.y) ?? it.fit ?? CARPET_SIZES[it.size];
     const kind = furniture(it.item)?.kind ?? 'toy';
     const w = KIND_RULES[kind].width * this.persp(it.y);
     // 企画者の指示(2026-10-22): 向きは 横・横の反転・縦・縦の反転 の4つ。置く場所で勝手に反転しない
@@ -160,9 +163,9 @@ export class HomeFurniture {
     if (it.img.texture.key !== t.key) it.img.setTexture(t.key);
     it.img.setOrigin(t.ox, 1).setPosition(it.x, it.y);
     if (it.turn) {
-      const sy = (w * TURN_LENGTH * (isWalkable(it.item) ? CARPET_SIZES[it.size] ?? 1 : 1)) / t.baseH;
+      const sy = (w * TURN_LENGTH * (isWalkable(it.item) ? it.fit ?? 1 : 1)) / t.baseH;
       it.img.setScale((sy / TURN_HEIGHT) * (FURNITURE_TURN_WIDE[it.item] ?? 1), sy);
-    } else it.img.setScale((w / t.base) * (isWalkable(it.item) ? CARPET_SIZES[it.size] ?? 1 : 1));
+    } else it.img.setScale((w / t.base) * (isWalkable(it.item) ? it.fit ?? 1 : 1));
     // カーペットはいつもMONZと家具の下(大きいカーペットほど下)
     it.img.setDepth(isWalkable(it.item) ? this.depthAt(this.floor[0][1]) - 2 - it.size * 0.1 : this.depthAt(it.y));
   }
@@ -243,8 +246,26 @@ export class HomeFurniture {
 
   private valid(it: Placed, x: number, y: number, turn = it.turn): boolean {
     if (turn && !this.canTurnAt(it.item)) return false;
+    if (isWalkable(it.item)) return this.carpetFit(it, x, y, turn) !== null;
     const others = this.items.filter((o) => o !== it).map((o) => this.floorItem(o));
     return canPlace(this.floorItem({ item: it.item, x, y, turn, size: it.size }), others, this.floor, this.walkFloor);
+  }
+
+  /** カーペットがそこに入る倍率(選んだ大きさから、床に入るまで小さくする)。入らなければ null */
+  private carpetFit(it: Placed, x: number, y: number, turn = it.turn): number | null {
+    const others = this.items.filter((o) => o !== it).map((o) => this.floorItem(o));
+    const ok = (k: number) => canPlace({ ...this.floorItem({ item: it.item, x, y, turn }), scale: k }, others, this.floor, this.walkFloor);
+    const want: number = CARPET_SIZES[it.size] ?? 1;
+    if (ok(want)) return want;
+    let lo = 0.35;
+    if (!ok(lo)) return null;
+    let hi = want;
+    for (let i = 0; i < 12; i++) {
+      const mid = (lo + hi) / 2;
+      if (ok(mid)) lo = mid;
+      else hi = mid;
+    }
+    return lo;
   }
 
   private select(it: Placed | undefined): void {

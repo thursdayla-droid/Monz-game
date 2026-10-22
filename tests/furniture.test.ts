@@ -104,9 +104,11 @@ describe('room layout', async () => {
     expect(canPlace(at('street_bed', 300, 200), [], floor)).toBe(true);
     expect(canPlace(at('street_bed', 50, 200), [], floor)).toBe(false);
     expect(canPlace(at('pop_toy', 300, 190), [at('street_bed', 300, 200)], floor)).toBe(false);
-    // カーペットは床と同じあつかい: 家具の下・ほかのカーペットの下にも置ける(企画者の指示 2026-10-22)
+    // カーペットは床と同じあつかい: 家具の下にも置ける(企画者の指示 2026-10-22)
     expect(canPlace(at('cyber_table', 300, 300), [at('pop_carpet', 300, 330)], floor)).toBe(true);
-    expect(canPlace(at('pop_carpet', 300, 330), [at('cyber_table', 300, 300), at('street_carpet', 300, 330)], floor)).toBe(true);
+    expect(canPlace(at('pop_carpet', 300, 330), [at('cyber_table', 300, 300)], floor)).toBe(true);
+    // カーペットの上にカーペットは置けない
+    expect(canPlace(at('pop_carpet', 300, 330), [at('street_carpet', 300, 330)], floor)).toBe(false);
     // カーペットも床からははみ出せない
     expect(canPlace({ ...at('pop_carpet', 300, 390), size: 1 }, [], floor)).toBe(true);
     expect(canPlace({ ...at('pop_carpet', 300, 390), size: 2 }, [], floor)).toBe(false);

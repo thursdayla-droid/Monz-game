@@ -23,10 +23,13 @@ export interface FloorItem {
   turn?: boolean;
   /** カーペットの大きさ(0 小・1 中・2 大) */
   size?: number;
+  /** カーペットの実際の倍率(床に入るように小さくしたとき)。なければ size の倍率 */
+  scale?: number;
 }
 
 /**
- * カーペットの大きさ(企画者の指示 2026-10-22): 小(買ったときの大きさ)・中・大(床一面)の3段階。絵の形は変えずに大きさだけ変える【仮】倍率
+ * カーペットの大きさ(企画者の指示 2026-10-22): 小(買ったときの大きさ)・中・大(床一面)の3段階。絵の形は変えずに大きさだけ変える【仮】倍率。
+ * 床に入りきらない所(奥など)では、入る大きさまで自動で小さくする(企画者の指示 2026-10-22: 大も奥に置けるように)
  */
 export const CARPET_SIZES = [1, 1.35, 1.75] as const;
 export const CARPET_SIZE_LABELS = ['小', '中', '大'] as const;
@@ -46,7 +49,7 @@ export const PASS_CLEARANCE = 34;
 export function footRect(f: FloorItem): Rect {
   const kind = furniture(f.item)?.kind ?? 'toy';
   const r = KIND_RULES[kind];
-  const k = r.walkable ? (CARPET_SIZES[f.size ?? 0] ?? 1) : 1;
+  const k = r.walkable ? (f.scale ?? CARPET_SIZES[f.size ?? 0] ?? 1) : 1;
   const w = r.width * f.persp * 0.92 * k;
   const d = r.width * f.persp * r.depth * k;
   if (f.turn) {
@@ -113,8 +116,8 @@ export function canPlace(f: FloorItem, others: FloorItem[], floor: Pt[], walkFlo
   const ix = (r.x1 - r.x0) * (isWalkable(f.item) ? 0.03 : 0.12);
   const corners: Pt[] = [[r.x0 + ix, r.y0], [r.x1 - ix, r.y0], [r.x0 + ix, r.y1], [r.x1 - ix, r.y1]];
   if (!corners.every((p) => insidePolygon(p, floor))) return false;
-  // カーペットは床と同じあつかい(企画者の指示 2026-10-22): 家具・MONZ・ほかのカーペットの下にも置ける
-  if (isWalkable(f.item)) return true;
+  // カーペットは床と同じあつかい(企画者の指示 2026-10-22): 家具・MONZの下にも置ける。カーペットどうしは重ねない
+  if (isWalkable(f.item)) return !others.some((o) => isWalkable(o.item) && rectsOverlap(r, footRect(o)));
   if (others.some((o) => !isWalkable(o.item) && rectsOverlap(r, footRect(o)))) return false;
   const blocks = [f, ...others].filter((o) => !isWalkable(o.item)).map(footRect);
   return floorConnected(walkFloor, blocks);
