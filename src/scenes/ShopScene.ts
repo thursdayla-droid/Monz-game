@@ -22,6 +22,7 @@ const SERIES_COLORS: Record<FurnitureSeries, { bg: number; fg: string }> = {
   street: { bg: 0x2a2230, fg: '#ff8a1f' },
   pop: { bg: 0xffd9ea, fg: '#e0408a' },
   cyber: { bg: 0x101a2e, fg: '#3ee8ff' },
+  vip: { bg: 0x1a1410, fg: '#e8b84a' },
 };
 
 /**
@@ -131,12 +132,16 @@ export class ShopScene extends Phaser.Scene {
       chrome.add([g, text, hit]);
     });
     if (this.tab === 'furniture') {
-      FURNITURE_SERIES.forEach((s, i) => {
-        const x = W / 2 + (i - 1) * 220;
+      // VIPの家具は、VIPルームを開放してから(それまではVIPのことは一切出さない)
+      const series = FURNITURE_SERIES.filter((s) => s !== 'vip' || this.record?.snapshot.vipOpen);
+      const step = series.length > 3 ? 168 : 220;
+      const ringW = series.length > 3 ? 156 : 190;
+      series.forEach((s, i) => {
+        const x = W / 2 + (i - (series.length - 1) / 2) * step;
         const on = s === this.series;
         const chip = this.t(x, 270, SERIES_LABELS[s], 28, on ? INK : '#ffffff')
           .setBackgroundColor(on ? '#ffffff' : '#00000000')
-          .setPadding(26, 8, 26, 10)
+          .setPadding(series.length > 3 ? 14 : 26, 8, series.length > 3 ? 14 : 26, 10)
           .setInteractive({ useHandCursor: true })
           .on('pointerdown', () => {
             if (this.busy || this.series === s) return;
@@ -145,7 +150,7 @@ export class ShopScene extends Phaser.Scene {
             this.redraw();
           });
         const ring = this.add.graphics();
-        ring.lineStyle(4, 0xffffff, on ? 1 : 0.5).strokeRoundedRect(x - 95, 240, 190, 60, 30);
+        ring.lineStyle(4, 0xffffff, on ? 1 : 0.5).strokeRoundedRect(x - ringW / 2, 240, ringW, 60, 30);
         chrome.add([ring, chip]);
       });
     }
@@ -322,8 +327,10 @@ export class ShopScene extends Phaser.Scene {
     if (this.busy) return;
     audio.se('tap');
     if (id === MOVE_TICKET) {
-      // 【仮】引越しは次の段階で作る(引っ越す？ → 引越し先を選ぶ)
-      this.dialog([{ text: '引越しは\nじゅんび中！', size: 32 }], []);
+      // 引越し先を選ぶ画面へ(引越し券を使うのは、引越し先を決めたとき)
+      this.busy = true;
+      this.cameras.main.fadeOut(200, 0, 0, 0);
+      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('RoomSelect', { mode: 'move' }));
     }
   }
 

@@ -15,9 +15,10 @@ const recordWith = (coins: number) => {
 };
 
 describe('furniture list', () => {
-  it('has 3 series x 6 kinds, with unique ids, not tied to any room', () => {
+  it('has 3 series (+ VIP) x 6 kinds, with unique ids, not tied to any room', () => {
     expect(FURNITURE).toHaveLength(FURNITURE_SERIES.length * FURNITURE_KINDS.length);
-    expect(new Set(FURNITURE.map((f) => f.id)).size).toBe(18);
+    expect(new Set(FURNITURE.map((f) => f.id)).size).toBe(24);
+    expect(FURNITURE.filter((f) => f.series !== 'vip')).toHaveLength(18);
     expect(furniture('pop_bed')).toMatchObject({ series: 'pop', kind: 'bed', price: 500 });
     expect(Object.keys(furniture('cyber_toy')!)).not.toContain('room');
   });
@@ -60,6 +61,29 @@ describe('item box', () => {
     expect([rec.snapshot.place, rec.owns(MOVE_TICKET), rec.owns('street_bed'), rec.inBox('street_bed')]).toEqual(['pop', 0, 1, 1]);
     expect(rec.moveTo('future')).toBe(false);
     expect(rec.snapshot.secretRoom).toBe(true);
+  });
+
+  it('the VIP room can be moved into only after it is found, and opens VIP furniture', () => {
+    const { rec } = recordWith(40000);
+    expect(rec.buy('vip_bed')).toBe(false);
+    rec.buy(MOVE_TICKET);
+    rec.buy(MOVE_TICKET);
+    expect(rec.buy('vip_bed')).toBe(false);
+    expect(rec.moveTo('room4')).toBe(true);
+    expect(rec.snapshot.vipOpen).toBe(true);
+    expect(rec.buy('vip_bed')).toBe(true);
+    // ほかの部屋に引っ越しても、VIPの家具は買えるまま
+    expect(rec.moveTo('pop')).toBe(true);
+    expect(rec.buy('vip_toy')).toBe(true);
+  });
+
+  it('cannot move into the VIP room before finding it', () => {
+    const { rec } = recordWith(20000);
+    rec.buy(MOVE_TICKET);
+    const store = memoryStore();
+    const fresh = new LifeRecord({ ...newLife(1), coins: 0, place: 'street', inventory: { owned: [MOVE_TICKET], placed: [] } }, store);
+    expect(fresh.moveTo('room4')).toBe(false);
+    expect(rec.moveTo('room4')).toBe(true);
   });
 
   it('keeps old saves working and drops broken placed furniture', () => {

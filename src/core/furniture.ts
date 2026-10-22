@@ -9,9 +9,15 @@
  * 家具を増やすときは、FURNITURE_KINDS / FURNITURE_SERIES に足すか、FURNITURE に1行足す。
  */
 
-export const FURNITURE_SERIES = ['street', 'pop', 'cyber'] as const;
+/**
+ * vip: VIPの家具。企画者決定(2026-10-22): VIPルームを開放すると(はじめてVIPルームに引っ越すと)ショップで買えるようになる。
+ * それまではショップに出さない(VIPルームの存在を知らせないため)
+ */
+export const FURNITURE_SERIES = ['street', 'pop', 'cyber', 'vip'] as const;
 export type FurnitureSeries = (typeof FURNITURE_SERIES)[number];
-export const SERIES_LABELS: Record<FurnitureSeries, string> = { street: 'STREET', pop: 'POP', cyber: 'CYBER' };
+export const SERIES_LABELS: Record<FurnitureSeries, string> = { street: 'STREET', pop: 'POP', cyber: 'CYBER', vip: 'VIP' };
+/** 【仮】VIPの家具の値段の倍率 */
+const VIP_PRICE = 2;
 
 export const FURNITURE_KINDS = ['bed', 'sofa', 'table', 'carpet', 'light', 'toy'] as const;
 export type FurnitureKind = (typeof FURNITURE_KINDS)[number];
@@ -59,7 +65,7 @@ export const FURNITURE: FurnitureDef[] = FURNITURE_SERIES.flatMap((series) =>
     series,
     kind,
     name: `${SERIES_LABELS[series]} ${KIND_RULES[kind].name}`,
-    price: KIND_RULES[kind].price,
+    price: KIND_RULES[kind].price * (series === 'vip' ? VIP_PRICE : 1),
     file: `assets/furniture/${series}_${kind}.webp`,
   })),
 );

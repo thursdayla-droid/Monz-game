@@ -2,7 +2,7 @@ import * as Phaser from 'phaser';
 import { speciesName } from '../core/species';
 import { audio } from '../audio/engine';
 import { BunkBrain } from '../core/bunkBehavior';
-import { HOME_ACTIONS, HOME_ACTION_LABELS, HOME_ACTION_READY, HOME_LAYOUTS, HOME_PLACES, clipPolygonX, insidePolygon, randomPointIn, savedHomePlace, type HomeAction, type HomePlace, type Pt } from '../core/home';
+import { HOME_ACTIONS, HOME_ACTION_LABELS, HOME_ACTION_READY, ALL_PLACES, HOME_LAYOUTS, clipPolygonX, insidePolygon, randomPointIn, savedHomePlace, type HomeAction, type HomePlace, type Pt } from '../core/home';
 import { MonzLife } from '../core/life';
 import { moodWord, NEEDS_RULES } from '../core/needs';
 import { clearLife, LifeRecord, loadLife } from '../core/lifeSave';
@@ -103,6 +103,8 @@ export class HomeScene extends Phaser.Scene {
 
   init(data: { placeItem?: string }): void {
     this.pendingPlace = data?.placeItem;
+    // Phaser は、次に data なしで開いたときも前の data を使うので、使ったら消しておく
+    if (data) delete data.placeItem;
   }
 
   preload(): void {
@@ -124,7 +126,7 @@ export class HomeScene extends Phaser.Scene {
     }
     this.place = place;
     // 部屋を選ぶ画面で読んだ、ほかの部屋の絵はもう使わないので外す
-    for (const p of HOME_PLACES) {
+    for (const p of ALL_PLACES) {
       if (this.textures.exists(homeImageKey(p, true))) this.textures.remove(homeImageKey(p, true));
       if (p !== place && this.textures.exists(homeImageKey(p))) this.textures.remove(homeImageKey(p));
     }

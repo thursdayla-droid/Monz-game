@@ -33,7 +33,7 @@ const SHEAR_MAX = 0.25;
 
 
 /** 【仮】絵がまだない家具の見た目(シリーズの色の箱に名前) */
-const PLACEHOLDER: Record<string, string> = { street: '#2a2230', pop: '#ffb3d1', cyber: '#14243f' };
+const PLACEHOLDER: Record<string, string> = { street: '#2a2230', pop: '#ffb3d1', cyber: '#14243f', vip: '#1a1410' };
 
 /** 家具の絵を読み込む予定に入れる(お世話画面の preload から)。絵がない家具は【仮】の箱をその場で作る */
 export function preloadFurniture(scene: Phaser.Scene, ids: string[]): void {

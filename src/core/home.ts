@@ -9,18 +9,25 @@ import type { Rng } from './rng';
  * MONZが生まれた後に、プレイヤーが「どこで育てる？」で選ぶ。あとで変えるのはショップでコイン(値段は【未確定】)。
  */
 export const HOME_PLACES = ['street', 'pop', 'future'] as const;
-export type HomePlace = (typeof HOME_PLACES)[number];
+/**
+ * 4つめの部屋(シークレットVIPルーム)。企画者決定(2026-10-21): 引越し券を買うまで存在を一切知らせない。
+ * 引越し先を選ぶ画面にだけ出る(生まれた後の「どこで育てる？」には出ない)。ファイル名は中身が分からない名前
+ */
+export const SECRET_PLACE = 'room4' as const;
+export const ALL_PLACES = [...HOME_PLACES, SECRET_PLACE] as const;
+export type HomePlace = (typeof ALL_PLACES)[number];
 
 export const HOME_PLACE_LABELS: Record<HomePlace, string> = {
   // 企画者決定(2026-10-21): 英語の名前にする
   street: 'STREET ROOM',
   pop: 'POP ROOM',
   future: 'CYBER ROOM',
+  room4: 'VIP ROOM',
 };
 
 /** 保存されている部屋。まだ選んでいない・前の部屋(路地裏など)のときは undefined(選び直してもらう) */
 export function savedHomePlace(saved?: string | null): HomePlace | undefined {
-  return (HOME_PLACES as readonly string[]).includes(saved ?? '') ? (saved as HomePlace) : undefined;
+  return (ALL_PLACES as readonly string[]).includes(saved ?? '') ? (saved as HomePlace) : undefined;
 }
 
 /** ホームの下に並ぶボタン(左から順)。企画者決定(2026-10-19) */
@@ -80,6 +87,8 @@ const ROOM_FLOOR: Pt[] = [[300, 640], [770, 640], [960, 800], [985, 1290], [40, 
 export const HOME_LAYOUTS: Record<HomePlace, HomeLayout> = {
   street: { w: 1024, h: 1536, floor: ROOM_FLOOR, scale: [0.09, 0.19], furniture: [[255, 562], [800, 562], [1024, 745], [1024, 1290], [0, 1290], [0, 715]], vanish: [568, 365] },
   pop: { w: 1024, h: 1536, floor: ROOM_FLOOR, scale: [0.09, 0.19], furniture: [[205, 576], [815, 576], [1024, 740], [1024, 1290], [0, 1290], [0, 730]], vanish: [517, 342] },
+  // シークレットVIPルーム(企画者の絵 2026-10-22)
+  room4: { w: 1024, h: 1536, floor: [[300, 600], [770, 600], [960, 780], [985, 1290], [40, 1290], [60, 780]], scale: [0.09, 0.19], furniture: [[250, 530], [812, 526], [1024, 690], [1024, 1290], [0, 1290], [0, 682]], vanish: [568, 339] },
   future: { w: 1024, h: 1536, floor: ROOM_FLOOR, scale: [0.09, 0.19], furniture: [[240, 584], [815, 584], [1024, 735], [1024, 1290], [0, 1290], [0, 720]], vanish: [562, 401] },
 };
 

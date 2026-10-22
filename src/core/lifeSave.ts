@@ -5,8 +5,8 @@
  * - 保存するたびに、1つ前の正しいデータを予備(backup)に残す。読めなかったら予備から戻す
  * 【仮】コインの最初の枚数(0)。コインはレベルが上がったとき・ミニゲームでもらえる(企画者決定)。
  */
-import { HOME_PLACES, type HomePlace } from './home';
-import { isFurniture, itemPrice, MOVE_TICKET } from './furniture';
+import { ALL_PLACES, SECRET_PLACE, type HomePlace } from './home';
+import { furniture, isFurniture, itemPrice, MOVE_TICKET } from './furniture';
 import { catchUp, dayKey, expToNext, levelUpCoins, newNeeds, NEEDS_RULES, stepNeeds, isNight, type Needs } from './needs';
 import type { KeyValueStore } from './save';
 import { isSpecies, type SpeciesId } from './species';
@@ -80,6 +80,8 @@ export interface LifeData {
   place?: HomePlace;
   /** 4つめの部屋を見つけたか(引越し券を買うと見つかる。一度見つけたら、次の引越しでも出る) */
   secretRoom?: boolean;
+  /** VIPルームを開放したか(はじめてVIPルームに引っ越したとき)。開放するとショップでVIPの家具が買える(企画者決定 2026-10-22) */
+  vipOpen?: boolean;
   /** 最後に様子を進めた時刻(ミリ秒)。閉じていた時間に合わせて変化させる */
   lastSeen: number;
   /** 最近もらった報酬の番号(同じ報酬を2回もらわないため) */
@@ -190,7 +192,8 @@ export function migrateLife(raw: unknown, now = Date.now()): LifeData | null {
     activeMonz: monz.some((m) => m.uid === d.activeMonz) ? String(d.activeMonz) : monz[0].uid,
     monz,
     inventory: fixInventory(inv),
-    place: (HOME_PLACES as readonly string[]).includes(String(d.place)) ? (d.place as HomePlace) : undefined,
+    place: (ALL_PLACES as readonly string[]).includes(String(d.place)) ? (d.place as HomePlace) : undefined,
+    ...(d.vipOpen === true ? { vipOpen: true } : {}),
     ...(d.secretRoom === true ? { secretRoom: true } : {}),
     lastSeen: num(d.lastSeen, now),
     claimed: Array.isArray(d.claimed) ? (d.claimed as unknown[]).map(String).slice(-CLAIMED_KEEP) : [],
@@ -367,6 +370,8 @@ export class LifeRecord {
   /** ショップで買う。コインが足りない・知らない番号なら買わずに false */
   buy(id: string): boolean {
     const price = itemPrice(id);
+    // VIPの家具は、VIPルームを開放してから
+    if (furniture(id)?.series === 'vip' && !this.data.vipOpen) return false;
     if (price === undefined || !this.spend(price)) return false;
     const inv = this.data.inventory;
     // 引越し券を買うと、4つめの部屋が見つかる(それまでは存在を知らせない)
@@ -408,7 +413,9 @@ export class LifeRecord {
     const inv = this.data.inventory;
     const i = inv.owned.indexOf(MOVE_TICKET);
     if (i < 0 || place === this.data.place) return false;
-    this.update({ place, inventory: { owned: inv.owned.filter((_, k) => k !== i), placed: [] } });
+    // 4つめの部屋は、見つけてから(引越し券を買ってから)でないと引っ越せない
+    if (place === SECRET_PLACE && !this.data.secretRoom) return false;
+    this.update({ place, inventory: { owned: inv.owned.filter((_, k) => k !== i), placed: [] }, ...(place === SECRET_PLACE ? { vipOpen: true } : {}) });
     return true;
   }
 
