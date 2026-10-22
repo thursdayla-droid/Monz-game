@@ -28,6 +28,8 @@ export interface FloorItem {
  * 企画者の指示(2026-10-21): 左右の壁ぎわにも置きたい → 縦向きの絵を使う(タイルの線に合わせてかたむける)
  */
 export const TURN_WIDTH = 0.62;
+/** 【仮】縦向きの絵の上下の大きさ(企画者の指示 2026-10-22: 上下は気持ち小さく) */
+export const TURN_HEIGHT = 0.88;
 
 /** MONZの体の半分くらい。家具と家具、家具と壁のあいだは、この2倍あけないと通れない */
 export const PASS_CLEARANCE = 34;
@@ -41,7 +43,7 @@ export function footRect(f: FloorItem): Rect {
   if (f.turn) {
     // 縦向き: はばはせまく、奥へ長い(足元 x, y は手前のまん中)
     const tw = w * TURN_WIDTH;
-    return { x0: f.x - tw / 2, x1: f.x + tw / 2, y0: f.y - r.width * f.persp * TURN_WIDTH * 0.95, y1: f.y };
+    return { x0: f.x - tw / 2, x1: f.x + tw / 2, y0: f.y - r.width * f.persp * TURN_WIDTH * 0.95 * TURN_HEIGHT, y1: f.y };
   }
   return { x0: f.x - w / 2, x1: f.x + w / 2, y0: f.y - d, y1: f.y };
 }

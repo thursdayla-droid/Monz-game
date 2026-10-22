@@ -3,7 +3,7 @@ import { audio } from '../audio/engine';
 import { FURNITURE_ART_READY, FURNITURE_TURN_ART_READY, furniture, furnitureKey, furnitureTurnFile, furnitureTurnKey, KIND_RULES } from '../core/furniture';
 import type { Pt } from '../core/home';
 import type { LifeRecord } from '../core/lifeSave';
-import { canPlace, footRect, inRect, isWalkable, TURN_WIDTH, type FloorItem } from '../core/roomLayout';
+import { canPlace, footRect, inRect, isWalkable, TURN_HEIGHT, TURN_WIDTH, type FloorItem } from '../core/roomLayout';
 import { canvasTextureOnce, UI_FONT } from '../ui/paint';
 import { assetUrl } from '../assetUrl';
 
@@ -155,7 +155,7 @@ export class HomeFurniture {
     const w = KIND_RULES[kind].width * this.persp(it.y) * (it.turn ? TURN_WIDTH : 1);
     const t = this.shearedTexture(it.item, it.turn ? false : it.flip, it.x, it.y, it.turn);
     if (it.img.texture.key !== t.key) it.img.setTexture(t.key);
-    it.img.setOrigin(t.ox, 1).setPosition(it.x, it.y).setScale(w / t.base);
+    it.img.setOrigin(t.ox, 1).setPosition(it.x, it.y).setScale(w / t.base, (w / t.base) * (it.turn ? TURN_HEIGHT : 1));
     // カーペットはいつもMONZの下
     it.img.setDepth(isWalkable(it.item) ? this.depthAt(this.floor[0][1]) - 2 : this.depthAt(it.y));
   }
