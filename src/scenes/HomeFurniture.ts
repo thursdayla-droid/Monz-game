@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
-import { FURNITURE_ART_READY, FURNITURE_TURN_ART_READY, furniture, furnitureKey, furnitureTurnFile, furnitureTurnKey, KIND_RULES } from '../core/furniture';
+import { FURNITURE_ART_READY, FURNITURE_TURN_WIDE, FURNITURE_TURN_ART_READY, furniture, furnitureKey, furnitureTurnFile, furnitureTurnKey, KIND_RULES } from '../core/furniture';
 import type { Pt } from '../core/home';
 import type { LifeRecord } from '../core/lifeSave';
 import { canPlace, footRect, inRect, isWalkable, TURN_HEIGHT, TURN_LENGTH, type FloorItem } from '../core/roomLayout';
@@ -159,7 +159,7 @@ export class HomeFurniture {
     it.img.setOrigin(t.ox, 1).setPosition(it.x, it.y);
     if (it.turn) {
       const sy = (w * TURN_LENGTH) / t.baseH;
-      it.img.setScale(sy / TURN_HEIGHT, sy);
+      it.img.setScale((sy / TURN_HEIGHT) * (FURNITURE_TURN_WIDE[it.item] ?? 1), sy);
     } else it.img.setScale(w / t.base);
     // カーペットはいつもMONZの下
     it.img.setDepth(isWalkable(it.item) ? this.depthAt(this.floor[0][1]) - 2 : this.depthAt(it.y));
