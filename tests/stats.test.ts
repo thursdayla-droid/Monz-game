@@ -123,10 +123,12 @@ describe('save migration to v4', () => {
 describe('love', () => {
   const day = Date.UTC(2026, 9, 20, 3);
 
-  it('starts at 20, grows +0.5 per meal (hunger gauge 8 or less) and +0.2 per pet (petting gauge 9 or less)', () => {
+  it('starts at 0, grows +0.5 per meal (hunger gauge 8 or less) and +0.2 per pet (petting gauge 9 or less)', () => {
     const store = memoryStore();
     const rec = new LifeRecord(loadLife(store), store);
-    expect(rec.monz.love).toBe(20);
+    // 企画者決定(2026-10-22): 愛は0から。ここからは計算を見やすくするため20にして確かめる
+    expect(rec.monz.love).toBe(0);
+    rec['data'].monz[0].love = 20;
     rec['data'].monz[0].needs.full = 0.9; // ゲージ 9: 2目もり ぜんぶは食べられないので増えない
     rec.feed(day);
     expect(rec.monz.love).toBe(20);
@@ -169,6 +171,7 @@ describe('love', () => {
   it('love goes down 0.1 per 2 hours while a gauge stays at 0 (both: 0.2), never below 0', () => {
     const store = memoryStore();
     const rec = new LifeRecord(loadLife(store), store);
+    rec['data'].monz[0].love = 20;
     const n = rec['data'].monz[0].needs;
     n.full = 0;
     n.touch = 1;

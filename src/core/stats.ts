@@ -87,7 +87,8 @@ export function autoGrowthAt(species: SpeciesId, uid: string, level: number): St
  * へる(企画者決定 2026-10-21): お腹のゲージが 0 のまま2時間で −0.1。なでるのゲージが 0 のまま2時間でも −0.1(両方なら −0.2)。0 より下にはならない。
  */
 export const LOVE_RULES = {
-  initial: 20,
+  // 企画者決定(2026-10-22): 愛は0から(前は20)
+  initial: 0,
   max: 100,
   feed: 0.5,
   pet: 0.2,
