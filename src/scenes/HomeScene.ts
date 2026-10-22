@@ -24,6 +24,8 @@ const MONZ_H = 1150;
 const MENU = { y: 1198, w: 111, h: 134, gap: 6 };
 /** 画面の左右のはしから、MONZの足元までの最小の距離 */
 const EDGE = 110;
+/** BUNKの体の横はばの半分(大きさ1のとき・手袋の先まで) */
+const BODY_HALF = 370;
 /** 家具が奥で小さくなる度合い(MONZの何倍か。1 = MONZと同じ) */
 const FURNITURE_PERSP = 0.55;
 const DEPTH = { monz: 10, effect: 30, ui: 40, popup: 60 };
@@ -179,6 +181,8 @@ export class HomeScene extends Phaser.Scene {
       [ox0 + layout0.vanish[0] * this.roomView.k, this.roomView.oy + layout0.vanish[1] * this.roomView.k],
     );
     this.furniture = furn;
+    // BUNKの体の横はばの半分(手袋の先まで)。左右の家具に体がめりこまない
+    furn.bodyHalf = (y) => BODY_HALF * this.scaleAt(y);
     life.blocked = furn.blocked;
     this.moveOutOfFurniture();
     furn.onEnd = () => {

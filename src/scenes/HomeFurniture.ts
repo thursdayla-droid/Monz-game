@@ -173,7 +173,19 @@ export class HomeFurniture {
   }
 
   /** MONZがその場所を歩けないか(家具の上)。MONZの体のはばの分だけ広めに見る */
-  blocked = (p: Pt): boolean => this.items.some((it) => !isWalkable(it.item) && inRect(p, footRect(this.floorItem(it)), 30 * this.persp(it.y), 8));
+  /** MONZの体の横はばの半分(足元の y での大きさ)。左右の家具に体がめりこまないように、これだけ離れて歩く */
+  bodyHalf: (y: number) => number = (y) => 30 * this.persp(y);
+
+  /** MONZがその場所を歩けないか(家具の上・家具のすぐ横)。企画者の指示(2026-10-22): 左右の家具に体がめりこまない */
+  blocked = (p: Pt): boolean =>
+    this.items.some((it) => {
+      if (isWalkable(it.item)) return false;
+      const r = footRect(this.floorItem(it));
+      // 横は、見えている家具の絵のはしまで(床の上で占める広さより少し広い)
+      const b = it.img.getBounds();
+      const half = this.bodyHalf(p[1]);
+      return inRect(p, { x0: Math.min(r.x0, b.left + 6), x1: Math.max(r.x1, b.right - 6), y0: r.y0, y1: r.y1 }, half, 8);
+    });
 
   /**
    * 毎フレーム。企画者の指示(2026-10-22): MONZが近くを通っても家具は透かさない(前は後ろに入ると透かしていた)。
