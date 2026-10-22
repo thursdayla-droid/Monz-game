@@ -160,7 +160,7 @@ export class HomeFurniture {
     if (it.img.texture.key !== t.key) it.img.setTexture(t.key);
     it.img.setOrigin(t.ox, 1).setPosition(it.x, it.y);
     if (it.turn) {
-      const sy = (w * TURN_LENGTH) / t.baseH;
+      const sy = (w * TURN_LENGTH * (isWalkable(it.item) ? CARPET_SIZES[it.size] ?? 1 : 1)) / t.baseH;
       it.img.setScale((sy / TURN_HEIGHT) * (FURNITURE_TURN_WIDE[it.item] ?? 1), sy);
     } else it.img.setScale((w / t.base) * (isWalkable(it.item) ? CARPET_SIZES[it.size] ?? 1 : 1));
     // カーペットはいつもMONZと家具の下(大きいカーペットほど下)

@@ -51,7 +51,7 @@ export function footRect(f: FloorItem): Rect {
   const d = r.width * f.persp * r.depth * k;
   if (f.turn) {
     // 縦向き: はばはせまく、奥へ長い(足元 x, y は手前のまん中)
-    const len = r.width * f.persp * TURN_LENGTH;
+    const len = r.width * f.persp * TURN_LENGTH * k;
     const tw = (len / (FURNITURE_TURN_ART[f.item] ?? 1.2) / TURN_HEIGHT) * (FURNITURE_TURN_WIDE[f.item] ?? 1) * 0.92;
     return { x0: f.x - tw / 2, x1: f.x + tw / 2, y0: f.y - len * 0.79, y1: f.y };
   }
