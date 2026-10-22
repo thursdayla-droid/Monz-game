@@ -197,3 +197,4 @@
 - 2026-10-22：企画者の指示で、STREET ROOMを床のタイルの線がない絵に変えた（同じ角度。前の絵は design/home/rooms/street_tiles.png）
 - 2026-10-22：企画者の指示で、POP ROOMを床のタイルの線が目立たない絵に変えた（同じ角度。前の絵は design/home/rooms/pop_tiles.png）
 - 2026-10-22：企画者の指示で、CYBER ROOMを床のタイルの線がない絵に変えた（同じ角度。前の絵は design/home/rooms/future_tiles.png）
+- 2026-10-22：企画者の指示で、シークレットVIPルームを新しい絵に変えた（前の絵は design/home/rooms/room4_tiles.png）。黒いシルエットの小さい絵も作り直した
