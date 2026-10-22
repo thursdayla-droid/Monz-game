@@ -91,7 +91,7 @@ export const furnitureKey = (id: string) => `furniture:${id}`;
  * 縦向きの絵がある家具と、その絵の「縦 ÷ 横」(大きさと床の上で占める広さを決めるのに使う)。
  * 縦向きの絵は、反転(向き ボタン)で逆向きにもなる
  */
-export const FURNITURE_TURN_ART: Record<string, number> = { street_bed: 773 / 640, street_sofa: 1379 / 640, street_table: 827 / 640, street_carpet: 769 / 640, street_tv: 1405 / 339, pop_bed: 806 / 640, pop_sofa: 1198 / 640, pop_table: 783 / 640, pop_carpet: 653 / 640, pop_tv: 1407 / 375, cyber_bed: 844 / 640, cyber_sofa: 1188 / 640, cyber_table: 701 / 640, cyber_tv: 1417 / 393, cyber_carpet: 648 / 640, vip_bed: 802 / 640, vip_sofa: 1150 / 640 };
+export const FURNITURE_TURN_ART: Record<string, number> = { street_bed: 773 / 640, street_sofa: 1379 / 640, street_table: 827 / 640, street_carpet: 769 / 640, street_tv: 1405 / 339, pop_bed: 806 / 640, pop_sofa: 1198 / 640, pop_table: 783 / 640, pop_carpet: 653 / 640, pop_tv: 1407 / 375, cyber_bed: 844 / 640, cyber_sofa: 1188 / 640, cyber_table: 701 / 640, cyber_tv: 1417 / 393, cyber_carpet: 648 / 640, vip_bed: 802 / 640, vip_sofa: 1150 / 640, vip_table: 861 / 640 };
 /**
  * 縦向きの絵の上下の長さの倍率と、そのうち床にのっている割合(テレビは画面が上にのびているので、床の部分は下の方だけ)【仮】
  */
