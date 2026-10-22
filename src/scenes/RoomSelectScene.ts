@@ -63,7 +63,8 @@ export class RoomSelectScene extends Phaser.Scene {
     this.frames = [];
     const life = loadLife();
     this.current = savedHomePlace(life.place);
-    this.selected = this.mode === 'move' ? (this.places.find((p) => p !== this.current) ?? 'street') : (this.current ?? 'street');
+    // 生まれた後の部屋選びは、いつも STREET から(前の部屋は残さない)
+    this.selected = this.mode === 'move' ? (this.places.find((p) => p !== this.current) ?? 'street') : 'street';
     if (this.selected === SECRET_PLACE) this.selected = 'street';
     this.bg = this.add.image(W / 2, H / 2, homeImageKey(this.selected));
     this.fitBg(this.bg);

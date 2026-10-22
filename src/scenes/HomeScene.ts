@@ -5,7 +5,7 @@ import { BunkBrain } from '../core/bunkBehavior';
 import { HOME_ACTIONS, HOME_ACTION_LABELS, HOME_ACTION_READY, ALL_PLACES, HOME_LAYOUTS, clipPolygonX, insidePolygon, randomPointIn, savedHomePlace, type HomeAction, type HomePlace, type Pt } from '../core/home';
 import { MonzLife } from '../core/life';
 import { moodWord, NEEDS_RULES } from '../core/needs';
-import { clearLife, LifeRecord, loadLife } from '../core/lifeSave';
+import { clearLife, LifeRecord, loadLife, saveLife } from '../core/lifeSave';
 import { mulberry32 } from '../core/rng';
 import { currentStats, LOVE_RULES, shownLove, STAT_KEYS, STAT_LABELS, STAT_MAX, type StatBlock, type StatKey } from '../core/stats';
 import { clearSave, loadSave } from '../core/save';
@@ -508,7 +508,13 @@ export class HomeScene extends Phaser.Scene {
       clearLife();
       this.scene.start('Title');
     });
-    button(302, '誕生をもう一度', () => this.scene.start('Birth', { intro: true }));
+    button(302, '誕生をもう一度', () => {
+      // 確認用: 部屋も選び直す(部屋の選択を消して、置いた家具はアイテムボックスへ)。画面を閉じるときの保存で戻らないようにする
+      this.resetting = true;
+      const life = this.record?.snapshot ?? loadLife();
+      saveLife({ ...life, place: undefined, inventory: { ...life.inventory, placed: [] } });
+      this.scene.start('Birth', { intro: true });
+    });
     // 【仮】部屋を変えるのは、いずれショップでコインを使う(企画者決定)。ショップができるまでの確認用
     button(428, '部屋を選び直す', () => this.scene.start('RoomSelect'));
     button(344, '+1000コイン', () => this.record?.add(1000));
