@@ -84,6 +84,8 @@ export class HomeScene extends Phaser.Scene {
   private busy = false;
   private record?: LifeRecord;
   private saveTimer = 0;
+  /** 「最初から」を押した(画面を閉じるときに保存しない) */
+  private resetting = false;
   private moodText?: Phaser.GameObjects.Text;
   private bubble?: Phaser.GameObjects.Image;
   /** 指でなでている途中(なぞった距離など)。null ならなでていない */
@@ -119,6 +121,7 @@ export class HomeScene extends Phaser.Scene {
   create(): void {
     this.t = 0;
     this.busy = false;
+    this.resetting = false;
     this.view = undefined;
     this.life = undefined;
     const monz = loadSave()?.firstMonz ?? 'bunk';
@@ -205,7 +208,8 @@ export class HomeScene extends Phaser.Scene {
     document.addEventListener('visibilitychange', onVisible);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       document.removeEventListener('visibilitychange', onVisible);
-      record.tick(0, Date.now(), true);
+      // 「最初から」で消したあとは保存しない(前のデータ・部屋が戻ってしまうため)
+      if (!this.resetting) record.tick(0, Date.now(), true);
     });
   }
 
@@ -499,6 +503,7 @@ export class HomeScene extends Phaser.Scene {
         .on('pointerdown', onTap);
     button(260, '最初から', () => {
       // お世話画面のデータ(場所・コイン)も消して、場所を決め直す
+      this.resetting = true;
       clearSave();
       clearLife();
       this.scene.start('Title');
