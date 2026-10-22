@@ -83,7 +83,7 @@
 ### 家具の絵（`design/furniture/` → `public/assets/furniture/`）
 - 白い背景の絵を `python3 design/furniture/make_furniture.py` で切り抜く。横向き `<シリーズ>_<種類>.png`、縦向き `<シリーズ>_<種類>_turn.png`
 - 絵を足したら `src/core/furniture.ts` の `FURNITURE_ART_READY`（横向き）と `FURNITURE_TURN_ART`（縦向き・縦÷横）に足す
-- 届いている：STREET ベッド・ソファ・テーブル・カーペット（横・縦とも）、テレビ（横だけ）
+- 届いている：STREET ベッド・ソファ・テーブル・カーペット（横・縦とも）、テレビ（横・縦とも）
 - まだ：STREET 照明・植物・おもちゃ、POP・CYBER・VIP の全部（絵がない家具は【仮】の色つきの箱）
 - 使わなくなった絵は `design/furniture/unused/`
 

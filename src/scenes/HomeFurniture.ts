@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
-import { FURNITURE_ART_READY, FURNITURE_TURN_WIDE, FURNITURE_TURN_ART_READY, furniture, furnitureKey, furnitureTurnFile, furnitureTurnKey, KIND_RULES } from '../core/furniture';
+import { FURNITURE_ART_READY, FURNITURE_TURN_LONG, FURNITURE_TURN_WIDE, FURNITURE_TURN_ART_READY, furniture, furnitureKey, furnitureTurnFile, furnitureTurnKey, KIND_RULES } from '../core/furniture';
 import type { Pt } from '../core/home';
 import type { LifeRecord } from '../core/lifeSave';
 import { canPlace, footRect, inRect, isWalkable, CARPET_SIZE_LABELS, CARPET_SIZES, TURN_HEIGHT, TURN_LENGTH, type FloorItem } from '../core/roomLayout';
@@ -165,7 +165,7 @@ export class HomeFurniture {
     if (it.img.texture.key !== t.key) it.img.setTexture(t.key);
     it.img.setOrigin(t.ox, 1).setPosition(it.x, it.y);
     if (it.turn) {
-      const sy = (w * TURN_LENGTH * (isWalkable(it.item) ? it.fit ?? 1 : 1)) / t.baseH;
+      const sy = (w * TURN_LENGTH * (FURNITURE_TURN_LONG[it.item] ?? 1) * (isWalkable(it.item) ? it.fit ?? 1 : 1)) / t.baseH;
       it.img.setScale((sy / TURN_HEIGHT) * (FURNITURE_TURN_WIDE[it.item] ?? 1), sy);
     } else it.img.setScale((w / t.base) * (isWalkable(it.item) ? it.fit ?? 1 : 1));
     // カーペットはいつもMONZと家具の下(大きいカーペットほど下)
