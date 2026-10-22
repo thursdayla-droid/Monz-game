@@ -8,11 +8,12 @@ import { preloadPacks } from '../render/packs';
 import { canvasTextureOnce, UI_FONT } from '../ui/paint';
 import { DASH_PLAT_KEY } from './DashScene';
 
-const W = 720;
-const H = 1280;
+/** 横画面(企画者の指示 2026-10-22: 横画面でできるように)。バトルの間だけ、ゲームの画面を横長にする */
+const W = 1280;
+const H = 720;
+/** ほかの画面の大きさ(バトルを出るときに戻す) */
+const PORTRAIT = { w: 720, h: 1280 };
 const INK = '#16101c';
-/** 下の操作ボタンの帯の上のはし */
-const PAD_TOP = 900;
 /** 【仮】BUNKの画面での大きさ(元画像1pxあたり) */
 const FIGHTER_SCALE = 0.118;
 /** 【仮】色違いのBUNK(練習の的)の配色(企画者決定 2026-10-22: 相手は色違いのBUNK) */
@@ -20,13 +21,13 @@ const ALT_PALETTE = PALETTES.find((p) => p.id === 'cobalt')!;
 /** 足場の絵(DASH MONZ の足場を【仮】で使う)の各部分の幅と高さ */
 const PLAT = { left: 121, mid: 459, right: 123, h: 94, surface: 16 };
 
-/** 操作ボタン(画面の座標・半径) */
-const STICK = { x: 165, y: 1090, r: 120, knob: 52 };
+/** 操作ボタン(画面の座標・半径)。画面の上に重ねて出す。スティックは左がわの触った所に出る */
+const STICK = { x: 170, y: 560, r: 100, knob: 46 };
 const BUTTONS = {
-  a: { x: 612, y: 1045, r: 72, label: 'A', color: 0xff5a4e },
-  jump: { x: 478, y: 962, r: 58, label: 'ジャンプ', color: 0xffd23a },
-  shield: { x: 462, y: 1150, r: 58, label: 'ガード', color: 0x4ec3ff },
-  b: { x: 612, y: 1200, r: 52, label: 'B', color: 0x8a8394 },
+  a: { x: 1150, y: 540, r: 66, label: 'A', color: 0xff5a4e },
+  jump: { x: 1020, y: 460, r: 52, label: 'ジャンプ', color: 0xffd23a },
+  shield: { x: 1010, y: 630, r: 52, label: 'ガード', color: 0x4ec3ff },
+  b: { x: 1165, y: 650, r: 40, label: 'B', color: 0x8a8394 },
 } as const;
 type ButtonName = keyof typeof BUTTONS;
 
@@ -181,9 +182,16 @@ export class BattleScene extends Phaser.Scene {
   private hud: { hp: Phaser.GameObjects.Graphics; hpText: Phaser.GameObjects.Text; stocks: Phaser.GameObjects.Text }[] = [];
   private keys?: Record<string, Phaser.Input.Keyboard.Key>;
   private leaving = false;
+  private stickBase!: Phaser.GameObjects.Arc;
+  private stickCenter = { x: STICK.x, y: STICK.y };
+  private turnHint?: Phaser.GameObjects.Container;
 
   constructor() {
     super('Battle');
+  }
+
+  init(): void {
+    this.scale.setGameSize(W, H);
   }
 
   preload(): void {
@@ -207,37 +215,48 @@ export class BattleScene extends Phaser.Scene {
     this.buildHud();
     this.buildPad();
     this.keys = this.input.keyboard?.addKeys('LEFT,RIGHT,UP,DOWN,Z,X,C,SPACE,SHIFT') as Record<string, Phaser.Input.Keyboard.Key> | undefined;
+    this.buildTurnHint();
     this.cameras.main.fadeIn(300, 0, 0, 0);
     audio.playBgm('dash');
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(PORTRAIT.w, PORTRAIT.h));
+  }
+
+  /** スマホが縦のときは「横にしてね」を出す(そのままでも遊べる) */
+  private buildTurnHint(): void {
+    const c = this.add.container(W / 2, H / 2).setDepth(90);
+    const bg = this.add.rectangle(0, 0, 620, 150, 0x16101c, 0.88).setStrokeStyle(4, 0xffd23a, 1);
+    const t = this.text(0, 0, 'スマホを 横にしてね', 44, '#ffd23a');
+    c.add([bg, t]);
+    this.turnHint = c;
   }
 
   // ---------------- 見た目 ----------------
 
   private drawBackground(): void {
     // 【仮】背景: 夜のアリーナっぽい色の帯とライト
-    canvasTextureOnce(this, 'battle:bg', W, PAD_TOP, (ctx) => {
-      const g = ctx.createLinearGradient(0, 0, 0, PAD_TOP);
+    canvasTextureOnce(this, 'battle:bg:wide', W, H, (ctx) => {
+      const g = ctx.createLinearGradient(0, 0, 0, H);
       g.addColorStop(0, '#1d0f33');
       g.addColorStop(0.6, '#3a1d5c');
       g.addColorStop(1, '#5e2a5a');
       ctx.fillStyle = g;
-      ctx.fillRect(0, 0, W, PAD_TOP);
-      for (let i = 0; i < 5; i++) {
-        const x = 80 + i * 140;
-        const beam = ctx.createLinearGradient(x, 0, x, 700);
+      ctx.fillRect(0, 0, W, H);
+      for (let i = 0; i < 7; i++) {
+        const x = 120 + i * 175;
+        const beam = ctx.createLinearGradient(x, 0, x, 600);
         beam.addColorStop(0, 'rgba(255,230,160,0.22)');
         beam.addColorStop(1, 'rgba(255,230,160,0)');
         ctx.fillStyle = beam;
         ctx.beginPath();
         ctx.moveTo(x - 14, 0);
         ctx.lineTo(x + 14, 0);
-        ctx.lineTo(x + 90 - i * 45, 700);
-        ctx.lineTo(x - 90 - i * 45 + 90, 700);
+        ctx.lineTo(x + 60 - (i - 3) * 40, 600);
+        ctx.lineTo(x - 60 - (i - 3) * 40, 600);
         ctx.closePath();
         ctx.fill();
       }
     });
-    this.add.image(0, 0, 'battle:bg').setOrigin(0, 0).setDepth(-10);
+    this.add.image(0, 0, 'battle:bg:wide').setOrigin(0, 0).setDepth(-10);
   }
 
   private drawStage(): void {
@@ -284,13 +303,13 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private buildHud(): void {
-    const back = this.text(16, 40, '◀ もどる', 26).setOrigin(0, 0.5).setInteractive({ useHandCursor: true });
+    const back = this.text(16, 34, '◀ もどる', 26).setOrigin(0, 0.5).setInteractive({ useHandCursor: true });
     back.on('pointerdown', () => this.leave());
-    this.text(W / 2, 40, 'れんしゅう', 30, '#ffd23a');
+    this.text(W / 2, 34, 'れんしゅう', 30, '#ffd23a');
     const names = ['BUNK', 'まと'];
     names.forEach((n, i) => {
       const x = i === 0 ? 24 : W - 24 - 300;
-      const y = 82;
+      const y = 62;
       const panel = this.add.graphics().setDepth(49);
       panel.fillStyle(0x16101c, 0.7).fillRoundedRect(x, y, 300, 86, 14);
       this.text(x + 16, y + 24, n, 24).setOrigin(0, 0.5);
@@ -300,7 +319,7 @@ export class BattleScene extends Phaser.Scene {
       this.hud.push({ hp, hpText, stocks });
     });
     // 遊び方(はじめに少しだけ出す)
-    const help = this.text(W / 2, 220, 'スティックで いどう\nA：パンチ（スティックの向きで 技が変わる）\nジャンプは 空中でも もう1回', 22, '#ffffff');
+    const help = this.text(W / 2, 190, 'スティックで いどう\nA：パンチ（スティックの向きで 技が変わる）\nジャンプは 空中でも もう1回', 22, '#ffffff');
     this.tweens.add({ targets: help, alpha: 0, delay: 4500, duration: 800, onComplete: () => help.destroy() });
   }
 
@@ -309,7 +328,7 @@ export class BattleScene extends Phaser.Scene {
       const h = this.hud[i];
       if (!h) return;
       const x = i === 0 ? 24 : W - 24 - 300;
-      const y = 82;
+      const y = 62;
       const share = f.out > 0 ? 0 : f.hp / HP_MAX;
       h.hp.clear();
       h.hp.fillStyle(0x3a2f45, 1).fillRoundedRect(x + 16, y + 52, 190, 20, 8);
@@ -322,14 +341,11 @@ export class BattleScene extends Phaser.Scene {
   // ---------------- 操作 ----------------
 
   private buildPad(): void {
-    const pad = this.add.graphics().setDepth(40);
-    pad.fillStyle(0x16101c, 0.92).fillRect(0, PAD_TOP, W, H - PAD_TOP);
-    pad.lineStyle(4, 0x3a2f45, 1).lineBetween(0, PAD_TOP, W, PAD_TOP);
-    // スティック
-    this.add.circle(STICK.x, STICK.y, STICK.r, 0xffffff, 0.08).setStrokeStyle(5, 0xffffff, 0.35).setDepth(41);
-    this.knob = this.add.circle(STICK.x, STICK.y, STICK.knob, 0xffffff, 0.85).setStrokeStyle(5, 0x16101c, 1).setDepth(42);
+    // スティック(画面の上に重ねる。少し透ける)
+    this.stickBase = this.add.circle(STICK.x, STICK.y, STICK.r, 0xffffff, 0.1).setStrokeStyle(5, 0xffffff, 0.4).setDepth(41);
+    this.knob = this.add.circle(STICK.x, STICK.y, STICK.knob, 0xffffff, 0.7).setStrokeStyle(5, 0x16101c, 1).setDepth(42);
     for (const [name, b] of Object.entries(BUTTONS) as [ButtonName, (typeof BUTTONS)[ButtonName]][]) {
-      const c = this.add.container(b.x, b.y).setDepth(41);
+      const c = this.add.container(b.x, b.y).setDepth(41).setAlpha(0.85);
       const circle = this.add.circle(0, 0, b.r, b.color, 1).setStrokeStyle(6, 0x16101c, 1);
       const label = this.add.text(0, 0, b.label, { fontFamily: UI_FONT, fontSize: `${b.label.length > 1 ? 20 : 44}px`, fontStyle: '900', color: INK }).setOrigin(0.5);
       c.add([circle, label]);
@@ -348,7 +364,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private onDown(p: Phaser.Input.Pointer): void {
-    if (p.y < PAD_TOP) return;
+    // 上の表示(もどる・HP)の所は除く
+    if (p.y < 160) return;
     const b = this.buttonAt(p.x, p.y);
     if (b) {
       this.held[b] = p.id;
@@ -357,23 +374,25 @@ export class BattleScene extends Phaser.Scene {
       this.buttonGfx[b]?.setScale(0.9);
       return;
     }
-    // ボタン以外の左がわを触ったら、そこがスティックになる(指の位置がずれても使えるように)
-    if (p.x < 360 && this.stick.id < 0) {
+    // 左がわを触ったら、触った所にスティックが出る(指の位置がずれても使えるように)
+    if (p.x < W * 0.45 && this.stick.id < 0) {
       this.stick.id = p.id;
+      this.stickCenter = { x: Phaser.Math.Clamp(p.x, STICK.r + 10, W * 0.45), y: Phaser.Math.Clamp(p.y, 260, H - STICK.r - 6) };
+      this.stickBase.setPosition(this.stickCenter.x, this.stickCenter.y);
       this.onMove(p);
     }
   }
 
   private onMove(p: Phaser.Input.Pointer): void {
     if (p.id !== this.stick.id) return;
-    let dx = p.x - STICK.x;
-    let dy = p.y - STICK.y;
+    let dx = p.x - this.stickCenter.x;
+    let dy = p.y - this.stickCenter.y;
     const len = Math.hypot(dx, dy);
     if (len > STICK.r) {
       dx = (dx / len) * STICK.r;
       dy = (dy / len) * STICK.r;
     }
-    this.knob.setPosition(STICK.x + dx, STICK.y + dy);
+    this.knob.setPosition(this.stickCenter.x + dx, this.stickCenter.y + dy);
     const dead = 0.22;
     const nx = dx / STICK.r;
     const ny = dy / STICK.r;
@@ -384,6 +403,8 @@ export class BattleScene extends Phaser.Scene {
   private onUp(p: Phaser.Input.Pointer): void {
     if (p.id === this.stick.id) {
       this.stick = { id: -1, x: 0, y: 0 };
+      this.stickCenter = { x: STICK.x, y: STICK.y };
+      this.stickBase.setPosition(STICK.x, STICK.y);
       this.knob.setPosition(STICK.x, STICK.y);
     }
     for (const name of Object.keys(this.held) as ButtonName[]) {
@@ -433,6 +454,7 @@ export class BattleScene extends Phaser.Scene {
     }
     this.battle.fighters.forEach((f, i) => this.views[i]?.update(f, this.t, dt, this.floorUnder(f)));
     this.refreshHud();
+    this.turnHint?.setVisible(window.innerHeight > window.innerWidth);
   }
 
   /** 影を落とす床の高さ(下に床がなければ null) */
@@ -463,9 +485,9 @@ export class BattleScene extends Phaser.Scene {
       this.cameras.main.shake(260, 0.012);
       const f = e.target;
       const x = Phaser.Math.Clamp(f.x, 60, W - 60);
-      const y = Phaser.Math.Clamp(f.y - 60, 120, PAD_TOP - 60);
+      const y = Phaser.Math.Clamp(f.y - 60, 120, H - 60);
       this.spark(x, y, 0xffffff, 2.2);
-      const t = this.text(W / 2, 400, e.fell ? 'アウト！' : 'KO！', 64, '#ff5a4e');
+      const t = this.text(W / 2, 260, e.fell ? 'アウト！' : 'KO！', 64, '#ff5a4e');
       this.tweens.add({ targets: t, scale: 1.3, alpha: 0, delay: 500, duration: 500, onComplete: () => t.destroy() });
     }
   }

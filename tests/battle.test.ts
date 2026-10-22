@@ -67,7 +67,7 @@ describe('battle (practice)', () => {
   it('falling off the stage loses a stock, and the dummy comes back', () => {
     const b = newPractice();
     const dummy = b.fighters[1];
-    dummy.x = 1000;
+    dummy.x = 1700;
     dummy.ground = null;
     const ev = run(b, {}, 0.2);
     expect(ev.some((e) => e.kind === 'ko' && e.target === dummy)).toBe(true);
