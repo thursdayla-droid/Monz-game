@@ -5,7 +5,7 @@
 ## 最初に読むもの（新しいセッション・会話が要約されたあと）
 1. **`docs/SPEC.md`**：今の仕様・実装済み/未実装・素材の場所・今後の予定・いつもの手順（早見表）
 2. 決定の記録：`docs/VISION.md`（全体）、`docs/ROOM_PLAN.md`（部屋・家具・ショップ）、`docs/PROPOSAL.md`（初期）
-3. まだ作らない仕様：`docs/EVOLUTION.md`（進化）、`docs/CARD_BATTLE.md`（カードバトル）
+3. まだ作らない仕様：`docs/EVOLUTION.md`（進化）、`docs/BATTLE.md`（アクションバトル）、`docs/CARD_BATTLE.md`（カードバトル）
 
 ## 守ること
 - 確定仕様と未確定仕様を区別する。未確定のものはコード中に【未確定】【仮】と書く。
