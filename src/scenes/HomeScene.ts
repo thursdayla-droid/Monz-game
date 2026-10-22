@@ -603,8 +603,17 @@ export class HomeScene extends Phaser.Scene {
     s.y = p.y;
     this.showStrokeHand(p.x, p.y);
     if (s.follow) {
-      life.follow([p.x, p.y]);
-      return;
+      // 指がBUNKの体の上に来たら(BUNKが追いついた・指をBUNKにのせた)、追いかけるのをやめて なでるに切りかえる
+      if (this.onMonz(p.x, p.y)) {
+        life.follow(null);
+        s.follow = false;
+        s.onMonz = true;
+        s.dist = 0;
+        s.sinceTick = 0;
+      } else {
+        life.follow([p.x, p.y]);
+        return;
+      }
     }
     // MONZの体の上をなぞっているときだけ数える
     if (!this.onMonz(p.x, p.y)) return;
