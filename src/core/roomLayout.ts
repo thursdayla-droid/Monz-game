@@ -31,7 +31,7 @@ export interface FloorItem {
  * カーペットの大きさ(企画者の指示 2026-10-22): 小(買ったときの大きさ)・中・大(床一面)の3段階。絵の形は変えずに大きさだけ変える【仮】倍率。
  * 床に入りきらない所(奥など)では、入る大きさまで自動で小さくする(企画者の指示 2026-10-22: 大も奥に置けるように)
  */
-export const CARPET_SIZES = [1, 1.35, 1.75] as const;
+export const CARPET_SIZES = [1, 1.35, 2.2] as const;
 export const CARPET_SIZE_LABELS = ['小', '中', '大'] as const;
 
 /**
