@@ -15,10 +15,12 @@ const recordWith = (coins: number) => {
 };
 
 describe('furniture list', () => {
-  it('has 3 series (+ VIP) x 6 kinds, with unique ids, not tied to any room', () => {
+  it('has 3 series (+ VIP) x all kinds, with unique ids, not tied to any room', () => {
     expect(FURNITURE).toHaveLength(FURNITURE_SERIES.length * FURNITURE_KINDS.length);
-    expect(new Set(FURNITURE.map((f) => f.id)).size).toBe(24);
-    expect(FURNITURE.filter((f) => f.series !== 'vip')).toHaveLength(18);
+    expect(new Set(FURNITURE.map((f) => f.id)).size).toBe(4 * FURNITURE_KINDS.length);
+    expect(FURNITURE.filter((f) => f.series !== 'vip')).toHaveLength(3 * FURNITURE_KINDS.length);
+    expect(FURNITURE_KINDS).toContain('tv');
+    expect(FURNITURE_KINDS).toContain('plant');
     expect(furniture('pop_bed')).toMatchObject({ series: 'pop', kind: 'bed', price: 500 });
     expect(Object.keys(furniture('cyber_toy')!)).not.toContain('room');
   });

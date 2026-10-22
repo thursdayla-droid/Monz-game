@@ -11,7 +11,8 @@ import { homeIconKey, homeImageKey, homePlace } from './HomeScene';
 const W = 720;
 const H = 1280;
 const INK = '#16101c';
-const CARD = { w: 320, h: 270, gap: 20, top: 352 };
+// 家具8種類(2026-10-22 テレビ・植物を追加)が1画面に入る大きさ
+const CARD = { w: 320, h: 206, gap: 14, top: 330 };
 
 /** ショップ(買う)か、アイテムボックス(持っている物を使う)か */
 export type ItemScreenMode = 'shop' | 'box';
@@ -221,21 +222,21 @@ export class ShopScene extends Phaser.Scene {
     g.lineStyle(6, 0x16101c, 1).strokeRoundedRect(0, 0, CARD.w, CARD.h, 18);
     // 【仮】家具の絵の所(絵が届くまでは、シリーズの色と種類の名前)
     const col = SERIES_COLORS[f.series];
-    g.fillStyle(col.bg, 1).fillRoundedRect(14, 14, CARD.w - 28, 130, 12);
+    g.fillStyle(col.bg, 1).fillRoundedRect(12, 12, CARD.w - 24, 100, 12);
     c.add(g);
     if (this.textures.exists(furnitureKey(f.id))) {
-      const img = this.add.image(CARD.w / 2, 79, furnitureKey(f.id));
-      img.setScale(Math.min((CARD.w - 40) / img.width, 118 / img.height));
+      const img = this.add.image(CARD.w / 2, 62, furnitureKey(f.id));
+      img.setScale(Math.min((CARD.w - 40) / img.width, 90 / img.height));
       c.add(img);
-    } else c.add(this.t(CARD.w / 2, 79, KIND_RULES[f.kind].name, 34, col.fg));
-    c.add(this.t(18, 158, f.name, 24, INK, 0, 0));
+    } else c.add(this.t(CARD.w / 2, 62, KIND_RULES[f.kind].name, 30, col.fg));
+    c.add(this.t(16, 120, f.name, 22, INK, 0, 0));
     const owned = record.owns(f.id);
     if (this.mode === 'shop') {
-      c.add(this.priceRow(18, 222, f.price));
-      if (owned) c.add(this.t(CARD.w - 16, 222, `持っている：${owned}`, 18, '#5a4a66', 1, 0.5));
+      c.add(this.priceRow(16, 176, f.price));
+      if (owned) c.add(this.t(CARD.w - 16, 176, `持っている：${owned}`, 18, '#5a4a66', 1, 0.5));
     } else {
-      c.add(this.t(18, 210, `ボックス：${record.inBox(f.id)}`, 22, INK, 0, 0.5));
-      c.add(this.t(18, 240, `置いている：${owned - record.inBox(f.id)}`, 18, '#5a4a66', 0, 0.5));
+      c.add(this.t(16, 166, `ボックス：${record.inBox(f.id)}`, 22, INK, 0, 0.5));
+      c.add(this.t(16, 190, `置いている：${owned - record.inBox(f.id)}`, 18, '#5a4a66', 0, 0.5));
     }
     const hit = this.add.zone(0, 0, CARD.w, CARD.h).setOrigin(0, 0).setInteractive({ useHandCursor: true });
     hit.on('pointerdown', () => (this.mode === 'shop' ? this.confirmBuy(f.id, f.name, f.price) : this.useFurniture(f)));

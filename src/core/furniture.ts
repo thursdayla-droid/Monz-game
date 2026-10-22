@@ -1,7 +1,7 @@
 /**
  * 家具とアイテムの一覧表。Phaserに依存しない。
  * 企画者決定(2026-10-21):
- * - 家具は STREET・POP・CYBER の3シリーズ × 6種類(ベッド・ソファ・テーブル・カーペット・照明・おもちゃ)
+ * - 家具は STREET・POP・CYBER の3シリーズ × 種類(ベッド・ソファ・テーブル・カーペット・照明・おもちゃ。2026-10-22 テレビ・植物を追加)
  * - シリーズと部屋は関係ない(どの部屋にも、どのシリーズの家具も置ける)。だから部屋の情報は持たせない
  * - 同じ家具を2つ以上買える。家具どうしは重ねて置けない。MONZの通り道はふさげない
  * - 照明は床に置くスタンド。照明ではMONZは何もしない
@@ -19,7 +19,7 @@ export const SERIES_LABELS: Record<FurnitureSeries, string> = { street: 'STREET'
 /** 【仮】VIPの家具の値段の倍率 */
 const VIP_PRICE = 2;
 
-export const FURNITURE_KINDS = ['bed', 'sofa', 'table', 'carpet', 'light', 'toy'] as const;
+export const FURNITURE_KINDS = ['bed', 'sofa', 'table', 'carpet', 'tv', 'light', 'plant', 'toy'] as const;
 export type FurnitureKind = (typeof FURNITURE_KINDS)[number];
 
 interface KindRule {
@@ -41,7 +41,10 @@ export const KIND_RULES: Record<FurnitureKind, KindRule> = {
   sofa: { name: 'ソファ', price: 400, width: 440, depth: 0.32, walkable: false },
   table: { name: 'テーブル', price: 250, width: 300, depth: 0.4, walkable: false },
   carpet: { name: 'カーペット', price: 200, width: 420, depth: 0.35, walkable: true },
+  // テレビ・植物: 企画者の追加(2026-10-22)。値段は【仮】。今は置くだけ(MONZは何もしない)
+  tv: { name: 'テレビ', price: 400, width: 340, depth: 0.25, walkable: false },
   light: { name: '照明', price: 300, width: 110, depth: 0.6, walkable: false },
+  plant: { name: '植物', price: 150, width: 110, depth: 0.6, walkable: false },
   toy: { name: 'おもちゃ', price: 150, width: 80, depth: 0.8, walkable: false },
 };
 
@@ -74,7 +77,7 @@ export const FURNITURE: FurnitureDef[] = FURNITURE_SERIES.flatMap((series) =>
  * 企画者の絵が届いている家具(design/furniture/ → make_furniture.py で切り抜き)。届いていない家具は【仮】の見た目。
  * 企画者決定(2026-10-21): 家具の絵は斜め横向き。反転で逆向きにも使う
  */
-export const FURNITURE_ART_READY: readonly string[] = ['street_bed', 'street_sofa', 'street_table', 'street_carpet'];
+export const FURNITURE_ART_READY: readonly string[] = ['street_bed', 'street_sofa', 'street_table', 'street_carpet', 'street_tv'];
 export const furnitureKey = (id: string) => `furniture:${id}`;
 
 /**
