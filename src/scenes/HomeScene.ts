@@ -5,7 +5,7 @@ import { BunkBrain } from '../core/bunkBehavior';
 import { HOME_ACTIONS, HOME_ACTION_LABELS, HOME_ACTION_READY, ALL_PLACES, HOME_LAYOUTS, clipPolygonX, insidePolygon, randomPointIn, savedHomePlace, type HomeAction, type HomePlace, type Pt } from '../core/home';
 import { MonzLife } from '../core/life';
 import { moodWord, NEEDS_RULES } from '../core/needs';
-import { clearLife, LifeRecord, loadLife, saveLife } from '../core/lifeSave';
+import { clearLife, LifeRecord, loadLife } from '../core/lifeSave';
 import { mulberry32 } from '../core/rng';
 import { currentStats, LOVE_RULES, shownLove, STAT_KEYS, STAT_LABELS, STAT_MAX, type StatBlock, type StatKey } from '../core/stats';
 import { clearSave, loadSave } from '../core/save';
@@ -123,6 +123,10 @@ export class HomeScene extends Phaser.Scene {
     this.busy = false;
     this.resetting = false;
     this.view = undefined;
+    // 前に開いたときの手のカーソル・吹き出しは、画面を閉じたときに消えているので作り直す(残っていると手が出なくなる)
+    this.strokeHand = undefined;
+    this.bubble = undefined;
+    this.stroke = null;
     this.life = undefined;
     const monz = loadSave()?.firstMonz ?? 'bunk';
     const place = homePlace();
@@ -509,10 +513,10 @@ export class HomeScene extends Phaser.Scene {
       this.scene.start('Title');
     });
     button(302, '誕生をもう一度', () => {
-      // 確認用: 部屋も選び直す(部屋の選択を消して、置いた家具はアイテムボックスへ)。画面を閉じるときの保存で戻らないようにする
+      // 確認用(企画者決定 2026-10-22): お世話のデータを全部消して、生まれるところから(最初の質問の答えだけ残す)。
+      // 画面を閉じるときの保存で戻らないようにする
       this.resetting = true;
-      const life = this.record?.snapshot ?? loadLife();
-      saveLife({ ...life, place: undefined, inventory: { ...life.inventory, placed: [] } });
+      clearLife();
       this.scene.start('Birth', { intro: true });
     });
     // 【仮】部屋を変えるのは、いずれショップでコインを使う(企画者決定)。ショップができるまでの確認用
