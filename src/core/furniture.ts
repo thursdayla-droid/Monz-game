@@ -40,7 +40,7 @@ export const KIND_RULES: Record<FurnitureKind, KindRule> = {
   bed: { name: 'ベッド', price: 500, width: 460, depth: 0.3, walkable: false },
   sofa: { name: 'ソファ', price: 400, width: 440, depth: 0.32, walkable: false },
   table: { name: 'テーブル', price: 250, width: 300, depth: 0.4, walkable: false },
-  carpet: { name: 'カーペット', price: 200, width: 420, depth: 0.42, walkable: true },
+  carpet: { name: 'カーペット', price: 200, width: 420, depth: 0.35, walkable: true },
   light: { name: '照明', price: 300, width: 110, depth: 0.6, walkable: false },
   toy: { name: 'おもちゃ', price: 150, width: 80, depth: 0.8, walkable: false },
 };
