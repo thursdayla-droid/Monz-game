@@ -127,6 +127,8 @@ export class HomeScene extends Phaser.Scene {
     this.strokeHand = undefined;
     this.bubble = undefined;
     this.stroke = null;
+    // 姿の絵も作り直すので、前に見せていた姿は忘れる(覚えていると、眠ったまま戻ってきたときに絵が出ずBUNKが消えていた)
+    this.shownPose = null;
     this.life = undefined;
     const monz = loadSave()?.firstMonz ?? 'bunk';
     const place = homePlace();
