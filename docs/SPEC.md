@@ -82,7 +82,7 @@
 - 置いた場所・向き・大きさは保存される
 
 ### 家具の絵（`design/furniture/` → `public/assets/furniture/`）
-- 白い背景の絵を `python3 design/furniture/make_furniture.py` で切り抜く。横向き `<シリーズ>_<種類>.png`、縦向き `<シリーズ>_<種類>_turn.png`
+- 白い背景の絵を `python3 design/furniture/make_furniture.py` で切り抜く。（名前を書くとその絵だけ。テーブルの段の間など、向こうが見えるすきまは `HOLES` に範囲を書くと透明になる）横向き `<シリーズ>_<種類>.png`、縦向き `<シリーズ>_<種類>_turn.png`
 - 絵を足したら `src/core/furniture.ts` の `FURNITURE_ART_READY`（横向き）と `FURNITURE_TURN_ART`（縦向き・縦÷横）に足す
 - 届いている：STREET ベッド・ソファ・テーブル・カーペット（横・縦とも）、テレビ（横・縦とも）、照明・植物・おもちゃ（横だけ）。STREETは全部そろった
 - 届いている（POP）：ベッド（横・縦）、ソファ（横・縦）、テーブル（横・縦）、カーペット（横・縦）、テレビ（横・縦）、照明、植物、おもちゃ（全部そろった）
