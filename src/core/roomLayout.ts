@@ -28,7 +28,7 @@ export interface FloorItem {
 /**
  * カーペットの大きさ(企画者の指示 2026-10-22): 小(買ったときの大きさ)・中・大(床一面)の3段階。絵の形は変えずに大きさだけ変える【仮】倍率
  */
-export const CARPET_SIZES = [1, 1.5, 2.2] as const;
+export const CARPET_SIZES = [1, 1.35, 1.75] as const;
 export const CARPET_SIZE_LABELS = ['小', '中', '大'] as const;
 
 /**
@@ -108,12 +108,13 @@ export function floorConnected(floor: Pt[], blocks: Rect[], cell = 20): boolean 
 /** その家具を、その場所に置けるか。others: ほかに置いてある家具。walkFloor: MONZが歩ける床(通り道を調べる。なければ floor) */
 export function canPlace(f: FloorItem, others: FloorItem[], floor: Pt[], walkFloor = floor): boolean {
   const r = footRect(f);
-  // カーペットは床と同じあつかい(企画者の指示 2026-10-22): 家具・MONZ・ほかのカーペットの下にも置ける。まん中が床の上ならよい
-  if (isWalkable(f.item)) return insidePolygon([(r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2], floor);
   // 床からはみ出していないかは、左右を少し内側で見る(壁にぴったり寄せられるように。絵の角が壁に少しかかるのは自然に見える)
-  const ix = (r.x1 - r.x0) * 0.12;
+  // カーペットは床に平らに敷くので、ほぼそのままの形で見る(企画者の指示 2026-10-22: 床からはみ出さない)
+  const ix = (r.x1 - r.x0) * (isWalkable(f.item) ? 0.03 : 0.12);
   const corners: Pt[] = [[r.x0 + ix, r.y0], [r.x1 - ix, r.y0], [r.x0 + ix, r.y1], [r.x1 - ix, r.y1]];
   if (!corners.every((p) => insidePolygon(p, floor))) return false;
+  // カーペットは床と同じあつかい(企画者の指示 2026-10-22): 家具・MONZ・ほかのカーペットの下にも置ける
+  if (isWalkable(f.item)) return true;
   if (others.some((o) => !isWalkable(o.item) && rectsOverlap(r, footRect(o)))) return false;
   const blocks = [f, ...others].filter((o) => !isWalkable(o.item)).map(footRect);
   return floorConnected(walkFloor, blocks);

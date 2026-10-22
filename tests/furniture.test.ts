@@ -107,8 +107,10 @@ describe('room layout', async () => {
     // カーペットは床と同じあつかい: 家具の下・ほかのカーペットの下にも置ける(企画者の指示 2026-10-22)
     expect(canPlace(at('cyber_table', 300, 300), [at('pop_carpet', 300, 330)], floor)).toBe(true);
     expect(canPlace(at('pop_carpet', 300, 330), [at('cyber_table', 300, 300), at('street_carpet', 300, 330)], floor)).toBe(true);
-    // 大きいカーペットは床からはみ出してもよい(まん中が床の上なら)
-    expect(canPlace({ ...at('pop_carpet', 300, 390), size: 2 }, [], floor)).toBe(true);
+    // カーペットも床からははみ出せない
+    expect(canPlace({ ...at('pop_carpet', 300, 390), size: 1 }, [], floor)).toBe(true);
+    expect(canPlace({ ...at('pop_carpet', 300, 390), size: 2 }, [], floor)).toBe(false);
+    expect(canPlace(at('pop_carpet', 60, 300), [], floor)).toBe(false);
   });
 
   it('does not let furniture cut the floor in two', () => {
