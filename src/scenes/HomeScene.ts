@@ -25,7 +25,7 @@ const MENU = { y: 1198, w: 111, h: 134, gap: 6 };
 /** 画面の左右のはしから、MONZの足元までの最小の距離 */
 const EDGE = 110;
 /** BUNKの体の横はばの半分(大きさ1のとき・手袋の先まで) */
-const BODY_HALF = 370;
+const BODY_HALF = 240;
 /** 家具が奥で小さくなる度合い(MONZの何倍か。1 = MONZと同じ) */
 const FURNITURE_PERSP = 0.55;
 const DEPTH = { monz: 10, effect: 30, ui: 40, popup: 60 };

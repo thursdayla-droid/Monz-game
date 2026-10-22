@@ -185,7 +185,7 @@ export class HomeFurniture {
       // 横は、見えている家具の絵のはしまで(床の上で占める広さより少し広い)
       const b = it.img.getBounds();
       const half = this.bodyHalf(p[1]);
-      return inRect(p, { x0: Math.min(r.x0, b.left + 6), x1: Math.max(r.x1, b.right - 6), y0: r.y0, y1: r.y1 }, half, 8);
+      return inRect(p, { x0: Math.min(r.x0, b.left + 14), x1: Math.max(r.x1, b.right - 14), y0: r.y0, y1: r.y1 }, half, 8);
     });
 
   /**
