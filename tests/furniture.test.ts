@@ -123,4 +123,15 @@ describe('room layout', async () => {
     expect(floorConnected(floor, [{ ...wall, x1: 400 }])).toBe(true);
     expect(footRect(at('street_bed', 300, 200)).y1).toBe(200);
   });
+
+  it('lets tables be a little bigger (2 sizes)', async () => {
+    const { sizeSteps } = await import('../src/core/roomLayout');
+    const normal = footRect(at('pop_table', 300, 300));
+    const big = footRect({ ...at('pop_table', 300, 300), size: 1 });
+    expect(big.x1 - big.x0).toBeCloseTo((normal.x1 - normal.x0) * 1.2);
+    expect(sizeSteps('cyber_table')?.length).toBe(2);
+    expect(sizeSteps('street_bed')).toBeUndefined();
+    // 大きさを変えられない家具は size があっても大きさは同じ
+    expect(footRect({ ...at('street_bed', 300, 300), size: 1 })).toEqual(footRect(at('street_bed', 300, 300)));
+  });
 });

@@ -3,7 +3,7 @@ import { audio } from '../audio/engine';
 import { FURNITURE_ART_READY, FURNITURE_TURN_LONG, NO_SHEAR_KINDS, NO_SHEAR_ITEMS, FURNITURE_TURN_WIDE, FURNITURE_TURN_ART_READY, furniture, furnitureKey, furnitureTurnFile, furnitureTurnKey, KIND_RULES } from '../core/furniture';
 import type { Pt } from '../core/home';
 import type { LifeRecord } from '../core/lifeSave';
-import { canPlace, footRect, inRect, isWalkable, mainRegion, regionConnected, CARPET_SIZE_LABELS, CARPET_SIZES, TURN_HEIGHT, TURN_LENGTH, type FloorItem } from '../core/roomLayout';
+import { canPlace, footRect, inRect, isWalkable, mainRegion, regionConnected, sizeLabel, sizeScale, sizeSteps, CARPET_SIZES, TURN_HEIGHT, TURN_LENGTH, type FloorItem } from '../core/roomLayout';
 import { canvasTextureOnce, UI_FONT } from '../ui/paint';
 import { assetUrl } from '../assetUrl';
 
@@ -82,7 +82,7 @@ export class HomeFurniture {
   private selected?: Placed;
   private drag?: { dx: number; dy: number; lastX: number; lastY: number };
   /** 選んでいる家具の、さいごに置けていた場所と向き(置けない向きにしたまま終えたら、ここにもどす) */
-  private good?: { x: number; y: number; turn: boolean; flip: boolean };
+  private good?: { x: number; y: number; turn: boolean; flip: boolean; size: number };
   private panel?: Phaser.GameObjects.Container;
 
   constructor(
@@ -162,7 +162,8 @@ export class HomeFurniture {
   private layout(it: Placed): void {
     if (isWalkable(it.item)) it.fit = this.carpetFit(it, it.x, it.y) ?? it.fit ?? CARPET_SIZES[it.size];
     const kind = furniture(it.item)?.kind ?? 'toy';
-    const w = KIND_RULES[kind].width * this.persp(it.y);
+    // テーブルなどの大きさ(カーペットは fit で決まる)
+    const w = KIND_RULES[kind].width * this.persp(it.y) * (isWalkable(it.item) ? 1 : sizeScale(it.item, it.size));
     // 企画者の指示(2026-10-22): 向きは 横・横の反転・縦・縦の反転 の4つ。置く場所で勝手に反転しない
     const t = this.shearedTexture(it.item, it.flip, it.x, it.y, it.turn);
     if (it.img.texture.key !== t.key) it.img.setTexture(t.key);
@@ -316,7 +317,7 @@ export class HomeFurniture {
       Object.assign(was, this.good);
       this.layout(was);
     }
-    if (it && it !== was) this.good = { x: it.x, y: it.y, turn: it.turn, flip: it.flip };
+    if (it && it !== was) this.good = { x: it.x, y: it.y, turn: it.turn, flip: it.flip, size: it.size };
     this.selected?.img.clearTint();
     this.selected = it;
     it?.img.setTint(0xfff1a8);
@@ -408,7 +409,8 @@ export class HomeFurniture {
   private save(it: Placed): void {
     const [rx, ry] = this.toRoom(it.x, it.y);
     this.record.movePlaced(it.uid, rx, ry, it.flip, it.turn);
-    if (it === this.selected) this.good = { x: it.x, y: it.y, turn: it.turn, flip: it.flip };
+    if (sizeSteps(it.item)) this.record.resizePlaced(it.uid, it.size);
+    if (it === this.selected) this.good = { x: it.x, y: it.y, turn: it.turn, flip: it.flip, size: it.size };
   }
 
   /** MONZが歩ける床の、いちばん広い所にその点が入っているか(家具のすきまに閉じこめられていないか) */
@@ -459,15 +461,32 @@ export class HomeFurniture {
     if (!this.buttons.length) return;
     const on = !!this.selected;
     this.buttons[0].setAlpha(on ? 1 : 0.4);
-    // 大きさを変えられるのはカーペットだけ
-    this.buttons[1].setVisible(on && isWalkable(this.selected!.item));
+    // 大きさを変えられるのはカーペットとテーブル
+    this.buttons[1].setVisible(on && !!sizeSteps(this.selected!.item));
     this.buttons[2].setAlpha(on ? 1 : 0.4);
   }
 
   /** カーペットの大きさ: 小 → 中 → 大 → 小(企画者の指示 2026-10-22)。置けない大きさは飛ばす */
   private resize(): void {
     const it = this.selected;
-    if (!it || !isWalkable(it.item)) return;
+    if (!it) return;
+    const steps = sizeSteps(it.item);
+    if (!steps) return;
+    if (!isWalkable(it.item)) {
+      // テーブル: ふつう ⇔ 大きめ(企画者の指示 2026-10-22)。置けない大きさでも変えられる(赤くなる。向きと同じ)
+      it.size = (it.size + 1) % steps.length;
+      this.layout(it);
+      audio.se('tap');
+      if (this.valid(it, it.x, it.y)) {
+        this.save(it);
+        it.img.setTint(0xfff1a8);
+        this.toast(`大きさ：${sizeLabel(it.item, it.size)}`);
+      } else {
+        it.img.setTint(0xff6a6a);
+        this.toast('このままでは置けません。動かしてね');
+      }
+      return;
+    }
     const was = it.size;
     for (let k = 1; k <= CARPET_SIZES.length; k++) {
       it.size = (was + k) % CARPET_SIZES.length;
@@ -481,15 +500,20 @@ export class HomeFurniture {
     const [rx, ry] = this.toRoom(it.x, it.y);
     this.record.movePlaced(it.uid, rx, ry, it.flip, it.turn);
     audio.se('tap');
-    this.toast(`大きさ：${CARPET_SIZE_LABELS[it.size]}`);
+    this.toast(`大きさ：${sizeLabel(it.item, it.size)}`);
   }
 
+  private lastToast?: Phaser.GameObjects.Text;
+
+  /** 短いお知らせ(前のお知らせは消して、重ならないようにする) */
   private toast(msg: string): void {
     const s = this.scene;
+    this.lastToast?.destroy();
     const t = s.add
       .text(s.scale.width / 2, this.panelTop - 60, msg, { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '900', color: '#ffffff', stroke: '#16101c', strokeThickness: 6 })
       .setOrigin(0.5)
       .setDepth(80);
+    this.lastToast = t;
     s.tweens.add({ targets: t, alpha: 0, delay: 1000, duration: 400, onComplete: () => t.destroy() });
   }
 }

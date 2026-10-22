@@ -21,7 +21,7 @@ export interface FloorItem {
   y: number;
   persp: number;
   turn?: boolean;
-  /** カーペットの大きさ(0 小・1 中・2 大) */
+  /** 大きさの段階(カーペット: 0 小・1 中・2 大。テーブル: 0 ふつう・1 大きめ) */
   size?: number;
   /** カーペットの実際の倍率(床に入るように小さくしたとき)。なければ size の倍率 */
   scale?: number;
@@ -33,6 +33,19 @@ export interface FloorItem {
  */
 export const CARPET_SIZES = [1, 1.35, 2.2] as const;
 export const CARPET_SIZE_LABELS = ['小', '中', '大'] as const;
+
+/**
+ * 大きさを変えられる家具の、段階ごとの倍率と名前。
+ * 企画者の指示(2026-10-22): すべてのテーブルも大きさを変えられる。今の大きさと少し大きめの2段階【仮】倍率
+ */
+const SIZE_STEPS: Partial<Record<string, readonly number[]>> = { carpet: CARPET_SIZES, table: [1, 1.2] };
+const SIZE_LABELS: Partial<Record<string, readonly string[]>> = { carpet: CARPET_SIZE_LABELS, table: ['ふつう', '大きめ'] };
+const kindOf = (item: string) => furniture(item)?.kind ?? 'toy';
+/** その家具の大きさの段階(大きさを変えられない家具は undefined) */
+export const sizeSteps = (item: string): readonly number[] | undefined => SIZE_STEPS[kindOf(item)];
+export const sizeLabel = (item: string, size: number): string => SIZE_LABELS[kindOf(item)]?.[size] ?? '';
+/** その段階の倍率(大きさを変えられない家具は 1) */
+export const sizeScale = (item: string, size = 0): number => sizeSteps(item)?.[size] ?? 1;
 
 /**
  * 【仮】縦向き(頭が奥・足が手前)に置いたときの、上下の長さ(横向きのときの横はばの何倍か)。横はばは絵の形で決まる。
@@ -49,7 +62,7 @@ export const PASS_CLEARANCE = 34;
 export function footRect(f: FloorItem): Rect {
   const kind = furniture(f.item)?.kind ?? 'toy';
   const r = KIND_RULES[kind];
-  const k = r.walkable ? (f.scale ?? CARPET_SIZES[f.size ?? 0] ?? 1) : 1;
+  const k = r.walkable ? (f.scale ?? CARPET_SIZES[f.size ?? 0] ?? 1) : sizeScale(f.item, f.size);
   const w = r.width * f.persp * 0.92 * k;
   const d = r.width * f.persp * r.depth * k;
   if (f.turn) {
