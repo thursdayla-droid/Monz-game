@@ -196,3 +196,4 @@
 - 2026-10-22：企画者の指示で、家具をかたむける補正はひかえめに（形はあまり変えない。上限つき）。奥に置いたときの小さくなり方をゆるやかに（MONZの0.55倍の度合い）
 - 2026-10-22：企画者の指示で、STREET ROOMを床のタイルの線がない絵に変えた（同じ角度。前の絵は design/home/rooms/street_tiles.png）
 - 2026-10-22：企画者の指示で、POP ROOMを床のタイルの線が目立たない絵に変えた（同じ角度。前の絵は design/home/rooms/pop_tiles.png）
+- 2026-10-22：企画者の指示で、CYBER ROOMを床のタイルの線がない絵に変えた（同じ角度。前の絵は design/home/rooms/future_tiles.png）
