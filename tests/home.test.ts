@@ -246,3 +246,34 @@ describe('petting at MAX', () => {
     expect(life.stroked(false)).toBe('happy');
   });
 });
+
+describe('follow the finger', () => {
+  const make = (needs = { ...newNeeds(), full: 0.8, mood: 0.8 }) => {
+    const brain = new BunkBrain(motion.behavior as unknown as BehaviorConfig, 3, motion.testPersonality as unknown as Personality);
+    const floor: [number, number][] = [[0, 0], [600, 0], [600, 400], [0, 400]];
+    const life = new MonzLife(brain, floor, mulberry32(3), () => 1, [100, 200], () => needs);
+    return life;
+  };
+
+  it('walks to the finger around furniture, and stops following on release', () => {
+    const life = make();
+    // まん中に縦長の家具(上だけ通れる)
+    life.blocked = ([x, y]) => x > 260 && x < 340 && y > 80;
+    expect(life.follow([500, 300])).toBe(true);
+    let hit = 0;
+    for (let i = 0; i < 60 * 30 && Math.hypot(life.x - 500, life.y - 300) > 5; i++) {
+      life.update(1 / 60);
+      if (life.blocked([life.x, life.y])) hit++;
+    }
+    expect(Math.hypot(life.x - 500, life.y - 300)).toBeLessThan(6);
+    expect(hit).toBe(0);
+    life.follow(null);
+    expect(life.following).toBe(false);
+  });
+
+  it('does not come when hungry, grumpy or asleep', () => {
+    expect(make({ ...newNeeds(), full: 0.2, mood: 0.8 }).follow([500, 300])).toBe(false);
+    expect(make({ ...newNeeds(), full: 0.8, mood: 0.1 }).follow([500, 300])).toBe(false);
+    expect(make({ ...newNeeds(), full: 0.8, mood: 0.8, asleep: true }).follow([500, 300])).toBe(false);
+  });
+});

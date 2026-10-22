@@ -157,8 +157,153 @@ export class MonzLife {
     return this.paused > 0;
   }
 
+  // ---- 指を追いかける(企画者決定 2026-10-22) ----
+  private followGoal: Pt | null = null;
+  private followPath: Pt[] = [];
+  private repath = 0;
+  private pathGoal: Pt | null = null;
+  private followWalking = false;
+
+  /**
+   * 指で床を押さえている間、その場所へ歩いていく(企画者決定 2026-10-22)。null でやめる。
+   * 眠っているとき・機嫌が悪いとき・お腹がすいているときは来ない(false)。そっぽは向かない。家具はよけて歩く
+   */
+  follow(p: Pt | null): boolean {
+    if (!p) {
+      if (this.followGoal) {
+        this.followGoal = null;
+        this.followPath = [];
+        this.begin('idle', range(this.rng, ...IDLE_TIME));
+      }
+      return false;
+    }
+    if (!this.willFollow()) {
+      this.followGoal = null;
+      return false;
+    }
+    const first = !this.followGoal;
+    this.followGoal = p;
+    if (first) {
+      this.paused = 0;
+      this.act = 'walk';
+      this.target = null;
+      this.body.reaction = null;
+      this.followWalking = false;
+      this.repath = 0;
+    }
+    return true;
+  }
+
+  get following(): boolean {
+    return !!this.followGoal;
+  }
+
+  /** 来てくれるか: 眠っている・機嫌が悪い・お腹がすいているときは来ない */
+  willFollow(): boolean {
+    const n = this.needs();
+    return !(n.asleep || this.act === 'sleep' || n.mood < 0.3 || n.full <= 0.3 + 1e-9);
+  }
+
+  /** 床をマス目に分けて、家具をよけた道を探す(いちばん近い行ける所まで) */
+  private findPath(goal: Pt): Pt[] {
+    const cell = 22;
+    const xs = this.floor.map((p) => p[0]);
+    const ys = this.floor.map((p) => p[1]);
+    const x0 = Math.min(...xs);
+    const y0 = Math.min(...ys);
+    const cols = Math.ceil((Math.max(...xs) - x0) / cell);
+    const rows = Math.ceil((Math.max(...ys) - y0) / cell);
+    const center = (c: number, r: number): Pt => [x0 + (c + 0.5) * cell, y0 + (r + 0.5) * cell];
+    // マスのまん中と四すみが、どれも家具にかかっていなければ通れる(マスの間を歩いても家具に入らないように)
+    const h = cell / 2;
+    const free = (c: number, r: number) => {
+      if (c < 0 || r < 0 || c >= cols || r >= rows) return false;
+      const [x, y] = center(c, r);
+      if (!insidePolygon([x, y], this.floor)) return false;
+      return ![[x, y], [x - h, y - h], [x + h, y - h], [x - h, y + h], [x + h, y + h]].some((q) => this.blocked(q as Pt));
+    };
+    const toCell = ([x, y]: Pt) => [Math.max(0, Math.min(cols - 1, Math.floor((x - x0) / cell))), Math.max(0, Math.min(rows - 1, Math.floor((y - y0) / cell)))];
+    const [sc, sr] = toCell([this.x, this.y]);
+    const [gc, gr] = toCell(goal);
+    const prev = new Int32Array(cols * rows).fill(-2);
+    const start = sr * cols + sc;
+    prev[start] = -1;
+    const queue = [start];
+    let best = start;
+    let bestD = Math.hypot(sc - gc, sr - gr);
+    for (let qi = 0; qi < queue.length; qi++) {
+      const i = queue[qi];
+      const c = i % cols;
+      const r = Math.floor(i / cols);
+      const d = Math.hypot(c - gc, r - gr);
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+      if (d === 0) break;
+      for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+        const nc = c + dc;
+        const nr = r + dr;
+        const j = nr * cols + nc;
+        if (!free(nc, nr) || prev[j] !== -2) continue;
+        // ななめは、角をすりぬけない
+        if (dc && dr && (!free(c + dc, r) || !free(c, r + dr))) continue;
+        prev[j] = i;
+        queue.push(j);
+      }
+    }
+    const path: Pt[] = [];
+    for (let i = best; i !== start && i >= 0; i = prev[i]) path.unshift(center(i % cols, Math.floor(i / cols)));
+    // さいごは指の所(行ければ)
+    if (best === gr * cols + gc && insidePolygon(goal, this.floor) && !this.blocked(goal)) path.push(goal);
+    return path;
+  }
+
+  private followStep(dt: number): void {
+    const goal = this.followGoal!;
+    this.repath -= dt;
+    if (this.repath <= 0 || !this.pathGoal || Math.hypot(goal[0] - this.pathGoal[0], goal[1] - this.pathGoal[1]) > 30) {
+      this.followPath = this.findPath(goal);
+      this.pathGoal = goal;
+      this.repath = 0.4;
+    }
+    // 少し急いで歩く
+    let step = WALK_SPEED * 1.4 * (0.6 + 0.4 * this.depth(this.y)) * dt;
+    while (step > 0 && this.followPath.length) {
+      const [tx, ty] = this.followPath[0];
+      const dx = tx - this.x;
+      const dy = ty - this.y;
+      const d = Math.hypot(dx, dy);
+      if (Math.abs(dx) > 3) this.facing = dx > 0 ? 1 : -1;
+      if (d <= step) {
+        [this.x, this.y] = [tx, ty];
+        this.followPath.shift();
+        step -= d;
+      } else {
+        this.x += (dx / d) * step;
+        this.y += (dy / d) * step;
+        step = 0;
+      }
+    }
+    this.body.dir = this.facing;
+    // 着いたら止まって待つ。また指が動いたら歩く
+    const walking = this.followPath.length > 0;
+    if (walking !== this.followWalking) {
+      this.followWalking = walking;
+      this.body.start(walking ? 'walk' : 'idle');
+      this.body.dir = this.facing;
+    }
+  }
+
   update(dt: number): void {
     this.body.update(dt);
+    if (this.followGoal) {
+      if (!this.willFollow()) this.follow(null);
+      else {
+        this.followStep(dt);
+        return;
+      }
+    }
     if (this.paused > 0) {
       this.paused -= dt;
       return;

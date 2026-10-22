@@ -83,7 +83,7 @@ export class HomeScene extends Phaser.Scene {
   private moodText?: Phaser.GameObjects.Text;
   private bubble?: Phaser.GameObjects.Image;
   /** 指でなでている途中(なぞった距離など)。null ならなでていない */
-  private stroke: { x: number; y: number; dist: number; sinceTick: number; ticks: number; happy: number; angry: boolean; onMonz: boolean } | null = null;
+  private stroke: { x: number; y: number; dist: number; sinceTick: number; ticks: number; happy: number; angry: boolean; onMonz: boolean; follow: boolean } | null = null;
   private strokeHand?: Phaser.GameObjects.Image;
   /** 行動に合わせた姿の絵(座る・眠る・伸び・見渡す・お腹がすいた・眠い)。出している間は BunkView を隠す */
   private poseImg?: Phaser.GameObjects.Image;
@@ -586,7 +586,10 @@ export class HomeScene extends Phaser.Scene {
   private startStroke(p: Phaser.Input.Pointer): void {
     if (this.busy || !this.life) return;
     if (this.strokeHand) this.tweens.killTweensOf(this.strokeHand);
-    this.stroke = { x: p.x, y: p.y, dist: 0, sinceTick: 0, ticks: 0, happy: 0, angry: false, onMonz: this.onMonz(p.x, p.y) };
+    const onMonz = this.onMonz(p.x, p.y);
+    // 床を押さえたら、BUNKが指を追いかけてくる(企画者決定 2026-10-22。眠い・機嫌が悪い・お腹がすいているときは来ない)
+    const follow = !onMonz && this.life.follow([p.x, p.y]);
+    this.stroke = { x: p.x, y: p.y, dist: 0, sinceTick: 0, ticks: 0, happy: 0, angry: false, onMonz, follow };
     // 触ったらすぐ手を出す(指で隠れないよう、指の少し上に)
     this.showStrokeHand(p.x, p.y);
   }
@@ -599,6 +602,10 @@ export class HomeScene extends Phaser.Scene {
     s.x = p.x;
     s.y = p.y;
     this.showStrokeHand(p.x, p.y);
+    if (s.follow) {
+      life.follow([p.x, p.y]);
+      return;
+    }
     // MONZの体の上をなぞっているときだけ数える
     if (!this.onMonz(p.x, p.y)) return;
     s.dist += d;
@@ -626,6 +633,11 @@ export class HomeScene extends Phaser.Scene {
   private endStroke(): void {
     const s = this.stroke;
     this.stroke = null;
+    if (s?.follow) {
+      this.life?.follow(null);
+      this.hideStrokeHand();
+      return;
+    }
     if (!s || !this.life) {
       this.hideStrokeHand();
       return;
