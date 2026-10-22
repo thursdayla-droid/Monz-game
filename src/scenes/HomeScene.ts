@@ -109,7 +109,7 @@ export class HomeScene extends Phaser.Scene {
 
   preload(): void {
     preloadPacks(this, ['bunk', 'home']);
-    preloadFurniture(this, [...loadLife().inventory.placed.map((p) => p.item), ...(this.pendingPlace ? [this.pendingPlace] : [])]);
+    preloadFurniture(this, loadLife().inventory.owned);
   }
 
   create(): void {
