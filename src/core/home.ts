@@ -49,7 +49,8 @@ export const HOME_ACTION_READY: Record<HomeAction, boolean> = {
   food: true,
   minigame: true,
   status: true,
-  battle: false,
+  // 2026-10-22: 操作するバトル(練習場)ができた
+  battle: true,
   shop: true,
   settings: true,
 };

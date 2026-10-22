@@ -546,6 +546,13 @@ export class HomeScene extends Phaser.Scene {
       this.cameras.main.fadeOut(200, 0, 0, 0);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('MinigameSelect'));
     }
+    else if (action === 'battle') {
+      // 操作するバトル(企画者の仕様 2026-10-22)。今は練習場
+      this.busy = true;
+      audio.se('next');
+      this.cameras.main.fadeOut(200, 0, 0, 0);
+      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('Battle'));
+    }
     else this.comingSoon(HOME_ACTION_LABELS[action]);
   }
 
