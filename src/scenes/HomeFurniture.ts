@@ -175,16 +175,11 @@ export class HomeFurniture {
   /** MONZがその場所を歩けないか(家具の上)。MONZの体のはばの分だけ広めに見る */
   blocked = (p: Pt): boolean => this.items.some((it) => !isWalkable(it.item) && inRect(p, footRect(this.floorItem(it)), 30 * this.persp(it.y), 8));
 
-  /** 毎フレーム: 家具の後ろにMONZがいたら、その家具を少し透かす */
-  update(monz: { x: number; y: number; top: number; half: number }): void {
-    for (const it of this.items) {
-      if (isWalkable(it.item)) continue;
-      const b = it.img.getBounds();
-      const hide = it.y > monz.y && monz.x + monz.half > b.left && monz.x - monz.half < b.right && monz.top < b.bottom && monz.y > b.top;
-      const target = hide ? 0.55 : 1;
-      it.img.setAlpha(it.img.alpha + (target - it.img.alpha) * 0.2);
-    }
-  }
+  /**
+   * 毎フレーム。企画者の指示(2026-10-22): MONZが近くを通っても家具は透かさない(前は後ろに入ると透かしていた)。
+   * 呼ぶ所はそのまま残す(あとで家具ごとの動きを入れるとき用)
+   */
+  update(_monz: { x: number; y: number; top: number; half: number }): void {}
 
   // ---------------- もようがえ ----------------
 
