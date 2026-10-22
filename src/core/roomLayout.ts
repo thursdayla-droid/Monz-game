@@ -27,7 +27,7 @@ export interface FloorItem {
  * 【仮】縦向き(頭が奥・足が手前)に置いたときの、横はば(横向きのときの横はばの何倍か)。
  * 企画者の指示(2026-10-21): 左右の壁ぎわにも置きたい → 縦向きの絵を使う(タイルの線に合わせてかたむける)
  */
-export const TURN_WIDTH = 0.5;
+export const TURN_WIDTH = 0.62;
 
 /** MONZの体の半分くらい。家具と家具、家具と壁のあいだは、この2倍あけないと通れない */
 export const PASS_CLEARANCE = 34;
