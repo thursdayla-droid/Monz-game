@@ -85,7 +85,8 @@
 - 絵を足したら `src/core/furniture.ts` の `FURNITURE_ART_READY`（横向き）と `FURNITURE_TURN_ART`（縦向き・縦÷横）に足す
 - 届いている：STREET ベッド・ソファ・テーブル・カーペット（横・縦とも）、テレビ（横・縦とも）、照明・植物・おもちゃ（横だけ）。STREETは全部そろった
 - 届いている（POP）：ベッド（横・縦）、ソファ（横・縦）、テーブル（横・縦）、カーペット（横・縦）、テレビ（横・縦）、照明、植物、おもちゃ（全部そろった）
-- まだ：CYBER・VIP の全部（絵がない家具は【仮】の色つきの箱）
+- 届いている（CYBER）：ベッド（横）
+- まだ：CYBER の残り、VIP の全部（絵がない家具は【仮】の色つきの箱）
 - 使わなくなった絵は `design/furniture/unused/`
 
 ## 6. ミニゲーム（`src/core/modes.ts`、セレクト画面 `MinigameSelectScene`）
