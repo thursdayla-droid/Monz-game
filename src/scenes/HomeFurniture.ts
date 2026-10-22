@@ -26,7 +26,10 @@ interface Placed {
 }
 
 /** 【仮】かたむけ具合(1 = タイルの線にぴったり)。強くかたむけると柱まで斜めになるので、少しひかえめにする */
-const SHEAR_STRENGTH = 0.8;
+// 企画者の指示(2026-10-22): はしに置くとゆがんで見えるので、形はあまり変えない(ひかえめに・上限つき)
+const SHEAR_STRENGTH = 0.3;
+/** かたむけの上限(上へ1進むと横へいくつずれるか) */
+const SHEAR_MAX = 0.25;
 
 
 /** 【仮】絵がまだない家具の見た目(シリーズの色の箱に名前) */
@@ -127,7 +130,7 @@ export class HomeFurniture {
     // 縦向きの絵は、奥へのびる線がそのままタイルの線になるので、ぴったり(1倍)かたむける
     const src = turn ? furnitureTurnKey(item) : textureFor(this.scene, item);
     const raw = (this.vanish[0] - x) / Math.max(40, y - this.vanish[1]);
-    const sh = Math.round(Phaser.Math.Clamp(raw * (turn ? 1 : SHEAR_STRENGTH), -1.2, 1.2) * 20) / 20;
+    const sh = Math.round(Phaser.Math.Clamp(raw * SHEAR_STRENGTH, -SHEAR_MAX, SHEAR_MAX) * 20) / 20;
     const img = this.scene.textures.get(src).getSourceImage() as CanvasImageSource & { width: number; height: number };
     const r = Math.min(1, 480 / img.width);
     const w = Math.round(img.width * r);

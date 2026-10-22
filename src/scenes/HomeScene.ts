@@ -24,6 +24,8 @@ const MONZ_H = 1150;
 const MENU = { y: 1198, w: 111, h: 134, gap: 6 };
 /** 画面の左右のはしから、MONZの足元までの最小の距離 */
 const EDGE = 110;
+/** 家具が奥で小さくなる度合い(MONZの何倍か。1 = MONZと同じ) */
+const FURNITURE_PERSP = 0.55;
 const DEPTH = { monz: 10, effect: 30, ui: 40, popup: 60 };
 
 /** 企画者の部屋の絵(design/home/rooms/ → public/assets/home/rooms/)。_thumb は部屋を選ぶ画面の小さい絵 */
@@ -166,7 +168,8 @@ export class HomeScene extends Phaser.Scene {
       this.roomView,
       this.furnitureFloor,
       this.floor,
-      (y) => (Phaser.Math.Linear(this.scaleRange[0], this.scaleRange[1], t(y)) / this.scaleRange[1]) * (layout0.furnitureScale ?? 1),
+      // 企画者の指示(2026-10-22): 奥へ行くと小さくなるのは続けるが、小さくなりすぎないように(MONZより ひかえめに小さくする)
+      (y) => (1 - (1 - Phaser.Math.Linear(this.scaleRange[0], this.scaleRange[1], t(y)) / this.scaleRange[1]) * FURNITURE_PERSP) * (layout0.furnitureScale ?? 1),
       (y) => DEPTH.monz + t(y),
       MENU.y - MENU.h / 2 - 14,
       [ox0 + layout0.vanish[0] * this.roomView.k, this.roomView.oy + layout0.vanish[1] * this.roomView.k],
