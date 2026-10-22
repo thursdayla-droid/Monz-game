@@ -81,7 +81,12 @@ export const furnitureKey = (id: string) => `furniture:${id}`;
  * 縦向き(頭が奥・足が手前)の絵がある家具(design/furniture/<名前>_turn.png)。
  * 企画者の指示(2026-10-21): 左右の壁ぎわにも置きたい。ななめの絵はやめて、縦向きの絵をタイルの線に合わせてかたむけて使う
  */
-export const FURNITURE_TURN_ART_READY: readonly string[] = ['street_bed'];
+/**
+ * 縦向きの絵がある家具と、その絵の「縦 ÷ 横」(大きさと床の上で占める広さを決めるのに使う)。
+ * 縦向きの絵は「右の壁ぞい向き」(ソファなら背もたれが右)。部屋の左半分では反転して使う
+ */
+export const FURNITURE_TURN_ART: Record<string, number> = { street_bed: 773 / 640, street_sofa: 1379 / 640 };
+export const FURNITURE_TURN_ART_READY: readonly string[] = Object.keys(FURNITURE_TURN_ART);
 export const furnitureTurnKey = (id: string) => `furniture:${id}:turn`;
 export const furnitureTurnFile = (id: string) => `assets/furniture/${id}_turn.webp`;
 

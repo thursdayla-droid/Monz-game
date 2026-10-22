@@ -1,4 +1,4 @@
-import { furniture, KIND_RULES } from './furniture';
+import { furniture, FURNITURE_TURN_ART, KIND_RULES } from './furniture';
 import { insidePolygon, type Pt } from './home';
 
 /**
@@ -24,10 +24,10 @@ export interface FloorItem {
 }
 
 /**
- * 【仮】縦向き(頭が奥・足が手前)に置いたときの、横はば(横向きのときの横はばの何倍か)。
+ * 【仮】縦向き(頭が奥・足が手前)に置いたときの、上下の長さ(横向きのときの横はばの何倍か)。横はばは絵の形で決まる。
  * 企画者の指示(2026-10-21): 左右の壁ぎわにも置きたい → 縦向きの絵を使う(タイルの線に合わせてかたむける)
  */
-export const TURN_WIDTH = 0.62;
+export const TURN_LENGTH = 0.66;
 /** 【仮】縦向きの絵の上下の大きさ(企画者の指示 2026-10-22: 上下は気持ち小さく) */
 export const TURN_HEIGHT = 0.88;
 
@@ -42,8 +42,9 @@ export function footRect(f: FloorItem): Rect {
   const d = r.width * f.persp * r.depth;
   if (f.turn) {
     // 縦向き: はばはせまく、奥へ長い(足元 x, y は手前のまん中)
-    const tw = w * TURN_WIDTH;
-    return { x0: f.x - tw / 2, x1: f.x + tw / 2, y0: f.y - r.width * f.persp * TURN_WIDTH * 0.95 * TURN_HEIGHT, y1: f.y };
+    const len = r.width * f.persp * TURN_LENGTH;
+    const tw = (len / (FURNITURE_TURN_ART[f.item] ?? 1.2) / TURN_HEIGHT) * 0.92;
+    return { x0: f.x - tw / 2, x1: f.x + tw / 2, y0: f.y - len * 0.79, y1: f.y };
   }
   return { x0: f.x - w / 2, x1: f.x + w / 2, y0: f.y - d, y1: f.y };
 }

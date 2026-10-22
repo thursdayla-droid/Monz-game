@@ -3,7 +3,7 @@ import { audio } from '../audio/engine';
 import { FURNITURE_ART_READY, FURNITURE_TURN_ART_READY, furniture, furnitureKey, furnitureTurnFile, furnitureTurnKey, KIND_RULES } from '../core/furniture';
 import type { Pt } from '../core/home';
 import type { LifeRecord } from '../core/lifeSave';
-import { canPlace, footRect, inRect, isWalkable, TURN_HEIGHT, TURN_WIDTH, type FloorItem } from '../core/roomLayout';
+import { canPlace, footRect, inRect, isWalkable, TURN_HEIGHT, TURN_LENGTH, type FloorItem } from '../core/roomLayout';
 import { canvasTextureOnce, UI_FONT } from '../ui/paint';
 import { assetUrl } from '../assetUrl';
 
@@ -126,7 +126,7 @@ export class HomeFurniture {
    * 床のタイルの線(奥の消える点 vanish に向かう線)に合わせて、家具の絵を斜めにかたむけた絵を作る(企画者の指示 2026-10-21)。
    * 絵は描き直さず、下のはしを止めたまま上へいくほど横へずらすだけ。かたむきは 0.05 きざみで作って使い回す
    */
-  private shearedTexture(item: string, flip: boolean, x: number, y: number, turn = false): { key: string; ox: number; base: number } {
+  private shearedTexture(item: string, flip: boolean, x: number, y: number, turn = false): { key: string; ox: number; base: number; baseH: number } {
     // 縦向きの絵は、奥へのびる線がそのままタイルの線になるので、ぴったり(1倍)かたむける
     const src = turn ? furnitureTurnKey(item) : textureFor(this.scene, item);
     const raw = (this.vanish[0] - x) / Math.max(40, y - this.vanish[1]);
@@ -146,16 +146,21 @@ export class HomeFurniture {
       }
       ctx.drawImage(img, 0, 0, w, h);
     });
-    return { key, ox: (w / 2 + off) / (w + Math.abs(sh) * h), base: w };
+    return { key, ox: (w / 2 + off) / (w + Math.abs(sh) * h), base: w, baseH: h };
   }
 
   /** 大きさ・向き・かたむき・重なりの順番を合わせる */
   private layout(it: Placed): void {
     const kind = furniture(it.item)?.kind ?? 'toy';
-    const w = KIND_RULES[kind].width * this.persp(it.y) * (it.turn ? TURN_WIDTH : 1);
-    const t = this.shearedTexture(it.item, it.turn ? false : it.flip, it.x, it.y, it.turn);
+    const w = KIND_RULES[kind].width * this.persp(it.y);
+    // 縦向きは、部屋の左半分では反転(ソファの背もたれが壁がわになるように)
+    const t = this.shearedTexture(it.item, it.turn ? it.x < this.vanish[0] : it.flip, it.x, it.y, it.turn);
     if (it.img.texture.key !== t.key) it.img.setTexture(t.key);
-    it.img.setOrigin(t.ox, 1).setPosition(it.x, it.y).setScale(w / t.base, (w / t.base) * (it.turn ? TURN_HEIGHT : 1));
+    it.img.setOrigin(t.ox, 1).setPosition(it.x, it.y);
+    if (it.turn) {
+      const sy = (w * TURN_LENGTH) / t.baseH;
+      it.img.setScale(sy / TURN_HEIGHT, sy);
+    } else it.img.setScale(w / t.base);
     // カーペットはいつもMONZの下
     it.img.setDepth(isWalkable(it.item) ? this.depthAt(this.floor[0][1]) - 2 : this.depthAt(it.y));
   }
