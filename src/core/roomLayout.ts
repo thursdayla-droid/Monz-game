@@ -67,14 +67,21 @@ export const rectsOverlap = (a: Rect, b: Rect, m = 0) => a.x0 < b.x1 + m && b.x0
 
 export const inRect = ([x, y]: Pt, r: Rect, mx = 0, my = mx) => x > r.x0 - mx && x < r.x1 + mx && y > r.y0 - my && y < r.y1 + my;
 
+/**
+ * 家具を置いたあとも、MONZが歩ける床のいちばん広い所が、これだけ(割合)残っていればよい【仮】。
+ * 企画者の指示(2026-10-22): 家具どうしの間を広く取らせすぎない(前は床が少しでも分かれると置けず、どこにも置けなかった)。
+ * 家具と壁・家具どうしの間の小さなすきま(MONZが入れない所)はあってよい。床がまん中で2つに分かれるような置き方だけできない
+ */
+export const MAIN_FLOOR_SHARE = 0.7;
+
 /** 床が1つにつながったままか(通れない小さなすきまは数えない) */
 export function floorConnected(floor: Pt[], blocks: Rect[], cell = 20): boolean {
   if (!blocks.length) return true;
   return regionConnected(floor, (p) => blocks.some((b) => inRect(p, b, PASS_CLEARANCE, PASS_CLEARANCE * 0.4)), cell);
 }
 
-/** 床のうち blocked でない所が、1つにつながっているか(床のはしの小さなすきまは数えない) */
-export function regionConnected(floor: Pt[], blocked: (p: Pt) => boolean, cell = 20): boolean {
+/** 床のうち blocked でない所をつながりごとに分けて、いちばん広い所(その広さの割合と、点がそこに入るか)を返す */
+export function mainRegion(floor: Pt[], blocked: (p: Pt) => boolean, cell = 20): { share: number; contains: (p: Pt) => boolean } {
   const xs = floor.map((p) => p[0]);
   const ys = floor.map((p) => p[1]);
   const [x0, y0] = [Math.min(...xs), Math.min(...ys)];
@@ -89,28 +96,43 @@ export function regionConnected(floor: Pt[], blocked: (p: Pt) => boolean, cell =
       free.push(ok);
       if (ok) total++;
     }
-  const start = free.indexOf(true);
-  if (start < 0) return false;
-  const seen = new Uint8Array(free.length);
-  const stack = [start];
-  seen[start] = 1;
-  let count = 0;
-  while (stack.length) {
-    const i = stack.pop()!;
-    count++;
-    const r = Math.floor(i / cols);
-    const c = i % cols;
-    for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      const rr = r + dr;
-      const cc = c + dc;
-      const j = rr * cols + cc;
-      if (rr < 0 || cc < 0 || rr >= rows || cc >= cols || seen[j] || !free[j]) continue;
-      seen[j] = 1;
-      stack.push(j);
+  const label = new Int32Array(free.length);
+  let best = 0;
+  let bestCount = 0;
+  let next = 0;
+  for (let s = 0; s < free.length; s++) {
+    if (!free[s] || label[s]) continue;
+    const id = ++next;
+    const stack = [s];
+    label[s] = id;
+    let count = 0;
+    while (stack.length) {
+      const i = stack.pop()!;
+      count++;
+      const r = Math.floor(i / cols);
+      const c = i % cols;
+      for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const rr = r + dr;
+        const cc = c + dc;
+        const j = rr * cols + cc;
+        if (rr < 0 || cc < 0 || rr >= rows || cc >= cols || label[j] || !free[j]) continue;
+        label[j] = id;
+        stack.push(j);
+      }
     }
+    if (count > bestCount) [best, bestCount] = [id, count];
   }
-  // 床の端の小さなすきま(家具と壁のあいだなど)は、つながっていなくてもよい
-  return count >= total * 0.95;
+  const contains = ([x, y]: Pt) => {
+    const c = Math.floor((x - x0) / cell);
+    const r = Math.floor((y - y0) / cell);
+    return c >= 0 && r >= 0 && c < cols && r < rows && best > 0 && label[r * cols + c] === best;
+  };
+  return { share: total ? bestCount / total : 0, contains };
+}
+
+/** 床のうち blocked でない所の、いちばん広い所が MAIN_FLOOR_SHARE 以上残っているか(床がまん中で分かれていないか) */
+export function regionConnected(floor: Pt[], blocked: (p: Pt) => boolean, cell = 20): boolean {
+  return mainRegion(floor, blocked, cell).share >= MAIN_FLOOR_SHARE;
 }
 
 /** その家具を、その場所に置けるか。others: ほかに置いてある家具。walkFloor: MONZが歩ける床(通り道を調べる。なければ floor) */

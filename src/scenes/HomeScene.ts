@@ -556,15 +556,16 @@ export class HomeScene extends Phaser.Scene {
     this.furniture.startEdit(newItem);
   }
 
-  /** 家具の上にMONZがいたら、近くの空いている床に移す */
+  /** 家具の上や、家具のすきま(床のいちばん広い所から切りはなされた所)にMONZがいたら、広い床に移す */
   private moveOutOfFurniture(): void {
     const life = this.life;
     const furn = this.furniture;
-    if (!life || !furn || !furn.blocked([life.x, life.y])) return;
+    if (!life || !furn) return;
+    if (!furn.blocked([life.x, life.y]) && furn.inMainFloor([life.x, life.y])) return;
     const rng = mulberry32((Date.now() >>> 5) & 0xffffffff);
     for (let i = 0; i < 200; i++) {
       const p = randomPointIn(rng, this.floor);
-      if (!furn.blocked(p)) {
+      if (!furn.blocked(p) && furn.inMainFloor(p)) {
         [life.x, life.y] = p;
         return;
       }

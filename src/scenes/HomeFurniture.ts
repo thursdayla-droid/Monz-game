@@ -3,7 +3,7 @@ import { audio } from '../audio/engine';
 import { FURNITURE_ART_READY, FURNITURE_TURN_LONG, NO_SHEAR_KINDS, NO_SHEAR_ITEMS, FURNITURE_TURN_WIDE, FURNITURE_TURN_ART_READY, furniture, furnitureKey, furnitureTurnFile, furnitureTurnKey, KIND_RULES } from '../core/furniture';
 import type { Pt } from '../core/home';
 import type { LifeRecord } from '../core/lifeSave';
-import { canPlace, footRect, inRect, isWalkable, regionConnected, CARPET_SIZE_LABELS, CARPET_SIZES, TURN_HEIGHT, TURN_LENGTH, type FloorItem } from '../core/roomLayout';
+import { canPlace, footRect, inRect, isWalkable, mainRegion, regionConnected, CARPET_SIZE_LABELS, CARPET_SIZES, TURN_HEIGHT, TURN_LENGTH, type FloorItem } from '../core/roomLayout';
 import { canvasTextureOnce, UI_FONT } from '../ui/paint';
 import { assetUrl } from '../assetUrl';
 
@@ -81,6 +81,8 @@ export class HomeFurniture {
   editing = false;
   private selected?: Placed;
   private drag?: { dx: number; dy: number; lastX: number; lastY: number };
+  /** 選んでいる家具の、さいごに置けていた場所と向き(置けない向きにしたまま終えたら、ここにもどす) */
+  private good?: { x: number; y: number; turn: boolean; flip: boolean };
   private panel?: Phaser.GameObjects.Container;
 
   constructor(
@@ -308,6 +310,13 @@ export class HomeFurniture {
   }
 
   private select(it: Placed | undefined): void {
+    const was = this.selected;
+    if (was && was !== it && this.good && !this.valid(was, was.x, was.y)) {
+      // 置けない向きのまま ほかを選んだ・おわった: さいごに置けていた形にもどす
+      Object.assign(was, this.good);
+      this.layout(was);
+    }
+    if (it && it !== was) this.good = { x: it.x, y: it.y, turn: it.turn, flip: it.flip };
     this.selected?.img.clearTint();
     this.selected = it;
     it?.img.setTint(0xfff1a8);
@@ -345,22 +354,22 @@ export class HomeFurniture {
     this.drag = undefined;
     if (!it || !d) return;
     if (!this.valid(it, it.x, it.y)) {
-      // 置けない場所: 元の場所にもどす
+      // 置けない場所: 元の場所にもどす(元の場所でも今の向きでは置けないなら、さいごに置けていた形にもどす)
       it.x = d.lastX;
       it.y = d.lastY;
+      if (!this.valid(it, it.x, it.y) && this.good) Object.assign(it, this.good);
       this.layout(it);
       audio.se('back');
       this.toast('そこには置けません');
-    } else {
-      const [rx, ry] = this.toRoom(it.x, it.y);
-      this.record.movePlaced(it.uid, rx, ry, it.flip, it.turn);
     }
+    if (this.valid(it, it.x, it.y)) this.save(it);
     it.img.setTint(0xfff1a8);
   }
 
   /**
    * 「向き」: 横向き → 横向き(反転) → 縦向き → 縦向き(反転) の順に変える(企画者の指示 2026-10-22)。
-   * 縦向き(頭が奥・足が手前)は、縦向きの絵がある家具だけ。その場所で置けない向きは飛ばす
+   * 縦向き(頭が奥・足が手前)は、縦向きの絵がある家具だけ。
+   * 企画者の指示(2026-10-22): その場所で置けなくても向きは変えられる(赤くなる。置ける所まで動かせば置ける)
    */
   private flip(): void {
     const it = this.selected;
@@ -374,16 +383,37 @@ export class HomeFurniture {
     const now = Math.max(0, order.findIndex(([t, f]) => t === it.turn && f === it.flip));
     for (let k = 1; k < order.length; k++) {
       const [turn, flip] = order[(now + k) % order.length];
-      if (!this.valid(it, it.x, it.y, turn)) continue;
+      if (turn && !this.canTurnAt(it.item)) continue;
       it.turn = turn;
       it.flip = flip;
+      if (isWalkable(it.item)) {
+        // カーペットは、その向きで入るいちばん近い所に寄せる
+        const near = this.nearestFullFit(it, it.x, it.y);
+        if (near) [it.x, it.y] = near;
+      }
       this.layout(it);
-      const [rx, ry] = this.toRoom(it.x, it.y);
-      this.record.movePlaced(it.uid, rx, ry, it.flip, it.turn);
       audio.se('tap');
+      if (this.valid(it, it.x, it.y)) {
+        this.save(it);
+        it.img.setTint(0xfff1a8);
+      } else {
+        it.img.setTint(0xff6a6a);
+        this.toast('このままでは置けません。動かしてね');
+      }
       return;
     }
-    this.toast('ここでは向きを変えられません');
+  }
+
+  /** 今の場所と向きを記録する(置けているときだけ呼ぶ) */
+  private save(it: Placed): void {
+    const [rx, ry] = this.toRoom(it.x, it.y);
+    this.record.movePlaced(it.uid, rx, ry, it.flip, it.turn);
+    if (it === this.selected) this.good = { x: it.x, y: it.y, turn: it.turn, flip: it.flip };
+  }
+
+  /** MONZが歩ける床の、いちばん広い所にその点が入っているか(家具のすきまに閉じこめられていないか) */
+  inMainFloor(p: Pt): boolean {
+    return mainRegion(this.walkFloor, this.blocked, 12).contains(p);
   }
 
   private store(): void {

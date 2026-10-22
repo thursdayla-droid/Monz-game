@@ -81,6 +81,18 @@ describe('life', () => {
     for (let t = 0; t < 1.9; t += 0.05) life.update(0.05);
     expect([life.x, life.y]).toEqual([x, y]);
   });
+
+  it('falls asleep right away when sleepy, even while walking', () => {
+    const floor = HOME_LAYOUTS.street.floor;
+    const brain = new BunkBrain(motion.behavior as unknown as BehaviorConfig, 5, motion.testPersonality as unknown as Personality);
+    let asleep = false;
+    const life = new MonzLife(brain, floor, mulberry32(5), () => 0.5, undefined, () => ({ ...newNeeds(), asleep }));
+    for (let t = 0; t < 60 && life.act !== 'walk' && life.act !== 'explore'; t += 0.05) life.update(0.05);
+    expect(['walk', 'explore']).toContain(life.act);
+    asleep = true;
+    life.update(0.05);
+    expect(life.act).toBe('sleep');
+  });
 });
 
 describe('life record', () => {

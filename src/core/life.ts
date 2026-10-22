@@ -308,6 +308,13 @@ export class MonzLife {
       this.paused -= dt;
       return;
     }
+    // 眠くなったら、歩いているとちゅうでもすぐ眠る(企画者の指示 2026-10-22: 「すやすや ねてる」と出ているのに起きていた)
+    if (this.needs().asleep && this.act !== 'sleep') {
+      this.target = null;
+      this.wanderPath = [];
+      this.begin('sleep', range(this.rng, 20, 40));
+      return;
+    }
     if (this.target) this.move(dt);
     if (this.act === 'look') {
       this.lookTimer -= dt;
