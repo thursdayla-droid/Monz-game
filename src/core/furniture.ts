@@ -91,16 +91,16 @@ export const furnitureKey = (id: string) => `furniture:${id}`;
  * 縦向きの絵がある家具と、その絵の「縦 ÷ 横」(大きさと床の上で占める広さを決めるのに使う)。
  * 縦向きの絵は、反転(向き ボタン)で逆向きにもなる
  */
-export const FURNITURE_TURN_ART: Record<string, number> = { street_bed: 773 / 640, street_sofa: 1379 / 640, street_table: 827 / 640, street_carpet: 769 / 640, street_tv: 1405 / 339, pop_bed: 806 / 640, pop_sofa: 1198 / 640, pop_table: 783 / 640, pop_carpet: 653 / 640, pop_tv: 1407 / 375, cyber_bed: 844 / 640, cyber_sofa: 1188 / 640, cyber_table: 701 / 640 };
+export const FURNITURE_TURN_ART: Record<string, number> = { street_bed: 773 / 640, street_sofa: 1379 / 640, street_table: 827 / 640, street_carpet: 769 / 640, street_tv: 1405 / 339, pop_bed: 806 / 640, pop_sofa: 1198 / 640, pop_table: 783 / 640, pop_carpet: 653 / 640, pop_tv: 1407 / 375, cyber_bed: 844 / 640, cyber_sofa: 1188 / 640, cyber_table: 701 / 640, cyber_tv: 1417 / 393 };
 /**
  * 縦向きの絵の上下の長さの倍率と、そのうち床にのっている割合(テレビは画面が上にのびているので、床の部分は下の方だけ)【仮】
  */
-export const FURNITURE_TURN_LONG: Record<string, number> = { street_tv: 1.5, pop_tv: 1.5 };
+export const FURNITURE_TURN_LONG: Record<string, number> = { street_tv: 1.5, pop_tv: 1.5, cyber_tv: 1.5 };
 /** 床の線に合わせてかたむけない家具(上にのびた画面などが ななめに見えるため。企画者の指示 2026-10-22) */
 export const NO_SHEAR_KINDS: readonly FurnitureKind[] = ['tv', 'light', 'plant'];
 /** 種類にかかわらず、かたむけない家具(POPのおもちゃはぬいぐるみなので、まっすぐ立てる) */
 export const NO_SHEAR_ITEMS: readonly string[] = ['pop_toy'];
-export const FURNITURE_TURN_FLOOR: Record<string, number> = { street_tv: 0.42, pop_tv: 0.42 };
+export const FURNITURE_TURN_FLOOR: Record<string, number> = { street_tv: 0.42, pop_tv: 0.42, cyber_tv: 0.42 };
 export const FURNITURE_TURN_ART_READY: readonly string[] = Object.keys(FURNITURE_TURN_ART);
 /** 縦向きのとき、左右のはばだけを広げる倍率(企画者の指示 2026-10-22: ソファは若干広く)【仮】 */
 export const FURNITURE_TURN_WIDE: Record<string, number> = { street_sofa: 1.15, pop_sofa: 1.15, cyber_sofa: 1.15 };
