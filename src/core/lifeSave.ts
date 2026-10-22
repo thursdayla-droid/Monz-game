@@ -67,6 +67,8 @@ export interface PlacedItem {
   y: number;
   flip: boolean;
   turn?: boolean;
+  /** カーペットの大きさ(0 小・1 中・2 大) */
+  size?: number;
 }
 
 export interface LifeData {
@@ -216,7 +218,7 @@ function fixInventory(inv: Partial<Inventory>): Inventory {
     let uid = typeof p.uid === 'string' && p.uid ? p.uid : `p${i + 1}`;
     while (uids.has(uid)) uid += '_';
     uids.add(uid);
-    placed.push({ uid, item, x: Number(p.x), y: Number(p.y), flip: p.flip === true, ...(p.turn === true ? { turn: true } : {}) });
+    placed.push({ uid, item, x: Number(p.x), y: Number(p.y), flip: p.flip === true, ...(p.turn === true ? { turn: true } : {}), ...(p.size === 1 || p.size === 2 ? { size: p.size } : {}) });
   }
   return { owned, placed };
 }
@@ -395,7 +397,13 @@ export class LifeRecord {
   movePlaced(uid: string, x: number, y: number, flip?: boolean, turn?: boolean): void {
     const inv = this.data.inventory;
     const t = turn ?? false;
-    this.update({ inventory: { ...inv, placed: inv.placed.map((p) => (p.uid === uid ? { uid, item: p.item, x, y, flip: flip ?? p.flip, ...((turn === undefined ? p.turn : t) ? { turn: true } : {}) } : p)) } });
+    this.update({ inventory: { ...inv, placed: inv.placed.map((p) => (p.uid === uid ? { uid, item: p.item, x, y, flip: flip ?? p.flip, ...((turn === undefined ? p.turn : t) ? { turn: true } : {}), ...(p.size ? { size: p.size } : {}) } : p)) } });
+  }
+
+  /** カーペットの大きさを変える(0 小・1 中・2 大) */
+  resizePlaced(uid: string, size: number): void {
+    const inv = this.data.inventory;
+    this.update({ inventory: { ...inv, placed: inv.placed.map((p) => (p.uid === uid ? { ...p, size } : p)) } });
   }
 
   /** 置いてある家具をしまう(アイテムボックスにもどす) */

@@ -3,7 +3,7 @@ import { audio } from '../audio/engine';
 import { FURNITURE_ART_READY, FURNITURE_TURN_WIDE, FURNITURE_TURN_ART_READY, furniture, furnitureKey, furnitureTurnFile, furnitureTurnKey, KIND_RULES } from '../core/furniture';
 import type { Pt } from '../core/home';
 import type { LifeRecord } from '../core/lifeSave';
-import { canPlace, footRect, inRect, isWalkable, TURN_HEIGHT, TURN_LENGTH, type FloorItem } from '../core/roomLayout';
+import { canPlace, footRect, inRect, isWalkable, CARPET_SIZE_LABELS, CARPET_SIZES, TURN_HEIGHT, TURN_LENGTH, type FloorItem } from '../core/roomLayout';
 import { canvasTextureOnce, UI_FONT } from '../ui/paint';
 import { assetUrl } from '../assetUrl';
 
@@ -22,6 +22,8 @@ interface Placed {
   flip: boolean;
   /** 奥向き(左右の壁ぞいに、床の奥行きの線にそって置く) */
   turn: boolean;
+  /** カーペットの大きさ(0 小・1 中・2 大) */
+  size: number;
   img: Phaser.GameObjects.Image;
 }
 
@@ -96,7 +98,7 @@ export class HomeFurniture {
   ) {
     for (const p of record.snapshot.inventory.placed) {
       const [x, y] = this.toScreen(p.x, p.y);
-      this.items.push({ uid: p.uid, item: p.item, x, y, flip: p.flip, turn: p.turn === true, img: this.makeImage(p.item) });
+      this.items.push({ uid: p.uid, item: p.item, x, y, flip: p.flip, turn: p.turn === true, size: p.size ?? 0, img: this.makeImage(p.item) });
     }
     this.items.forEach((it) => this.layout(it));
   }
@@ -113,8 +115,8 @@ export class HomeFurniture {
     return this.scene.add.image(0, 0, textureFor(this.scene, item)).setOrigin(0.5, 1);
   }
 
-  private floorItem(it: { item: string; x: number; y: number; turn?: boolean }): FloorItem {
-    return { item: it.item, x: it.x, y: it.y, persp: this.persp(it.y), ...(it.turn ? { turn: true } : {}) };
+  private floorItem(it: { item: string; x: number; y: number; turn?: boolean; size?: number }): FloorItem {
+    return { item: it.item, x: it.x, y: it.y, persp: this.persp(it.y), ...(it.turn ? { turn: true } : {}), ...(it.size ? { size: it.size } : {}) };
   }
 
   /** 縦向きに置けるのは、縦向きの絵がある家具だけ */
@@ -160,9 +162,9 @@ export class HomeFurniture {
     if (it.turn) {
       const sy = (w * TURN_LENGTH) / t.baseH;
       it.img.setScale((sy / TURN_HEIGHT) * (FURNITURE_TURN_WIDE[it.item] ?? 1), sy);
-    } else it.img.setScale(w / t.base);
-    // カーペットはいつもMONZの下
-    it.img.setDepth(isWalkable(it.item) ? this.depthAt(this.floor[0][1]) - 2 : this.depthAt(it.y));
+    } else it.img.setScale((w / t.base) * (isWalkable(it.item) ? CARPET_SIZES[it.size] ?? 1 : 1));
+    // カーペットはいつもMONZと家具の下(大きいカーペットほど下)
+    it.img.setDepth(isWalkable(it.item) ? this.depthAt(this.floor[0][1]) - 2 - it.size * 0.1 : this.depthAt(it.y));
   }
 
   /** MONZがその場所を歩けないか(家具の上)。MONZの体のはばの分だけ広めに見る */
@@ -219,7 +221,7 @@ export class HomeFurniture {
     const [rx, ry] = this.toRoom(spot[0], spot[1]);
     const uid = this.record.placeItem(item, rx, ry);
     if (!uid) return;
-    const it: Placed = { uid, item, x: spot[0], y: spot[1], flip: false, turn: false, img: this.makeImage(item) };
+    const it: Placed = { uid, item, x: spot[0], y: spot[1], flip: false, turn: false, size: 0, img: this.makeImage(item) };
     this.items.push(it);
     this.layout(it);
     this.select(it);
@@ -242,7 +244,7 @@ export class HomeFurniture {
   private valid(it: Placed, x: number, y: number, turn = it.turn): boolean {
     if (turn && !this.canTurnAt(it.item)) return false;
     const others = this.items.filter((o) => o !== it).map((o) => this.floorItem(o));
-    return canPlace(this.floorItem({ item: it.item, x, y, turn }), others, this.floor, this.walkFloor);
+    return canPlace(this.floorItem({ item: it.item, x, y, turn, size: it.size }), others, this.floor, this.walkFloor);
   }
 
   private select(it: Placed | undefined): void {
@@ -347,7 +349,12 @@ export class HomeFurniture {
         .setOrigin(0.5)
         .setInteractive({ useHandCursor: true })
         .on('pointerdown', onTap);
-    this.buttons = [mk(W / 2 - 220, '向き', () => this.flip(), '#ffffff'), mk(W / 2, 'しまう', () => this.store(), '#ffffff'), mk(W / 2 + 220, 'おわる', () => this.endEdit(), '#ffd23a')];
+    this.buttons = [
+      mk(W / 2 - 255, '向き', () => this.flip(), '#ffffff'),
+      mk(W / 2 - 85, '大きさ', () => this.resize(), '#ffffff'),
+      mk(W / 2 + 85, 'しまう', () => this.store(), '#ffffff'),
+      mk(W / 2 + 255, 'おわる', () => this.endEdit(), '#ffd23a'),
+    ];
     c.add([bg, title, ...this.buttons]);
     this.panel = c;
     this.refreshPanel();
@@ -357,7 +364,24 @@ export class HomeFurniture {
     if (!this.buttons.length) return;
     const on = !!this.selected;
     this.buttons[0].setAlpha(on ? 1 : 0.4);
-    this.buttons[1].setAlpha(on ? 1 : 0.4);
+    // 大きさを変えられるのはカーペットだけ
+    this.buttons[1].setVisible(on && isWalkable(this.selected!.item));
+    this.buttons[2].setAlpha(on ? 1 : 0.4);
+  }
+
+  /** カーペットの大きさ: 小 → 中 → 大 → 小(企画者の指示 2026-10-22)。置けない大きさは飛ばす */
+  private resize(): void {
+    const it = this.selected;
+    if (!it || !isWalkable(it.item)) return;
+    const was = it.size;
+    for (let k = 1; k <= CARPET_SIZES.length; k++) {
+      it.size = (was + k) % CARPET_SIZES.length;
+      if (this.valid(it, it.x, it.y)) break;
+    }
+    this.layout(it);
+    this.record.resizePlaced(it.uid, it.size);
+    audio.se('tap');
+    this.toast(`大きさ：${CARPET_SIZE_LABELS[it.size]}`);
   }
 
   private toast(msg: string): void {
