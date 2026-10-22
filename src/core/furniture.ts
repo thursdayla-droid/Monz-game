@@ -83,7 +83,7 @@ export const furnitureKey = (id: string) => `furniture:${id}`;
  */
 /**
  * 縦向きの絵がある家具と、その絵の「縦 ÷ 横」(大きさと床の上で占める広さを決めるのに使う)。
- * 縦向きの絵は「右の壁ぞい向き」(ソファなら背もたれが右)。部屋の左半分では反転して使う
+ * 縦向きの絵は、反転(向き ボタン)で逆向きにもなる
  */
 export const FURNITURE_TURN_ART: Record<string, number> = { street_bed: 773 / 640, street_sofa: 1379 / 640 };
 export const FURNITURE_TURN_ART_READY: readonly string[] = Object.keys(FURNITURE_TURN_ART);

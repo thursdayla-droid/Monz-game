@@ -153,8 +153,8 @@ export class HomeFurniture {
   private layout(it: Placed): void {
     const kind = furniture(it.item)?.kind ?? 'toy';
     const w = KIND_RULES[kind].width * this.persp(it.y);
-    // 縦向きは、部屋の左半分では反転(ソファの背もたれが壁がわになるように)
-    const t = this.shearedTexture(it.item, it.turn ? it.x < this.vanish[0] : it.flip, it.x, it.y, it.turn);
+    // 企画者の指示(2026-10-22): 向きは 横・横の反転・縦・縦の反転 の4つ。置く場所で勝手に反転しない
+    const t = this.shearedTexture(it.item, it.flip, it.x, it.y, it.turn);
     if (it.img.texture.key !== t.key) it.img.setTexture(t.key);
     it.img.setOrigin(t.ox, 1).setPosition(it.x, it.y);
     if (it.turn) {
@@ -292,7 +292,7 @@ export class HomeFurniture {
   }
 
   /**
-   * 「向き」: 横向き → 横向き(反転) → 縦向き の順に変える。
+   * 「向き」: 横向き → 横向き(反転) → 縦向き → 縦向き(反転) の順に変える(企画者の指示 2026-10-22)。
    * 縦向き(頭が奥・足が手前)は、縦向きの絵がある家具だけ。その場所で置けない向きは飛ばす
    */
   private flip(): void {
@@ -302,8 +302,9 @@ export class HomeFurniture {
       [false, false],
       [false, true],
       [true, false],
+      [true, true],
     ];
-    const now = Math.max(0, order.findIndex(([t, f]) => t === it.turn && (t || f === it.flip)));
+    const now = Math.max(0, order.findIndex(([t, f]) => t === it.turn && f === it.flip));
     for (let k = 1; k < order.length; k++) {
       const [turn, flip] = order[(now + k) % order.length];
       if (!this.valid(it, it.x, it.y, turn)) continue;
