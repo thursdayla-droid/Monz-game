@@ -144,5 +144,5 @@
 - ブランチ：`claude/monz-game-development-pztk8y` に push（main には企画者の許可が出るまで入れない）
 - 確かめる：`npm run typecheck` と `npm test`（今 104 テスト）
 - 画面で確かめる：`npx vite --port 5199` を動かして、Playwright（`/opt/pw-browsers/chromium`）で iPhone の大きさ（390×693）の画面を撮る
-- 企画者に見せる：`rm -rf dist && npm run build && python3 -I tools/build_preview.py <出力.html>` で確認用ページを作り、Artifact で公開（https://claude.ai/artifact/9qauCQZ9xmdERAFrzwkeLh を同じ場所で更新）。**12MB くらいまで**（15MBで iPhone で開けなかった）
+- 企画者に見せる：`rm -rf dist && npm run build && python3 -I tools/build_preview.py <出力.html>` で確認用ページを作り、Artifact で公開（https://claude.ai/artifact/9qauCQZ9xmdERAFrzwkeLh を同じ場所で更新）。ページが重くなったら絵を軽くしてよい（見た目の大きさは変えない。企画者 2026-10-22: 前に15MBで開かなかったのは勘ちがいだったかも）
 - 決まったことは `docs/VISION.md`（全体）か `docs/ROOM_PLAN.md`（部屋・家具）に日付つきで足す。このファイルの表も合わせて直す
