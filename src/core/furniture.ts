@@ -38,7 +38,7 @@ interface KindRule {
 
 export const KIND_RULES: Record<FurnitureKind, KindRule> = {
   bed: { name: 'ベッド', price: 500, width: 460, depth: 0.3, walkable: false },
-  sofa: { name: 'ソファ', price: 400, width: 380, depth: 0.32, walkable: false },
+  sofa: { name: 'ソファ', price: 400, width: 440, depth: 0.32, walkable: false },
   table: { name: 'テーブル', price: 250, width: 230, depth: 0.4, walkable: false },
   carpet: { name: 'カーペット', price: 200, width: 420, depth: 0.42, walkable: true },
   light: { name: '照明', price: 300, width: 110, depth: 0.6, walkable: false },
@@ -74,7 +74,7 @@ export const FURNITURE: FurnitureDef[] = FURNITURE_SERIES.flatMap((series) =>
  * 企画者の絵が届いている家具(design/furniture/ → make_furniture.py で切り抜き)。届いていない家具は【仮】の見た目。
  * 企画者決定(2026-10-21): 家具の絵は斜め横向き。反転で逆向きにも使う
  */
-export const FURNITURE_ART_READY: readonly string[] = ['street_bed'];
+export const FURNITURE_ART_READY: readonly string[] = ['street_bed', 'street_sofa'];
 export const furnitureKey = (id: string) => `furniture:${id}`;
 
 /**
