@@ -3,7 +3,7 @@ import { audio } from '../audio/engine';
 import { FURNITURE_ART_READY, FURNITURE_TURN_LONG, NO_SHEAR_KINDS, FURNITURE_TURN_WIDE, FURNITURE_TURN_ART_READY, furniture, furnitureKey, furnitureTurnFile, furnitureTurnKey, KIND_RULES } from '../core/furniture';
 import type { Pt } from '../core/home';
 import type { LifeRecord } from '../core/lifeSave';
-import { canPlace, footRect, inRect, isWalkable, CARPET_SIZE_LABELS, CARPET_SIZES, TURN_HEIGHT, TURN_LENGTH, type FloorItem } from '../core/roomLayout';
+import { canPlace, footRect, inRect, isWalkable, regionConnected, CARPET_SIZE_LABELS, CARPET_SIZES, TURN_HEIGHT, TURN_LENGTH, type FloorItem } from '../core/roomLayout';
 import { canvasTextureOnce, UI_FONT } from '../ui/paint';
 import { assetUrl } from '../assetUrl';
 
@@ -258,7 +258,16 @@ export class HomeFurniture {
     if (turn && !this.canTurnAt(it.item)) return false;
     if (isWalkable(it.item)) return this.carpetFit(it, x, y, turn) !== null;
     const others = this.items.filter((o) => o !== it).map((o) => this.floorItem(o));
-    return canPlace(this.floorItem({ item: it.item, x, y, turn, size: it.size }), others, this.floor, this.walkFloor);
+    if (!canPlace(this.floorItem({ item: it.item, x, y, turn, size: it.size }), others, this.floor, this.walkFloor)) return false;
+    // BUNKが実際に歩けるかでも確かめる(企画者の指示 2026-10-22: 家具の間を通れなくならないように)。
+    // BUNKが通れないすきまで、床が分かれてしまう置き方はできない
+    const saved = { x: it.x, y: it.y, turn: it.turn };
+    Object.assign(it, { x, y, turn });
+    this.layout(it);
+    const ok = regionConnected(this.walkFloor, this.blocked, 12);
+    Object.assign(it, saved);
+    this.layout(it);
+    return ok;
   }
 
   /** カーペットの、いちばん小さくしてよい倍率(選んだ大きさの8割まで。奥に行っても小さくなりすぎないように) */

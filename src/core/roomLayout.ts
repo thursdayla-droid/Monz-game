@@ -70,6 +70,11 @@ export const inRect = ([x, y]: Pt, r: Rect, mx = 0, my = mx) => x > r.x0 - mx &&
 /** 床が1つにつながったままか(通れない小さなすきまは数えない) */
 export function floorConnected(floor: Pt[], blocks: Rect[], cell = 20): boolean {
   if (!blocks.length) return true;
+  return regionConnected(floor, (p) => blocks.some((b) => inRect(p, b, PASS_CLEARANCE, PASS_CLEARANCE * 0.4)), cell);
+}
+
+/** 床のうち blocked でない所が、1つにつながっているか(床のはしの小さなすきまは数えない) */
+export function regionConnected(floor: Pt[], blocked: (p: Pt) => boolean, cell = 20): boolean {
   const xs = floor.map((p) => p[0]);
   const ys = floor.map((p) => p[1]);
   const [x0, y0] = [Math.min(...xs), Math.min(...ys)];
@@ -80,7 +85,7 @@ export function floorConnected(floor: Pt[], blocks: Rect[], cell = 20): boolean 
   for (let r = 0; r < rows; r++)
     for (let c = 0; c < cols; c++) {
       const p: Pt = [x0 + (c + 0.5) * cell, y0 + (r + 0.5) * cell];
-      const ok = insidePolygon(p, floor) && !blocks.some((b) => inRect(p, b, PASS_CLEARANCE, PASS_CLEARANCE * 0.4));
+      const ok = insidePolygon(p, floor) && !blocked(p);
       free.push(ok);
       if (ok) total++;
     }

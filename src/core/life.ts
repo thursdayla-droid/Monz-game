@@ -206,7 +206,7 @@ export class MonzLife {
 
   /** 床をマス目に分けて、家具をよけた道を探す(いちばん近い行ける所まで) */
   private findPath(goal: Pt): Pt[] {
-    const cell = 22;
+    const cell = 12;
     const xs = this.floor.map((p) => p[0]);
     const ys = this.floor.map((p) => p[1]);
     const x0 = Math.min(...xs);
@@ -214,8 +214,8 @@ export class MonzLife {
     const cols = Math.ceil((Math.max(...xs) - x0) / cell);
     const rows = Math.ceil((Math.max(...ys) - y0) / cell);
     const center = (c: number, r: number): Pt => [x0 + (c + 0.5) * cell, y0 + (r + 0.5) * cell];
-    // マスのまん中と四すみが、どれも家具にかかっていなければ通れる(マスの間を歩いても家具に入らないように)
-    const h = cell / 2;
+    // マスのまん中と四すみ(少し内側)が、どれも家具にかかっていなければ通れる(マスの間を歩いても家具に入らないように)
+    const h = cell / 3;
     const free = (c: number, r: number) => {
       if (c < 0 || r < 0 || c >= cols || r >= rows) return false;
       const [x, y] = center(c, r);
@@ -336,6 +336,11 @@ export class MonzLife {
     if (dist <= speed * dt) {
       [this.x, this.y] = [tx, ty];
       this.target = null;
+      // 道のとちゅう: 次の曲がり角へ
+      if (this.wanderPath.length) {
+        this.target = this.wanderPath.shift()!;
+        return;
+      }
       if (this.act === 'explore' && this.stops > 0) {
         // ちょっと立ち止まってから、次の場所へ
         this.stops--;
@@ -352,7 +357,10 @@ export class MonzLife {
     // 床の外・家具の上には出ない(念のため)
     // (今もう家具の上にいるときは、外へ出られるように動いてよい)
     if (insidePolygon([nx, ny], this.floor) && (!this.blocked([nx, ny]) || this.blocked([this.x, this.y]))) [this.x, this.y] = [nx, ny];
-    else this.target = null;
+    else {
+      this.target = null;
+      this.wanderPath = [];
+    }
     if (Math.abs(dx) > 4) this.facing = dx > 0 ? 1 : -1;
     this.body.dir = this.facing;
   }
@@ -477,27 +485,50 @@ export class MonzLife {
     }
   }
 
+  /** ふだん歩くときの道(家具をよけて回りこむ。企画者の指示 2026-10-22: 家具の間も通る) */
+  private wanderPath: Pt[] = [];
+
   private walkTo(p: Pt): void {
-    this.target = p;
+    const path = this.smooth(this.findPath(p));
+    this.wanderPath = path.slice(1);
+    this.target = path[0] ?? p;
     this.body.start('walk');
     this.body.dir = p[0] >= this.x ? 1 : -1;
     this.facing = this.body.dir;
   }
 
-  /** そこからそこまで、家具にぶつからずにまっすぐ歩けるか */
-  private pathClear(to: Pt): boolean {
-    const d = Math.hypot(to[0] - this.x, to[1] - this.y);
-    const n = Math.max(1, Math.ceil(d / 10));
-    for (let i = 1; i <= n; i++) if (this.blocked([this.x + ((to[0] - this.x) * i) / n, this.y + ((to[1] - this.y) * i) / n])) return false;
+  /** from から to まで、家具にぶつからずにまっすぐ歩けるか */
+  private pathClear(from: Pt, to: Pt): boolean {
+    const d = Math.hypot(to[0] - from[0], to[1] - from[1]);
+    const n = Math.max(1, Math.ceil(d / 6));
+    for (let i = 1; i <= n; i++) {
+      const q: Pt = [from[0] + ((to[0] - from[0]) * i) / n, from[1] + ((to[1] - from[1]) * i) / n];
+      if (this.blocked(q) || !insidePolygon(q, this.floor)) return false;
+    }
     return true;
   }
 
-  /** 今いる場所から、だいたい min〜max 離れた床の上の点。家具の上と、家具をつきぬける道は選ばない(家具をよけて歩く) */
+  /** マス目の道を、まっすぐ行ける所は飛ばして、なめらかな道にする */
+  private smooth(path: Pt[]): Pt[] {
+    const out: Pt[] = [];
+    let from: Pt = [this.x, this.y];
+    let i = 0;
+    while (i < path.length) {
+      let j = path.length - 1;
+      while (j > i && !this.pathClear(from, path[j])) j--;
+      out.push(path[j]);
+      from = path[j];
+      i = j + 1;
+    }
+    return out;
+  }
+
+  /** 今いる場所から、だいたい min〜max 離れた床の上の点。家具の上は選ばない(行くときは家具をよけて回りこむ) */
   private pickTarget(min: number, max: number): Pt {
     let best: Pt = [this.x, this.y];
     for (let i = 0; i < 40; i++) {
       const p = randomPointIn(this.rng, this.floor);
-      if (!this.pathClear(p)) continue;
+      if (this.blocked(p)) continue;
       const d = Math.hypot(p[0] - this.x, p[1] - this.y);
       best = p;
       if (d >= min && d <= max) break;
