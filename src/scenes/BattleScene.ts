@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
-import { BUNK_ATTACKS, HP_MAX, MOVE, newPractice, NO_INPUT, stepBattle, STOCKS, type Battle, type BattleEvent, type Fighter, type Input } from '../core/battle';
+import { BUNK_ATTACKS, HP_MAX, MOVE, newPractice, NO_INPUT, stepBattle, STOCKS, type AttackName, type Battle, type BattleEvent, type Fighter, type Input } from '../core/battle';
 import { PALETTES } from '../core/palettes';
 import { recolorPixels } from '../core/recolor';
 import { BUNK_MOTION } from '../render/bunkView';
@@ -35,25 +35,62 @@ interface PartsManifest {
   parts: Record<string, { x: number; y: number; w: number; h: number; z: number }>;
 }
 
+/** 0〜1 をなめらかに */
+const easeOut = (k: number) => 1 - (1 - k) * (1 - k);
+const easeIn = (k: number) => k * k;
+
 /**
- * BUNKの見た目(バトル用)。元画像から切り出したパーツ(構えた姿)を並べて、拳・足・体の傾きで攻撃の形にする。
+ * 攻撃の動きの3つの段階: ためる(startup) → 打つ(active) → もどる(recovery)。
+ * windup: ためている強さ(0→1)、strike: 打っている強さ(0→1→0)
+ */
+function attackPhase(f: Fighter): { name: AttackName | ''; windup: number; strike: number } {
+  if (!f.attack) return { name: '', windup: 0, strike: 0 };
+  const d = BUNK_ATTACKS[f.attack.name];
+  const a = f.attack.t;
+  if (a < d.startup) return { name: f.attack.name, windup: easeOut(a / d.startup), strike: 0 };
+  if (a < d.startup + d.active) {
+    // 打った瞬間に一気に前へ(少し行きすぎてからもどる)
+    const k = (a - d.startup) / d.active;
+    return { name: f.attack.name, windup: 0, strike: Math.min(1.15, easeOut(Math.min(1, k * 2.2)) * (1 + 0.15 * Math.sin(Math.min(1, k * 2.2) * Math.PI))) };
+  }
+  const k = (a - d.startup - d.active) / d.recovery;
+  return { name: f.attack.name, windup: 0, strike: Math.max(0, 1 - easeIn(Math.min(1, k))) };
+}
+
+/**
+ * BUNKの見た目(バトル用)。元画像から切り出したパーツ(構えた姿)を並べて、拳・足・体の動きで攻撃の形にする。
  * 絵は描き直さない。【仮】攻撃の専用ポーズの絵が届いたら差しかえる。
+ * 企画者の指示(2026-10-23): 2Dの手抜き感をなくして、ちゃんと動いている感じに →
+ * ため・打つ・もどるの3段階、体ごと踏みこむ、のび縮み(ジャンプ・着地)、ボクサーのような小きざみな構え、足の運び
  */
 class FighterView {
   readonly root: Phaser.GameObjects.Container;
+  private readonly body: Phaser.GameObjects.Container;
   private readonly actor: Phaser.GameObjects.Container;
   private readonly parts = new Map<string, { img: Phaser.GameObjects.Image; x: number; y: number }>();
   private readonly shield: Phaser.GameObjects.Arc;
   private readonly shadow: Phaser.GameObjects.Ellipse;
   private flash = 0;
+  /** 着地・ジャンプの のび縮み(+ でつぶれる、- でのびる) */
+  private squash = 0;
+  private wasGround = true;
+  private walkT = 0;
+  /** 当たった瞬間のふるえ */
+  private shake = 0;
 
-  constructor(scene: Phaser.Scene, alt: boolean) {
+  constructor(
+    private readonly scene: Phaser.Scene,
+    alt: boolean,
+  ) {
     const manifest = scene.cache.json.get('bunk:guard:manifest') as PartsManifest;
     const [ax, ay] = BUNK_MOTION.anchor;
     this.shadow = scene.add.ellipse(0, 0, 120, 18, 0x000000, 0.35).setDepth(9);
     this.root = scene.add.container(0, 0).setDepth(10);
+    // body: 足元を中心に のび縮み・傾き。actor: 左右の向き(反転)と大きさ
+    this.body = scene.add.container(0, 0);
     this.actor = scene.add.container(0, 0);
-    this.root.add(this.actor);
+    this.body.add(this.actor);
+    this.root.add(this.body);
     const names = Object.entries(manifest.parts).sort((a, b) => a[1].z - b[1].z);
     for (const [name, p] of names) {
       const key = alt ? altTexture(scene, `bunk:guard:${name}`) : `bunk:guard:${name}`;
@@ -63,76 +100,155 @@ class FighterView {
       this.parts.set(name, { img, x: img.x, y: img.y });
     }
     this.actor.setScale(FIGHTER_SCALE);
-    this.shield = scene.add.circle(0, -MOVE.height / 2, 78, 0x4ec3ff, 0.32).setStrokeStyle(4, 0xbfeaff, 0.9).setVisible(false);
+    this.shield = scene.add.circle(0, -MOVE.height / 2, 80, 0x4ec3ff, 0.32).setStrokeStyle(4, 0xbfeaff, 0.9).setVisible(false);
     this.root.add(this.shield);
   }
 
-  hurt(): void {
-    this.flash = 0.12;
+  hurt(damage: number): void {
+    this.flash = 0.1;
+    this.shake = 0.08 + damage * 0.012;
   }
 
-  update(f: Fighter, t: number, dt: number, floorY: number | null): void {
+  /** 土ぼこり */
+  private dust(x: number, y: number, n: number, spread: number): void {
+    for (let i = 0; i < n; i++) {
+      const c = this.scene.add.circle(x + (Math.random() - 0.5) * 20, y - 4, 7 + Math.random() * 7, 0xe9dcff, 0.7).setDepth(8);
+      const dir = i % 2 ? 1 : -1;
+      this.scene.tweens.add({ targets: c, x: c.x + dir * (20 + Math.random() * spread), y: c.y - 10 - Math.random() * 16, scale: 1.8, alpha: 0, duration: 320 + Math.random() * 160, ease: 'Quad.easeOut', onComplete: () => c.destroy() });
+    }
+  }
+
+  update(f: Fighter, t: number, dt: number, floorY: number | null, frozen: boolean): void {
     const out = f.out > 0;
     this.root.setVisible(!out);
     this.shadow.setVisible(!out && floorY !== null);
-    if (out) return;
+    if (out) {
+      this.wasGround = false;
+      return;
+    }
     if (floorY !== null) {
       const h = Math.max(0, floorY - f.y);
       this.shadow.setPosition(f.x, floorY + 2).setScale(Math.max(0.3, 1 - h / 400));
     }
-    this.root.setPosition(f.x, f.y);
+    // 着地・ジャンプした瞬間
+    const onGround = !!f.ground;
+    if (onGround && !this.wasGround) {
+      this.squash = 0.22;
+      this.dust(f.x, f.y, 4, 30);
+      audio.se('land', { pitch: 0.9 + Math.random() * 0.2 });
+    }
+    if (!onGround && this.wasGround && f.vy < -200) {
+      this.squash = -0.2;
+      this.dust(f.x, f.y, 3, 18);
+    }
+    this.wasGround = onGround;
+    if (!frozen) this.squash *= Math.max(0, 1 - dt * 10);
+
+    // 当たった瞬間はその場で小さくふるえる
+    this.shake = Math.max(0, this.shake - dt);
+    const jitter = this.shake > 0 ? (Math.random() - 0.5) * 10 : 0;
+    this.root.setPosition(f.x + jitter, f.y);
     // 向き: 右向きがそのまま。左は反転(目だけは反転しない)
     this.actor.scaleX = FIGHTER_SCALE * f.face;
-    for (const eye of ['eye_l', 'eye_r']) this.parts.get(eye)?.img.setScale(f.face, 1);
 
-    // 攻撃の形(0→1→0)
-    let punch = 0;
-    let name = '';
-    if (f.attack) {
-      const d = BUNK_ATTACKS[f.attack.name];
-      const a = f.attack.t;
-      name = f.attack.name;
-      punch = a < d.startup ? (a / d.startup) * 0.6 : a < d.startup + d.active ? 1 : Math.max(0, 1 - (a - d.startup - d.active) / d.recovery);
-    }
-    const set = (part: string, dx: number, dy: number, rot = 0, sc = 1) => {
+    const { name, windup, strike } = attackPhase(f);
+    const set = (part: string, dx: number, dy: number, rot = 0, sx = 1, sy = sx) => {
       const p = this.parts.get(part);
-      if (p) p.img.setPosition(p.x + dx, p.y + dy).setRotation(rot).setScale(part.startsWith('eye') ? f.face * sc : sc, sc);
+      if (p) p.img.setPosition(p.x + dx, p.y + dy).setRotation(rot).setScale(part.startsWith('eye') ? f.face * sx : sx, sy);
     };
     for (const n of this.parts.keys()) set(n, 0, 0);
+
     let rot = 0;
-    let sy = 1;
+    let lean = 0;
+    let step = 0;
     let y = 0;
-    if (name === 'jab') set('glove_r', 230 * punch, -20 * punch);
-    if (name === 'side') {
-      set('glove_r', 420 * punch, -40 * punch, 0, 1 + 0.08 * punch);
-      set('glove_l', 80 * punch, 0);
-      rot = 7 * punch;
+    let sq = this.squash;
+    // 構え: ボクサーのように小きざみにはずむ。拳は左右で交互に上下
+    const bounce = Math.sin(t * 7.5);
+    if (!f.attack && onGround && !f.walking && !f.shield && f.stun <= 0) {
+      y = -Math.abs(bounce) * 5;
+      set('glove_r', 10 * bounce, -22 * bounce);
+      set('glove_l', -8 * bounce, 22 * bounce);
+      sq += Math.abs(bounce) * -0.025;
     }
-    if (name === 'up') {
-      set('glove_r', -60 * punch, -620 * punch, -0.3 * punch, 1 + 0.06 * punch);
-      rot = -6 * punch;
-      y = -6 * punch;
+    // 歩く: 足を交互に前へ出して、体を上下させる
+    if (f.walking && !f.attack) {
+      this.walkT += dt * 13;
+      const s = Math.sin(this.walkT);
+      set('foot_l', 70 * s, -Math.max(0, s) * 60);
+      set('foot_r', -70 * s, -Math.max(0, -s) * 60);
+      set('glove_r', 40 * s, -20);
+      set('glove_l', -40 * s, -10);
+      y = -Math.abs(s) * 9;
+      lean = 6;
     }
-    if (name === 'down') {
-      set('foot_r', 300 * punch, -30 * punch);
-      sy = 1 - 0.14 * punch;
-      rot = 6 * punch;
-    }
-    // 歩く・空中・吹っ飛び
-    if (!f.attack) {
-      if (f.walking) {
-        y = -Math.abs(Math.sin(t * 14)) * 7;
-        rot = Math.sin(t * 14) * 4;
-      } else if (!f.ground) {
-        rot = f.vy < 0 ? -5 : 4;
+    // 空中: のぼりは体をのばして足を引く、くだりは手足を広げる
+    if (!onGround && !f.attack && f.stun <= 0) {
+      if (f.vy < 0) {
+        set('foot_l', 30, -90);
+        set('foot_r', -20, -80);
+        set('glove_r', 30, -60);
+        lean = -4;
       } else {
-        sy = 1 + Math.sin(t * 4) * 0.012;
+        set('foot_l', -30, 20);
+        set('foot_r', 40, 10);
+        set('glove_l', -60, -40);
+        set('glove_r', 60, -50);
+        lean = 4;
       }
     }
-    if (f.stun > 0 && !f.ground) rot += (t * 900) % 360;
-    this.actor.setRotation(((rot * f.face) * Math.PI) / 180).setPosition(0, y);
-    this.actor.scaleY = FIGHTER_SCALE * sy;
-    this.shield.setVisible(f.shield);
+    // 攻撃: ためで後ろへ引いて、打つときに体ごと踏みこむ
+    if (name === 'jab') {
+      set('glove_r', -60 * windup + 330 * strike, -10 * windup - 30 * strike, 0, 1 + 0.1 * strike);
+      set('glove_l', 30 * strike, 20 * strike);
+      lean = -3 * windup + 6 * strike;
+      step = 8 * strike;
+    }
+    if (name === 'side') {
+      set('glove_r', -200 * windup + 560 * strike, 10 * windup - 50 * strike, -0.15 * windup, 1 + 0.18 * strike, 1 + 0.1 * strike);
+      set('glove_l', -80 * windup + 120 * strike, 30 * strike);
+      set('foot_r', 40 * strike, 0);
+      set('foot_l', -60 * strike, 0);
+      lean = -9 * windup + 14 * strike;
+      step = -6 * windup + 22 * strike;
+      sq += 0.06 * windup - 0.05 * strike;
+    }
+    if (name === 'up') {
+      // しゃがんでためて、のびあがって突き上げる
+      set('glove_r', 60 * windup - 60 * strike, 160 * windup - 600 * strike, 0.2 * windup - 0.35 * strike, 1 + 0.12 * strike);
+      set('glove_l', 40 * strike, 60 * strike);
+      lean = 6 * windup - 10 * strike;
+      sq += 0.16 * windup - 0.16 * strike;
+      y = -14 * strike;
+      step = 6 * strike;
+    }
+    if (name === 'down') {
+      // 下パンチ(企画者の指示 2026-10-23: 足払いをやめてパンチに): 低くしゃがんで、前の下へ打ちこむ
+      set('glove_r', -60 * windup + 420 * strike, -40 * windup + 420 * strike, 0.4 * strike, 1 + 0.12 * strike);
+      set('glove_l', 60 * strike, 120 * strike);
+      lean = -4 * windup + 16 * strike;
+      sq += 0.12 * windup + 0.14 * strike;
+      step = 16 * strike;
+    }
+    // 吹っ飛んでいる: くるくる回る
+    if (f.stun > 0 && !onGround) {
+      rot = (t * 1100) % 360;
+      set('glove_l', -80, -80);
+      set('glove_r', 80, -100);
+      set('foot_l', -40, 40);
+      set('foot_r', 50, 40);
+    }
+    // ガード: 両手を前で固める
+    if (f.shield) {
+      set('glove_r', -120, -40);
+      set('glove_l', 140, -20);
+      sq += 0.06;
+    }
+    const sy = 1 - sq;
+    const sx = 1 + sq * 0.6;
+    this.body.setScale(sx, sy).setRotation((((rot + lean) * f.face) * Math.PI) / 180);
+    this.actor.setPosition(step * f.face, y);
+    this.shield.setVisible(f.shield).setScale(0.95 + Math.sin(t * 20) * 0.03);
     // 当たった瞬間は白く光る。復活したばかりは点滅
     this.flash = Math.max(0, this.flash - dt);
     for (const { img } of this.parts.values()) {
@@ -185,6 +301,7 @@ export class BattleScene extends Phaser.Scene {
   private stickBase!: Phaser.GameObjects.Arc;
   private stickCenter = { x: STICK.x, y: STICK.y };
   private turnHint?: Phaser.GameObjects.Container;
+  private trailT = 0;
 
   constructor() {
     super('Battle');
@@ -205,6 +322,8 @@ export class BattleScene extends Phaser.Scene {
     this.stick = { id: -1, x: 0, y: 0 };
     this.held = {};
     this.pressed = { a: false, jump: false };
+    this.hud = [];
+    this.buttonGfx = {};
     this.battle = newPractice();
     this.input.addPointer(3);
     this.drawBackground();
@@ -452,7 +571,18 @@ export class BattleScene extends Phaser.Scene {
       inp = { ...inp, a: false, jump: false };
       for (const e of events) this.onEvent(e);
     }
-    this.battle.fighters.forEach((f, i) => this.views[i]?.update(f, this.t, dt, this.floorUnder(f)));
+    const frozen = this.battle.hitstop > 0;
+    // 強く吹っ飛んでいるときは、けむりの尾を引く
+    this.trailT -= dt;
+    if (this.trailT <= 0 && !frozen) {
+      this.trailT = 0.03;
+      for (const f of this.battle.fighters) {
+        if (f.out > 0 || f.stun <= 0 || Math.hypot(f.vx, f.vy) < 500) continue;
+        const c = this.add.circle(f.x, f.y - MOVE.height / 2, 14, 0xffffff, 0.55).setDepth(8);
+        this.tweens.add({ targets: c, scale: 2.2, alpha: 0, duration: 380, onComplete: () => c.destroy() });
+      }
+    }
+    this.battle.fighters.forEach((f, i) => this.views[i]?.update(f, this.t, dt, this.floorUnder(f), frozen));
     this.refreshHud();
     this.turnHint?.setVisible(window.innerHeight > window.innerWidth);
   }
@@ -465,45 +595,91 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private onEvent(e: BattleEvent): void {
-    if (e.kind === 'swing') audio.se('swing', { pitch: e.name === 'jab' ? 1.3 : 1 });
-    if (e.kind === 'jump') audio.se('boing', { pitch: 1.4 });
+    if (e.kind === 'swing') {
+      audio.se('whoosh', { pitch: e.name === 'jab' ? 1.35 : e.name === 'side' ? 0.85 : 1 });
+      this.swoosh(e.who, e.name);
+    }
+    if (e.kind === 'jump') audio.se('hop', { pitch: e.who.ground ? 1 : 1.25 });
     if (e.kind === 'block') {
-      audio.se('knock');
-      this.spark(e.x, e.y, 0x4ec3ff, 0.7);
+      audio.se('guard');
+      this.spark(e.x, e.y, 0x9fe3ff, 0.7);
     }
     if (e.kind === 'hit') {
       const i = this.battle.fighters.indexOf(e.target);
-      this.views[i]?.hurt();
-      audio.se(e.damage >= 8 ? 'slam' : 'knock');
-      this.spark(e.x, e.y, 0xffe066, e.damage >= 8 ? 1.4 : 1);
-      const n = this.text(e.x, e.y - 30, `${e.damage}`, 34, '#ffd23a');
-      this.tweens.add({ targets: n, y: n.y - 50, alpha: 0, duration: 600, onComplete: () => n.destroy() });
-      if (e.damage >= 8) this.cameras.main.shake(120, 0.006);
+      this.views[i]?.hurt(e.damage);
+      const heavy = e.damage >= 5;
+      // 企画者の指示(2026-10-23): ダメージの音を、スマブラ64や鉄拳のように気持ちよく
+      audio.se(heavy ? 'punchHeavy' : 'punch', { pitch: 0.9 + e.damage * 0.03 });
+      this.spark(e.x, e.y, heavy ? 0xffd23a : 0xfff3b0, heavy ? 1.5 : 1);
+      this.ring(e.x, e.y, heavy ? 1.4 : 0.9);
+      const n = this.text(e.x, e.y - 34, `${e.damage}`, heavy ? 40 : 30, '#ffd23a').setScale(0.4);
+      this.tweens.add({ targets: n, scale: 1, duration: 120, ease: 'Back.easeOut' });
+      this.tweens.add({ targets: n, y: n.y - 46, alpha: 0, delay: 260, duration: 420, onComplete: () => n.destroy() });
+      this.cameras.main.shake(heavy ? 140 : 70, heavy ? 0.008 : 0.0035);
     }
     if (e.kind === 'ko') {
-      audio.se('crackBig');
-      this.cameras.main.shake(260, 0.012);
+      audio.se('koBlast');
+      this.cameras.main.shake(320, 0.016);
+      this.cameras.main.flash(120, 255, 255, 255);
       const f = e.target;
       const x = Phaser.Math.Clamp(f.x, 60, W - 60);
       const y = Phaser.Math.Clamp(f.y - 60, 120, H - 60);
-      this.spark(x, y, 0xffffff, 2.2);
-      const t = this.text(W / 2, 260, e.fell ? 'アウト！' : 'KO！', 64, '#ff5a4e');
-      this.tweens.add({ targets: t, scale: 1.3, alpha: 0, delay: 500, duration: 500, onComplete: () => t.destroy() });
+      this.spark(x, y, 0xffffff, 2.4);
+      this.ring(x, y, 3);
+      const t = this.text(W / 2, 260, e.fell ? 'アウト！' : 'KO！', 72, '#ff5a4e').setScale(0.3);
+      this.tweens.add({ targets: t, scale: 1, duration: 200, ease: 'Back.easeOut' });
+      this.tweens.add({ targets: t, scale: 1.3, alpha: 0, delay: 650, duration: 450, onComplete: () => t.destroy() });
     }
   }
 
-  /** 当たったときの光 */
+  /** 攻撃の軌跡(拳の通り道に白い弧を出す) */
+  private swoosh(f: Fighter, name: AttackName): void {
+    const d = BUNK_ATTACKS[name];
+    this.time.delayedCall(d.startup * 1000, () => {
+      const g = this.add.graphics().setDepth(12);
+      const cx = f.x + f.face * (d.box.x + d.box.w * 0.45);
+      const cy = f.y + d.box.y + d.box.h / 2;
+      const r = Math.max(d.box.w, d.box.h) * 0.55;
+      // 技ごとの弧の向き(ラジアン、右向きのとき)
+      const arcs: Record<AttackName, [number, number]> = { jab: [-0.5, 0.4], side: [-0.7, 0.5], up: [-2.6, -0.4], down: [0.1, 1.3] };
+      let [a0, a1] = arcs[name];
+      if (f.face < 0) [a0, a1] = [Math.PI - a1, Math.PI - a0];
+      g.lineStyle(name === 'jab' ? 8 : 14, 0xffffff, 0.85);
+      g.beginPath();
+      g.arc(cx - f.face * r * 0.4, cy, r, a0, a1, false);
+      g.strokePath();
+      g.lineStyle(4, 0xffd23a, 0.7);
+      g.beginPath();
+      g.arc(cx - f.face * r * 0.4, cy, r * 0.82, a0, a1, false);
+      g.strokePath();
+      this.tweens.add({ targets: g, alpha: 0, duration: 140, onComplete: () => g.destroy() });
+    });
+  }
+
+  /** 当たったときに広がる輪 */
+  private ring(x: number, y: number, size: number): void {
+    const c = this.add.circle(x, y, 18 * size).setStrokeStyle(6, 0xffffff, 0.9).setDepth(31);
+    this.tweens.add({ targets: c, scale: 2.6, alpha: 0, duration: 260, ease: 'Quad.easeOut', onComplete: () => c.destroy() });
+  }
+
+  /** 当たったときの光(とがった星形と、飛びちる線) */
   private spark(x: number, y: number, color: number, size: number): void {
     const g = this.add.graphics().setDepth(30).setPosition(x, y);
     g.fillStyle(color, 1);
     const pts: Phaser.Math.Vector2[] = [];
-    for (let i = 0; i < 16; i++) {
-      const r = (i % 2 ? 14 : 38) * size;
-      const a = (i / 16) * Math.PI * 2;
+    for (let i = 0; i < 20; i++) {
+      const r = (i % 2 ? 10 : 34 + (i % 4) * 8) * size;
+      const a = (i / 20) * Math.PI * 2;
       pts.push(new Phaser.Math.Vector2(Math.cos(a) * r, Math.sin(a) * r));
     }
     g.fillPoints(pts, true);
-    this.tweens.add({ targets: g, scale: 1.5, alpha: 0, duration: 220, onComplete: () => g.destroy() });
+    g.fillStyle(0xffffff, 1).fillCircle(0, 0, 12 * size);
+    this.tweens.add({ targets: g, scale: 1.4, alpha: 0, duration: 200, onComplete: () => g.destroy() });
+    for (let i = 0; i < 6; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const line = this.add.rectangle(x, y, 26 * size, 5, color, 1).setRotation(a).setDepth(30);
+      this.tweens.add({ targets: line, x: x + Math.cos(a) * 70 * size, y: y + Math.sin(a) * 70 * size, scaleX: 0.2, alpha: 0, duration: 240, ease: 'Quad.easeOut', onComplete: () => line.destroy() });
+    }
   }
 
   private leave(): void {

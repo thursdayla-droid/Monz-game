@@ -28,15 +28,16 @@ export interface Stage {
  * 横画面(1280×720)で遊ぶ(企画者の指示 2026-10-22)
  */
 export const STAGE: Stage = {
+  // 企画者の指示(2026-10-23): ステージをもう少し広く
   platforms: [
-    { x0: 300, x1: 980, y: 540, thin: false },
-    { x0: 360, x1: 560, y: 380, thin: true },
-    { x0: 720, x1: 920, y: 380, thin: true },
+    { x0: 160, x1: 1120, y: 540, thin: false },
+    { x0: 250, x1: 500, y: 370, thin: true },
+    { x0: 780, x1: 1030, y: 370, thin: true },
   ],
-  blast: { x0: -260, x1: 1540, y0: -460, y1: 1000 },
+  blast: { x0: -300, x1: 1580, y0: -460, y1: 1000 },
   spawn: [
-    [480, 540],
-    [800, 540],
+    [440, 540],
+    [840, 540],
   ],
 };
 
@@ -82,13 +83,19 @@ export interface AttackDef {
   growth: number;
 }
 
-/** 【仮】BUNKのA攻撃(企画者決定 2026-10-22: 通常A ジャブ・横A ストレート・上A アッパー・下A 足払い) */
+/**
+ * 【仮】BUNKのA攻撃(企画者決定 2026-10-22: 通常A ジャブ・横A ストレート・上A アッパー)。
+ * 2026-10-23 企画者の指示: 下Aは足払いをやめてパンチ(下パンチ)に。攻撃の届く範囲を広く、ダメージは少なめに
+ */
 export const BUNK_ATTACKS: Record<AttackName, AttackDef> = {
-  jab: { label: 'ジャブ', damage: 3, startup: 0.05, active: 0.08, recovery: 0.12, box: { x: 30, y: -95, w: 70, h: 50 }, angle: 30, base: 220, growth: 380 },
-  side: { label: 'ストレート', damage: 9, startup: 0.13, active: 0.09, recovery: 0.26, box: { x: 30, y: -100, w: 100, h: 56 }, angle: 35, base: 380, growth: 1000 },
-  up: { label: 'アッパー', damage: 7, startup: 0.09, active: 0.11, recovery: 0.22, box: { x: -20, y: -190, w: 90, h: 100 }, angle: 85, base: 400, growth: 900 },
-  down: { label: '足払い', damage: 6, startup: 0.08, active: 0.09, recovery: 0.22, box: { x: 10, y: -40, w: 100, h: 40 }, angle: 20, base: 320, growth: 700 },
+  jab: { label: 'ジャブ', damage: 2, startup: 0.05, active: 0.09, recovery: 0.12, box: { x: 15, y: -110, w: 110, h: 70 }, angle: 30, base: 220, growth: 450 },
+  side: { label: 'ストレート', damage: 6, startup: 0.14, active: 0.1, recovery: 0.26, box: { x: 15, y: -118, w: 150, h: 80 }, angle: 35, base: 380, growth: 1300 },
+  up: { label: 'アッパー', damage: 5, startup: 0.1, active: 0.12, recovery: 0.22, box: { x: -45, y: -230, w: 135, h: 150 }, angle: 85, base: 400, growth: 1150 },
+  down: { label: '下パンチ', damage: 4, startup: 0.09, active: 0.1, recovery: 0.22, box: { x: 10, y: -80, w: 140, h: 75 }, angle: 25, base: 320, growth: 900 },
 };
+
+/** 当たった瞬間に、少しだけ時間を止める(手ごたえ)。ダメージが大きいほど長い【仮】 */
+export const hitstopFor = (damage: number) => 0.045 + damage * 0.014;
 
 export interface Input {
   /** スティック(-1〜1)。上が -1 */
@@ -296,18 +303,24 @@ export interface Battle {
   stage: Stage;
   fighters: Fighter[];
   time: number;
+  /** 当たった瞬間に止まっている残りの時間 */
+  hitstop: number;
   /** 練習: 的はストックが0になっても、また出てくる */
   practice: boolean;
 }
 
 export function newPractice(stage = STAGE): Battle {
-  return { stage, fighters: [newFighter(stage.spawn[0][0], stage.spawn[0][1], 1), newFighter(stage.spawn[1][0], stage.spawn[1][1], -1, true)], time: 0, practice: true };
+  return { stage, fighters: [newFighter(stage.spawn[0][0], stage.spawn[0][1], 1), newFighter(stage.spawn[1][0], stage.spawn[1][1], -1, true)], time: 0, hitstop: 0, practice: true };
 }
 
 /** 1回ぶん進める。inputs[i] は fighters[i] の入力(的は使わない) */
 export function stepBattle(b: Battle, inputs: Input[], dt: number): BattleEvent[] {
   const events: BattleEvent[] = [];
   b.time += dt;
+  if (b.hitstop > 0) {
+    b.hitstop -= dt;
+    return events;
+  }
   b.fighters.forEach((f, i) => {
     if (f.out > 0) {
       f.out -= dt;
@@ -323,6 +336,8 @@ export function stepBattle(b: Battle, inputs: Input[], dt: number): BattleEvent[
     physics(f, b.stage, dt);
   });
   for (const a of b.fighters) for (const d of b.fighters) if (a !== d && a.out <= 0) resolveHits(a, d, events);
+  for (const e of events) if (e.kind === 'hit') b.hitstop = Math.max(b.hitstop, hitstopFor(e.damage));
+  for (const e of events) if (e.kind === 'block') b.hitstop = Math.max(b.hitstop, 0.04);
   for (const f of b.fighters) {
     if (f.out > 0) continue;
     const bl = b.stage.blast;

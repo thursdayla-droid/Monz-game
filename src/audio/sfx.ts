@@ -24,7 +24,14 @@ export type SeName =
   | 'beepLast'
   | 'swing'
   | 'bat'
-  | 'cheer';
+  | 'cheer'
+  | 'punch'
+  | 'punchHeavy'
+  | 'whoosh'
+  | 'guard'
+  | 'koBlast'
+  | 'land'
+  | 'hop';
 
 let noise: AudioBuffer | null = null;
 function noiseBuf(ctx: BaseAudioContext): AudioBuffer {
@@ -64,6 +71,23 @@ function hiss(ctx: AudioContext, out: AudioNode, t: number, type: BiquadFilterTy
   s.connect(f).connect(g).connect(out);
   s.start(t, Math.random() * 0.5);
   s.stop(t + end);
+}
+
+/** 音を少しつぶして、太く・荒くする(パンチの「ドスッ」用) */
+let crunchCurve: Float32Array | null = null;
+function crunch(ctx: AudioContext, out: AudioNode, amount = 3): AudioNode {
+  if (!crunchCurve) {
+    crunchCurve = new Float32Array(1024);
+    for (let i = 0; i < crunchCurve.length; i++) {
+      const x = (i / (crunchCurve.length - 1)) * 2 - 1;
+      crunchCurve[i] = Math.tanh(x * amount);
+    }
+  }
+  const w = ctx.createWaveShaper();
+  w.curve = crunchCurve as Float32Array<ArrayBuffer>;
+  w.oversample = '2x';
+  w.connect(out);
+  return w;
 }
 
 export function playSe(ctx: AudioContext, out: AudioNode, name: SeName, pitch: number): void {
@@ -189,6 +213,52 @@ export function playSe(ctx: AudioContext, out: AudioNode, name: SeName, pitch: n
       if (p > 1.05) for (const d of [0.07, 0.14]) tone(ctx, out, t + d, 'sine', [[0, 1720]], [[0, 0.1 / (d * 14)], [ring * 0.8, 0.0001]], ring);
       break;
     }
+    case 'punch': {
+      // バトル: パンチが当たった「バシッ」。p: 強さ(1 ふつう)【仮】
+      const o = crunch(ctx, out, 2.5);
+      hiss(ctx, out, t, 'highpass', [[0, 3200]], 0.8, [[0, 0.75 * p], [0.022, 0.0001]], 0.03);
+      hiss(ctx, o, t, 'bandpass', [[0, 1300 * p], [0.07, 700]], 1.1, [[0, 0.7], [0.08, 0.0001]], 0.09);
+      tone(ctx, o, t, 'sine', [[0, 190 * p], [0.1, 55]], [[0, 0.9], [0.13, 0.0001]], 0.14);
+      break;
+    }
+    case 'punchHeavy': {
+      // バトル: 強いパンチ「ドゴォッ」(低い音を太く + はじける音 + 少し遅れたひびき)
+      const o = crunch(ctx, out, 4);
+      hiss(ctx, out, t, 'highpass', [[0, 2600]], 0.7, [[0, 0.95], [0.03, 0.0001]], 0.04);
+      hiss(ctx, o, t, 'bandpass', [[0, 1000], [0.16, 380]], 0.9, [[0, 0.85], [0.18, 0.0001]], 0.2);
+      tone(ctx, o, t, 'sine', [[0, 150 * p], [0.22, 38]], [[0, 1], [0.3, 0.0001]], 0.32);
+      tone(ctx, o, t, 'square', [[0, 80 * p], [0.12, 35]], [[0, 0.35], [0.16, 0.0001]], 0.18);
+      hiss(ctx, out, t + 0.05, 'lowpass', [[0, 600], [0.3, 200]], 0.7, [[0, 0.35], [0.35, 0.0001]], 0.36);
+      break;
+    }
+    case 'whoosh':
+      // バトル: 空を切る「シュッ」。p が大きいほど高く短い
+      hiss(ctx, out, t, 'bandpass', [[0, 700 * p], [0.1, 2600 * p]], 2.2, [[0, 0.0001], [0.035, 0.32], [0.13, 0.0001]], 0.14);
+      break;
+    case 'guard':
+      // バトル: ガードで受けた「カンッ」
+      tone(ctx, out, t, 'triangle', [[0, 1250], [0.12, 900]], [[0, 0.32], [0.16, 0.0001]], 0.17);
+      tone(ctx, out, t, 'sine', [[0, 2600]], [[0, 0.12], [0.08, 0.0001]], 0.09);
+      hiss(ctx, out, t, 'highpass', [[0, 4000]], 0.7, [[0, 0.35], [0.025, 0.0001]], 0.03);
+      break;
+    case 'koBlast': {
+      // バトル: ふっとばして アウト「ドカーン」
+      const o = crunch(ctx, out, 5);
+      tone(ctx, o, t, 'sine', [[0, 120], [0.6, 30]], [[0, 1], [0.8, 0.0001]], 0.85);
+      hiss(ctx, o, t, 'lowpass', [[0, 3000], [0.9, 200]], 0.7, [[0, 0.8], [1.0, 0.0001]], 1.05);
+      hiss(ctx, out, t, 'highpass', [[0, 5000]], 0.7, [[0, 0.4], [0.4, 0.0001]], 0.42);
+      break;
+    }
+    case 'land':
+      // バトル: 着地「トッ」
+      tone(ctx, out, t, 'sine', [[0, 140 * p], [0.06, 70]], [[0, 0.35], [0.08, 0.0001]], 0.09);
+      hiss(ctx, out, t, 'lowpass', [[0, 900]], 0.7, [[0, 0.18], [0.05, 0.0001]], 0.06);
+      break;
+    case 'hop':
+      // バトル: ジャンプ「ピョン」(軽く)
+      tone(ctx, out, t, 'sine', [[0, 300 * p], [0.1, 620 * p]], [[0, 0.0001], [0.015, 0.16], [0.12, 0.0001]], 0.13);
+      hiss(ctx, out, t, 'bandpass', [[0, 1500]], 1.5, [[0, 0.08], [0.06, 0.0001]], 0.07);
+      break;
     case 'cheer':
       // MONZ SLUGGER: ホームランの歓声(ふくらんで消える ざわめき + 指笛)
       hiss(ctx, out, t, 'bandpass', [[0, 700], [0.6, 1600], [1.8, 900]], 0.6, [[0, 0.0001], [0.35, 0.45], [1.9, 0.0001]], 2.0);

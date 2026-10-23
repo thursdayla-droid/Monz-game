@@ -47,6 +47,22 @@ describe('battle (practice)', () => {
     expect(dummy.x).toBeGreaterThan(me.x + 80);
   });
 
+  it('stops for a moment when a hit lands (hitstop)', () => {
+    const b = newPractice();
+    const [me, dummy] = b.fighters;
+    run(b, {}, 0.5);
+    me.x = dummy.x - 70;
+    me.face = 1;
+    stepBattle(b, [{ ...NO_INPUT, a: true, x: 1 }], 1 / 120);
+    let hit = false;
+    for (let i = 0; i < 120 && !hit; i++) hit = stepBattle(b, [NO_INPUT], 1 / 120).some((e) => e.kind === 'hit');
+    expect(hit).toBe(true);
+    expect(b.hitstop).toBeGreaterThan(0.08);
+    const x = dummy.x;
+    stepBattle(b, [NO_INPUT], 1 / 120);
+    expect(dummy.x).toBe(x);
+  });
+
   it('shield blocks damage', () => {
     const b = newPractice();
     const [me, dummy] = b.fighters;
