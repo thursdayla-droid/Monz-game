@@ -25,37 +25,40 @@ export interface Stage {
 
 /**
  * 【仮】ステージ: 大きな足場1つ＋浮いた小さな足場2つ(企画者決定 2026-10-22)。
- * 横画面(1280×720)で遊ぶ(企画者の指示 2026-10-22)
+ * 横画面で遊ぶ(企画者の指示 2026-10-22)。
+ * 企画者の指示(2026-10-23): ステージが狭すぎる。少し引いて、もっと動き回りたい →
+ * 画面を少し引いて(BATTLE_VIEW の広さを画面に縮めて見せる)、ステージを広くした
  */
+export const BATTLE_VIEW = { w: 1760, h: 990 };
 export const STAGE: Stage = {
-  // 企画者の指示(2026-10-23): ステージをもう少し広く
   platforms: [
-    { x0: 160, x1: 1120, y: 540, thin: false },
-    { x0: 250, x1: 500, y: 370, thin: true },
-    { x0: 780, x1: 1030, y: 370, thin: true },
+    { x0: 150, x1: 1610, y: 720, thin: false },
+    { x0: 300, x1: 640, y: 500, thin: true },
+    { x0: 1120, x1: 1460, y: 500, thin: true },
   ],
-  blast: { x0: -300, x1: 1580, y0: -460, y1: 1000 },
+  blast: { x0: -380, x1: 2140, y0: -560, y1: 1340 },
   spawn: [
-    [440, 540],
-    [840, 540],
+    [620, 720],
+    [1140, 720],
   ],
 };
 
 /** 【仮】動きの数字 */
 export const MOVE = {
-  gravity: 2600,
-  maxFall: 1150,
-  walk: 360,
+  // 企画者の指示(2026-10-23): 動きが遅すぎる・ジャンプが低すぎる → 速く・高く
+  gravity: 3200,
+  maxFall: 1500,
+  walk: 620,
   /** 地上で速さが変わる速さ(px/s²) */
-  groundAccel: 4200,
-  airSpeed: 330,
-  airAccel: 2200,
-  jump: 1020,
+  groundAccel: 7000,
+  airSpeed: 540,
+  airAccel: 3600,
+  jump: 1560,
   /**
    * 空中ジャンプ(2段目)。企画者の指示(2026-10-23): 2段ジャンプがはっきりわかるように、
    * のぼっている途中でも、1段目と同じくらい新しく高くとぶ
    */
-  airJump: 1060,
+  airJump: 1450,
   airJumps: 1,
   /** 体の大きさ(当たり判定) */
   halfW: 40,
@@ -87,15 +90,16 @@ export const SHIELD = {
   breakCooldown: 1.5,
 };
 export const ROLL = {
-  time: 0.36,
+  time: 0.34,
   /** 転がる距離(px) */
-  distance: 250,
+  distance: 340,
 };
 
 export const HP_MAX = 100;
 export const STOCKS = 2;
 
-export type AttackName = 'jab' | 'side' | 'up' | 'down';
+/** air_down: 空中で下A(真下へのパンチ) */
+export type AttackName = 'jab' | 'side' | 'up' | 'down' | 'air_down';
 
 export interface AttackDef {
   /** 画面に出す名前【仮】 */
@@ -123,6 +127,8 @@ export const BUNK_ATTACKS: Record<AttackName, AttackDef> = {
   side: { label: 'ストレート', damage: 6, startup: 0.14, active: 0.1, recovery: 0.26, box: { x: 15, y: -118, w: 150, h: 80 }, angle: 35, base: 380, growth: 1300 },
   up: { label: 'アッパー', damage: 5, startup: 0.1, active: 0.12, recovery: 0.22, box: { x: -45, y: -230, w: 135, h: 150 }, angle: 85, base: 400, growth: 1150 },
   down: { label: '下パンチ', damage: 4, startup: 0.09, active: 0.1, recovery: 0.22, box: { x: 10, y: -80, w: 140, h: 75 }, angle: 25, base: 320, growth: 900 },
+  // 企画者の指示(2026-10-23): ジャンプ中の下Aは、真下にパンチ。当たると下へたたきつける
+  air_down: { label: '真下パンチ', damage: 5, startup: 0.1, active: 0.12, recovery: 0.24, box: { x: -60, y: -40, w: 120, h: 130 }, angle: -80, base: 380, growth: 900 },
 };
 
 /** 当たった瞬間に、少しだけ時間を止める(手ごたえ)。ダメージが大きいほど長い【仮】 */
@@ -164,8 +170,6 @@ export interface Fighter {
   shieldCd: number;
   /** ローリング中(t: 経過、dir: 向き)。この間は攻撃が当たらない */
   roll: { t: number; dir: 1 | -1 } | null;
-  /** 2段目のジャンプをした直後(見た目用。くるっと回る)の経過時間 */
-  flip: number;
   /** 前の入力のスティックの横(左右を「入れた瞬間」を知るため) */
   prevX: number;
   /** 下を入れて浮いた足場から降りている途中(この足場には乗らない) */
@@ -179,13 +183,13 @@ export interface Fighter {
 }
 
 export function newFighter(x: number, y: number, face: 1 | -1, dummy = false): Fighter {
-  return { x, y, vx: 0, vy: 0, face, ground: null, airJumps: MOVE.airJumps, hp: HP_MAX, stocks: STOCKS, attack: null, stun: 0, safe: 0, shield: false, shieldHp: 1, shieldCd: 0, roll: null, flip: -1, prevX: 0, dropFrom: null, walking: false, out: 0, dummy };
+  return { x, y, vx: 0, vy: 0, face, ground: null, airJumps: MOVE.airJumps, hp: HP_MAX, stocks: STOCKS, attack: null, stun: 0, safe: 0, shield: false, shieldHp: 1, shieldCd: 0, roll: null, prevX: 0, dropFrom: null, walking: false, out: 0, dummy };
 }
 
 /** スティックの向きから、出すA攻撃を決める */
-export function attackFor(inp: Input): AttackName {
+export function attackFor(inp: Input, air = false): AttackName {
   if (inp.y < -0.5 && Math.abs(inp.y) >= Math.abs(inp.x)) return 'up';
-  if (inp.y > 0.5 && Math.abs(inp.y) >= Math.abs(inp.x)) return 'down';
+  if (inp.y > 0.5 && Math.abs(inp.y) >= Math.abs(inp.x)) return air ? 'air_down' : 'down';
   if (Math.abs(inp.x) > 0.5) return 'side';
   return 'jab';
 }
@@ -230,8 +234,6 @@ export type BattleEvent = { kind: 'hit'; target: Fighter; damage: number; x: num
 function control(f: Fighter, inp: Input, dt: number, events: BattleEvent[]): void {
   f.walking = false;
   if (f.stun > 0) f.stun -= dt;
-  if (f.flip >= 0) f.flip += dt;
-  if (f.flip > 0.4) f.flip = -1;
   const justSide = Math.abs(inp.x) > 0.6 && Math.abs(f.prevX) <= 0.6;
   f.prevX = inp.x;
   // ローリング中: 決まった向きに転がる(操作できない・攻撃が当たらない)
@@ -257,8 +259,8 @@ function control(f: Fighter, inp: Input, dt: number, events: BattleEvent[]): voi
       f.shield = false;
       f.shieldCd = SHIELD.breakCooldown;
       events.push({ kind: 'shieldBreak', who: f });
-    } else if (justSide) {
-      // ガード中に左右: ローリング(ガードは切れる)
+    } else if (justSide && f.ground) {
+      // ガード中に左右: ローリング(ガードは切れる)。企画者の指示(2026-10-23): ジャンプ中はローリングできない(ガードだけ)
       const dir = inp.x > 0 ? 1 : -1;
       f.shield = false;
       f.shieldCd = SHIELD.cooldown;
@@ -278,7 +280,7 @@ function control(f: Fighter, inp: Input, dt: number, events: BattleEvent[]): voi
     if (f.attack.t >= d.startup + d.active + d.recovery) f.attack = null;
   }
   if (canAct && inp.a && !f.shield) {
-    const name = attackFor(inp);
+    const name = attackFor(inp, !f.ground);
     if (name === 'side') f.face = inp.x > 0 ? 1 : -1;
     f.attack = { name, t: 0, hit: false };
     events.push({ kind: 'swing', who: f, name });
@@ -308,7 +310,6 @@ function control(f: Fighter, inp: Input, dt: number, events: BattleEvent[]): voi
     if (canAct && !f.shield && inp.jump && f.airJumps > 0) {
       f.airJumps--;
       f.vy = -MOVE.airJump;
-      f.flip = 0;
       if (Math.abs(inp.x) > 0.2) {
         f.face = inp.x > 0 ? 1 : -1;
         f.vx = inp.x * MOVE.airSpeed;
@@ -405,7 +406,7 @@ function ko(f: Fighter, fell: boolean, events: BattleEvent[]): void {
 }
 
 function respawn(f: Fighter, at: [number, number]): void {
-  Object.assign(f, { x: at[0], y: at[1] - 260, vx: 0, vy: 0, ground: null, airJumps: MOVE.airJumps, hp: HP_MAX, attack: null, stun: 0, safe: 1.5, shield: false, shieldHp: 1, shieldCd: 0, roll: null, flip: -1, dropFrom: null, out: 0 });
+  Object.assign(f, { x: at[0], y: at[1] - 260, vx: 0, vy: 0, ground: null, airJumps: MOVE.airJumps, hp: HP_MAX, attack: null, stun: 0, safe: 1.5, shield: false, shieldHp: 1, shieldCd: 0, roll: null, dropFrom: null, out: 0 });
 }
 
 export interface Battle {

@@ -83,7 +83,7 @@ describe('battle (practice)', () => {
   it('falling off the stage loses a stock, and the dummy comes back', () => {
     const b = newPractice();
     const dummy = b.fighters[1];
-    dummy.x = 1700;
+    dummy.x = 2400;
     dummy.ground = null;
     const ev = run(b, {}, 0.2);
     expect(ev.some((e) => e.kind === 'ko' && e.target === dummy)).toBe(true);
@@ -159,5 +159,19 @@ describe('battle (practice)', () => {
     const vy = me.vy;
     run(b, { jump: true }, 1 / 60);
     expect(me.vy).toBeLessThan(vy - 150);
+  });
+
+  it('in the air: guard only (no roll), and down+A is the straight-down punch', () => {
+    const b = newPractice();
+    const me = b.fighters[0];
+    run(b, {}, 0.5);
+    run(b, { jump: true }, 1 / 60);
+    run(b, { shield: true }, 0.05);
+    const ev = run(b, { shield: true, x: 1 }, 0.1);
+    expect(ev.some((e) => e.kind === 'roll')).toBe(false);
+    expect(me.shield).toBe(true);
+    expect(attackFor({ ...NO_INPUT, y: 1 }, true)).toBe('air_down');
+    expect(attackFor({ ...NO_INPUT, y: 1 }, false)).toBe('down');
+    expect(BUNK_ATTACKS.air_down.angle).toBeLessThan(-45);
   });
 });

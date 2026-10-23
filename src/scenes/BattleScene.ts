@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
-import { BUNK_ATTACKS, HP_MAX, MOVE, ROLL, SHIELD, newPractice, NO_INPUT, stepBattle, STOCKS, type AttackName, type Battle, type BattleEvent, type Fighter, type Input } from '../core/battle';
+import { BATTLE_VIEW, BUNK_ATTACKS, HP_MAX, MOVE, ROLL, SHIELD, newPractice, NO_INPUT, stepBattle, STOCKS, type AttackName, type Battle, type BattleEvent, type Fighter, type Input } from '../core/battle';
 import { PALETTES } from '../core/palettes';
 import { recolorPixels } from '../core/recolor';
 import { BUNK_MOTION } from '../render/bunkView';
@@ -230,6 +230,15 @@ class FighterView {
       sq += 0.12 * windup + 0.14 * strike;
       step = 16 * strike;
     }
+    if (name === 'air_down') {
+      // 空中の下A(企画者の指示 2026-10-23): 真下にパンチ。拳をふり上げてから、足の間を通して真下へ
+      set('glove_r', -60 * windup - 470 * strike, -160 * windup + 600 * strike, -0.2 * windup + 1.5 * strike, 1 + 0.15 * strike);
+      set('glove_l', -40 * strike, -60 * strike);
+      set('foot_l', -90 * strike, -110 * strike);
+      set('foot_r', 110 * strike, -110 * strike);
+      sq += -0.08 * windup + 0.1 * strike;
+      y = 10 * strike;
+    }
     // 吹っ飛んでいる: くるくる回る
     if (f.stun > 0 && !onGround) {
       rot = (t * 1100) % 360;
@@ -243,15 +252,6 @@ class FighterView {
       set('glove_r', -120, -40);
       set('glove_l', 140, -20);
       sq += 0.06;
-    }
-    // 2段目のジャンプ: くるっと前に1回転
-    if (f.flip >= 0 && !f.attack && f.stun <= 0) {
-      rot = Math.min(1, f.flip / 0.34) * 360;
-      set('foot_l', 20, -80);
-      set('foot_r', -10, -80);
-      set('glove_l', 40, 40);
-      set('glove_r', -40, 40);
-      sq -= 0.05;
     }
     // ローリング: 体を丸めて転がる
     if (f.roll) {
@@ -343,7 +343,31 @@ export class BattleScene extends Phaser.Scene {
     preloadPacks(this, ['bunk', 'dash']);
   }
 
+  /** 上の表示・ボタン用のカメラ(引いて見せるステージとは別に、そのままの大きさで出す) */
+  private uiCam!: Phaser.Cameras.Scene2D.Camera;
+  /** true の間に作った物は、上の表示・ボタン(uiCam だけに映す) */
+  private makingUi = false;
+
+  private ui<T>(make: () => T): T {
+    this.makingUi = true;
+    try {
+      return make();
+    } finally {
+      this.makingUi = false;
+    }
+  }
+
   create(): void {
+    // 企画者の指示(2026-10-23): 少し引いて、広いステージを動き回る → ステージは縮めて映す。ボタン・表示は別のカメラでそのまま
+    const cam = this.cameras.main;
+    cam.setZoom(W / BATTLE_VIEW.w).centerOn(BATTLE_VIEW.w / 2, BATTLE_VIEW.h / 2);
+    this.uiCam = this.cameras.add(0, 0, W, H);
+    const sort = (go: Phaser.GameObjects.GameObject) => {
+      if (this.makingUi) cam.ignore(go);
+      else this.uiCam.ignore(go);
+    };
+    this.events.on(Phaser.Scenes.Events.ADDED_TO_SCENE, sort);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.events.off(Phaser.Scenes.Events.ADDED_TO_SCENE, sort));
     this.t = 0;
     this.acc = 0;
     this.leaving = false;
@@ -359,11 +383,14 @@ export class BattleScene extends Phaser.Scene {
     this.views = this.battle.fighters.map((f) => new FighterView(this, f.dummy));
     // 自分のBUNKを、的より手前に
     this.views[0]?.root.setDepth(11);
-    this.buildHud();
-    this.buildPad();
+    this.ui(() => {
+      this.buildHud();
+      this.buildPad();
+      this.buildTurnHint();
+    });
     this.keys = this.input.keyboard?.addKeys('LEFT,RIGHT,UP,DOWN,Z,X,C,SPACE,SHIFT') as Record<string, Phaser.Input.Keyboard.Key> | undefined;
-    this.buildTurnHint();
     this.cameras.main.fadeIn(300, 0, 0, 0);
+    this.uiCam.fadeIn(300, 0, 0, 0);
     audio.playBgm('dash');
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(PORTRAIT.w, PORTRAIT.h));
   }
@@ -381,13 +408,15 @@ export class BattleScene extends Phaser.Scene {
 
   private drawBackground(): void {
     // 【仮】背景: 夜のアリーナっぽい色の帯とライト
-    canvasTextureOnce(this, 'battle:bg:wide', W, H, (ctx) => {
-      const g = ctx.createLinearGradient(0, 0, 0, H);
+    const BW = BATTLE_VIEW.w;
+    const BH = BATTLE_VIEW.h;
+    canvasTextureOnce(this, 'battle:bg:view', BW, BH, (ctx) => {
+      const g = ctx.createLinearGradient(0, 0, 0, BH);
       g.addColorStop(0, '#1d0f33');
       g.addColorStop(0.6, '#3a1d5c');
       g.addColorStop(1, '#5e2a5a');
       ctx.fillStyle = g;
-      ctx.fillRect(0, 0, W, H);
+      ctx.fillRect(0, 0, BW, BH);
       for (let i = 0; i < 7; i++) {
         const x = 120 + i * 175;
         const beam = ctx.createLinearGradient(x, 0, x, 600);
@@ -403,7 +432,7 @@ export class BattleScene extends Phaser.Scene {
         ctx.fill();
       }
     });
-    this.add.image(0, 0, 'battle:bg:wide').setOrigin(0, 0).setDepth(-10);
+    this.add.image(0, 0, 'battle:bg:view').setDisplaySize(BW + 400, BH + 300).setPosition(-200, -150).setOrigin(0, 0).setDepth(-10);
   }
 
   private drawStage(): void {
@@ -466,7 +495,7 @@ export class BattleScene extends Phaser.Scene {
       this.hud.push({ hp, hpText, stocks });
     });
     // 遊び方(はじめに少しだけ出す)
-    const help = this.text(W / 2, 190, 'スティックで いどう　A：パンチ（スティックの向きで 技が変わる）\nジャンプは 空中でも もう1回\nガード中に 左右で ローリング', 22, '#ffffff');
+    const help = this.text(W / 2, 190, 'スティックで いどう　A：パンチ（スティックの向きで 技が変わる）\nジャンプは 空中でも もう1回　空中で 下＋A：真下にパンチ\nガード中に 左右で ローリング（地上だけ）', 22, '#ffffff');
     this.tweens.add({ targets: help, alpha: 0, delay: 4500, duration: 800, onComplete: () => help.destroy() });
   }
 
@@ -660,12 +689,13 @@ export class BattleScene extends Phaser.Scene {
       audio.se('koBlast');
       this.cameras.main.shake(320, 0.016);
       this.cameras.main.flash(120, 255, 255, 255);
+      this.uiCam.shake(200, 0.004);
       const f = e.target;
-      const x = Phaser.Math.Clamp(f.x, 60, W - 60);
-      const y = Phaser.Math.Clamp(f.y - 60, 120, H - 60);
+      const x = Phaser.Math.Clamp(f.x, 80, BATTLE_VIEW.w - 80);
+      const y = Phaser.Math.Clamp(f.y - 60, 160, BATTLE_VIEW.h - 80);
       this.spark(x, y, 0xffffff, 2.4);
       this.ring(x, y, 3);
-      const t = this.text(W / 2, 260, e.fell ? 'アウト！' : 'KO！', 72, '#ff5a4e').setScale(0.3);
+      const t = this.ui(() => this.text(W / 2, 260, e.fell ? 'アウト！' : 'KO！', 72, '#ff5a4e').setScale(0.3));
       this.tweens.add({ targets: t, scale: 1, duration: 200, ease: 'Back.easeOut' });
       this.tweens.add({ targets: t, scale: 1.3, alpha: 0, delay: 650, duration: 450, onComplete: () => t.destroy() });
     }
@@ -680,7 +710,7 @@ export class BattleScene extends Phaser.Scene {
       const cy = f.y + d.box.y + d.box.h / 2;
       const r = Math.max(d.box.w, d.box.h) * 0.55;
       // 技ごとの弧の向き(ラジアン、右向きのとき)
-      const arcs: Record<AttackName, [number, number]> = { jab: [-0.5, 0.4], side: [-0.7, 0.5], up: [-2.6, -0.4], down: [0.1, 1.3] };
+      const arcs: Record<AttackName, [number, number]> = { jab: [-0.5, 0.4], side: [-0.7, 0.5], up: [-2.6, -0.4], down: [0.1, 1.3], air_down: [0.9, 2.2] };
       let [a0, a1] = arcs[name];
       if (f.face < 0) [a0, a1] = [Math.PI - a1, Math.PI - a0];
       g.lineStyle(name === 'jab' ? 8 : 14, 0xffffff, 0.85);
@@ -725,6 +755,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.leaving) return;
     this.leaving = true;
     audio.se('back');
+    this.uiCam.fadeOut(200, 0, 0, 0);
     this.cameras.main.fadeOut(200, 0, 0, 0);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('Home'));
   }
