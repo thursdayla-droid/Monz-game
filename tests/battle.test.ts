@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { attackFor, BUNK_ATTACKS, HP_MAX, knockback, newPractice, NO_INPUT, ROLL, SHIELD, stepBattle, STOCKS, type Input } from '../src/core/battle';
+import { attackFor, BOUNCE_HP, BUNK_ATTACKS, HP_MAX, knockback, newPractice, NO_INPUT, ROLL, SHIELD, stepBattle, STOCKS, type Input } from '../src/core/battle';
 
 const run = (b: ReturnType<typeof newPractice>, inp: Partial<Input>, seconds: number) => {
   const events = [];
@@ -201,5 +201,44 @@ describe('battle (practice)', () => {
     expect(BUNK_ATTACKS.up.noSpin).toBe(true);
     expect(y0 - top).toBeGreaterThan(40);
     expect(y0 - top).toBeLessThan(160);
+  });
+
+  it('roll is short and stops at the edge of the stage', () => {
+    const b = newPractice();
+    const me = b.fighters[0];
+    run(b, {}, 0.5);
+    const g = me.ground!;
+    me.x = g.x0 + 60;
+    run(b, { shield: true }, 0.1);
+    run(b, { shield: true, x: -1 }, 1 / 60);
+    run(b, { shield: true }, ROLL.time);
+    expect(me.ground).toBe(g);
+    expect(me.x).toBeGreaterThanOrEqual(g.x0);
+  });
+
+  it('down punch from the air: grounded target bounces up only when HP is low', () => {
+    const hitFromAbove = (hp: number) => {
+      const b = newPractice();
+      const [me, dummy] = b.fighters;
+      run(b, {}, 0.5);
+      dummy.hp = hp;
+      me.x = dummy.x;
+      me.y = dummy.y - 150;
+      me.ground = null;
+      me.vy = 0;
+      stepBattle(b, [{ ...NO_INPUT, a: true, y: 1 }], 1 / 120);
+      let top = dummy.y;
+      const y0 = dummy.y;
+      for (let i = 0; i < 120; i++) {
+        stepBattle(b, [NO_INPUT], 1 / 120);
+        top = Math.min(top, dummy.y);
+      }
+      return { lifted: y0 - top, hp: dummy.hp };
+    };
+    const high = hitFromAbove(100);
+    expect(high.hp).toBe(100 - BUNK_ATTACKS.air_down.damage);
+    expect(high.lifted).toBeLessThan(5);
+    const low = hitFromAbove(BOUNCE_HP - 20);
+    expect(low.lifted).toBeGreaterThan(40);
   });
 });

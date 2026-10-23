@@ -19,6 +19,8 @@ const FIGHTER_SCALE = 0.118;
 /** 【仮】色違いのBUNK(練習の的)の配色(企画者決定 2026-10-22: 相手は色違いのBUNK) */
 const ALT_PALETTE = PALETTES.find((p) => p.id === 'cobalt')!;
 /** 足場の絵(DASH MONZ の足場を【仮】で使う)の各部分の幅と高さ */
+/** ローリングで回す中心の高さ(足元から)。小さく丸めた体が地面より下に出ない高さ */
+const ROLL_PIVOT = 62;
 const PLAT = { left: 121, mid: 459, right: 123, h: 94, surface: 16 };
 
 /** 操作ボタン(画面の座標・半径)。画面の上に重ねて出す。スティックは左がわの触った所に出る */
@@ -246,23 +248,23 @@ class FighterView {
       sq += -0.08 * windup + 0.1 * strike;
       y = 10 * strike;
     }
-    // 少し浮くだけの技(アッパー)を受けた: 回らずに、のけぞって浮く
-    const pop = f.stun > 0 && !onGround && !!f.hitBy && !!BUNK_ATTACKS[f.hitBy].noSpin;
-    if (pop) {
-      lean = -10;
-      set('glove_l', -60, -120);
-      set('glove_r', 60, -140);
-      set('foot_l', -20, 30);
-      set('foot_r', 30, 30);
+    // 攻撃を受けて飛んでいる(企画者の指示 2026-10-23: くるくる回さない): のけぞって、手足をばたつかせる
+    if (f.stun > 0 && !onGround) {
+      const flail = Math.sin(t * 22);
+      // 上へ飛ぶときは のけぞる、落ちるときは少し前へ
+      lean = -12 + Phaser.Math.Clamp(f.vy / 90, -6, 10);
+      set('glove_l', -60, -120 + flail * 30);
+      set('glove_r', 60, -140 - flail * 30);
+      set('foot_l', -20 - flail * 20, 30);
+      set('foot_r', 30 + flail * 20, 30);
       sq -= 0.06;
     }
-    // 吹っ飛んでいる: くるくる回る
-    if (f.stun > 0 && !onGround && !pop) {
-      rot = (t * 1100) % 360;
-      set('glove_l', -80, -80);
-      set('glove_r', 80, -100);
-      set('foot_l', -40, 40);
-      set('foot_r', 50, 40);
+    // 地上でくらった(はねずに その場で): 少しのけぞる
+    if (f.stun > 0 && onGround) {
+      lean = -10;
+      set('glove_l', -40, -60);
+      set('glove_r', 40, -80);
+      sq += 0.06;
     }
     // ガード: 両手を前で固める
     if (f.shield) {
@@ -297,13 +299,17 @@ class FighterView {
       set('foot_r', -60, -140);
       set('glove_l', 160, 80);
       set('glove_r', -160, 80);
-      sq += 0.14;
-      y = -10;
     }
-    const sy = 1 - sq;
-    const sx = 1 + sq * 0.6;
-    this.body.setScale(sx, sy).setRotation((((rot + lean) * f.face) * Math.PI) / 180);
-    this.actor.setPosition(step * f.face, y);
+    let sy = 1 - sq;
+    let sx = 1 + sq * 0.6;
+    // ローリングは体のまん中を中心に回す(足元で回すと、地面にめりこむため。企画者の指示 2026-10-23)
+    const pivot = f.roll ? ROLL_PIVOT : 0;
+    if (f.roll) {
+      sx = 0.8;
+      sy = 0.8;
+    }
+    this.body.setPosition(0, -pivot).setScale(sx, sy).setRotation((((rot + lean) * f.face) * Math.PI) / 180);
+    this.actor.setPosition(step * f.face, y + pivot / sy);
     // ガードの丸: 残りが少ないほど小さく、赤っぽく(企画者の指示 2026-10-23)
     const left = Math.max(0, f.shieldHp);
     const r = SHIELD.minR + (SHIELD.maxR - SHIELD.minR) * left;

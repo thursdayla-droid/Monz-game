@@ -92,9 +92,9 @@ export const SHIELD = {
   dizzy: 2.2,
 };
 export const ROLL = {
-  time: 0.34,
-  /** 転がる距離(px) */
-  distance: 340,
+  time: 0.3,
+  /** 転がる距離(px)。企画者の指示(2026-10-23): 長すぎる → 短く */
+  distance: 190,
 };
 
 export const HP_MAX = 100;
@@ -120,6 +120,11 @@ export interface AttackDef {
   growth: number;
   /** 当たった相手を くるくる回さない(少し浮くだけの技) */
   noSpin?: boolean;
+  /**
+   * 地面にいる相手に当たったとき、HPが減っていればバウンドして上に上がる(真下パンチ)。
+   * HPが多いうちは、はねずに その場でくらうだけ(企画者の指示 2026-10-23)
+   */
+  groundBounce?: boolean;
 }
 
 /**
@@ -133,8 +138,11 @@ export const BUNK_ATTACKS: Record<AttackName, AttackDef> = {
   up: { label: 'アッパー', damage: 5, startup: 0.1, active: 0.12, recovery: 0.22, box: { x: -45, y: -230, w: 135, h: 150 }, angle: 88, base: 760, growth: 420, noSpin: true },
   down: { label: '下パンチ', damage: 4, startup: 0.09, active: 0.1, recovery: 0.22, box: { x: 10, y: -80, w: 140, h: 75 }, angle: 25, base: 320, growth: 900 },
   // 企画者の指示(2026-10-23): ジャンプ中の下Aは、真下にパンチ。当たると下へたたきつける
-  air_down: { label: '真下パンチ', damage: 5, startup: 0.1, active: 0.12, recovery: 0.24, box: { x: -60, y: -40, w: 120, h: 130 }, angle: -80, base: 380, growth: 900 },
+  air_down: { label: '真下パンチ', damage: 5, startup: 0.1, active: 0.12, recovery: 0.24, box: { x: -60, y: -40, w: 120, h: 130 }, angle: -80, base: 380, growth: 900, groundBounce: true },
 };
+
+/** 真下パンチで地面の相手がバウンドするのは、くらったあとのHPがこれ以下のとき【仮】 */
+export const BOUNCE_HP = 70;
 
 /** 当たった瞬間に、少しだけ時間を止める(手ごたえ)。ダメージが大きいほど長い【仮】 */
 export const hitstopFor = (damage: number) => 0.045 + damage * 0.014;
@@ -255,6 +263,9 @@ function control(f: Fighter, inp: Input, dt: number, events: BattleEvent[]): voi
       f.roll = null;
       f.vx = 0;
     }
+    // 足場のはしで止まる(転がって落ちない)
+    const g = f.ground;
+    if (g && ((f.vx < 0 && f.x + f.vx * dt < g.x0 + 4) || (f.vx > 0 && f.x + f.vx * dt > g.x1 - 4))) f.vx = 0;
     return;
   }
   if (f.dizzy > 0) f.dizzy = Math.max(0, f.dizzy - dt);
@@ -403,6 +414,24 @@ function resolveHits(att: Fighter, def: Fighter, events: BattleEvent[]): void {
   const rad = (d.angle * Math.PI) / 180;
   def.vx = Math.cos(rad) * k * att.face;
   def.vy = -Math.sin(rad) * k;
+  if (d.groundBounce && def.ground) {
+    if (def.hp <= BOUNCE_HP) {
+      // 地面にたたきつけられて、はねて上に上がる(HPが減っているほど高く)
+      def.vy = -(420 + 900 * lostShare(def.hp));
+      def.vx = att.face * 120;
+    } else {
+      // HPが多いうちは、はねずに その場でくらうだけ
+      def.vx = att.face * 80;
+      def.vy = 0;
+      def.attack = null;
+      def.stun = 0.28;
+      def.dizzy = 0;
+      def.hitBy = att.attack!.name;
+      def.face = att.face === 1 ? -1 : 1;
+      events.push({ kind: 'hit', target: def, damage: d.damage, x: cx, y: cy });
+      return;
+    }
+  }
   def.ground = null;
   def.attack = null;
   def.stun = 0.12 + k / 3000;
