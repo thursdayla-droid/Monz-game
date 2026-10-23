@@ -88,6 +88,8 @@ export const SHIELD = {
   cooldown: 0.5,
   /** なくなる(割れる)と、しばらく使えない */
   breakCooldown: 1.5,
+  /** 割れたあと、ふらふらして動けない時間(企画者の指示 2026-10-23: ガードが割れたらふらふら)【仮】 */
+  dizzy: 2.2,
 };
 export const ROLL = {
   time: 0.34,
@@ -161,6 +163,8 @@ export interface Fighter {
   attack: { name: AttackName; t: number; hit: boolean } | null;
   /** 吹っ飛んで操作できない残りの時間 */
   stun: number;
+  /** ガードが割れて、ふらふらしている残りの時間(動けない。攻撃を受けると終わる) */
+  dizzy: number;
   /** 復活したあと、攻撃が当たらない残りの時間 */
   safe: number;
   shield: boolean;
@@ -183,7 +187,7 @@ export interface Fighter {
 }
 
 export function newFighter(x: number, y: number, face: 1 | -1, dummy = false): Fighter {
-  return { x, y, vx: 0, vy: 0, face, ground: null, airJumps: MOVE.airJumps, hp: HP_MAX, stocks: STOCKS, attack: null, stun: 0, safe: 0, shield: false, shieldHp: 1, shieldCd: 0, roll: null, prevX: 0, dropFrom: null, walking: false, out: 0, dummy };
+  return { x, y, vx: 0, vy: 0, face, ground: null, airJumps: MOVE.airJumps, hp: HP_MAX, stocks: STOCKS, attack: null, stun: 0, dizzy: 0, safe: 0, shield: false, shieldHp: 1, shieldCd: 0, roll: null, prevX: 0, dropFrom: null, walking: false, out: 0, dummy };
 }
 
 /** スティックの向きから、出すA攻撃を決める */
@@ -248,7 +252,8 @@ function control(f: Fighter, inp: Input, dt: number, events: BattleEvent[]): voi
     }
     return;
   }
-  const canAct = f.stun <= 0 && !f.attack;
+  if (f.dizzy > 0) f.dizzy = Math.max(0, f.dizzy - dt);
+  const canAct = f.stun <= 0 && f.dizzy <= 0 && !f.attack;
   // ガード
   const was = f.shield;
   f.shield = canAct && inp.shield && f.shieldCd <= 0 && f.shieldHp > 0;
@@ -258,6 +263,7 @@ function control(f: Fighter, inp: Input, dt: number, events: BattleEvent[]): voi
       f.shieldHp = 0;
       f.shield = false;
       f.shieldCd = SHIELD.breakCooldown;
+      f.dizzy = SHIELD.dizzy;
       events.push({ kind: 'shieldBreak', who: f });
     } else if (justSide && f.ground) {
       // ガード中に左右: ローリング(ガードは切れる)。企画者の指示(2026-10-23): ジャンプ中はローリングできない(ガードだけ)
@@ -306,6 +312,7 @@ function control(f: Fighter, inp: Input, dt: number, events: BattleEvent[]): voi
   } else {
     if (f.stun > 0) f.vx *= Math.max(0, 1 - MOVE.launchDrag * dt);
     // 空中では、攻撃中も少しだけ動ける(ガード中は少しだけ)
+    else if (f.dizzy > 0) f.vx = approach(f.vx, 0, MOVE.airAccel * 0.3 * dt);
     else f.vx = approach(f.vx, inp.x * MOVE.airSpeed * (f.shield ? 0.35 : 1), MOVE.airAccel * dt);
     if (canAct && !f.shield && inp.jump && f.airJumps > 0) {
       f.airJumps--;
@@ -376,6 +383,7 @@ function resolveHits(att: Fighter, def: Fighter, events: BattleEvent[]): void {
       def.shieldHp = 0;
       def.shield = false;
       def.shieldCd = SHIELD.breakCooldown;
+      def.dizzy = SHIELD.dizzy;
       events.push({ kind: 'shieldBreak', who: def });
     }
     return;
@@ -393,6 +401,7 @@ function resolveHits(att: Fighter, def: Fighter, events: BattleEvent[]): void {
   def.ground = null;
   def.attack = null;
   def.stun = 0.12 + k / 3000;
+  def.dizzy = 0;
   def.face = att.face === 1 ? -1 : 1;
   events.push({ kind: 'hit', target: def, damage: d.damage, x: cx, y: cy });
 }
@@ -406,7 +415,7 @@ function ko(f: Fighter, fell: boolean, events: BattleEvent[]): void {
 }
 
 function respawn(f: Fighter, at: [number, number]): void {
-  Object.assign(f, { x: at[0], y: at[1] - 260, vx: 0, vy: 0, ground: null, airJumps: MOVE.airJumps, hp: HP_MAX, attack: null, stun: 0, safe: 1.5, shield: false, shieldHp: 1, shieldCd: 0, roll: null, dropFrom: null, out: 0 });
+  Object.assign(f, { x: at[0], y: at[1] - 260, vx: 0, vy: 0, ground: null, airJumps: MOVE.airJumps, hp: HP_MAX, attack: null, stun: 0, dizzy: 0, safe: 1.5, shield: false, shieldHp: 1, shieldCd: 0, roll: null, dropFrom: null, out: 0 });
 }
 
 export interface Battle {

@@ -70,6 +70,8 @@ class FighterView {
   private readonly parts = new Map<string, { img: Phaser.GameObjects.Image; x: number; y: number }>();
   private readonly shield: Phaser.GameObjects.Arc;
   private readonly shadow: Phaser.GameObjects.Ellipse;
+  /** ふらふらしているときに頭の上を回る星 */
+  private readonly stars: Phaser.GameObjects.Text[] = [];
   private flash = 0;
   /** 着地・ジャンプの のび縮み(+ でつぶれる、- でのびる) */
   private squash = 0;
@@ -102,6 +104,11 @@ class FighterView {
     this.actor.setScale(FIGHTER_SCALE);
     this.shield = scene.add.circle(0, -MOVE.height / 2, SHIELD.maxR, 0x4ec3ff, 0.32).setStrokeStyle(4, 0xbfeaff, 0.9).setVisible(false);
     this.root.add(this.shield);
+    for (let i = 0; i < 3; i++) {
+      const st = scene.add.text(0, 0, '★', { fontFamily: UI_FONT, fontSize: '30px', color: '#ffd23a', stroke: '#16101c', strokeThickness: 5 }).setOrigin(0.5).setVisible(false);
+      this.stars.push(st);
+      this.root.add(st);
+    }
   }
 
   hurt(damage: number): void {
@@ -165,7 +172,7 @@ class FighterView {
     let sq = this.squash;
     // 構え: ボクサーのように小きざみにはずむ。拳は左右で交互に上下
     const bounce = Math.sin(t * 7.5);
-    if (!f.attack && onGround && !f.walking && !f.shield && f.stun <= 0) {
+    if (!f.attack && onGround && !f.walking && !f.shield && f.stun <= 0 && f.dizzy <= 0) {
       y = -Math.abs(bounce) * 5;
       set('glove_r', 10 * bounce, -22 * bounce);
       set('glove_l', -8 * bounce, 22 * bounce);
@@ -253,6 +260,24 @@ class FighterView {
       set('glove_l', 140, -20);
       sq += 0.06;
     }
+    // ガードが割れて ふらふら(企画者の指示 2026-10-23): 体を左右にゆらして、腕はだらんと下げる。頭の上で星が回る
+    const dizzy = f.dizzy > 0 && f.stun <= 0;
+    if (dizzy) {
+      const w = Math.sin(t * 6);
+      rot = w * 12;
+      lean = 0;
+      y = -Math.abs(Math.sin(t * 3)) * 4;
+      set('glove_l', -40, 160 + w * 30, 0.3);
+      set('glove_r', 40, 160 - w * 30, -0.3);
+      set('foot_l', w * 30, 0);
+      set('foot_r', -w * 30, 0);
+      sq += 0.04;
+    }
+    this.stars.forEach((st, i) => {
+      const a = t * 5 + (i * Math.PI * 2) / 3;
+      st.setVisible(dizzy).setPosition(Math.cos(a) * 46, -MOVE.height - 22 + Math.sin(a) * 12).setScale(Math.sin(a) > 0 ? 1 : 0.75);
+      st.setDepth(Math.sin(a) > 0 ? 1 : -1);
+    });
     // ローリング: 体を丸めて転がる
     if (f.roll) {
       const k = Math.min(1, f.roll.t / ROLL.time);
@@ -665,7 +690,7 @@ export class BattleScene extends Phaser.Scene {
     if (e.kind === 'shieldBreak') {
       audio.se('crackBig');
       this.spark(e.who.x, e.who.y - MOVE.height / 2, 0x4ec3ff, 1.6);
-      const t = this.text(e.who.x, e.who.y - MOVE.height - 30, 'ガードがわれた！', 26, '#9fe3ff');
+      const t = this.text(e.who.x, e.who.y - MOVE.height - 60, 'ガードがわれた！', 30, '#9fe3ff');
       this.tweens.add({ targets: t, y: t.y - 40, alpha: 0, delay: 300, duration: 500, onComplete: () => t.destroy() });
     }
     if (e.kind === 'block') {

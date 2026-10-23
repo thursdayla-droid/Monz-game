@@ -111,8 +111,17 @@ describe('battle (practice)', () => {
     expect(me.ground).toBeNull();
     expect(me.shield).toBe(true);
     // ずっとは使えない(なくなると割れる)
-    const ev = run(b, { shield: true }, 8);
-    expect(ev.some((e) => e.kind === 'shieldBreak')).toBe(true);
+    let broke = false;
+    for (let i = 0; i < 600 && !broke; i++) broke = stepBattle(b, [{ ...NO_INPUT, shield: true }], 1 / 60).some((e) => e.kind === 'shieldBreak');
+    expect(broke).toBe(true);
+    // 割れたら、ふらふらして動けない
+    expect(me.dizzy).toBeGreaterThan(0);
+    run(b, {}, 0.5);
+    const x = me.x;
+    run(b, { x: 1, jump: true }, 0.3);
+    expect(me.x).toBeCloseTo(x, 0);
+    run(b, {}, SHIELD.dizzy);
+    expect(me.dizzy).toBe(0);
   });
 
   it('guard: a hit on the part outside the shrunken guard gets through', () => {
