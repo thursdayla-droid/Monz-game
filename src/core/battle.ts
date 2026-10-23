@@ -51,14 +51,45 @@ export const MOVE = {
   airSpeed: 330,
   airAccel: 2200,
   jump: 1020,
-  /** 空中ジャンプ(2段目) */
-  airJump: 900,
+  /**
+   * 空中ジャンプ(2段目)。企画者の指示(2026-10-23): 2段ジャンプがはっきりわかるように、
+   * のぼっている途中でも、1段目と同じくらい新しく高くとぶ
+   */
+  airJump: 1060,
   airJumps: 1,
   /** 体の大きさ(当たり判定) */
   halfW: 40,
   height: 120,
   /** 吹っ飛んでいるときに速さが落ちる割合(1秒あたり) */
   launchDrag: 1.6,
+};
+
+/**
+ * 【仮】ガード(企画者の指示 2026-10-23):
+ * - ずっとは使えない。押している間すこしずつ小さくなる。攻撃を受けても削れて小さくなる
+ * - ガードの丸から体が出ている所に攻撃が当たると、くらう
+ * - はなしたら 0.5秒は使えない。空中でも使える
+ * - ガード中に左右を入れると、無敵のローリングを1回。ローリングするとガードは切れる
+ */
+export const SHIELD = {
+  /** 丸の大きさ(半径)。いちばん大きいとき・なくなる直前 */
+  maxR: 86,
+  minR: 34,
+  /** 押している間に減る速さ(1秒あたり。1で満タン) */
+  drain: 0.16,
+  /** 使っていない間にもどる速さ */
+  regen: 0.22,
+  /** 攻撃を受けたとき、ダメージ1あたりに減る量 */
+  perDamage: 0.07,
+  /** はなしたあと使えない時間(秒) */
+  cooldown: 0.5,
+  /** なくなる(割れる)と、しばらく使えない */
+  breakCooldown: 1.5,
+};
+export const ROLL = {
+  time: 0.36,
+  /** 転がる距離(px) */
+  distance: 250,
 };
 
 export const HP_MAX = 100;
@@ -127,6 +158,16 @@ export interface Fighter {
   /** 復活したあと、攻撃が当たらない残りの時間 */
   safe: number;
   shield: boolean;
+  /** ガードの残り(0〜1。丸の大きさ) */
+  shieldHp: number;
+  /** ガードがまた使えるまでの時間 */
+  shieldCd: number;
+  /** ローリング中(t: 経過、dir: 向き)。この間は攻撃が当たらない */
+  roll: { t: number; dir: 1 | -1 } | null;
+  /** 2段目のジャンプをした直後(見た目用。くるっと回る)の経過時間 */
+  flip: number;
+  /** 前の入力のスティックの横(左右を「入れた瞬間」を知るため) */
+  prevX: number;
   /** 下を入れて浮いた足場から降りている途中(この足場には乗らない) */
   dropFrom: Platform | null;
   /** 歩いているか(見た目用) */
@@ -138,7 +179,7 @@ export interface Fighter {
 }
 
 export function newFighter(x: number, y: number, face: 1 | -1, dummy = false): Fighter {
-  return { x, y, vx: 0, vy: 0, face, ground: null, airJumps: MOVE.airJumps, hp: HP_MAX, stocks: STOCKS, attack: null, stun: 0, safe: 0, shield: false, dropFrom: null, walking: false, out: 0, dummy };
+  return { x, y, vx: 0, vy: 0, face, ground: null, airJumps: MOVE.airJumps, hp: HP_MAX, stocks: STOCKS, attack: null, stun: 0, safe: 0, shield: false, shieldHp: 1, shieldCd: 0, roll: null, flip: -1, prevX: 0, dropFrom: null, walking: false, out: 0, dummy };
 }
 
 /** スティックの向きから、出すA攻撃を決める */
@@ -168,18 +209,69 @@ export function hitbox(f: Fighter, defs: Record<AttackName, AttackDef>): { x0: n
   return { x0: bx, x1: bx + d.box.w, y0: f.y + d.box.y, y1: f.y + d.box.y + d.box.h };
 }
 
+/** ガードの丸の中心と半径 */
+export function shieldCircle(f: Fighter): { x: number; y: number; r: number } {
+  return { x: f.x, y: f.y - MOVE.height / 2, r: SHIELD.minR + (SHIELD.maxR - SHIELD.minR) * Math.max(0, f.shieldHp) };
+}
+
+/** 当たった所(四角)が、ぜんぶガードの丸の中か */
+function insideShield(f: Fighter, r: { x0: number; x1: number; y0: number; y1: number }): boolean {
+  const c = shieldCircle(f);
+  return [[r.x0, r.y0], [r.x1, r.y0], [r.x0, r.y1], [r.x1, r.y1]].every(([x, y]) => Math.hypot(x - c.x, y - c.y) <= c.r);
+}
+
 export const hurtbox = (f: Fighter) => ({ x0: f.x - MOVE.halfW, x1: f.x + MOVE.halfW, y0: f.y - MOVE.height, y1: f.y });
 
 const overlap = (a: { x0: number; x1: number; y0: number; y1: number }, b: typeof a) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
 
-export type BattleEvent = { kind: 'hit'; target: Fighter; damage: number; x: number; y: number } | { kind: 'block'; target: Fighter; x: number; y: number } | { kind: 'ko'; target: Fighter; fell: boolean } | { kind: 'jump'; who: Fighter } | { kind: 'swing'; who: Fighter; name: AttackName };
+export type BattleEvent = { kind: 'hit'; target: Fighter; damage: number; x: number; y: number } | { kind: 'block'; target: Fighter; x: number; y: number } | { kind: 'ko'; target: Fighter; fell: boolean } | { kind: 'jump'; who: Fighter; air: boolean } | { kind: 'shieldBreak'; who: Fighter } | { kind: 'roll'; who: Fighter } | { kind: 'swing'; who: Fighter; name: AttackName };
 
 /** 1人ぶん、入力で動かす */
 function control(f: Fighter, inp: Input, dt: number, events: BattleEvent[]): void {
-  const canAct = f.stun <= 0 && !f.attack;
-  f.shield = canAct && !!f.ground && inp.shield;
   f.walking = false;
   if (f.stun > 0) f.stun -= dt;
+  if (f.flip >= 0) f.flip += dt;
+  if (f.flip > 0.4) f.flip = -1;
+  const justSide = Math.abs(inp.x) > 0.6 && Math.abs(f.prevX) <= 0.6;
+  f.prevX = inp.x;
+  // ローリング中: 決まった向きに転がる(操作できない・攻撃が当たらない)
+  if (f.roll) {
+    f.roll.t += dt;
+    const k = f.roll.t / ROLL.time;
+    // はじめ速く、終わりはゆっくり
+    f.vx = f.roll.dir * (ROLL.distance / ROLL.time) * 2 * Math.max(0, 1 - k);
+    if (k >= 1) {
+      f.roll = null;
+      f.vx = 0;
+    }
+    return;
+  }
+  const canAct = f.stun <= 0 && !f.attack;
+  // ガード
+  const was = f.shield;
+  f.shield = canAct && inp.shield && f.shieldCd <= 0 && f.shieldHp > 0;
+  if (f.shield) {
+    f.shieldHp -= SHIELD.drain * dt;
+    if (f.shieldHp <= 0) {
+      f.shieldHp = 0;
+      f.shield = false;
+      f.shieldCd = SHIELD.breakCooldown;
+      events.push({ kind: 'shieldBreak', who: f });
+    } else if (justSide) {
+      // ガード中に左右: ローリング(ガードは切れる)
+      const dir = inp.x > 0 ? 1 : -1;
+      f.shield = false;
+      f.shieldCd = SHIELD.cooldown;
+      f.roll = { t: 0, dir };
+      f.face = dir === 1 ? -1 : 1;
+      events.push({ kind: 'roll', who: f });
+      return;
+    }
+  } else {
+    if (was && f.shieldCd <= 0) f.shieldCd = SHIELD.cooldown;
+    f.shieldCd = Math.max(0, f.shieldCd - dt);
+    f.shieldHp = Math.min(1, f.shieldHp + SHIELD.regen * dt);
+  }
   if (f.attack) {
     f.attack.t += dt;
     const d = BUNK_ATTACKS[f.attack.name];
@@ -203,7 +295,7 @@ function control(f: Fighter, inp: Input, dt: number, events: BattleEvent[]): voi
     if (moving && inp.jump) {
       f.vy = -MOVE.jump;
       f.ground = null;
-      events.push({ kind: 'jump', who: f });
+      events.push({ kind: 'jump', who: f, air: false });
     } else if (moving && inp.y > 0.7 && f.ground.thin) {
       // 浮いた足場から降りる
       f.dropFrom = f.ground;
@@ -211,13 +303,17 @@ function control(f: Fighter, inp: Input, dt: number, events: BattleEvent[]): voi
     }
   } else {
     if (f.stun > 0) f.vx *= Math.max(0, 1 - MOVE.launchDrag * dt);
-    // 空中では、攻撃中も少しだけ動ける
-    else f.vx = approach(f.vx, inp.x * MOVE.airSpeed, MOVE.airAccel * dt);
-    if (canAct && inp.jump && f.airJumps > 0) {
+    // 空中では、攻撃中も少しだけ動ける(ガード中は少しだけ)
+    else f.vx = approach(f.vx, inp.x * MOVE.airSpeed * (f.shield ? 0.35 : 1), MOVE.airAccel * dt);
+    if (canAct && !f.shield && inp.jump && f.airJumps > 0) {
       f.airJumps--;
       f.vy = -MOVE.airJump;
-      if (Math.abs(inp.x) > 0.2) f.face = inp.x > 0 ? 1 : -1;
-      events.push({ kind: 'jump', who: f });
+      f.flip = 0;
+      if (Math.abs(inp.x) > 0.2) {
+        f.face = inp.x > 0 ? 1 : -1;
+        f.vx = inp.x * MOVE.airSpeed;
+      }
+      events.push({ kind: 'jump', who: f, air: true });
     }
   }
 }
@@ -263,17 +359,30 @@ function physics(f: Fighter, stage: Stage, dt: number): void {
 /** 攻撃が当たったか */
 function resolveHits(att: Fighter, def: Fighter, events: BattleEvent[]): void {
   const box = hitbox(att, BUNK_ATTACKS);
-  if (!box || att.attack!.hit || def.out > 0 || def.safe > 0) return;
+  if (!box || att.attack!.hit || def.out > 0 || def.safe > 0 || def.roll) return;
   if (!overlap(box, hurtbox(def))) return;
   att.attack!.hit = true;
   const d = BUNK_ATTACKS[att.attack!.name];
   const cx = (Math.max(box.x0, def.x - MOVE.halfW) + Math.min(box.x1, def.x + MOVE.halfW)) / 2;
   const cy = (Math.max(box.y0, def.y - MOVE.height) + Math.min(box.y1, def.y)) / 2;
-  if (def.shield) {
-    // シールド: ダメージなし、少し押される【仮】
+  const hit = { x0: Math.max(box.x0, def.x - MOVE.halfW), x1: Math.min(box.x1, def.x + MOVE.halfW), y0: Math.max(box.y0, def.y - MOVE.height), y1: Math.min(box.y1, def.y) };
+  if (def.shield && insideShield(def, hit)) {
+    // ガード: ダメージなし。ガードが削れて小さくなる、少し押される【仮】
     def.vx = att.face * 160;
+    def.shieldHp -= d.damage * SHIELD.perDamage;
     events.push({ kind: 'block', target: def, x: cx, y: cy });
+    if (def.shieldHp <= 0) {
+      def.shieldHp = 0;
+      def.shield = false;
+      def.shieldCd = SHIELD.breakCooldown;
+      events.push({ kind: 'shieldBreak', who: def });
+    }
     return;
+  }
+  // ガードの丸から出ている所に当たった: くらう(ガードは切れる)
+  if (def.shield) {
+    def.shield = false;
+    def.shieldCd = SHIELD.cooldown;
   }
   def.hp = Math.max(0, def.hp - d.damage);
   const k = knockback(d, def.hp);
@@ -296,7 +405,7 @@ function ko(f: Fighter, fell: boolean, events: BattleEvent[]): void {
 }
 
 function respawn(f: Fighter, at: [number, number]): void {
-  Object.assign(f, { x: at[0], y: at[1] - 260, vx: 0, vy: 0, ground: null, airJumps: MOVE.airJumps, hp: HP_MAX, attack: null, stun: 0, safe: 1.5, shield: false, dropFrom: null, out: 0 });
+  Object.assign(f, { x: at[0], y: at[1] - 260, vx: 0, vy: 0, ground: null, airJumps: MOVE.airJumps, hp: HP_MAX, attack: null, stun: 0, safe: 1.5, shield: false, shieldHp: 1, shieldCd: 0, roll: null, flip: -1, dropFrom: null, out: 0 });
 }
 
 export interface Battle {

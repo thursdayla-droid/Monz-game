@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
-import { BUNK_ATTACKS, HP_MAX, MOVE, newPractice, NO_INPUT, stepBattle, STOCKS, type AttackName, type Battle, type BattleEvent, type Fighter, type Input } from '../core/battle';
+import { BUNK_ATTACKS, HP_MAX, MOVE, ROLL, SHIELD, newPractice, NO_INPUT, stepBattle, STOCKS, type AttackName, type Battle, type BattleEvent, type Fighter, type Input } from '../core/battle';
 import { PALETTES } from '../core/palettes';
 import { recolorPixels } from '../core/recolor';
 import { BUNK_MOTION } from '../render/bunkView';
@@ -100,7 +100,7 @@ class FighterView {
       this.parts.set(name, { img, x: img.x, y: img.y });
     }
     this.actor.setScale(FIGHTER_SCALE);
-    this.shield = scene.add.circle(0, -MOVE.height / 2, 80, 0x4ec3ff, 0.32).setStrokeStyle(4, 0xbfeaff, 0.9).setVisible(false);
+    this.shield = scene.add.circle(0, -MOVE.height / 2, SHIELD.maxR, 0x4ec3ff, 0.32).setStrokeStyle(4, 0xbfeaff, 0.9).setVisible(false);
     this.root.add(this.shield);
   }
 
@@ -244,11 +244,38 @@ class FighterView {
       set('glove_l', 140, -20);
       sq += 0.06;
     }
+    // 2段目のジャンプ: くるっと前に1回転
+    if (f.flip >= 0 && !f.attack && f.stun <= 0) {
+      rot = Math.min(1, f.flip / 0.34) * 360;
+      set('foot_l', 20, -80);
+      set('foot_r', -10, -80);
+      set('glove_l', 40, 40);
+      set('glove_r', -40, 40);
+      sq -= 0.05;
+    }
+    // ローリング: 体を丸めて転がる
+    if (f.roll) {
+      const k = Math.min(1, f.roll.t / ROLL.time);
+      // 転がる向きに回る(後ろ向きに転がるときは逆回り)
+      rot = -k * 360 * (f.roll.dir === f.face ? 1 : -1);
+      set('foot_l', 120, -160);
+      set('foot_r', -60, -140);
+      set('glove_l', 160, 80);
+      set('glove_r', -160, 80);
+      sq += 0.14;
+      y = -10;
+    }
     const sy = 1 - sq;
     const sx = 1 + sq * 0.6;
     this.body.setScale(sx, sy).setRotation((((rot + lean) * f.face) * Math.PI) / 180);
     this.actor.setPosition(step * f.face, y);
-    this.shield.setVisible(f.shield).setScale(0.95 + Math.sin(t * 20) * 0.03);
+    // ガードの丸: 残りが少ないほど小さく、赤っぽく(企画者の指示 2026-10-23)
+    const left = Math.max(0, f.shieldHp);
+    const r = SHIELD.minR + (SHIELD.maxR - SHIELD.minR) * left;
+    this.shield.setVisible(f.shield).setScale((r / SHIELD.maxR) * (1 + Math.sin(t * 20) * 0.02));
+    // 丸の大きさは、のび縮み・傾きとは関係なく見せる(root の直下)
+    const col = Phaser.Display.Color.Interpolate.ColorWithColor(Phaser.Display.Color.ValueToColor(0xff5a4e), Phaser.Display.Color.ValueToColor(0x4ec3ff), 100, Math.round(left * 100));
+    this.shield.setFillStyle(Phaser.Display.Color.GetColor(col.r, col.g, col.b), left < 0.3 ? 0.42 : 0.32);
     // 当たった瞬間は白く光る。復活したばかりは点滅
     this.flash = Math.max(0, this.flash - dt);
     for (const { img } of this.parts.values()) {
@@ -260,7 +287,8 @@ class FighterView {
         img.tintMode = Phaser.TintModes.MULTIPLY;
       }
     }
-    this.root.setAlpha(f.safe > 0 && Math.floor(t * 12) % 2 ? 0.45 : 1);
+    // 復活したばかりは点滅、ローリング中(無敵)は少し透ける
+    this.root.setAlpha(f.roll ? 0.6 : f.safe > 0 && Math.floor(t * 12) % 2 ? 0.45 : 1);
   }
 }
 
@@ -438,7 +466,7 @@ export class BattleScene extends Phaser.Scene {
       this.hud.push({ hp, hpText, stocks });
     });
     // 遊び方(はじめに少しだけ出す)
-    const help = this.text(W / 2, 190, 'スティックで いどう\nA：パンチ（スティックの向きで 技が変わる）\nジャンプは 空中でも もう1回', 22, '#ffffff');
+    const help = this.text(W / 2, 190, 'スティックで いどう　A：パンチ（スティックの向きで 技が変わる）\nジャンプは 空中でも もう1回\nガード中に 左右で ローリング', 22, '#ffffff');
     this.tweens.add({ targets: help, alpha: 0, delay: 4500, duration: 800, onComplete: () => help.destroy() });
   }
 
@@ -599,7 +627,18 @@ export class BattleScene extends Phaser.Scene {
       audio.se('whoosh', { pitch: e.name === 'jab' ? 1.35 : e.name === 'side' ? 0.85 : 1 });
       this.swoosh(e.who, e.name);
     }
-    if (e.kind === 'jump') audio.se('hop', { pitch: e.who.ground ? 1 : 1.25 });
+    if (e.kind === 'jump') {
+      audio.se('hop', { pitch: e.air ? 1.35 : 1 });
+      // 2段目のジャンプ: 足もとに輪
+      if (e.air) this.ring(e.who.x, e.who.y, 1.1);
+    }
+    if (e.kind === 'roll') audio.se('whoosh', { pitch: 0.7 });
+    if (e.kind === 'shieldBreak') {
+      audio.se('crackBig');
+      this.spark(e.who.x, e.who.y - MOVE.height / 2, 0x4ec3ff, 1.6);
+      const t = this.text(e.who.x, e.who.y - MOVE.height - 30, 'ガードがわれた！', 26, '#9fe3ff');
+      this.tweens.add({ targets: t, y: t.y - 40, alpha: 0, delay: 300, duration: 500, onComplete: () => t.destroy() });
+    }
     if (e.kind === 'block') {
       audio.se('guard');
       this.spark(e.x, e.y, 0x9fe3ff, 0.7);
