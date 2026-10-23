@@ -183,4 +183,23 @@ describe('battle (practice)', () => {
     expect(attackFor({ ...NO_INPUT, y: 1 }, false)).toBe('down');
     expect(BUNK_ATTACKS.air_down.angle).toBeLessThan(-45);
   });
+
+  it('uppercut pops the target up a little (no spinning)', () => {
+    const b = newPractice();
+    const [me, dummy] = b.fighters;
+    run(b, {}, 0.5);
+    me.x = dummy.x - 40;
+    me.face = 1;
+    const y0 = dummy.y;
+    let top = y0;
+    run(b, { a: true, y: -1 }, 1 / 60);
+    for (let i = 0; i < 90; i++) {
+      stepBattle(b, [NO_INPUT], 1 / 60);
+      top = Math.min(top, dummy.y);
+    }
+    expect(dummy.hitBy).toBe('up');
+    expect(BUNK_ATTACKS.up.noSpin).toBe(true);
+    expect(y0 - top).toBeGreaterThan(40);
+    expect(y0 - top).toBeLessThan(160);
+  });
 });

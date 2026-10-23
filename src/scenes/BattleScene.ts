@@ -246,8 +246,18 @@ class FighterView {
       sq += -0.08 * windup + 0.1 * strike;
       y = 10 * strike;
     }
+    // 少し浮くだけの技(アッパー)を受けた: 回らずに、のけぞって浮く
+    const pop = f.stun > 0 && !onGround && !!f.hitBy && !!BUNK_ATTACKS[f.hitBy].noSpin;
+    if (pop) {
+      lean = -10;
+      set('glove_l', -60, -120);
+      set('glove_r', 60, -140);
+      set('foot_l', -20, 30);
+      set('foot_r', 30, 30);
+      sq -= 0.06;
+    }
     // 吹っ飛んでいる: くるくる回る
-    if (f.stun > 0 && !onGround) {
+    if (f.stun > 0 && !onGround && !pop) {
       rot = (t * 1100) % 360;
       set('glove_l', -80, -80);
       set('glove_r', 80, -100);
@@ -659,7 +669,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.trailT <= 0 && !frozen) {
       this.trailT = 0.03;
       for (const f of this.battle.fighters) {
-        if (f.out > 0 || f.stun <= 0 || Math.hypot(f.vx, f.vy) < 500) continue;
+        if (f.out > 0 || f.stun <= 0 || Math.hypot(f.vx, f.vy) < 500 || (f.hitBy && BUNK_ATTACKS[f.hitBy].noSpin)) continue;
         const c = this.add.circle(f.x, f.y - MOVE.height / 2, 14, 0xffffff, 0.55).setDepth(8);
         this.tweens.add({ targets: c, scale: 2.2, alpha: 0, duration: 380, onComplete: () => c.destroy() });
       }

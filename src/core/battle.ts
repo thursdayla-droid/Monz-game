@@ -118,6 +118,8 @@ export interface AttackDef {
   /** 吹っ飛ばす強さ: 基本 + HPが減っているほど足される分 */
   base: number;
   growth: number;
+  /** 当たった相手を くるくる回さない(少し浮くだけの技) */
+  noSpin?: boolean;
 }
 
 /**
@@ -127,7 +129,8 @@ export interface AttackDef {
 export const BUNK_ATTACKS: Record<AttackName, AttackDef> = {
   jab: { label: 'ジャブ', damage: 2, startup: 0.05, active: 0.09, recovery: 0.12, box: { x: 15, y: -110, w: 110, h: 70 }, angle: 30, base: 220, growth: 450 },
   side: { label: 'ストレート', damage: 6, startup: 0.14, active: 0.1, recovery: 0.26, box: { x: 15, y: -118, w: 150, h: 80 }, angle: 35, base: 380, growth: 1300 },
-  up: { label: 'アッパー', damage: 5, startup: 0.1, active: 0.12, recovery: 0.22, box: { x: -45, y: -230, w: 135, h: 150 }, angle: 85, base: 400, growth: 1150 },
+  // 企画者の指示(2026-10-23): 上に攻撃して当たったら、くるくる回らずに少し上に上がる感じ
+  up: { label: 'アッパー', damage: 5, startup: 0.1, active: 0.12, recovery: 0.22, box: { x: -45, y: -230, w: 135, h: 150 }, angle: 88, base: 760, growth: 420, noSpin: true },
   down: { label: '下パンチ', damage: 4, startup: 0.09, active: 0.1, recovery: 0.22, box: { x: 10, y: -80, w: 140, h: 75 }, angle: 25, base: 320, growth: 900 },
   // 企画者の指示(2026-10-23): ジャンプ中の下Aは、真下にパンチ。当たると下へたたきつける
   air_down: { label: '真下パンチ', damage: 5, startup: 0.1, active: 0.12, recovery: 0.24, box: { x: -60, y: -40, w: 120, h: 130 }, angle: -80, base: 380, growth: 900 },
@@ -165,6 +168,8 @@ export interface Fighter {
   stun: number;
   /** ガードが割れて、ふらふらしている残りの時間(動けない。攻撃を受けると終わる) */
   dizzy: number;
+  /** さいごに受けた技(見た目用: くるくる回るかどうか) */
+  hitBy: AttackName | null;
   /** 復活したあと、攻撃が当たらない残りの時間 */
   safe: number;
   shield: boolean;
@@ -187,7 +192,7 @@ export interface Fighter {
 }
 
 export function newFighter(x: number, y: number, face: 1 | -1, dummy = false): Fighter {
-  return { x, y, vx: 0, vy: 0, face, ground: null, airJumps: MOVE.airJumps, hp: HP_MAX, stocks: STOCKS, attack: null, stun: 0, dizzy: 0, safe: 0, shield: false, shieldHp: 1, shieldCd: 0, roll: null, prevX: 0, dropFrom: null, walking: false, out: 0, dummy };
+  return { x, y, vx: 0, vy: 0, face, ground: null, airJumps: MOVE.airJumps, hp: HP_MAX, stocks: STOCKS, attack: null, stun: 0, dizzy: 0, hitBy: null, safe: 0, shield: false, shieldHp: 1, shieldCd: 0, roll: null, prevX: 0, dropFrom: null, walking: false, out: 0, dummy };
 }
 
 /** スティックの向きから、出すA攻撃を決める */
@@ -402,6 +407,7 @@ function resolveHits(att: Fighter, def: Fighter, events: BattleEvent[]): void {
   def.attack = null;
   def.stun = 0.12 + k / 3000;
   def.dizzy = 0;
+  def.hitBy = att.attack!.name;
   def.face = att.face === 1 ? -1 : 1;
   events.push({ kind: 'hit', target: def, damage: d.damage, x: cx, y: cy });
 }
@@ -415,7 +421,7 @@ function ko(f: Fighter, fell: boolean, events: BattleEvent[]): void {
 }
 
 function respawn(f: Fighter, at: [number, number]): void {
-  Object.assign(f, { x: at[0], y: at[1] - 260, vx: 0, vy: 0, ground: null, airJumps: MOVE.airJumps, hp: HP_MAX, attack: null, stun: 0, dizzy: 0, safe: 1.5, shield: false, shieldHp: 1, shieldCd: 0, roll: null, dropFrom: null, out: 0 });
+  Object.assign(f, { x: at[0], y: at[1] - 260, vx: 0, vy: 0, ground: null, airJumps: MOVE.airJumps, hp: HP_MAX, attack: null, stun: 0, dizzy: 0, hitBy: null, safe: 1.5, shield: false, shieldHp: 1, shieldCd: 0, roll: null, dropFrom: null, out: 0 });
 }
 
 export interface Battle {
