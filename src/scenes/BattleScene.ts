@@ -7,6 +7,7 @@ import { BUNK_MOTION } from '../render/bunkView';
 import { preloadPacks } from '../render/packs';
 import { canvasTextureOnce, UI_FONT } from '../ui/paint';
 import { DASH_PLAT_KEY } from './DashScene';
+import { cameraBounds, cameraTarget, smoothCamera, type CameraView } from '../core/battleCamera';
 
 /** 横画面(企画者の指示 2026-10-22: 横画面でできるように)。バトルの間だけ、ゲームの画面を横長にする */
 const W = 1280;
@@ -371,6 +372,10 @@ export class BattleScene extends Phaser.Scene {
   private stickCenter = { x: STICK.x, y: STICK.y };
   private turnHint?: Phaser.GameObjects.Container;
   private trailT = 0;
+  /** 今のカメラ(なめらかに目標へ近づける) */
+  private camView?: CameraView;
+  /** 画面の外にいるキャラクターの位置を知らせる丸い窓(キャラクターごと) */
+  private offscreen: Phaser.GameObjects.Container[] = [];
 
   constructor() {
     super('Battle');
@@ -399,9 +404,10 @@ export class BattleScene extends Phaser.Scene {
   }
 
   create(): void {
-    // 企画者の指示(2026-10-23): 少し引いて、広いステージを動き回る → ステージは縮めて映す。ボタン・表示は別のカメラでそのまま
+    // ステージは自動ズームのカメラで映す(企画者の仕様 2026-10-23)。HP・ボタンは別のカメラでそのまま
     const cam = this.cameras.main;
     cam.setZoom(W / BATTLE_VIEW.w).centerOn(BATTLE_VIEW.w / 2, BATTLE_VIEW.h / 2);
+    this.camView = undefined;
     this.uiCam = this.cameras.add(0, 0, W, H);
     const sort = (go: Phaser.GameObjects.GameObject) => {
       if (this.makingUi) cam.ignore(go);
@@ -428,7 +434,9 @@ export class BattleScene extends Phaser.Scene {
       this.buildHud();
       this.buildPad();
       this.buildTurnHint();
+      this.offscreen = this.battle.fighters.map((f) => this.buildOffscreen(f.dummy));
     });
+    this.updateCamera(1);
     this.keys = this.input.keyboard?.addKeys('LEFT,RIGHT,UP,DOWN,Z,X,C,SPACE,SHIFT') as Record<string, Phaser.Input.Keyboard.Key> | undefined;
     this.cameras.main.fadeIn(300, 0, 0, 0);
     this.uiCam.fadeIn(300, 0, 0, 0);
@@ -473,7 +481,9 @@ export class BattleScene extends Phaser.Scene {
         ctx.fill();
       }
     });
-    this.add.image(0, 0, 'battle:bg:view').setDisplaySize(BW + 400, BH + 300).setPosition(-200, -150).setOrigin(0, 0).setDepth(-10);
+    // 自動ズームでいちばん引いても はしが見えないように、映してよい範囲より大きく広げる
+    const b = cameraBounds(this.battle.stage);
+    this.add.image(b.x0 - 400, b.y0 - 300, 'battle:bg:view').setOrigin(0, 0).setDisplaySize(b.x1 - b.x0 + 800, b.y1 - b.y0 + 600).setDepth(-10);
   }
 
   private drawStage(): void {
@@ -681,8 +691,54 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     this.battle.fighters.forEach((f, i) => this.views[i]?.update(f, this.t, dt, this.floorUnder(f), frozen));
+    this.updateCamera(dt);
     this.refreshHud();
     this.turnHint?.setVisible(window.innerHeight > window.innerWidth);
+  }
+
+  /** 自動ズームカメラ: 場にいる全員が映るように、なめらかに寄ったり引いたりする */
+  private updateCamera(dt: number): void {
+    const pts = this.battle.fighters.filter((f) => f.out <= 0).map((f) => ({ x: f.x, y: f.y }));
+    const target = cameraTarget(pts, this.battle.stage, W, H);
+    this.camView = this.camView ? smoothCamera(this.camView, target, dt) : target;
+    const cam = this.cameras.main;
+    cam.setZoom(this.camView.zoom).centerOn(this.camView.x, this.camView.y);
+    // 画面の外(上・左右・下)にいるキャラクターは、画面のはしに丸い窓を出して知らせる
+    const view = cam.worldView;
+    const z = this.camView.zoom;
+    this.battle.fighters.forEach((f, i) => {
+      const box = this.offscreen[i];
+      if (!box) return;
+      // 世界の座標 → 画面の座標
+      const sx = (f.x - view.x) * z;
+      const sy = (f.y - MOVE.height / 2 - view.y) * z;
+      // 画面の外、または上の HP の表示の下にかくれている
+      const inside = f.out > 0 || (sx > 0 && sx < W && sy > 150 && sy < H + 20);
+      box.setVisible(!inside);
+      if (inside) return;
+      const m = 64;
+      const px = Phaser.Math.Clamp(sx, m, W - m);
+      const py = Phaser.Math.Clamp(sy, 190, H - m);
+      box.setPosition(px, py);
+      // 矢印は、キャラクターのいる向き
+      box.getAt<Phaser.GameObjects.Graphics>(2)?.setRotation(Math.atan2(sy - py, sx - px));
+      // 遠いほど小さく
+      const dist = Math.hypot(sx - px, sy - py);
+      box.setScale(Phaser.Math.Clamp(1.1 - dist / 1600, 0.6, 1.1));
+    });
+  }
+
+  /** 画面の外にいるときに出す丸い窓(中にキャラクターの体の絵と、向きの矢印) */
+  private buildOffscreen(alt: boolean): Phaser.GameObjects.Container {
+    const c = this.add.container(0, 0).setDepth(45).setVisible(false);
+    const ring = this.add.circle(0, 0, 44, 0x16101c, 0.85).setStrokeStyle(5, alt ? 0x4ec3ff : 0xff9a3c, 1);
+    const key = alt ? altTexture(this, 'bunk:guard:body') : 'bunk:guard:body';
+    const img = this.add.image(0, 4, key);
+    img.setScale(70 / Math.max(img.width, img.height));
+    const arrow = this.add.graphics();
+    arrow.fillStyle(alt ? 0x4ec3ff : 0xff9a3c, 1).fillTriangle(62, 0, 46, -12, 46, 12);
+    c.add([ring, img, arrow]);
+    return c;
   }
 
   /** 影を落とす床の高さ(下に床がなければ null) */
