@@ -82,3 +82,19 @@ export const card = (id: number): CardDefinition | undefined => BY_ID.get(id);
 
 /** カードNoの表示(No.001) */
 export const cardNo = (id: number) => `No.${String(id).padStart(3, '0')}`;
+
+/**
+ * 総合値(強さの目安。並びかえに使う)【仮】: HP + (攻撃 + 防御 + 魔力 + 素早さ) × 10。
+ * HP(100〜180)と ほかの数字(1〜10)の大きさをそろえるため、HP以外は10倍にする
+ */
+export const cardPower = (c: CardDefinition): number => c.maxHp + (c.atk + c.def + c.mag + c.spd) * 10;
+
+export type CardSort = 'strong' | 'weak' | 'no';
+export const CARD_SORT_LABELS: Record<CardSort, string> = { strong: '強い順', weak: '弱い順', no: 'No.順' };
+
+/** カードNoの並びかえ(強い順・弱い順は、同じならNo.順) */
+export function sortCardIds(ids: readonly number[], sort: CardSort): number[] {
+  const p = (id: number) => cardPower(card(id)!);
+  return [...ids].sort((a, b) => (sort === 'strong' ? p(b) - p(a) : sort === 'weak' ? p(a) - p(b) : 0) || a - b);
+}
+

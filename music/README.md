@@ -39,3 +39,4 @@ Claude Code が、音量をそろえてから `public/assets/bgm/` に入れ、`
 | MYTHCLASH 必殺技のカットイン | se/mythclash/cutin.mp3 | mcCutin |
 | MYTHCLASH 火傷 | se/mythclash/burn.mp3 | mcBurn |
 | MYTHCLASH 無の魔法 | se/mythclash/magic_none.mp3 | mcMagic |
+| MYTHCLASH 攻撃など行動を選んだとき | se/mythclash/select.mp3 | mcSelect |

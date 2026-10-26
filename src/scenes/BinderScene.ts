@@ -1,7 +1,8 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { loadLife } from '../core/lifeSave';
-import { card, cardNo, CARDS } from '../core/mythclash/cards';
+import { card, cardNo, CARDS, sortCardIds } from '../core/mythclash/cards';
+import { addSortChips, cardSortChoice } from '../ui/sortChips';
 import { battleUnlocked, kindsToUnlock, newCollection, ownedCount, ownedKinds, type MythCollection } from '../core/mythclash/packs';
 import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W } from '../ui/mythCardArt';
 import { canvasTextureOnce, roundRectPath, UI_FONT } from '../ui/paint';
@@ -12,7 +13,7 @@ const H = 1280;
 const COLS = 3;
 const ROWS = 3;
 const PER_PAGE = COLS * ROWS;
-const POCKET = { w: 212, h: 290, gap: 10, top: 250 };
+const POCKET = { w: 212, h: 290, gap: 10, top: 268 };
 const CARD_S = Math.min((POCKET.w - 20) / MYTH_CARD_W, (POCKET.h - 20) / MYTH_CARD_H);
 const cardKey = (id: number) => `mc:card:${id}`;
 
@@ -21,6 +22,7 @@ const cardKey = (id: number) => `mc:card:${id}`;
  * - カードNo順に3×3のポケット。持っていないカードは「？？？」(番号だけ)。2枚以上は「×枚数」
  * - 上に「所持種類数：○/100」。バトル解放前は「異なるカードをあと○種類集めるとバトル解放！」
  * - ◀ ▶ か、横になぞってページをめくる。カードをさわると大きく見られる
+ * - 並びかえ: 強い順・弱い順(総合値)・No.順(企画者 2026-10-26)。強い順・弱い順では、持っているカードが先、持っていないカードはあとにNo.順
  * 【仮】バインダーの見た目はプログラムで描いたもの
  */
 export class BinderScene extends Phaser.Scene {
@@ -30,6 +32,8 @@ export class BinderScene extends Phaser.Scene {
   private pageLayer?: Phaser.GameObjects.Container;
   private pageLabel?: Phaser.GameObjects.Text;
   private busy = false;
+  /** ページに並べる順番(カードNo) */
+  private order: number[] = [];
 
   constructor() {
     super('Binder');
@@ -81,8 +85,23 @@ export class BinderScene extends Phaser.Scene {
       if (downX !== null && Math.abs(p.x - downX) > 90 && !this.busy) this.turn(p.x < downX ? 1 : -1);
       downX = null;
     });
-    this.drawPage(0);
+    this.sortLayer = this.add.container(0, 0);
+    this.applySort(cardSortChoice.binder ?? 'no');
     this.cameras.main.fadeIn(220, 0, 0, 0);
+  }
+
+  private sortLayer?: Phaser.GameObjects.Container;
+
+  private applySort(k: 'strong' | 'weak' | 'no'): void {
+    cardSortChoice.binder = k;
+    const all = CARDS.map((c) => c.id);
+    const have = all.filter((id) => ownedCount(this.col, id) > 0);
+    const not = all.filter((id) => ownedCount(this.col, id) === 0);
+    this.order = k === 'no' ? all : [...sortCardIds(have, k), ...not];
+    this.sortLayer?.removeAll(true);
+    addSortChips(this, this.sortLayer!, W / 2, 226, k, (n) => this.applySort(n));
+    this.page = 0;
+    this.drawPage(0, 0);
   }
 
   private turn(d: number): void {
@@ -100,8 +119,8 @@ export class BinderScene extends Phaser.Scene {
     const layer = this.add.container(0, 0);
     const x0 = (W - COLS * POCKET.w - (COLS - 1) * POCKET.gap) / 2 + 8;
     for (let i = 0; i < PER_PAGE; i++) {
-      const id = page * PER_PAGE + i + 1;
-      if (id > CARDS.length) break;
+      const id = this.order[page * PER_PAGE + i];
+      if (id === undefined) break;
       const x = x0 + (i % COLS) * (POCKET.w + POCKET.gap);
       const y = POCKET.top + Math.floor(i / COLS) * (POCKET.h + POCKET.gap);
       layer.add(this.pocket(id, x, y));

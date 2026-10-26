@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ABILITIES } from '../src/core/mythclash/abilities';
-import { CARDS, card } from '../src/core/mythclash/cards';
+import { CARDS, card, cardPower, sortCardIds } from '../src/core/mythclash/cards';
 import { activeCard, createBattle, legalActions, replaceDowned, resolveRound, validDeck, type BattleAction, type BattleEvent, type BattleState } from '../src/core/mythclash/engine';
 import { magicEffectOf } from '../src/core/mythclash/magic';
 import { baseDamage, DEFAULT_RULES, elementMultiplier, type BattleRules } from '../src/core/mythclash/rules';
@@ -68,6 +68,14 @@ describe('MYTHCLASH cards (from the planner\'s table, unchanged)', () => {
 });
 
 describe('MYTHCLASH battle rules', () => {
+  it('cards can be sorted by power (strong / weak) and by number', () => {
+    const ids = [26, 1, 60, 100, 12];
+    const strong = sortCardIds(ids, 'strong');
+    for (let i = 1; i < strong.length; i++) expect(cardPower(card(strong[i - 1])!)).toBeGreaterThanOrEqual(cardPower(card(strong[i])!));
+    expect(sortCardIds(ids, 'weak')).toEqual([...strong].reverse().sort((a, b) => cardPower(card(a)!) - cardPower(card(b)!) || a - b));
+    expect(sortCardIds(ids, 'no')).toEqual([1, 12, 26, 60, 100]);
+  });
+
   it('magic effects and abilities have readable descriptions', () => {
     expect(describeMagicEffect(card(14)!)).toContain('睡眠');
     expect(describeMagicEffect(card(3)!)).toContain('毒');

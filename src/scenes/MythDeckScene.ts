@@ -1,7 +1,8 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { LifeRecord, loadLife } from '../core/lifeSave';
-import { card, RARITIES } from '../core/mythclash/cards';
+import { card, sortCardIds } from '../core/mythclash/cards';
+import { addSortChips, cardSortChoice } from '../ui/sortChips';
 import { battleUnlocked, deckOwned, kindsToUnlock, ownedCount } from '../core/mythclash/packs';
 import { showCardZoom } from '../ui/cardZoom';
 import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W } from '../ui/mythCardArt';
@@ -21,6 +22,7 @@ const cardKey = (id: number) => `mc:card:${id}`;
  * MYTHCLASH のデッキ編成(企画者 2026-10-26: タイトルの「バトルを始める」→ 3枚のデッキ編成 → バトル)。
  * - 持っているカードから、ちがうカードを3枚えらぶ。上の3つの枠に入った順に、先頭から場に出る
  * - 下のカードをさわると枠に入る(もう一度さわると外れる)。枠のカードをさわっても外れる。長押しで大きく見る
+ * - 並びかえ: 強い順(総合値)・弱い順・No.順(企画者 2026-10-26)
  * - 組んだデッキは覚えておく(企画者 2026-10-26: 最後に使ったデッキを保存して、また選ばなくてもいいように)。
  *   次に開くと、前のデッキが入った状態で始まるので、そのまま「バトル開始！」を押せる
  * - mode: battle =「バトル開始」で対戦へ / edit =「チーム編成」から開いたとき。「決定」で覚えてタイトルへ
@@ -54,10 +56,7 @@ export class MythDeckScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(PORTRAIT.w, PORTRAIT.h));
     this.record = new LifeRecord(loadLife());
     const col = this.record.mythclash;
-    const rank = (id: number) => RARITIES.indexOf(card(id)!.rarity);
-    this.owned = Object.keys(col.owned)
-      .map(Number)
-      .sort((a, b) => rank(b) - rank(a) || a - b);
+    this.owned = sortCardIds(Object.keys(col.owned).map(Number), cardSortChoice.deck ?? 'strong');
     this.deck = col.deck && deckOwned(col, col.deck) ? [...col.deck] : [];
     this.fromSave = this.deck.length === 3;
     const bg = this.add.graphics();
@@ -116,8 +115,16 @@ export class MythDeckScene extends Phaser.Scene {
       L.add(img);
     }
 
+    // 並びかえ(強い順・弱い順・No.順)
+    const sortY = 140 + sh + 36;
+    addSortChips(this, L, W / 2, sortY, cardSortChoice.deck ?? 'strong', (k) => {
+      cardSortChoice.deck = k;
+      this.owned = sortCardIds(this.owned, k);
+      this.page = 0;
+      this.draw();
+    });
     // まん中: 持っているカード(ページごと)
-    const top = 140 + sh + 40;
+    const top = sortY + 34;
     const gw = MYTH_CARD_W * GRID_S;
     const gh = MYTH_CARD_H * GRID_S;
     const gap = (W - COLS * gw) / (COLS + 1);

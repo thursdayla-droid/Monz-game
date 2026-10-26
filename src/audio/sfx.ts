@@ -50,7 +50,8 @@ export type SeName =
   | 'mcDrain'
   | 'mcMagicGuardOk'
   | 'mcBuff'
-  | 'mcBurn';
+  | 'mcBurn'
+  | 'mcSelect';
 
 let noise: AudioBuffer | null = null;
 function noiseBuf(ctx: BaseAudioContext): AudioBuffer {
@@ -447,6 +448,10 @@ export function playSe(ctx: AudioContext, out: AudioNode, name: SeName, pitch: n
     case 'mcBuff':
       // ステータス上昇【仮】: 上がっていく音
       tone(ctx, out, t, 'triangle', [[0, 400], [0.35, 1200]], [[0, 0.25], [0.4, 0.0001]], 0.42);
+      break;
+    case 'mcSelect':
+      // 行動を選んだ【仮】: カチッ
+      tone(ctx, out, t, 'square', [[0, 900], [0.05, 600]], [[0, 0.2], [0.07, 0.0001]], 0.08);
       break;
     case 'mcBurn':
       // 火傷【仮】: ぼっと燃える音

@@ -126,7 +126,7 @@ export class MythBattleScene extends Phaser.Scene {
   create(): void {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(PORTRAIT.w, PORTRAIT.h));
     watchViewport(this, () => this.onViewport());
-    audio.preloadSe(['mcSlash', 'mcSpecial', 'mcGuardOk', 'mcPoison', 'mcHeal', 'mcThunder', 'mcNature', 'mcFire', 'mcLight', 'mcDark', 'mcDrain', 'mcMagicGuardOk', 'mcBuff', 'mcWater', 'mcCounter', 'mcCutin', 'mcBurn', 'mcMagic']);
+    audio.preloadSe(['mcSlash', 'mcSpecial', 'mcGuardOk', 'mcPoison', 'mcHeal', 'mcThunder', 'mcNature', 'mcFire', 'mcLight', 'mcDark', 'mcDrain', 'mcMagicGuardOk', 'mcBuff', 'mcWater', 'mcCounter', 'mcCutin', 'mcBurn', 'mcMagic', 'mcSelect']);
     this.drawBackground();
     const seed = newSeed();
     this.rng = mulberry32(seed ^ 0x5bd1e995);
@@ -296,8 +296,9 @@ export class MythBattleScene extends Phaser.Scene {
       img.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.zoom(side, this.s.teams[side].active));
       // 状態(眠り・毒など)は、札の下に
       const st = this.s.teams[side].cards[this.s.teams[side].active];
-      const marks = [act.skip && STATUS_LABELS[act.skip], act.dot && STATUS_LABELS[act.dot], st.shield > 0 && `バリア${st.shield}`, st.specialLock && side === ME && '必殺は次のターン使えない'].filter(Boolean) as string[];
-      if (marks.length) ui.add(this.text(sx, y - ch / 2 + 128, marks.join('\n'), 20, '#ffd23a', 0).setBackgroundColor('#0a0408cc').setPadding(8, 2, 8, 4).setWordWrapWidth(W - sx - 24, true));
+      // 追加効果(毒・能力ダウンなど)は、カードの上に大きく(企画者 2026-10-26: 分かりにくいのでカードに表示)
+      this.statusChips(ui, side, x, y);
+      if (st.specialLock && side === ME) ui.add(this.text(sx, y - ch / 2 + 128, '必殺は次のターン\n使えない', 20, '#ffd23a', 0).setBackgroundColor('#0a0408cc').setPadding(8, 2, 8, 4));
     }
     this.buildInfo(ui);
     // 攻撃の向きの矢印(自分の攻撃なら上へ、相手の攻撃なら下へ)
@@ -530,7 +531,8 @@ export class MythBattleScene extends Phaser.Scene {
     this.busy = true;
     this.stopTimer();
     this.roundDefense = undefined;
-    audio.se('select');
+    // 行動を選んだときの音(企画者のファイル)
+    audio.se('mcSelect');
     const theirs = aiAction(this.s, CPU, this.rng);
     // 自分のカードが倒されたら、あとで選ぶ(相手は控えの若い番号)
     const events = eventsFor(this.s, ME, resolveRound(this.s, [mine, theirs], (side) => (side === ME ? null : undefined)));
@@ -641,6 +643,12 @@ export class MythBattleScene extends Phaser.Scene {
           return 450;
         }
         this.say(`${name(e.id)}は ${STATUS_LABELS[e.status]}になった！`, '#ffd23a');
+        // カードの上のチップを、すぐに出す
+        {
+          const busy = this.busy;
+          this.render();
+          this.busy = busy;
+        }
         this.popup(cardPos(e.side).x, cardPos(e.side).y + 60, STATUS_LABELS[e.status], '#ffd23a');
         // 強化・バリアは「ステータス上昇」の音
         audio.se(e.status === 'poison' ? 'mcPoison' : e.status === 'burn' ? 'mcBurn' : e.status === 'boost' || e.status === 'shield' ? 'mcBuff' : 'boing');
@@ -686,6 +694,30 @@ export class MythBattleScene extends Phaser.Scene {
       case 'end':
         return 300;
     }
+  }
+
+  /** 場のカードに付いている効果を、カードの絵の上にチップで出す(見えている場のカードの効果は、相手にも見せてよい) */
+  private statusChips(ui: Phaser.GameObjects.Container, side: Side, x: number, y: number): void {
+    const c = this.s.teams[side].cards[this.s.teams[side].active];
+    const p = (r: number) => `${Math.round(r * 100)}%`;
+    const chips: [string, string][] = [];
+    if (c.skip === 'sleep') chips.push(['💤 睡眠', '#6a4ad8']);
+    if (c.skip === 'freeze') chips.push(['❄ 凍結', '#2aa8c8']);
+    if (c.dot === 'poison') chips.push(['☠ 毒', '#8a2ac8']);
+    if (c.dot === 'burn') chips.push(['🔥 火傷', '#d8501a']);
+    if (c.weakenNormal > 0) chips.push([`⬇ 攻撃 −${p(c.weakenNormal)}`, '#c0182a']);
+    if (c.weakenMagic > 0) chips.push([`⬇ 魔法 −${p(c.weakenMagic)}`, '#c0182a']);
+    if (c.boostNormal > 0) chips.push([`⬆ 攻撃 +${p(c.boostNormal)}`, '#2a9a4a']);
+    if (c.boostMagic > 0) chips.push([`⬆ 魔法 +${p(c.boostMagic)}`, '#2a9a4a']);
+    if (c.shield > 0) chips.push([`🛡 バリア ${c.shield}`, '#1f5fc8']);
+    if (!chips.length) return;
+    // カードの絵の所(上の方)に、縦にならべる
+    const top = y - cardH() / 2 + 60 * cardScale();
+    chips.forEach(([label, bg], i) => {
+      const t = this.text(x, top + 18 + i * 40, label, 24, '#ffffff').setBackgroundColor(bg).setPadding(14, 4, 14, 6).setStroke('#16101c', 4);
+      this.tweens.add({ targets: t, scale: 1.06, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      ui.add(t);
+    });
   }
 
   private defBadge?: Phaser.GameObjects.Container;
