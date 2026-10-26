@@ -4,6 +4,7 @@ import { BIRTH_FILES, birthKey } from '../scenes/BirthScene';
 import { REFERENCE_FILES, REFERENCE_ORIGINAL } from '../scenes/CompareScene';
 import { BUNK_POSE_IMAGES, bunkPoseKey, HAND_FILE, HAND_KEY, HOME_ICONS, homeIconKey, homeImageFile, homeImageKey, homePlace, MEAT_FILE, MEAT_KEY } from '../scenes/HomeScene';
 import { TITLE_FILE, TITLE_IMAGE } from '../scenes/TitleScene';
+import { MYTH_TITLE_FILE, MYTH_TITLE_IMAGE } from '../scenes/MythTitleScene';
 import { SELECT_CARD_ART, SELECT_IMAGE } from '../scenes/MinigameSelectScene';
 import { CARD_IMAGES } from '../ui/cardArt';
 import { SLUG_BATTER_ART, slugBatterKey, SLUG_PITCHER_ART, slugPitcherKey, SLUGGER_BG_FILE, SLUGGER_BG_KEY, SLUGGER_LOGO_FILE, SLUGGER_LOGO_KEY } from '../scenes/SluggerScene';
@@ -24,8 +25,9 @@ import { HOME_PLACES } from '../core/home';
  * - card: MONZ CARD(タイトル・ロゴ・カードの裏・山札)
  * - dash: DASH MONZ(背景・足場・トゲ・走るモンズ・ロゴ)
  * - slugger: MONZ SLUGGER(球場の背景・バッター5ポーズ・ピッチャー3ポーズ・ロゴ)
+ * - mythclash: MYTHCLASH(タイトルの絵)
  */
-export type PackName = 'title' | 'bunk' | 'birth' | 'home' | 'rooms' | 'compare' | 'minigame' | 'card' | 'dash' | 'slugger';
+export type PackName = 'title' | 'bunk' | 'birth' | 'home' | 'rooms' | 'compare' | 'minigame' | 'card' | 'dash' | 'slugger' | 'mythclash';
 
 interface PackFile {
   key: string;
@@ -34,6 +36,8 @@ interface PackFile {
 
 function packFiles(name: Exclude<PackName, 'bunk'>): PackFile[] {
   switch (name) {
+    case 'mythclash':
+      return [{ key: MYTH_TITLE_IMAGE, url: MYTH_TITLE_FILE }];
     case 'title':
       return [{ key: TITLE_IMAGE, url: TITLE_FILE }];
     case 'birth':

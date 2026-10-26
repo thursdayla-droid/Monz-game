@@ -524,6 +524,8 @@ export class HomeScene extends Phaser.Scene {
     // 【仮】部屋を変えるのは、いずれショップでコインを使う(企画者決定)。ショップができるまでの確認用
     button(428, '部屋を選び直す', () => this.scene.start('RoomSelect'));
     button(344, '+1000コイン', () => this.record?.add(1000));
+    // 【仮】MYTHCLASH の入口は未決定。確認用
+    button(470, 'MYTHCLASH', () => this.scene.start('MythTitle'));
     // 時間を進めて、お腹がすいたり眠くなったりするのを確かめる
     button(386, '6時間すすめる', () => {
       this.record?.advance(6);

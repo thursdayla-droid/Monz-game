@@ -11,7 +11,8 @@ if (query.has('reset')) {
   clearLife();
 }
 /** ?birth を付けると、誕生の演出を直接見られる(テスト用。保存データは変えない) */
-const START = query.has('compare') ? 'Compare' : query.has('parts') ? 'BunkParts' : 'Splash';
+/** ?mythclash で MYTHCLASH のタイトル画面を直接開く(確認用) */
+const START = query.has('mythclash') ? 'MythTitle' : query.has('compare') ? 'Compare' : query.has('parts') ? 'BunkParts' : 'Splash';
 
 export class BootScene extends Phaser.Scene {
   constructor() {
