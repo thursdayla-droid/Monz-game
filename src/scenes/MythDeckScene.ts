@@ -21,7 +21,8 @@ const cardKey = (id: number) => `mc:card:${id}`;
  * MYTHCLASH のデッキ編成(企画者 2026-10-26: タイトルの「バトルを始める」→ 3枚のデッキ編成 → バトル)。
  * - 持っているカードから、ちがうカードを3枚えらぶ。上の3つの枠に入った順に、先頭から場に出る
  * - 下のカードをさわると枠に入る(もう一度さわると外れる)。枠のカードをさわっても外れる。長押しで大きく見る
- * - 組んだデッキは覚えておく(次に開いたときも同じ)
+ * - 組んだデッキは覚えておく(企画者 2026-10-26: 最後に使ったデッキを保存して、また選ばなくてもいいように)。
+ *   次に開くと、前のデッキが入った状態で始まるので、そのまま「バトル開始！」を押せる
  * - mode: battle =「バトル開始」で対戦へ / edit =「チーム編成」から開いたとき。「決定」で覚えてタイトルへ
  * - バトル解放前(3種類ない)は、「あと○種類」と、テストプレイ(ランダムな3枚)のボタン【仮】
  */
@@ -34,6 +35,8 @@ export class MythDeckScene extends Phaser.Scene {
   private H = 1280;
   private layer?: Phaser.GameObjects.Container;
   private leaving = false;
+  /** 前に使ったデッキを入れた状態で始めたか(さわって変えたら消える) */
+  private fromSave = false;
 
   constructor() {
     super('MythDeck');
@@ -56,6 +59,7 @@ export class MythDeckScene extends Phaser.Scene {
       .map(Number)
       .sort((a, b) => rank(b) - rank(a) || a - b);
     this.deck = col.deck && deckOwned(col, col.deck) ? [...col.deck] : [];
+    this.fromSave = this.deck.length === 3;
     const bg = this.add.graphics();
     bg.fillGradientStyle(0x2a0a12, 0x2a0a12, 0x0a0408, 0x0a0408, 1).fillRect(0, 0, W, this.H);
     this.draw();
@@ -93,7 +97,7 @@ export class MythDeckScene extends Phaser.Scene {
     }
 
     // 上: 3つの枠(入れた順に、先頭から場に出る)
-    L.add(this.text(W / 2, 108, 'ちがうカードを3枚えらんでね（1番から順に出る）', 22, '#d8c8e8'));
+    L.add(this.text(W / 2, 108, this.fromSave ? '前回のデッキ（そのまま「バトル開始！」でOK）' : 'ちがうカードを3枚えらんでね（1番から順に出る）', 22, this.fromSave ? '#7dffa0' : '#d8c8e8'));
     const sw = MYTH_CARD_W * SLOT_S;
     const sh = MYTH_CARD_H * SLOT_S;
     for (let i = 0; i < 3; i++) {
@@ -181,6 +185,7 @@ export class MythDeckScene extends Phaser.Scene {
   }
 
   private toggle(id: number): void {
+    this.fromSave = false;
     const i = this.deck.indexOf(id);
     if (i >= 0) {
       this.deck.splice(i, 1);
