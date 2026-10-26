@@ -34,3 +34,5 @@ Claude Code が、音量をそろえてから `public/assets/bgm/` に入れ、`
 | MYTHCLASH HP吸収の魔法 | se/mythclash/drain.mp3 | mcDrain |
 | MYTHCLASH 魔法防御成功 | se/mythclash/magic_guard_success.mp3 | mcMagicGuardOk |
 | MYTHCLASH ステータス上昇（強化・バリア） | se/mythclash/buff.mp3 | mcBuff |
+| MYTHCLASH 水の魔法 | se/mythclash/magic_water.mp3 | mcWater |
+| MYTHCLASH カウンター成功（必殺と同じ音） | se/mythclash/special.mp3 | mcCounter |

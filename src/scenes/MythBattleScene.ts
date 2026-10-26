@@ -9,7 +9,8 @@ import { activeCard, createBattle, legalActions, replaceDowned, resolveRound, ty
 import { battleUnlocked, newCollection } from '../core/mythclash/packs';
 import { aiAction, randomDeck } from '../core/mythclash/sim';
 import { eventsFor, viewFor, type BattleView } from '../core/mythclash/view';
-import { halved, incomingEstimates } from '../core/mythclash/estimate';
+import { describeAbility, describeMagicEffect } from '../core/mythclash/describe';
+import { ELEMENT_COLORS } from '../ui/mythCardArt';
 import { mulberry32, newSeed, type Rng } from '../core/rng';
 import { preloadPacks } from '../render/packs';
 import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W } from '../ui/mythCardArt';
@@ -284,7 +285,7 @@ export class MythBattleScene extends Phaser.Scene {
       const marks = [act.skip && STATUS_LABELS[act.skip], act.dot && STATUS_LABELS[act.dot], st.shield > 0 && `バリア${st.shield}`, st.specialLock && side === ME && '必殺は次のターン使えない'].filter(Boolean) as string[];
       if (marks.length) ui.add(this.text(sx, y - ch / 2 + 128, marks.join('\n'), 20, '#ffd23a', 0).setBackgroundColor('#0a0408cc').setPadding(8, 2, 8, 4).setWordWrapWidth(W - sx - 24, true));
     }
-    this.buildEstimate(ui);
+    this.buildInfo(ui);
     // 攻撃の向きの矢印(自分の攻撃なら上へ、相手の攻撃なら下へ)
     const arrow = this.text(W / 2, my - 24, attacking ? '▲▲' : '▼▼', 46, attacking ? '#ff5a5a' : '#5aa8ff');
     this.tweens.add({ targets: arrow, y: my - 24 + (attacking ? -10 : 10), duration: 500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
@@ -296,36 +297,48 @@ export class MythBattleScene extends Phaser.Scene {
   }
 
   /**
-   * 左の空いている所に、相手の攻撃で受けるダメージの目安(企画者 2026-10-26)。
-   * 通常攻撃・必殺技は相手のカードが出たらわかる。魔法は、相手のそのカードが一度使ったら次のターンからわかる
+   * 場のカードの左に、魔法と特性の説明(企画者 2026-10-26)。
+   * 魔法: 自分のカードはいつも。相手のカードは、そのカードが一度魔法を使ったら(属性が公開されたら)。特性: 特性があるカードだけ
+   * (前に作った「相手から受けるダメージの目安」は、企画者「いらない」で外した)
    */
-  private buildEstimate(ui: Phaser.GameObjects.Container): void {
-    // 出来事を見せている間は出さない(まだ見せていない、次に出てくるカードの目安が出てしまわないように)
-    if (this.busy || this.s.winner !== null || this.s.pending?.length) return;
+  private buildInfo(ui: Phaser.GameObjects.Container): void {
     const v = this.view;
-    if (!v.opponent.some((c) => !c.hidden && c.active) || !v.me.some((c) => !c.hidden && c.active && !c.down)) return;
-    const est = incomingEstimates(this.s, ME);
-    const p = cardPos(CPU);
-    const x0 = 12;
-    const w = W / 2 - (MYTH_CARD_W * cardScale()) / 2 - 24;
-    const top = p.y - cardH() / 2 + 6;
-    const r = (d: { min: number; max: number }) => (d.min === d.max ? `${d.min}` : `${d.min}〜${d.max}`);
-    const rows: [string, string, string][] = [
-      ['通常攻撃', r(est.normal), `防御で ${r(halved(est.normal))}`],
-      ['必殺技', est.specialLocked ? '次は来ない' : r(est.special), est.specialLocked ? '' : 'カウンターで はね返せる'],
-      ['魔法', est.magic ? r(est.magic) : '？？？', est.magic ? `魔法防御で ${r(halved(est.magic))}` : '使われたらわかる'],
-    ];
-    const h = 44 + rows.length * 74;
-    const g = this.add.graphics();
-    g.fillStyle(0x0a0408, 0.82).fillRoundedRect(x0, top, w, h, 12);
-    g.lineStyle(2, 0x2a6ad8, 1).strokeRoundedRect(x0, top, w, h, 12);
-    ui.add([g, this.text(x0 + w / 2, top + 20, '相手から受ける目安', 18, '#8ac4ff')]);
-    rows.forEach(([label, val, note], i) => {
-      const y = top + 50 + i * 74;
-      ui.add(this.text(x0 + 12, y, label, 18, '#b8a8c8', 0));
-      ui.add(this.text(x0 + w - 12, y + 22, val, val.length > 6 ? 22 : 28, est.magic || i < 2 ? '#ffffff' : '#8a7a90', 1));
-      if (note) ui.add(this.text(x0 + 12, y + 50, note, 15, '#a89ab8', 0));
-    });
+    for (const side of [ME, CPU]) {
+      const c = (side === ME ? v.me : v.opponent).find((x) => !x.hidden && x.active);
+      if (!c || c.hidden) continue;
+      const def = card(c.id)!;
+      const ab = abilityOf(def.abilityCode);
+      const known = side === ME || !!c.magicElement;
+      const p = cardPos(side);
+      const x0 = 12;
+      const w = W / 2 - (MYTH_CARD_W * cardScale()) / 2 - 24;
+      const top = p.y - cardH() / 2 + 6;
+      const box = this.add.container(0, 0);
+      const g = this.add.graphics();
+      box.add(g);
+      let y = top + 12;
+      const line = (s: string, size: number, color: string) => {
+        const t = this.text(x0 + 10, y, s, size, color, 0).setOrigin(0, 0).setWordWrapWidth(w - 20, true).setAlign('left');
+        box.add(t);
+        y += t.height + 4;
+      };
+      line('魔法', 15, '#b8a8c8');
+      if (known) {
+        line(`${def.magic.name}`, 18, '#ffffff');
+        line(`属性：${def.magic.element}`, 16, ELEMENT_COLORS[def.magic.element]);
+        line(describeMagicEffect(def), 15, '#d8c8e8');
+      } else line('？？？（使われたらわかる）', 16, '#8a7a90');
+      if (ab && ab.def.kind !== 'none' && ab.name) {
+        y += 8;
+        line('特性', 15, '#b8a8c8');
+        line(ab.name, 18, '#ffd23a');
+        line(describeAbility(ab), 15, '#d8c8e8');
+      }
+      const h = y - top + 8;
+      g.fillStyle(0x0a0408, 0.82).fillRoundedRect(x0, top, w, h, 12);
+      g.lineStyle(2, side === ME ? 0xc0182a : 0x2a6ad8, 1).strokeRoundedRect(x0, top, w, h, 12);
+      ui.add(box);
+    }
   }
 
   private buildButtons(ui: Phaser.GameObjects.Container): void {
@@ -349,12 +362,16 @@ export class MythBattleScene extends Phaser.Scene {
       const x = 16 + (W - 130 - total) / 2 + bw / 2 + i * (bw + gap);
       const y = H - 66;
       const isSwitch = i === all.length - 1;
-      const color = isSwitch ? 0x2a7a4a : attacking ? 0x8a1020 : 0x1a4a9a;
+      // 魔法のボタンは、自分のカードの魔法の属性の色(企画者 2026-10-26: 攻撃側のとき魔法の属性がわかりやすいように)
+      const magicEl = 'action' in b && b.action?.type === 'attack' && b.action.kind === 'magic' ? activeCard(this.s, ME).def.magic.element : null;
+      const color = isSwitch ? 0x2a7a4a : magicEl ? Phaser.Display.Color.HexStringToColor(ELEMENT_COLORS[magicEl]).color : attacking ? 0x8a1020 : 0x1a4a9a;
+      const darkText = magicEl === '光' || magicEl === '雷' || magicEl === '無';
       const g = this.add.graphics();
       const enabled = b.on && !this.busy && this.s.winner === null;
       g.fillStyle(enabled ? color : 0x3a3040, 1).fillRoundedRect(x - bw / 2, y - 40, bw, 80, 12);
       g.lineStyle(3, enabled ? 0xd8b060 : 0x5a5060, 1).strokeRoundedRect(x - bw / 2, y - 40, bw, 80, 12);
-      const t = this.text(x, y, b.label, b.label.length > 6 ? 20 : b.label.length > 4 ? 24 : 28, enabled ? '#ffffff' : '#8a8090');
+      const label = magicEl ? `魔法・${magicEl}` : b.label;
+      const t = this.text(x, y, label, label.length > 6 ? 20 : label.length > 4 ? 24 : 28, !enabled ? '#8a8090' : darkText ? '#16101c' : '#ffffff');
       ui.add([g, t]);
       if (!enabled) return;
       const hit = this.add.zone(x, y, bw, 80).setInteractive({ useHandCursor: true });
