@@ -31,7 +31,11 @@ export type SeName =
   | 'guard'
   | 'koBlast'
   | 'land'
-  | 'hop';
+  | 'hop'
+  | 'mcSlash'
+  | 'mcSpecial'
+  | 'mcMagic'
+  | 'mcHit';
 
 let noise: AudioBuffer | null = null;
 function noiseBuf(ctx: BaseAudioContext): AudioBuffer {
@@ -259,6 +263,50 @@ export function playSe(ctx: AudioContext, out: AudioNode, name: SeName, pitch: n
       tone(ctx, out, t, 'sine', [[0, 300 * p], [0.1, 620 * p]], [[0, 0.0001], [0.015, 0.16], [0.12, 0.0001]], 0.13);
       hiss(ctx, out, t, 'bandpass', [[0, 1500]], 1.5, [[0, 0.08], [0.06, 0.0001]], 0.07);
       break;
+    case 'mcSlash': {
+      // MYTHCLASH 通常攻撃: 空を切る「ヒュッ」→ 刃の「シャキン」→ 当たる「ズドッ」(企画者 2026-10-26: 攻撃音をもっと強く)
+      hiss(ctx, out, t, 'bandpass', [[0, 600], [0.1, 4200]], 1.6, [[0, 0.0001], [0.05, 0.5], [0.12, 0.0001]], 0.13);
+      tone(ctx, out, t + 0.07, 'triangle', [[0, 2600], [0.25, 1900]], [[0, 0.3], [0.3, 0.0001]], 0.32);
+      tone(ctx, out, t + 0.07, 'sine', [[0, 3900], [0.2, 3500]], [[0, 0.12], [0.2, 0.0001]], 0.22);
+      const o = crunch(ctx, out, 4);
+      hiss(ctx, out, t + 0.09, 'highpass', [[0, 3000]], 0.7, [[0, 0.8], [0.03, 0.0001]], 0.04);
+      hiss(ctx, o, t + 0.09, 'bandpass', [[0, 1500], [0.15, 450]], 1, [[0, 0.8], [0.17, 0.0001]], 0.18);
+      tone(ctx, o, t + 0.09, 'sine', [[0, 170], [0.22, 42]], [[0, 1], [0.28, 0.0001]], 0.3);
+      break;
+    }
+    case 'mcSpecial': {
+      // MYTHCLASH 必殺技: ためる「ギュイーン」→ 大きな「ドゴォォン」+ ひびき
+      tone(ctx, out, t, 'sawtooth', [[0, 180], [0.26, 950]], [[0, 0.0001], [0.24, 0.22], [0.28, 0.0001]], 0.3);
+      hiss(ctx, out, t, 'bandpass', [[0, 400], [0.26, 3000]], 2, [[0, 0.0001], [0.24, 0.35], [0.28, 0.0001]], 0.3);
+      const b = t + 0.28;
+      const o = crunch(ctx, out, 6);
+      hiss(ctx, out, b, 'highpass', [[0, 2500]], 0.7, [[0, 1], [0.05, 0.0001]], 0.06);
+      tone(ctx, o, b, 'sine', [[0, 120], [0.55, 26]], [[0, 1], [0.7, 0.0001]], 0.72);
+      tone(ctx, o, b, 'square', [[0, 75], [0.3, 30]], [[0, 0.45], [0.35, 0.0001]], 0.36);
+      hiss(ctx, o, b, 'lowpass', [[0, 3200], [0.8, 160]], 0.7, [[0, 0.9], [0.9, 0.0001]], 0.92);
+      hiss(ctx, out, b + 0.08, 'bandpass', [[0, 900], [0.9, 300]], 0.6, [[0, 0.3], [1.0, 0.0001]], 1.02);
+      break;
+    }
+    case 'mcMagic': {
+      // MYTHCLASH 魔法: きらめく音が駆けあがって →「ブワァン」
+      [880, 1320, 1760, 2640].forEach((f, i) => tone(ctx, out, t + i * 0.035, 'sine', [[0, f], [0.25, f * 1.02]], [[0, 0.2], [0.28, 0.0001]], 0.3));
+      hiss(ctx, out, t, 'bandpass', [[0, 3200], [0.25, 900]], 3, [[0, 0.0001], [0.08, 0.3], [0.3, 0.0001]], 0.32);
+      const b = t + 0.2;
+      const o = crunch(ctx, out, 3.5);
+      tone(ctx, o, b, 'sine', [[0, 320], [0.35, 70]], [[0, 0.95], [0.45, 0.0001]], 0.47);
+      tone(ctx, o, b, 'triangle', [[0, 480], [0.35, 110]], [[0, 0.4], [0.4, 0.0001]], 0.42);
+      hiss(ctx, o, b, 'lowpass', [[0, 2400], [0.5, 300]], 0.8, [[0, 0.6], [0.55, 0.0001]], 0.57);
+      break;
+    }
+    case 'mcHit': {
+      // MYTHCLASH ダメージが入った「ドスッ」。p: 強さ(ダメージが大きいほど低く・長く)
+      const o = crunch(ctx, out, 5);
+      hiss(ctx, out, t, 'highpass', [[0, 2800]], 0.7, [[0, 0.85], [0.03, 0.0001]], 0.04);
+      hiss(ctx, o, t, 'bandpass', [[0, 950], [0.2 * p, 280]], 0.9, [[0, 0.9], [0.22 * p, 0.0001]], 0.24 * p);
+      tone(ctx, o, t, 'sine', [[0, 150 / p], [0.28 * p, 36]], [[0, 1], [0.34 * p, 0.0001]], 0.36 * p);
+      tone(ctx, o, t, 'square', [[0, 62], [0.14, 30]], [[0, 0.4], [0.18, 0.0001]], 0.2);
+      break;
+    }
     case 'cheer':
       // MONZ SLUGGER: ホームランの歓声(ふくらんで消える ざわめき + 指笛)
       hiss(ctx, out, t, 'bandpass', [[0, 700], [0.6, 1600], [1.8, 900]], 0.6, [[0, 0.0001], [0.35, 0.45], [1.9, 0.0001]], 2.0);

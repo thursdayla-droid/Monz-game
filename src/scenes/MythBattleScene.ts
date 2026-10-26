@@ -11,18 +11,26 @@ import { mulberry32, newSeed, type Rng } from '../core/rng';
 import { preloadPacks } from '../render/packs';
 import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W } from '../ui/mythCardArt';
 import { canvasTextureOnce, UI_FONT } from '../ui/paint';
+import { showCardZoom } from '../ui/cardZoom';
+import { fillSize, viewRatio, watchViewport } from '../ui/viewport';
 import { MYTH_TITLE_IMAGE } from './MythTitleScene';
 
-/** 横向き(iPhone を横にしたときの形)。企画者のイメージ図(2026-10-26)も横向き */
-const W = 1560;
+/**
+ * 横向き(iPhone を横にしたときの形)。企画者のイメージ図(2026-10-26)も横向き。
+ * 高さは720のまま、横の長さを画面の形に合わせる(全画面。企画者 2026-10-26)。並べ方は横の長さから決める
+ */
+let W = 1560;
 const H = 720;
 const PORTRAIT = { w: 720, h: 1280 };
 const ME: Side = 0;
 const CPU: Side = 1;
-const CARD_POS: Record<Side, { x: number; y: number }> = { 0: { x: 520, y: 340 }, 1: { x: 1040, y: 340 } };
+const cardPos = (side: Side) => ({ x: W / 2 + (side === ME ? -260 : 260), y: 340 });
 const CARD_S = 0.82;
 const THUMB_S = 0.3;
-const THUMB_X: Record<Side, number> = { 0: 80, 1: W - 80 };
+const thumbX = (side: Side) => (side === ME ? 80 : W - 80);
+/** 上の名前・HPの板の幅と、左はし */
+const panelW = () => Math.min(500, (W - 300 - 170) / 2);
+const panelX = (side: Side) => (side === ME ? 150 : W - 150 - panelW());
 const THUMB_Y = [190, 330, 470];
 const ATTACK_COLOR = 0xff3a3a;
 const DEFENSE_COLOR = 0x3a9dff;
@@ -60,7 +68,7 @@ export class MythBattleScene extends Phaser.Scene {
   }
 
   init(): void {
-    this.scale.setGameSize(W, H);
+    this.fitSize();
     this.busy = false;
     this.auto = false;
     this.choosingSwitch = false;
@@ -73,8 +81,25 @@ export class MythBattleScene extends Phaser.Scene {
     preloadPacks(this, ['mythclash']);
   }
 
+  /** 画面の形に合わせて横の長さを決める。縦向きのときは「横にしてね」 */
+  private fitSize(): void {
+    W = fillSize(this, { w: 1280, h: H }, { minRatio: 1280 / H, maxRatio: 1700 / H }).w;
+    this.scale.setGameSize(W, H);
+  }
+
+  private bg?: Phaser.GameObjects.Container;
+  private turnHint?: Phaser.GameObjects.Container;
+
+  private onViewport(): void {
+    this.fitSize();
+    this.drawBackground();
+    // 出来事を見せている間なら、終わったときに並べ直される(play の最後の render)
+    if (!this.busy) this.render();
+  }
+
   create(): void {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(PORTRAIT.w, PORTRAIT.h));
+    watchViewport(this, () => this.onViewport());
     this.drawBackground();
     const seed = newSeed();
     this.rng = mulberry32(seed ^ 0x5bd1e995);
@@ -107,16 +132,29 @@ export class MythBattleScene extends Phaser.Scene {
   }
 
   private drawBackground(): void {
+    this.bg?.destroy();
+    const bg = this.add.container(0, 0).setDepth(-10);
+    this.bg = bg;
     // タイトルの絵の闘技場の所を、暗くして背景にする【仮】
     if (this.textures.exists(MYTH_TITLE_IMAGE)) {
       const src = this.textures.get(MYTH_TITLE_IMAGE).getSourceImage() as HTMLImageElement;
-      canvasTextureOnce(this, 'mb:bg', W, H, (ctx) => {
+      const key = `mb:bg:${W}`;
+      canvasTextureOnce(this, key, W, H, (ctx) => {
         const sh = (src.width * H) / W;
         ctx.drawImage(src, 0, 260, src.width, sh, 0, 0, W, H);
       });
-      this.add.image(0, 0, 'mb:bg').setOrigin(0, 0);
+      bg.add(this.add.image(0, 0, key).setOrigin(0, 0));
     }
-    this.add.rectangle(0, 0, W, H, 0x0a0408, 0.45).setOrigin(0, 0);
+    bg.add(this.add.rectangle(0, 0, W, H, 0x0a0408, 0.45).setOrigin(0, 0));
+    // スマホが縦のときは「横にしてね」(そのままでも遊べる)
+    this.turnHint?.destroy();
+    this.turnHint = undefined;
+    if (viewRatio(this) < 1) {
+      const c = this.add.container(W / 2, H / 2).setDepth(400);
+      c.add([this.add.rectangle(0, 0, 640, 150, 0x16101c, 0.9).setStrokeStyle(4, 0xffd23a, 1), this.text(0, 0, 'スマホを 横にしてね', 44, '#ffd23a')]);
+      this.tweens.add({ targets: c, alpha: 0, delay: 2500, duration: 500 });
+      this.turnHint = c;
+    }
   }
 
   // ---------------- 画面を作る(見せてよい情報だけ) ----------------
@@ -132,22 +170,23 @@ export class MythBattleScene extends Phaser.Scene {
       const cards = side === ME ? v.me : v.opponent;
       const act = cards.find((c) => !c.hidden && c.active);
       const left = side === ME;
-      const px = left ? 150 : W - 150 - 500;
+      const px = panelX(side);
+      const pw = panelW();
       const g = this.add.graphics();
-      g.fillStyle(0x0a0408, 0.85).fillRoundedRect(px, 14, 500, 92, 14);
-      g.lineStyle(3, left ? 0xc0182a : 0x2a6ad8, 1).strokeRoundedRect(px, 14, 500, 92, 14);
+      g.fillStyle(0x0a0408, 0.85).fillRoundedRect(px, 14, pw, 92, 14);
+      g.lineStyle(3, left ? 0xc0182a : 0x2a6ad8, 1).strokeRoundedRect(px, 14, pw, 92, 14);
       ui.add(g);
-      ui.add(this.text(left ? px + 20 : px + 480, 38, left ? 'あなた' : 'CPU', 22, '#b8a8c8', left ? 0 : 1));
-      if (act && !act.hidden) ui.add(this.text(left ? px + 110 : px + 390, 38, act.name, 26, '#ffffff', left ? 0 : 1));
+      ui.add(this.text(left ? px + 20 : px + pw - 20, 38, left ? 'あなた' : 'CPU', 22, '#b8a8c8', left ? 0 : 1));
+      if (act && !act.hidden) ui.add(this.text(left ? px + 110 : px + pw - 110, 38, act.name, 26, '#ffffff', left ? 0 : 1));
       const bar = this.add.graphics();
-      const hpT = this.text(left ? px + 480 : px + 20, 71, '', 24, '#ffffff', left ? 1 : 0);
+      const hpT = this.text(left ? px + pw - 20 : px + 20, 71, '', 24, '#ffffff', left ? 1 : 0);
       this.hpBar[side] = bar;
       this.hpText[side] = hpT;
       ui.add([bar, hpT]);
       this.drawHp(side);
       // 横: チームの3枚
       cards.forEach((c, i) => {
-        const x = THUMB_X[side];
+        const x = thumbX(side);
         const y = THUMB_Y[i];
         const box = this.add.graphics();
         const on = !c.hidden && c.active;
@@ -167,6 +206,12 @@ export class MythBattleScene extends Phaser.Scene {
         hb.fillStyle(rate > 0.5 ? 0x4ade80 : rate > 0.25 ? 0xffd23a : 0xff4a4a, 1).fillRect(x - 52, y + 52, 104 * rate, 9);
         ui.add(hb);
         if (c.down) ui.add(this.text(x, y - 6, '戦闘不能', 20, '#ff6a6a'));
+        // さわると大きく見られる(自分の3枚と、相手の一度でも出たカード。企画者 2026-10-26)
+        if (!(side === ME && this.choosingSwitch)) {
+          const zoom = this.add.zone(x, y, 120, 132).setInteractive({ useHandCursor: true });
+          zoom.on('pointerdown', () => this.zoom(side, i));
+          ui.add(zoom);
+        }
         // 交代: 自分の控えをさわる
         if (side === ME && !c.down && !c.active && this.choosingSwitch) {
           const ring = this.add.graphics();
@@ -189,7 +234,7 @@ export class MythBattleScene extends Phaser.Scene {
       const act = cards.find((c) => !c.hidden && c.active);
       if (!act || act.hidden) continue;
       const isAtk = (side === ME) === attacking;
-      const { x, y } = CARD_POS[side];
+      const { x, y } = cardPos(side);
       const col = isAtk ? ATTACK_COLOR : DEFENSE_COLOR;
       const glow = this.add.rectangle(x, y, MYTH_CARD_W * CARD_S + 26, MYTH_CARD_H * CARD_S + 26, col, 0.35).setStrokeStyle(5, col, 1);
       this.tweens.add({ targets: glow, alpha: 0.55, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
@@ -197,6 +242,7 @@ export class MythBattleScene extends Phaser.Scene {
       this.cardImg[side] = img;
       const tag = this.text(x, y - (MYTH_CARD_H * CARD_S) / 2 - 30, isAtk ? '⚔ ATTACK' : '🛡 DEFENSE', 30, '#ffffff').setBackgroundColor(isAtk ? '#c0182a' : '#1f5fc8').setPadding(16, 4, 16, 6);
       ui.add([glow, img, tag]);
+      img.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.zoom(side, this.s.teams[side].active));
       // 状態(眠り・毒など)は、カードの下に
       const st = this.s.teams[side].cards[this.s.teams[side].active];
       const marks = [act.skip && STATUS_LABELS[act.skip], act.dot && STATUS_LABELS[act.dot], st.shield > 0 && `バリア${st.shield}`, st.specialLock && side === ME && '必殺：次は使えない'].filter(Boolean) as string[];
@@ -226,8 +272,9 @@ export class MythBattleScene extends Phaser.Scene {
         }));
     const canSwitch = legal.some((l) => l.type === 'switch');
     const all = [...kinds, { label: this.choosingSwitch ? 'やめる' : '交代', on: canSwitch }];
-    const bw = asleep ? 420 : 250;
     const gap = 20;
+    // AUTO の場所を残して、横の長さに入るように
+    const bw = Math.min(asleep ? 420 : 250, (W - 360 - gap * (all.length - 1)) / all.length);
     const total = all.length * bw + (all.length - 1) * gap;
     all.forEach((b, i) => {
       const x = W / 2 - total / 2 + bw / 2 + i * (bw + gap) - 60;
@@ -309,15 +356,15 @@ export class MythBattleScene extends Phaser.Scene {
         const img = this.cardImg[e.side];
         if (img) this.tweens.add({ targets: img, x: img.x + (e.side === ME ? 90 : -90), duration: 120, yoyo: true, ease: 'Cubic.easeOut' });
         this.say(`${name(e.id)}の ${ACTION_LABELS[e.kind]}！`, e.side === ME ? '#ff8a8a' : '#8ac4ff');
-        audio.se(e.kind === 'special' ? 'punchHeavy' : e.kind === 'magic' ? 'sting' : 'punch');
-        return 650;
+        audio.se(e.kind === 'special' ? 'mcSpecial' : e.kind === 'magic' ? 'mcMagic' : 'mcSlash');
+        return e.kind === 'special' ? 850 : 650;
       }
       case 'defend':
         this.say(`${who(e.side)}は ${ACTION_LABELS[e.kind]}`, '#d8d8ff');
         return 450;
       case 'counter':
         this.say(e.success ? 'カウンター成功！' : 'カウンター失敗…', e.success ? '#7dffa0' : '#ffb070');
-        if (e.success) audio.se('guard');
+        if (e.success) audio.se('guard', { pitch: 1 });
         return 550;
       case 'damage': {
         this.shownHp[e.side] = Math.max(0, this.shownHp[e.side] - e.amount);
@@ -328,18 +375,18 @@ export class MythBattleScene extends Phaser.Scene {
           img.setTint(0xff7070);
           this.time.delayedCall(80, () => img.clearTint());
         }
-        const p = CARD_POS[e.side];
+        const p = cardPos(e.side);
         this.popup(p.x, p.y - 40, e.amount > 0 ? `-${e.amount}` : e.absorbed ? 'バリア！' : '0', e.source === 'dot' ? '#c070ff' : '#ff4a4a');
         if (e.absorbed > 0 && e.amount > 0) this.popup(p.x, p.y + 30, `バリア -${e.absorbed}`, '#8ac4ff');
         if (e.source === 'dot') this.say(`${name(e.id)}は 毒・火傷のダメージ`, '#c070ff');
-        audio.se(e.amount >= 30 ? 'crackBig' : 'crack');
+        if (e.amount > 0) audio.se('mcHit', { pitch: Math.min(1.6, 0.8 + e.amount / 60) });
         this.cameras.main.shake(120, e.amount >= 30 ? 0.008 : 0.004);
         return 650;
       }
       case 'heal': {
         this.shownHp[e.side] = Math.min(activeCard(this.s, e.side).def.maxHp, this.shownHp[e.side] + e.amount);
         this.drawHp(e.side);
-        const p = CARD_POS[e.side];
+        const p = cardPos(e.side);
         this.popup(p.x, p.y - 40, `+${e.amount}`, '#4ade80');
         audio.se('happy');
         return 550;
@@ -350,7 +397,7 @@ export class MythBattleScene extends Phaser.Scene {
           return 450;
         }
         this.say(`${name(e.id)}は ${STATUS_LABELS[e.status]}になった！`, '#ffd23a');
-        this.popup(CARD_POS[e.side].x, CARD_POS[e.side].y + 60, STATUS_LABELS[e.status], '#ffd23a');
+        this.popup(cardPos(e.side).x, cardPos(e.side).y + 60, STATUS_LABELS[e.status], '#ffd23a');
         audio.se('boing');
         return 600;
       case 'skip':
@@ -396,6 +443,18 @@ export class MythBattleScene extends Phaser.Scene {
     }
   }
 
+  /** カードを大きく見る。見せてよいカードだけ(相手のまだ出ていないカードは出さない) */
+  private zoom(side: Side, index: number): void {
+    const v = viewFor(this.s, ME);
+    const c = (side === ME ? v.me : v.opponent)[index];
+    if (!c || c.hidden) return;
+    const st = this.s.teams[side].cards[index];
+    // 出来事を見せている間は、まだ見せていないHPを出さないように、場のカードは見えているHPにする
+    const hp = this.busy && index === this.s.teams[side].active ? this.shownHp[side] : c.hp;
+    const marks = [c.down && '戦闘不能', c.skip && STATUS_LABELS[c.skip], c.dot && STATUS_LABELS[c.dot], st.shield > 0 && `バリア${st.shield}`].filter(Boolean);
+    showCardZoom(this, this.cardTexture(c.id, side === CPU && !c.magicElement), [`HP ${hp} / ${c.maxHp}`, ...(marks.length ? [marks.join('・')] : [])]);
+  }
+
   private drawHp(side: Side): void {
     const bar = this.hpBar[side];
     if (!bar) return;
@@ -404,13 +463,14 @@ export class MythBattleScene extends Phaser.Scene {
     const max = act.def.maxHp;
     const hp = this.shownHp[side];
     const left = side === ME;
-    const px = left ? 150 : W - 150 - 500;
+    const px = panelX(side);
+    const bw = panelW() - 160;
     bar.clear();
     // 自分は左から、相手は右から(真ん中を向く)
     const bx = left ? px + 20 : px + 140;
-    bar.fillStyle(0x000000, 1).fillRoundedRect(bx, 58, 340, 26, 8);
+    bar.fillStyle(0x000000, 1).fillRoundedRect(bx, 58, bw, 26, 8);
     const rate = Math.max(0, Math.min(1, hp / max));
-    bar.fillStyle(left ? 0xd83030 : 0x2a7ae8, 1).fillRoundedRect(left ? bx : bx + 340 * (1 - rate), 58, Math.max(1, 340 * rate), 26, 8);
+    bar.fillStyle(left ? 0xd83030 : 0x2a7ae8, 1).fillRoundedRect(left ? bx : bx + bw * (1 - rate), 58, Math.max(1, bw * rate), 26, 8);
     this.hpText[side]?.setText(`${hp} / ${max}`);
   }
 

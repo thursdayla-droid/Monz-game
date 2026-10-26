@@ -7,6 +7,7 @@ import { preloadPacks } from '../render/packs';
 import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W, RARITY_COLORS } from '../ui/mythCardArt';
 import { MYTH_PACK_IMAGE, type PackOpenData } from '../ui/packBuy';
 import { canvasTextureOnce, roundRectPath, UI_FONT } from '../ui/paint';
+import { showCardZoom } from '../ui/cardZoom';
 
 const PORTRAIT = { w: 720, h: 1280 };
 /** パックの絵(切り抜き後 698x1213)の、切る線の高さ(上のギザギザのすぐ下) */
@@ -330,6 +331,10 @@ export class MythPackScene extends Phaser.Scene {
       const y = area.y + area.h / 2 + (r - (rows - 1) / 2) * ch;
       const img = this.add.image(x, y, cardKey(id)).setScale(s * 0.6).setAlpha(0);
       this.tweens.add({ targets: img, scale: s, alpha: 1, duration: 220, delay: i * 45, ease: 'Back.easeOut' });
+      // さわると大きく見られる(企画者 2026-10-26)
+      img.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
+        if (this.phase === 'grid') showCardZoom(this, cardKey(id), [card(id)!.name]);
+      });
       if (this.d.newIds.includes(id) && !seen.has(id)) this.newBadge(x + (MYTH_CARD_W * s) / 2 - 18 * u, y - (MYTH_CARD_H * s) / 2 + 8 * u, Math.min(1.2 * u, Math.max(0.7, s * 2.2)));
       seen.add(id);
     });
