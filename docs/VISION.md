@@ -132,3 +132,4 @@
 - 2026-10-26：MYTHCLASH のタイトル画面は企画者の絵に決定 → `MythTitleScene`（ボタンの先は準備中。入口は未決定で、いまは開発用ボタン）
 - 2026-10-26：MYTHCLASH の曲は「Shadowy Contour」。MYTHCLASH はお世話画面の「バトル」から入る → バトルメニューで、アクションバトル（スマブラ風）と MYTHCLASH を選べる（`BattleMenuScene`）
 - 2026-10-26：MYTHCLASH のパック開封のBGMを受け取った → `mythclashPack` に登録（開封の画面ができたら流す）
+- 2026-10-26：MYTHCLASH のパック開封：1パック1枚。10パックは一気に開けて10枚を順番に見せ、タップでスキップして10枚まとめて並べる → `docs/MYTHCLASH.md`
