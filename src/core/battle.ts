@@ -6,6 +6,8 @@
  * 数字はすべて【仮】(操作してみて調整する)。座標は画面のpx(下が +y)。
  */
 
+import { B_MOVES, PRACTICE_LOADOUT, slotFor, type BLoadout } from './battleMoves';
+
 export interface Platform {
   x0: number;
   x1: number;
@@ -13,6 +15,11 @@ export interface Platform {
   y: number;
   /** true: 下からすり抜けられて、下を入れると降りられる(浮いた足場) */
   thin: boolean;
+  /**
+   * かたい足場の厚さ(企画者の決定 2026-10-23: 大きな足場は横・下からもぶつかる)。
+   * これがある足場は、左右のはしに つかまれる(崖つかまり)
+   */
+  depth?: number;
 }
 
 export interface Stage {
@@ -32,7 +39,7 @@ export interface Stage {
 export const BATTLE_VIEW = { w: 1760, h: 990 };
 export const STAGE: Stage = {
   platforms: [
-    { x0: 150, x1: 1610, y: 720, thin: false },
+    { x0: 150, x1: 1610, y: 720, thin: false, depth: 100 },
     { x0: 300, x1: 640, y: 500, thin: true },
     { x0: 1120, x1: 1460, y: 500, thin: true },
   ],
@@ -97,11 +104,33 @@ export const ROLL = {
   distance: 190,
 };
 
+/**
+ * 【仮】崖つかまり(企画者の決定 2026-10-23)。かたい足場の左右のはしに、落ちてくると自動でつかまる。
+ * つかまると空中ジャンプ・上Bの回数がもどる。登る・登りながら攻撃(A)・はなす(下・外がわ)
+ */
+export const LEDGE = {
+  /** つかまってから、この時間は攻撃が当たらない */
+  invincible: 0.5,
+  /** これだけたつと、自動で手をはなす */
+  maxHang: 5,
+  /** つかまってから、動けるようになるまで */
+  wait: 0.1,
+  /** 登る時間(この間は攻撃が当たらない) */
+  climbTime: 0.3,
+  /** はなしたあと、また つかまれるまで */
+  regrab: 0.5,
+  /** つかまれる範囲(足場のはしから外へ・はしの高さから下へ) */
+  reachX: 70,
+  reachY: [10, 190] as [number, number],
+};
+/** 壁(かたい足場の横)にぶつかるときの体の横はばの半分(小さめ: 足場のはしから落ちるとき はじかれないように) */
+const WALL_HALF = 14;
+
 export const HP_MAX = 100;
 export const STOCKS = 2;
 
 /** air_down: 空中で下A(真下へのパンチ) */
-export type AttackName = 'jab' | 'side' | 'up' | 'down' | 'air_down';
+export type AttackName = 'jab' | 'side' | 'up' | 'down' | 'air_down' | 'climb';
 
 export interface AttackDef {
   /** 画面に出す名前【仮】 */
@@ -138,6 +167,8 @@ export const BUNK_ATTACKS: Record<AttackName, AttackDef> = {
   up: { label: 'アッパー', damage: 5, startup: 0.1, active: 0.12, recovery: 0.22, box: { x: -45, y: -230, w: 135, h: 150 }, angle: 88, base: 760, growth: 420, noSpin: true },
   down: { label: '下パンチ', damage: 4, startup: 0.09, active: 0.1, recovery: 0.22, box: { x: 10, y: -80, w: 140, h: 75 }, angle: 25, base: 320, growth: 900 },
   // 企画者の指示(2026-10-23): ジャンプ中の下Aは、真下にパンチ。当たると下へたたきつける
+  // 崖から登りながらの攻撃(企画者の決定 2026-10-23)【仮】
+  climb: { label: '登りパンチ', damage: 4, startup: 0.06, active: 0.1, recovery: 0.22, box: { x: 0, y: -110, w: 150, h: 90 }, angle: 30, base: 380, growth: 700 },
   air_down: { label: '真下パンチ', damage: 5, startup: 0.1, active: 0.12, recovery: 0.24, box: { x: -60, y: -40, w: 120, h: 130 }, angle: -80, base: 380, growth: 900, groundBounce: true },
 };
 
@@ -156,9 +187,11 @@ export interface Input {
   jump: boolean;
   /** 押している間 */
   shield: boolean;
+  /** B(このフレームで押した) */
+  b?: boolean;
 }
 
-export const NO_INPUT: Input = { x: 0, y: 0, a: false, jump: false, shield: false };
+export const NO_INPUT: Input = { x: 0, y: 0, a: false, jump: false, shield: false, b: false };
 
 export interface Fighter {
   x: number;
@@ -197,10 +230,24 @@ export interface Fighter {
   out: number;
   /** 動かない的(練習用の相手) */
   dummy: boolean;
+  /** 付けているB技 */
+  loadout: BLoadout;
+  /** 空中で上Bを使った回数(着地・崖つかまり・攻撃を受けると 0) */
+  upBUsed: number;
+  /** 上Bのあとの しりもち落下(着地・崖つかまりまで、攻撃・ジャンプ・Bができない) */
+  freefall: boolean;
+  /** B技を使っている途中 */
+  special: { id: string; t: number; dx: number; dy: number } | null;
+  /** 崖につかまっている */
+  ledge: { p: Platform; side: -1 | 1; t: number } | null;
+  /** また崖につかまれるまでの時間 */
+  ledgeCd: number;
+  /** 崖から登っている途中(attack: 登りながら攻撃) */
+  climb: { p: Platform; side: -1 | 1; t: number; attack: boolean; x0: number; y0: number } | null;
 }
 
 export function newFighter(x: number, y: number, face: 1 | -1, dummy = false): Fighter {
-  return { x, y, vx: 0, vy: 0, face, ground: null, airJumps: MOVE.airJumps, hp: HP_MAX, stocks: STOCKS, attack: null, stun: 0, dizzy: 0, hitBy: null, safe: 0, shield: false, shieldHp: 1, shieldCd: 0, roll: null, prevX: 0, dropFrom: null, walking: false, out: 0, dummy };
+  return { x, y, vx: 0, vy: 0, face, ground: null, airJumps: MOVE.airJumps, hp: HP_MAX, stocks: STOCKS, attack: null, stun: 0, dizzy: 0, hitBy: null, safe: 0, shield: false, shieldHp: 1, shieldCd: 0, roll: null, prevX: 0, dropFrom: null, walking: false, out: 0, dummy, loadout: { ...PRACTICE_LOADOUT }, upBUsed: 0, freefall: false, special: null, ledge: null, ledgeCd: 0, climb: null };
 }
 
 /** スティックの向きから、出すA攻撃を決める */
@@ -245,14 +292,80 @@ export const hurtbox = (f: Fighter) => ({ x0: f.x - MOVE.halfW, x1: f.x + MOVE.h
 
 const overlap = (a: { x0: number; x1: number; y0: number; y1: number }, b: typeof a) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
 
-export type BattleEvent = { kind: 'hit'; target: Fighter; damage: number; x: number; y: number } | { kind: 'block'; target: Fighter; x: number; y: number } | { kind: 'ko'; target: Fighter; fell: boolean } | { kind: 'jump'; who: Fighter; air: boolean } | { kind: 'shieldBreak'; who: Fighter } | { kind: 'roll'; who: Fighter } | { kind: 'swing'; who: Fighter; name: AttackName };
+export type BattleEvent = { kind: 'hit'; target: Fighter; damage: number; x: number; y: number } | { kind: 'block'; target: Fighter; x: number; y: number } | { kind: 'ko'; target: Fighter; fell: boolean } | { kind: 'jump'; who: Fighter; air: boolean } | { kind: 'shieldBreak'; who: Fighter } | { kind: 'roll'; who: Fighter } | { kind: 'swing'; who: Fighter; name: AttackName } | { kind: 'upB'; who: Fighter } | { kind: 'ledge'; who: Fighter } | { kind: 'climb'; who: Fighter };
 
 /** 1人ぶん、入力で動かす */
 function control(f: Fighter, inp: Input, dt: number, events: BattleEvent[]): void {
   f.walking = false;
   if (f.stun > 0) f.stun -= dt;
+  if (f.ledgeCd > 0) f.ledgeCd -= dt;
   const justSide = Math.abs(inp.x) > 0.6 && Math.abs(f.prevX) <= 0.6;
   f.prevX = inp.x;
+  // 崖につかまっている: 登る(上・ジャンプ)・登りながら攻撃(A)・はなす(下・外がわ)
+  if (f.ledge) {
+    const l = f.ledge;
+    l.t += dt;
+    f.vx = 0;
+    f.vy = 0;
+    if (l.t < LEDGE.wait) return;
+    const away = inp.x * l.side > 0.6;
+    if (inp.y > 0.6 || away || l.t > LEDGE.maxHang) {
+      f.ledge = null;
+      f.ledgeCd = LEDGE.regrab;
+      f.x += l.side * 6;
+      return;
+    }
+    if (inp.a || inp.jump || inp.y < -0.6 || inp.x * l.side < -0.6) {
+      f.ledge = null;
+      f.climb = { p: l.p, side: l.side, t: 0, attack: inp.a, x0: f.x, y0: f.y };
+      events.push({ kind: 'climb', who: f });
+    }
+    return;
+  }
+  // 崖から登っている(この間は攻撃が当たらない)。登ったら、攻撃なら そのまま攻撃
+  if (f.climb) {
+    const c = f.climb;
+    c.t += dt;
+    const k = Math.min(1, c.t / LEDGE.climbTime);
+    const edge = c.side < 0 ? c.p.x0 : c.p.x1;
+    const tx = edge - c.side * (MOVE.halfW + 12);
+    // はじめに上へ、あとから足場の上へ
+    const up = Math.min(1, k * 1.8);
+    const over = Math.max(0, (k - 0.35) / 0.65);
+    f.y = c.y0 + (c.p.y - c.y0) * up - Math.sin(Math.PI * k) * 24;
+    f.x = c.x0 + (tx - c.x0) * over;
+    f.vx = 0;
+    f.vy = 0;
+    f.face = c.side < 0 ? 1 : -1;
+    if (k >= 1) {
+      f.climb = null;
+      f.y = c.p.y;
+      f.x = tx;
+      f.ground = c.p;
+      if (c.attack) {
+        f.attack = { name: 'climb', t: 0, hit: false };
+        events.push({ kind: 'swing', who: f, name: 'climb' });
+      }
+    }
+    return;
+  }
+  // 上B(復帰技)を使っている途中: 決まった向きへ上がる。終わったら しりもち落下
+  if (f.special) {
+    const sp = f.special;
+    const r = B_MOVES[sp.id]?.recovery;
+    sp.t += dt;
+    if (!r || sp.t >= r.time) {
+      f.special = null;
+      f.freefall = true;
+      f.vx *= 0.35;
+      f.vy = Math.max(f.vy * 0.2, -120);
+    } else {
+      const v = r.speed * (1 - 0.45 * (sp.t / r.time));
+      f.vx = sp.dx * v;
+      f.vy = sp.dy * v;
+    }
+    return;
+  }
   // ローリング中: 決まった向きに転がる(操作できない・攻撃が当たらない)
   if (f.roll) {
     f.roll.t += dt;
@@ -269,7 +382,25 @@ function control(f: Fighter, inp: Input, dt: number, events: BattleEvent[]): voi
     return;
   }
   if (f.dizzy > 0) f.dizzy = Math.max(0, f.dizzy - dt);
-  const canAct = f.stun <= 0 && f.dizzy <= 0 && !f.attack;
+  const canAct = f.stun <= 0 && f.dizzy <= 0 && !f.attack && !f.freefall;
+  // B技(今は上Bだけ。企画者の決定 2026-10-23: 上Bはゲージ0でも使える復帰技。空中で使える回数に制限)
+  if (canAct && inp.b) {
+    const slot = slotFor(inp.x, inp.y);
+    const move = f.loadout[slot] ? B_MOVES[f.loadout[slot]!] : undefined;
+    const r = move?.recovery;
+    if (move && r && slot === 'up' && f.upBUsed < r.airUses) {
+      const steer = Math.abs(inp.x) > 0.25 ? Math.max(-1, Math.min(1, inp.x)) * r.steer : 0;
+      const rad = (steer * Math.PI) / 180;
+      if (steer) f.face = steer > 0 ? 1 : -1;
+      f.special = { id: move.id, t: 0, dx: Math.sin(rad), dy: -Math.cos(rad) };
+      f.upBUsed++;
+      f.ground = null;
+      f.shield = false;
+      f.attack = null;
+      events.push({ kind: 'upB', who: f });
+      return;
+    }
+  }
   // ガード
   const was = f.shield;
   f.shield = canAct && inp.shield && f.shieldCd <= 0 && f.shieldHp > 0;
@@ -329,6 +460,8 @@ function control(f: Fighter, inp: Input, dt: number, events: BattleEvent[]): voi
     if (f.stun > 0) f.vx *= Math.max(0, 1 - MOVE.launchDrag * dt);
     // 空中では、攻撃中も少しだけ動ける(ガード中は少しだけ)
     else if (f.dizzy > 0) f.vx = approach(f.vx, 0, MOVE.airAccel * 0.3 * dt);
+    // しりもち落下: 左右に少しだけ動ける
+    else if (f.freefall) f.vx = approach(f.vx, inp.x * MOVE.airSpeed * 0.55, MOVE.airAccel * 0.6 * dt);
     else f.vx = approach(f.vx, inp.x * MOVE.airSpeed * (f.shield ? 0.35 : 1), MOVE.airAccel * dt);
     if (canAct && !f.shield && inp.jump && f.airJumps > 0) {
       f.airJumps--;
@@ -355,10 +488,15 @@ function physics(f: Fighter, stage: Stage, dt: number): void {
       return;
     }
   }
+  if (f.ledge || f.climb) return;
   const prevY = f.y;
-  f.vy = Math.min(MOVE.maxFall * (f.stun > 0 ? 1.6 : 1), f.vy + MOVE.gravity * dt);
+  const prevX = f.x;
+  // 上Bで上がっている間は、重力をかけない
+  if (!f.special) f.vy = Math.min(MOVE.maxFall * (f.stun > 0 ? 1.6 : 1), f.vy + MOVE.gravity * dt);
   f.x += f.vx * dt;
   f.y += f.vy * dt;
+  // かたい足場: 横と下からもぶつかる
+  for (const p of stage.platforms) if (p.depth) solid(f, p, prevX, prevY);
   if (f.vy < 0) return;
   for (const p of stage.platforms) {
     if (p === f.dropFrom) continue;
@@ -374,16 +512,78 @@ function physics(f: Fighter, stage: Stage, dt: number): void {
       f.ground = p;
       f.airJumps = MOVE.airJumps;
       f.dropFrom = null;
+      // 着地すると、上Bがまた使える・しりもち落下が終わる
+      f.upBUsed = 0;
+      f.freefall = false;
+      f.special = null;
       return;
     }
   }
   if (f.dropFrom && f.y > f.dropFrom.y + 10) f.dropFrom = null;
 }
 
+/** かたい足場(厚さのある足場)に、横・下からぶつかったら押しもどす。上からの着地は physics で */
+function solid(f: Fighter, p: Platform, prevX: number, prevY: number): void {
+  const y1 = p.y + p.depth!;
+  const overlapX = f.x + WALL_HALF > p.x0 && f.x - WALL_HALF < p.x1;
+  const overlapY = f.y > p.y && f.y - MOVE.height < y1;
+  if (!overlapX || !overlapY) return;
+  // 上から来た(着地): physics の着地にまかせる
+  if (prevY <= p.y + 0.5) return;
+  if (prevY - MOVE.height >= y1 - 0.5) {
+    // 下からぶつかった: 頭が足場の下で止まる
+    f.y = y1 + MOVE.height;
+    f.vy = f.stun > 0 ? Math.abs(f.vy) * 0.3 : Math.max(0, f.vy);
+    return;
+  }
+  // 横からぶつかった: 壁の外へ押しもどす
+  if (prevX <= p.x0 + 1) f.x = p.x0 - WALL_HALF;
+  else if (prevX >= p.x1 - 1) f.x = p.x1 + WALL_HALF;
+  else {
+    // 中に入ってしまった: いちばん近い外へ
+    const left = f.x - p.x0;
+    const right = p.x1 - f.x;
+    const down = y1 - (f.y - MOVE.height);
+    const m = Math.min(left, right, down);
+    if (m === down) f.y = y1 + MOVE.height;
+    else f.x = m === left ? p.x0 - WALL_HALF : p.x1 + WALL_HALF;
+  }
+  f.vx = f.stun > 0 ? -f.vx * 0.3 : 0;
+}
+
+/** 落ちてきて、かたい足場のはしの近くにいたら、自動で崖につかまる(ほかの人がつかまっている所は だめ) */
+function tryLedge(f: Fighter, b: Battle, events: BattleEvent[]): void {
+  if (f.ground || f.ledge || f.climb || f.special || f.stun > 0 || f.ledgeCd > 0 || f.out > 0 || f.dummy) return;
+  if (f.vy < -150) return;
+  for (const p of b.stage.platforms) {
+    if (!p.depth) continue;
+    for (const side of [-1, 1] as const) {
+      const edge = side < 0 ? p.x0 : p.x1;
+      const out = (f.x - edge) * side;
+      const below = f.y - p.y;
+      if (out < 0 || out > LEDGE.reachX + MOVE.halfW || below < LEDGE.reachY[0] || below > LEDGE.reachY[1]) continue;
+      if (b.fighters.some((o) => o !== f && o.ledge && o.ledge.p === p && o.ledge.side === side)) continue;
+      f.ledge = { p, side, t: 0 };
+      f.x = edge + side * (MOVE.halfW - 6);
+      f.y = p.y + MOVE.height - 26;
+      f.vx = 0;
+      f.vy = 0;
+      f.face = side < 0 ? 1 : -1;
+      f.airJumps = MOVE.airJumps;
+      f.upBUsed = 0;
+      f.freefall = false;
+      f.attack = null;
+      f.shield = false;
+      events.push({ kind: 'ledge', who: f });
+      return;
+    }
+  }
+}
+
 /** 攻撃が当たったか */
 function resolveHits(att: Fighter, def: Fighter, events: BattleEvent[]): void {
   const box = hitbox(att, BUNK_ATTACKS);
-  if (!box || att.attack!.hit || def.out > 0 || def.safe > 0 || def.roll) return;
+  if (!box || att.attack!.hit || def.out > 0 || def.safe > 0 || def.roll || def.climb || (def.ledge && def.ledge.t < LEDGE.invincible)) return;
   if (!overlap(box, hurtbox(def))) return;
   att.attack!.hit = true;
   const d = BUNK_ATTACKS[att.attack!.name];
@@ -409,6 +609,11 @@ function resolveHits(att: Fighter, def: Fighter, events: BattleEvent[]): void {
     def.shield = false;
     def.shieldCd = SHIELD.cooldown;
   }
+  // 攻撃を受けると、上Bがまた使える(企画者の決定 2026-10-23)。崖からは はなれる
+  def.upBUsed = 0;
+  def.freefall = false;
+  def.special = null;
+  def.ledge = null;
   def.hp = Math.max(0, def.hp - d.damage);
   const k = knockback(d, def.hp);
   const rad = (d.angle * Math.PI) / 180;
@@ -450,7 +655,7 @@ function ko(f: Fighter, fell: boolean, events: BattleEvent[]): void {
 }
 
 function respawn(f: Fighter, at: [number, number]): void {
-  Object.assign(f, { x: at[0], y: at[1] - 260, vx: 0, vy: 0, ground: null, airJumps: MOVE.airJumps, hp: HP_MAX, attack: null, stun: 0, dizzy: 0, hitBy: null, safe: 1.5, shield: false, shieldHp: 1, shieldCd: 0, roll: null, dropFrom: null, out: 0 });
+  Object.assign(f, { x: at[0], y: at[1] - 260, vx: 0, vy: 0, ground: null, airJumps: MOVE.airJumps, hp: HP_MAX, attack: null, stun: 0, dizzy: 0, hitBy: null, safe: 1.5, shield: false, shieldHp: 1, shieldCd: 0, roll: null, dropFrom: null, out: 0, upBUsed: 0, freefall: false, special: null, ledge: null, ledgeCd: 0, climb: null });
 }
 
 export interface Battle {
@@ -488,6 +693,7 @@ export function stepBattle(b: Battle, inputs: Input[], dt: number): BattleEvent[
     if (f.safe > 0) f.safe -= dt;
     control(f, f.dummy ? NO_INPUT : inputs[i] ?? NO_INPUT, dt, events);
     physics(f, b.stage, dt);
+    tryLedge(f, b, events);
   });
   for (const a of b.fighters) for (const d of b.fighters) if (a !== d && a.out <= 0) resolveHits(a, d, events);
   for (const e of events) if (e.kind === 'hit') b.hitstop = Math.max(b.hitstop, hitstopFor(e.damage));

@@ -807,7 +807,7 @@ export class BattleScene extends Phaser.Scene {
       const cy = f.y + d.box.y + d.box.h / 2;
       const r = Math.max(d.box.w, d.box.h) * 0.55;
       // 技ごとの弧の向き(ラジアン、右向きのとき)
-      const arcs: Record<AttackName, [number, number]> = { jab: [-0.5, 0.4], side: [-0.7, 0.5], up: [-2.6, -0.4], down: [0.1, 1.3], air_down: [0.9, 2.2] };
+      const arcs: Record<AttackName, [number, number]> = { jab: [-0.5, 0.4], side: [-0.7, 0.5], up: [-2.6, -0.4], down: [0.1, 1.3], air_down: [0.9, 2.2], climb: [-0.6, 0.5] };
       let [a0, a1] = arcs[name];
       if (f.face < 0) [a0, a1] = [Math.PI - a1, Math.PI - a0];
       g.lineStyle(name === 'jab' ? 8 : 14, 0xffffff, 0.85);
