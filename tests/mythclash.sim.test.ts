@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { randomDeck, simulate } from '../src/core/mythclash/sim';
 
+// Node の型を入れずに環境変数を読む
+const SIM = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.MYTHCLASH_SIM;
+
 describe('MYTHCLASH simulation', () => {
   it('is reproducible with the same seed and always finishes', () => {
     const a = simulate(30, 12345);
@@ -11,7 +14,7 @@ describe('MYTHCLASH simulation', () => {
   });
 
   // MYTHCLASH_SIM=1 npx vitest run tests/mythclash.sim.test.ts で、くわしい結果を出す
-  it.runIf(process.env.MYTHCLASH_SIM)('report', () => {
+  it.runIf(SIM)('report', () => {
     const fmt = (r: ReturnType<typeof simulate>) => JSON.stringify(r, (_k, v) => (typeof v === 'number' ? Math.round(v * 1000) / 1000 : v));
     console.log('ALL random', fmt(simulate(3000, 20261026)));
     for (const [x, y] of [['N', 'N'], ['SR', 'SR'], ['SEC+UR', 'SR'], ['SR', 'N'], ['R', 'N']] as const) {
