@@ -10,7 +10,7 @@ import { drawPrize, furniture, isFurniture, itemPrice, MOVE_TICKET, MYSTERY_ITEM
 import { catchUp, dayKey, expToNext, levelUpCoins, newNeeds, NEEDS_RULES, stepNeeds, isNight, type Needs } from './needs';
 import type { KeyValueStore } from './save';
 import { isSpecies, type SpeciesId } from './species';
-import { addCards, fixCollection, newCollection, openPacks, PACK_PRICE, type MythCollection } from './mythclash/packs';
+import { addCards, deckOwned, fixCollection, newCollection, openPacks, PACK_PRICE, type MythCollection } from './mythclash/packs';
 import type { Rng } from './rng';
 import { addStats, autoGrowthAt, currentStats, FREE_POINTS_PER_LEVEL, levelUpRng, LOVE_RULES, rollAutoGrowth, STAT_KEYS, STAT_MAX, zeroStats, type StatBlock, type StatKey } from './stats';
 
@@ -415,6 +415,13 @@ export class LifeRecord {
 
   get mythclash(): MythCollection {
     return this.data.mythclash ?? newCollection();
+  }
+
+  /** デッキを覚える(企画者 2026-10-26: バトルの前にデッキ編成)。持っていないカード・同じカードがあれば覚えない */
+  setMythDeck(deck: number[]): boolean {
+    const col = this.mythclash;
+    if (!deckOwned(col, deck)) return false;
+    return this.update({ mythclash: { ...col, deck: [...deck] } });
   }
 
   /**

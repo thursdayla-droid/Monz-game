@@ -6,7 +6,7 @@ import { card, RARITIES, type Element } from '../core/mythclash/cards';
 import type { SeName } from '../audio/sfx';
 import { counterFx, impactFx, magicFx, slashFx, specialCutin } from '../ui/mythFx';
 import { activeCard, createBattle, legalActions, replaceDowned, resolveRound, type BattleAction, type BattleEvent, type BattleState, type Side } from '../core/mythclash/engine';
-import { battleUnlocked, newCollection } from '../core/mythclash/packs';
+import { battleUnlocked, deckOwned, newCollection } from '../core/mythclash/packs';
 import { aiAction, randomDeck } from '../core/mythclash/sim';
 import { eventsFor, viewFor, type BattleView } from '../core/mythclash/view';
 import { describeAbility, describeMagicEffect } from '../core/mythclash/describe';
@@ -46,6 +46,12 @@ const DEFENSE_COLOR = 0x3a9dff;
 /** 1ターンの秒数(企画者 2026-10-26) */
 const TURN_SECONDS = 30;
 const MAGIC_SE: Record<Element, SeName> = { 炎: 'mcFire', 水: 'mcWater', 雷: 'mcThunder', 自然: 'mcNature', 光: 'mcLight', 闇: 'mcDark', 無: 'mcMagic' };
+/** 防御の見た目(色・マーク) */
+const DEFENSE_LOOK: Record<string, { color: number; bg: string; icon: string }> = {
+  guard: { color: 0x3a9dff, bg: '#1f5fc8', icon: '🛡' },
+  magicGuard: { color: 0xb84aff, bg: '#7a2ac8', icon: '✨' },
+  counter: { color: 0xff9a2a, bg: '#c86a10', icon: '⚡' },
+};
 const ACTION_LABELS: Record<string, string> = { normal: '通常攻撃', special: '必殺技', magic: '魔法', guard: '防御', counter: 'カウンター', magicGuard: '魔法防御' };
 const STATUS_LABELS: Record<string, string> = { sleep: '睡眠', freeze: '凍結', poison: '毒', burn: '火傷', weaken: '攻撃ダウン', boost: '強化', shield: 'バリア' };
 const cardKey = (id: number, hideMagic: boolean) => `mc:card:${id}${hideMagic ? ':h' : ''}`;
@@ -78,7 +84,13 @@ export class MythBattleScene extends Phaser.Scene {
     super('MythBattle');
   }
 
-  init(): void {
+  /** デッキ編成で選んだ3枚(null ならテストプレイのランダム) */
+  private chosenDeck: number[] | null = null;
+
+  init(data: { deck?: number[] | null }): void {
+    this.chosenDeck = data?.deck ?? null;
+    this.defBadge?.destroy();
+    this.defBadge = undefined;
     this.fitSize();
     this.busy = false;
     this.auto = false;
@@ -132,9 +144,11 @@ export class MythBattleScene extends Phaser.Scene {
     this.time.delayedCall(900, () => this.prompt());
   }
 
-  /** 【仮】チーム編成ができるまで: 持っているカードのうちレアが高い3枚。3種類なければテスト用のランダム */
+  /** デッキ編成で選んだ3枚(企画者 2026-10-26)。無ければ前に組んだデッキ・レアの高い3枚。3種類なければテスト用のランダム */
   private pickMyDeck(rng: Rng): number[] {
     const col = loadLife().mythclash ?? newCollection();
+    if (this.chosenDeck && deckOwned(col, this.chosenDeck)) return [...this.chosenDeck];
+    if (col.deck && deckOwned(col, col.deck)) return [...col.deck];
     if (!battleUnlocked(col)) {
       this.testDeck = true;
       return randomDeck(rng);
@@ -530,6 +544,8 @@ export class MythBattleScene extends Phaser.Scene {
       this.view = viewFor(this.s, ME);
       for (const side of [ME, CPU]) this.shownHp[side] = activeCard(this.s, side).hp;
       this.busy = false;
+      this.defBadge?.destroy();
+      this.defBadge = undefined;
       this.render();
       if (this.s.winner !== null) this.showResult();
       else if (this.s.pending?.includes(ME)) this.openChooser('down');
@@ -578,7 +594,8 @@ export class MythBattleScene extends Phaser.Scene {
       case 'defend':
         this.roundDefense = { side: e.side, kind: e.kind };
         this.say(`${who(e.side)}は ${ACTION_LABELS[e.kind]}`, '#d8d8ff');
-        return 450;
+        this.showDefense(e.side, e.kind);
+        return 650;
       case 'counter':
         this.say(e.success ? 'カウンター成功！' : 'カウンター失敗…', e.success ? '#7dffa0' : '#ffb070');
         if (!e.success) {
@@ -671,6 +688,30 @@ export class MythBattleScene extends Phaser.Scene {
     }
   }
 
+  private defBadge?: Phaser.GameObjects.Container;
+
+  /**
+   * 防御側が何を選んだか、場のカードの上に大きく出す(企画者 2026-10-26: 防御側が何を選んだか分かりにくい)。
+   * そのターンの出来事が終わるまで出しておく
+   */
+  private showDefense(side: Side, kind: string): void {
+    this.defBadge?.destroy();
+    const p = cardPos(side);
+    const look = DEFENSE_LOOK[kind] ?? DEFENSE_LOOK.guard;
+    const c = this.add.container(p.x, p.y).setDepth(45);
+    const cw = MYTH_CARD_W * cardScale() + 30;
+    const ch = cardH() + 30;
+    const ring = this.add.rectangle(0, 0, cw, ch).setStrokeStyle(10, look.color, 1);
+    const glow = this.add.rectangle(0, 0, cw, ch, look.color, 0.18);
+    const label = this.text(0, 0, `${look.icon} ${ACTION_LABELS[kind]}`, 40, '#ffffff').setBackgroundColor(look.bg).setPadding(22, 8, 22, 10).setStroke('#16101c', 6);
+    c.add([glow, ring, label]);
+    c.setScale(1.4).setAlpha(0);
+    this.tweens.add({ targets: c, scale: 1, alpha: 1, duration: 220, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: ring, alpha: 0.4, duration: 450, yoyo: true, repeat: -1 });
+    audio.se('guard');
+    this.defBadge = c;
+  }
+
   /** カードを大きく見る。見せてよいカードだけ(相手のまだ出ていないカードは出さない) */
   private zoom(side: Side, index: number): void {
     const v = viewFor(this.s, ME);
@@ -729,7 +770,7 @@ export class MythBattleScene extends Phaser.Scene {
     this.tweens.add({ targets: t, scale: 1, duration: 420, ease: 'Back.easeOut' });
     const sub = this.text(W / 2, H / 2 - 40, `${this.s.round - 1}ターンで決着`, 30, '#ffffff');
     const again = this.text(W / 2 - 150, H / 2 + 80, 'もう一度', 36, '#16101c').setBackgroundColor('#ffd23a').setPadding(28, 10, 28, 12).setInteractive({ useHandCursor: true });
-    again.on('pointerdown', () => this.scene.restart());
+    again.on('pointerdown', () => this.scene.restart({ deck: this.chosenDeck }));
     const back = this.text(W / 2 + 150, H / 2 + 80, 'もどる', 36, '#ffffff').setBackgroundColor('#8a35e0').setPadding(28, 10, 28, 12).setInteractive({ useHandCursor: true });
     back.on('pointerdown', () => this.leave());
     box.add([dim, t, sub, again, back]);

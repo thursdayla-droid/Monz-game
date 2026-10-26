@@ -47,6 +47,8 @@ export interface MythCollection {
   owned: Record<string, number>;
   /** 今までに開けたパックの数 */
   packs: number;
+  /** 前に組んだデッキ(ちがうカード3枚。先頭から出る)。古いデータには無い */
+  deck?: number[];
 }
 
 export const newCollection = (): MythCollection => ({ owned: {}, packs: 0 });
@@ -61,14 +63,19 @@ export function fixCollection(raw: unknown): MythCollection {
     if (known.has(k) && Number.isFinite(n) && n > 0) owned[k] = n;
   }
   const packs = Math.floor(Number(d.packs));
-  return { owned, packs: Number.isFinite(packs) && packs > 0 ? packs : 0 };
+  const deck = Array.isArray(d.deck) ? d.deck.map(Number) : [];
+  const deckOk = deck.length === 3 && new Set(deck).size === 3 && deck.every((id) => owned[id] > 0);
+  return { owned, packs: Number.isFinite(packs) && packs > 0 ? packs : 0, ...(deckOk ? { deck } : {}) };
 }
 
 export function addCards(col: MythCollection, ids: readonly number[]): MythCollection {
   const owned = { ...col.owned };
   for (const id of ids) owned[id] = (owned[id] ?? 0) + 1;
-  return { owned, packs: col.packs + ids.length };
+  return { ...col, owned, packs: col.packs + ids.length };
 }
+
+/** デッキを組めるか(ちがうカード3枚で、全部持っている) */
+export const deckOwned = (col: MythCollection, deck: readonly number[]): boolean => deck.length === 3 && new Set(deck).size === 3 && deck.every((id) => ownedCount(col, id) > 0);
 
 export const ownedCount = (col: MythCollection, id: number): number => col.owned[id] ?? 0;
 /** 持っているカードの種類の数(所持種類数) */

@@ -68,6 +68,18 @@ describe('MYTHCLASH packs', () => {
     expect(fixCollection({ owned: { 999: 1, 5: -1, 6: 'x', 7: 2 }, packs: -3 })).toEqual({ owned: { 7: 2 }, packs: 0 });
   });
 
+  it('a deck of 3 different owned cards is remembered; invalid decks are not', () => {
+    const { rec, store } = recordWith(0);
+    expect(rec.setMythDeck([1, 2, 3])).toBe(false);
+    const r2 = new LifeRecord({ ...newLife(1), mythclash: { owned: { 1: 1, 2: 2, 3: 1 }, packs: 4 } }, store);
+    expect(r2.setMythDeck([1, 1, 2])).toBe(false);
+    expect(r2.setMythDeck([3, 1, 2])).toBe(true);
+    expect(loadLife(store).mythclash!.deck).toEqual([3, 1, 2]);
+    // 持っていないカードが入ったデッキは、読みこむときに捨てる
+    expect(fixCollection({ owned: { 1: 1 }, deck: [1, 2, 3] }).deck).toBeUndefined();
+    void rec;
+  });
+
   it('old saves (without MYTHCLASH data) still load, and the collection is kept on reload', () => {
     const old = { ...newLife(1), coins: 700 } as Record<string, unknown>;
     delete old.mythclash;
