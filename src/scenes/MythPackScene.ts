@@ -10,8 +10,8 @@ import { canvasTextureOnce, roundRectPath, UI_FONT } from '../ui/paint';
 import { showCardZoom } from '../ui/cardZoom';
 
 const PORTRAIT = { w: 720, h: 1280 };
-/** パックの絵(切り抜き後 698x1213)の、切る線の高さ(上のギザギザのすぐ下) */
-const CUT_AT = 0.075;
+/** パックの絵(切り抜き後 686x1412。2026-10-26 の新しい絵)の、切る線の高さ(上のギザギザと点の帯のすぐ下) */
+const CUT_AT = 0.068;
 /** カードの幅は、パックの幅のこのくらい */
 const CARD_OF_PACK = 0.8;
 /** カードの下の、パックに入ったままの割合 */

@@ -1,6 +1,7 @@
 """MYTHCLASH のロゴを、企画者の新しいロゴ(design/mythclash/logo.png)に差しかえた絵を作る(企画者 2026-10-26)。
 使い方: python3 -I design/mythclash/make_logo.py  (このあと make_pack.py)
-- 元の絵(title.png・pack.png)はそのまま残す。差しかえた絵は title_logo.png・pack_logo.png
+- 元の絵(title.png)はそのまま残す。差しかえた絵は title_logo.png
+- パックは 2026-10-26 に新しいロゴ入りの絵をもらったので、ここでは作らない(make_pack.py。前のパックの絵は unused/)
 - 新しいロゴを、前のロゴ(英字の所)にぴったり重ねる。下に少しだけ暗いかげを入れて、前のロゴのふちが見えないようにする
 - 「ミスクラッシュ」の文字は消す(企画者 2026-10-26)。前のロゴの残る所(カタカナの帯など)は、まわりの絵からうめる(OpenCV の inpaint)
 - ゲーム用のタイトル(public/assets/mythclash/title.webp)もここで作る
@@ -23,9 +24,6 @@ PLACES = {
               'erase': [(40, 700), (815, 700), (815, 800), (700, 836), (560, 862), (330, 862), (220, 845), (40, 840)],
               # うめた所が目立たないように、ロゴの下にやわらかい暗いかげ(中心x, 中心y, 横の半径, 縦の半径, こさ)
               'plate': (427, 795, 500, 105, 0.95)},
-    'pack': {'src': 'pack.png', 'out': 'pack_logo.png', 'x0': 190, 'x1': 838, 'y0': 668,
-             'erase': [(185, 840), (845, 840), (845, 968), (716, 972), (428, 972), (185, 968)],
-             'plate': (514, 922, 400, 105, 0.92)},
 }
 
 
@@ -63,10 +61,8 @@ def compose(name: str) -> Image.Image:
 
 
 title = compose('title')
-compose('pack')
 dst = os.path.join(ROOT, 'public', 'assets', 'mythclash', 'title.webp')
 title.save(dst, 'WEBP', quality=88, method=6)
 print('ok', title.size, os.path.getsize(dst))
 if len(sys.argv) > 1:
     title.crop((0, 450, 852, 900)).save(sys.argv[1] + '_t.png')
-    Image.open(os.path.join(HERE, 'pack_logo.png')).crop((120, 560, 900, 1020)).save(sys.argv[1] + '_p.png')

@@ -1,7 +1,9 @@
-"""MYTHCLASH のパックの絵(design/mythclash/pack.png・企画者の絵)の黒い背景を消して、ゲーム用(public/assets/mythclash/pack.webp)にする。
+"""MYTHCLASH のパックの絵(design/mythclash/pack.png・企画者の絵)の背景を消して、ゲーム用(public/assets/mythclash/pack.webp)にする。
 使い方: python3 -I design/mythclash/make_pack.py
-- 外側につながっている真っ黒な所だけ消す(パックの中の黒い模様は残す)。大きさは変えない(まわりの余白だけ切る)
-- ロゴを新しいロゴにした絵(pack_logo.png。make_logo.py で作る)があれば、そちらを使う(企画者 2026-10-26)
+- 2026-10-26: 新しいパックの絵(新しいロゴ入り)に差しかえ。背景は透明ではなく、灰色と白のチェック柄が描いてあるので、
+  外側につながっているチェック柄(明るい灰色・色が無い)だけを消す。パックの中の白い所(ロゴなど)は残す
+- 前の絵は design/mythclash/unused/ に残した
+- 大きさは変えない(まわりの余白だけ切る)
 """
 import os
 import numpy as np
@@ -10,19 +12,20 @@ from scipy import ndimage
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
-src = os.path.join(HERE, 'pack_logo.png')
-# 切り抜きの形は、いつも元の絵で決める(ロゴの下のかげが、背景とまちがえて消えないように)
-orig = Image.open(os.path.join(HERE, 'pack.png')).convert('RGB')
-im = Image.open(src).convert('RGB') if os.path.exists(src) else orig
-a = np.asarray(orig).astype(int)
-dark = a.max(2) < 26
-labels, _ = ndimage.label(dark)
+im = Image.open(os.path.join(HERE, 'pack.png')).convert('RGB')
+a = np.asarray(im).astype(int)
+checker = (a.min(2) > 165) & (a.max(2) - a.min(2) < 24)
+labels, _ = ndimage.label(checker)
 border = set(np.unique(np.concatenate([labels[0], labels[-1], labels[:, 0], labels[:, -1]]))) - {0}
-bg = np.isin(labels, list(border))
-alpha = Image.fromarray(((~bg) * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.8))
+keep = ~np.isin(labels, list(border))
+# パック本体(いちばん大きいかたまり)だけを残す(チェック柄の切れはしを消す)。中の穴はうめる
+labels2, n2 = ndimage.label(keep)
+sizes = ndimage.sum(keep, labels2, range(1, n2 + 1))
+keep = ndimage.binary_fill_holes(labels2 == (int(np.argmax(sizes)) + 1))
+alpha = Image.fromarray(np.where(keep, 255, 0).astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.8))
 out = im.convert('RGBA')
 out.putalpha(alpha)
-box = out.getbbox()
+box = out.getchannel('A').point(lambda v: 255 if v > 20 else 0).getbbox()
 out = out.crop(box)
 os.makedirs(os.path.join(ROOT, 'public', 'assets', 'mythclash'), exist_ok=True)
 dst = os.path.join(ROOT, 'public', 'assets', 'mythclash', 'pack.webp')
