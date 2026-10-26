@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { attackFor, BOUNCE_HP, BUNK_ATTACKS, HP_MAX, knockback, newPractice, NO_INPUT, ROLL, SHIELD, stepBattle, STOCKS, type Input } from '../src/core/battle';
+import { attackFor, BOUNCE_HP, BUNK_ATTACKS, MOVE, HP_MAX, knockback, newPractice, NO_INPUT, ROLL, SHIELD, stepBattle, STOCKS, type Input } from '../src/core/battle';
 
 const run = (b: ReturnType<typeof newPractice>, inp: Partial<Input>, seconds: number) => {
   const events = [];
@@ -240,5 +240,75 @@ describe('battle (practice)', () => {
     expect(high.lifted).toBeLessThan(5);
     const low = hitFromAbove(BOUNCE_HP - 20);
     expect(low.lifted).toBeGreaterThan(40);
+  });
+
+  it('up B: usable with no gauge, once in the air, then freefall; landing resets', () => {
+    const b = newPractice();
+    const me = b.fighters[0];
+    run(b, {}, 0.5);
+    run(b, { jump: true }, 1 / 60);
+    run(b, {}, 0.1);
+    const y = me.y;
+    const ev = run(b, { b: true, y: -1 }, 1 / 60);
+    expect(ev.some((e) => e.kind === 'upB')).toBe(true);
+    run(b, {}, 0.3);
+    expect(me.y).toBeLessThan(y - 150);
+    run(b, {}, 0.3);
+    expect(me.freefall).toBe(true);
+    // 2回目は出ない・ジャンプも攻撃もできない
+    expect(run(b, { b: true, y: -1 }, 1 / 60).some((e) => e.kind === 'upB')).toBe(false);
+    expect(run(b, { jump: true, a: true }, 1 / 60).some((e) => e.kind === 'jump' || e.kind === 'swing')).toBe(false);
+    run(b, {}, 2);
+    expect(me.ground).not.toBeNull();
+    expect([me.freefall, me.upBUsed]).toEqual([false, 0]);
+  });
+
+  it('the main stage is solid from below and the side', () => {
+    const b = newPractice();
+    const me = b.fighters[0];
+    const g = b.stage.platforms.find((p) => !p.thin)!;
+    Object.assign(me, { x: 800, y: g.y + g.depth! + MOVE.height + 40, ground: null, vy: -900, vx: 0 });
+    run(b, {}, 0.1);
+    expect(me.y - MOVE.height).toBeGreaterThanOrEqual(g.y + g.depth! - 0.5);
+    Object.assign(me, { x: g.x0 - 60, y: g.y + 60, ground: null, vy: 0, vx: 600 });
+    stepBattle(b, [NO_INPUT], 1 / 60);
+    stepBattle(b, [NO_INPUT], 1 / 60);
+    expect(me.x).toBeLessThanOrEqual(g.x0);
+  });
+
+  it('ledge: grab resets jumps and up B; climb, climb attack, and let go', () => {
+    const setup = () => {
+      const b = newPractice();
+      const me = b.fighters[0];
+      const g = b.stage.platforms.find((p) => !p.thin)!;
+      Object.assign(me, { x: g.x0 - 50, y: g.y + 60, ground: null, vy: 100, vx: 0, airJumps: 0, upBUsed: 1, freefall: true });
+      const ev = run(b, {}, 0.05);
+      return { b, me, g, ev };
+    };
+    const { b, me, g, ev } = setup();
+    expect(ev.some((e) => e.kind === 'ledge')).toBe(true);
+    expect([me.airJumps, me.upBUsed, me.freefall]).toEqual([MOVE.airJumps, 0, false]);
+    run(b, {}, 0.2);
+    run(b, { y: -1 }, 0.5);
+    expect(me.ground).toBe(g);
+    // 登りながら攻撃
+    const s2 = setup();
+    run(s2.b, {}, 0.2);
+    const ev2 = run(s2.b, { a: true }, 1 / 60).concat(run(s2.b, {}, 0.4));
+    expect(ev2.some((e) => e.kind === 'swing' && e.name === 'climb')).toBe(true);
+    // はなす
+    const s3 = setup();
+    run(s3.b, {}, 0.2);
+    run(s3.b, { y: 1 }, 1 / 60);
+    expect(s3.me.ledge).toBeNull();
+  });
+
+  it('B loadout rules: only recovery moves go in up B', async () => {
+    const { canEquip, fixLoadout, BUNK_UP_B } = await import('../src/core/battleMoves');
+    expect(canEquip('up', BUNK_UP_B)).toBe(true);
+    expect(canEquip('up', { id: 'x', label: 'x', kind: 'super', gauge: 100 })).toBe(false);
+    expect(canEquip('up', { id: 'y', label: 'y', kind: 'gauge', gauge: 25, recovery: BUNK_UP_B.recovery })).toBe(false);
+    expect(canEquip('neutral', { id: 'x', label: 'x', kind: 'super', gauge: 100 })).toBe(true);
+    expect(fixLoadout({ up: 'nope', neutral: BUNK_UP_B.id })).toEqual({ neutral: BUNK_UP_B.id, side: null, up: null, down: null });
   });
 });

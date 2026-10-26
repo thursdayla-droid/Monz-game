@@ -30,7 +30,7 @@ const BUTTONS = {
   a: { x: 1150, y: 540, r: 66, label: 'A', color: 0xff5a4e },
   jump: { x: 1020, y: 460, r: 52, label: 'ジャンプ', color: 0xffd23a },
   shield: { x: 1010, y: 630, r: 52, label: 'ガード', color: 0x4ec3ff },
-  b: { x: 1165, y: 650, r: 40, label: 'B', color: 0x8a8394 },
+  b: { x: 1165, y: 650, r: 44, label: 'B', color: 0xb46cff },
 } as const;
 type ButtonName = keyof typeof BUTTONS;
 
@@ -214,7 +214,7 @@ class FighterView {
       lean = -3 * windup + 6 * strike;
       step = 8 * strike;
     }
-    if (name === 'side') {
+    if (name === 'side' || name === 'climb') {
       set('glove_r', -200 * windup + 560 * strike, 10 * windup - 50 * strike, -0.15 * windup, 1 + 0.18 * strike, 1 + 0.1 * strike);
       set('glove_l', -80 * windup + 120 * strike, 30 * strike);
       set('foot_r', 40 * strike, 0);
@@ -291,6 +291,40 @@ class FighterView {
       st.setVisible(dizzy).setPosition(Math.cos(a) * 46, -MOVE.height - 22 + Math.sin(a) * 12).setScale(Math.sin(a) > 0 ? 1 : 0.75);
       st.setDepth(Math.sin(a) > 0 ? 1 : -1);
     });
+    // 上B(上へ上がる技。企画者の指示 2026-10-23): 両手を突き上げて、体をのばす。曲げた向きへ少し傾く
+    if (f.special) {
+      set('glove_r', -60, -520, -0.2, 1.1);
+      set('glove_l', 260, -380, 0.2, 1.05);
+      set('foot_l', 20, 40);
+      set('foot_r', -20, 50);
+      lean = (f.special.dx * f.face) * 40;
+      sq -= 0.14;
+    }
+    // しりもち落下: 手足をだらんとして、少しうつむく
+    if (f.freefall && !f.special && !onGround) {
+      set('glove_l', -30, 80);
+      set('glove_r', 30, 90);
+      set('foot_l', -20, 30);
+      set('foot_r', 20, 30);
+      lean = 8;
+    }
+    // 崖につかまっている: 両手を上にのばして、足場のはしをつかむ
+    if (f.ledge) {
+      set('glove_r', 40, -560);
+      set('glove_l', 300, -520);
+      set('foot_l', -20, 40 + Math.sin(t * 3) * 10);
+      set('foot_r', 20, 40 - Math.sin(t * 3) * 10);
+      lean = 0;
+      y = 0;
+    }
+    // 崖から登っている: ひざを引いて、体を持ち上げる
+    if (f.climb) {
+      set('glove_r', 40, -200);
+      set('glove_l', 260, -160);
+      set('foot_l', 60, -140);
+      set('foot_r', -40, -100);
+      sq += 0.12;
+    }
     // ローリング: 体を丸めて転がる
     if (f.roll) {
       const k = Math.min(1, f.roll.t / ROLL.time);
@@ -324,6 +358,10 @@ class FighterView {
       if (this.flash > 0) {
         img.setTint(0xffffff);
         img.tintMode = Phaser.TintModes.FILL;
+      } else if (f.freefall && !onGround) {
+        // しりもち落下中は少し暗く(もう上Bが使えないのがわかるように)
+        img.setTint(0x8a8094);
+        img.tintMode = Phaser.TintModes.MULTIPLY;
       } else {
         img.clearTint();
         img.tintMode = Phaser.TintModes.MULTIPLY;
@@ -362,7 +400,7 @@ export class BattleScene extends Phaser.Scene {
   private acc = 0;
   private stick = { id: -1, x: 0, y: 0 };
   private held: Partial<Record<ButtonName, number>> = {};
-  private pressed = { a: false, jump: false };
+  private pressed = { a: false, jump: false, b: false };
   private knob!: Phaser.GameObjects.Arc;
   private buttonGfx: Partial<Record<ButtonName, Phaser.GameObjects.Container>> = {};
   private hud: { hp: Phaser.GameObjects.Graphics; hpText: Phaser.GameObjects.Text; stocks: Phaser.GameObjects.Text }[] = [];
@@ -420,7 +458,7 @@ export class BattleScene extends Phaser.Scene {
     this.leaving = false;
     this.stick = { id: -1, x: 0, y: 0 };
     this.held = {};
-    this.pressed = { a: false, jump: false };
+    this.pressed = { a: false, jump: false, b: false };
     this.hud = [];
     this.buttonGfx = {};
     this.battle = newPractice();
@@ -437,7 +475,7 @@ export class BattleScene extends Phaser.Scene {
       this.offscreen = this.battle.fighters.map((f) => this.buildOffscreen(f.dummy));
     });
     this.updateCamera(1);
-    this.keys = this.input.keyboard?.addKeys('LEFT,RIGHT,UP,DOWN,Z,X,C,SPACE,SHIFT') as Record<string, Phaser.Input.Keyboard.Key> | undefined;
+    this.keys = this.input.keyboard?.addKeys('LEFT,RIGHT,UP,DOWN,Z,X,C,V,SPACE,SHIFT') as Record<string, Phaser.Input.Keyboard.Key> | undefined;
     this.cameras.main.fadeIn(300, 0, 0, 0);
     this.uiCam.fadeIn(300, 0, 0, 0);
     audio.playBgm('dash');
@@ -492,10 +530,14 @@ export class BattleScene extends Phaser.Scene {
     const g = this.add.graphics().setDepth(1);
     g.fillStyle(0x24123a, 1);
     g.beginPath();
-    g.moveTo(main.x0 + 10, main.y + 20);
-    g.lineTo(main.x1 - 10, main.y + 20);
-    g.lineTo(main.x1 - 90, main.y + 120);
-    g.lineTo(main.x0 + 90, main.y + 120);
+    // かたい足場の厚さ(depth)と同じ形(横・下からぶつかる所が見た目でもわかるように)
+    const d = main.depth ?? 100;
+    g.moveTo(main.x0, main.y + 10);
+    g.lineTo(main.x1, main.y + 10);
+    g.lineTo(main.x1, main.y + d - 18);
+    g.lineTo(main.x1 - 18, main.y + d);
+    g.lineTo(main.x0 + 18, main.y + d);
+    g.lineTo(main.x0, main.y + d - 18);
     g.closePath();
     g.fillPath();
     g.lineStyle(6, 0x16101c, 1).strokePath();
@@ -546,7 +588,7 @@ export class BattleScene extends Phaser.Scene {
       this.hud.push({ hp, hpText, stocks });
     });
     // 遊び方(はじめに少しだけ出す)
-    const help = this.text(W / 2, 190, 'スティックで いどう　A：パンチ（スティックの向きで 技が変わる）\nジャンプは 空中でも もう1回　空中で 下＋A：真下にパンチ\nガード中に 左右で ローリング（地上だけ）', 22, '#ffffff');
+    const help = this.text(W / 2, 190, 'スティックで いどう　A：パンチ（スティックの向きで 技が変わる）\nジャンプは 空中でも もう1回　空中で 下＋A：真下にパンチ\nガード中に 左右で ローリング（地上だけ）　上＋B：上へ上がる（空中で1回）', 22, '#ffffff');
     this.tweens.add({ targets: help, alpha: 0, delay: 4500, duration: 800, onComplete: () => help.destroy() });
   }
 
@@ -576,7 +618,6 @@ export class BattleScene extends Phaser.Scene {
       const circle = this.add.circle(0, 0, b.r, b.color, 1).setStrokeStyle(6, 0x16101c, 1);
       const label = this.add.text(0, 0, b.label, { fontFamily: UI_FONT, fontSize: `${b.label.length > 1 ? 20 : 44}px`, fontStyle: '900', color: INK }).setOrigin(0.5);
       c.add([circle, label]);
-      if (name === 'b') c.add(this.add.text(0, b.r - 4, 'SOON', { fontFamily: UI_FONT, fontSize: '16px', fontStyle: '900', color: '#ffffff', backgroundColor: '#16101c', padding: { x: 4, y: 1 } }).setOrigin(0.5));
       this.buttonGfx[name] = c;
     }
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => this.onDown(p));
@@ -598,6 +639,7 @@ export class BattleScene extends Phaser.Scene {
       this.held[b] = p.id;
       if (b === 'a') this.pressed.a = true;
       if (b === 'jump') this.pressed.jump = true;
+      if (b === 'b') this.pressed.b = true;
       this.buttonGfx[b]?.setScale(0.9);
       return;
     }
@@ -657,9 +699,10 @@ export class BattleScene extends Phaser.Scene {
       y,
       a: this.pressed.a || (!!k && Phaser.Input.Keyboard.JustDown(k.Z)),
       jump: this.pressed.jump || (!!k && (Phaser.Input.Keyboard.JustDown(k.X) || Phaser.Input.Keyboard.JustDown(k.SPACE))),
+      b: this.pressed.b || (!!k && Phaser.Input.Keyboard.JustDown(k.V)),
       shield: this.held.shield !== undefined || (!!k && (k.C.isDown || k.SHIFT.isDown)),
     };
-    this.pressed = { a: false, jump: false };
+    this.pressed = { a: false, jump: false, b: false };
     return inp;
   }
 
@@ -676,7 +719,7 @@ export class BattleScene extends Phaser.Scene {
       this.acc -= step;
       const events = stepBattle(this.battle, [inp, NO_INPUT], step);
       // 押した瞬間の入力は1回だけ使う
-      inp = { ...inp, a: false, jump: false };
+      inp = { ...inp, a: false, jump: false, b: false };
       for (const e of events) this.onEvent(e);
     }
     const frozen = this.battle.hitstop > 0;
@@ -685,6 +728,12 @@ export class BattleScene extends Phaser.Scene {
     if (this.trailT <= 0 && !frozen) {
       this.trailT = 0.03;
       for (const f of this.battle.fighters) {
+        // 上Bで上がっているときは、オレンジの炎の尾
+        if (f.special && f.out <= 0) {
+          const fire = this.add.circle(f.x + (Math.random() - 0.5) * 30, f.y - 20, 16, Math.random() < 0.5 ? 0xff9a3c : 0xffd23a, 0.85).setDepth(8);
+          this.tweens.add({ targets: fire, scale: 0.2, alpha: 0, y: fire.y + 30, duration: 300, onComplete: () => fire.destroy() });
+          continue;
+        }
         if (f.out > 0 || f.stun <= 0 || Math.hypot(f.vx, f.vy) < 500 || (f.hitBy && BUNK_ATTACKS[f.hitBy].noSpin)) continue;
         const c = this.add.circle(f.x, f.y - MOVE.height / 2, 14, 0xffffff, 0.55).setDepth(8);
         this.tweens.add({ targets: c, scale: 2.2, alpha: 0, duration: 380, onComplete: () => c.destroy() });
@@ -759,6 +808,13 @@ export class BattleScene extends Phaser.Scene {
       if (e.air) this.ring(e.who.x, e.who.y, 1.1);
     }
     if (e.kind === 'roll') audio.se('whoosh', { pitch: 0.7 });
+    if (e.kind === 'upB') {
+      audio.se('whoosh', { pitch: 0.55 });
+      audio.se('hop', { pitch: 0.8 });
+      this.ring(e.who.x, e.who.y, 1.4);
+    }
+    if (e.kind === 'ledge') audio.se('land', { pitch: 1.3 });
+    if (e.kind === 'climb') audio.se('hop', { pitch: 1.1 });
     if (e.kind === 'shieldBreak') {
       audio.se('crackBig');
       this.spark(e.who.x, e.who.y - MOVE.height / 2, 0x4ec3ff, 1.6);
