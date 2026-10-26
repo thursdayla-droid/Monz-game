@@ -2,12 +2,14 @@
 使い方: python3 -I design/mythclash/make_logo.py  (このあと make_pack.py)
 - 元の絵(title.png・pack.png)はそのまま残す。差しかえた絵は title_logo.png・pack_logo.png
 - 新しいロゴを、前のロゴ(英字の所)にぴったり重ねる。下に少しだけ暗いかげを入れて、前のロゴのふちが見えないようにする
-- 「ミスクラッシュ」の文字は、新しいロゴに無いので、前の絵のまま残る【仮】(消すかは企画者に確認)
+- 「ミスクラッシュ」の文字は消す(企画者 2026-10-26)。前のロゴの残る所(カタカナの帯など)は、まわりの絵からうめる(OpenCV の inpaint)
 - ゲーム用のタイトル(public/assets/mythclash/title.webp)もここで作る
 """
 import os
 import sys
-from PIL import Image, ImageFilter
+import cv2
+import numpy as np
+from PIL import Image, ImageDraw, ImageFilter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
@@ -16,8 +18,14 @@ logo = logo.crop(logo.getbbox())
 
 # 前のロゴ(英字の所)の左はし・右はし・上(王冠の先)。絵の座標
 PLACES = {
-    'title': {'src': 'title.png', 'out': 'title_logo.png', 'x0': 55, 'x1': 800, 'y0': 532},
-    'pack': {'src': 'pack.png', 'out': 'pack_logo.png', 'x0': 190, 'x1': 838, 'y0': 668},
+    # erase: 前のロゴの、新しいロゴで隠れない所(カタカナの帯・下のふち)。絵の座標の多角形
+    'title': {'src': 'title.png', 'out': 'title_logo.png', 'x0': 55, 'x1': 800, 'y0': 532,
+              'erase': [(40, 700), (815, 700), (815, 800), (700, 836), (560, 862), (330, 862), (220, 845), (40, 840)],
+              # うめた所が目立たないように、ロゴの下にやわらかい暗いかげ(中心x, 中心y, 横の半径, 縦の半径, こさ)
+              'plate': (427, 795, 500, 105, 0.95)},
+    'pack': {'src': 'pack.png', 'out': 'pack_logo.png', 'x0': 190, 'x1': 838, 'y0': 668,
+             'erase': [(185, 840), (845, 840), (845, 968), (716, 972), (428, 972), (185, 968)],
+             'plate': (514, 922, 400, 105, 0.92)},
 }
 
 
@@ -27,6 +35,22 @@ def compose(name: str) -> Image.Image:
     w = p['x1'] - p['x0']
     h = round(logo.height * w / logo.width)
     lg = logo.resize((w, h), Image.LANCZOS)
+    # 前のロゴの残る所を、まわりの絵からうめる(新しいロゴの形を少し太らせた所もいっしょに)
+    mask = Image.new('L', base.size, 0)
+    ImageDraw.Draw(mask).polygon(p['erase'], fill=255)
+    cover = Image.new('L', base.size, 0)
+    cover.paste(lg.split()[3].filter(ImageFilter.MaxFilter(21)), (p['x0'], p['y0']))
+    mask = Image.fromarray(np.maximum(np.asarray(mask), np.asarray(cover)))
+    rgb = cv2.cvtColor(np.asarray(base.convert('RGB')), cv2.COLOR_RGB2BGR)
+    filled = cv2.inpaint(rgb, np.asarray(mask), 9, cv2.INPAINT_TELEA)
+    base = Image.fromarray(cv2.cvtColor(filled, cv2.COLOR_BGR2RGB)).convert('RGBA')
+    cx, cy, rx, ry, k = p['plate']
+    plate = Image.new('L', base.size, 0)
+    ImageDraw.Draw(plate).ellipse((cx - rx, cy - ry, cx + rx, cy + ry), fill=int(255 * k))
+    plate = plate.filter(ImageFilter.GaussianBlur(40))
+    dark = Image.new('RGBA', base.size, (10, 3, 6, 0))
+    dark.putalpha(plate)
+    base.alpha_composite(dark)
     # かげ: ロゴの形を少し太らせて、ぼかす
     a = lg.split()[3].filter(ImageFilter.MaxFilter(15)).filter(ImageFilter.GaussianBlur(6))
     shade = Image.new('RGBA', lg.size, (8, 2, 4, 0))
