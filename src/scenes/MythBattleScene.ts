@@ -114,7 +114,7 @@ export class MythBattleScene extends Phaser.Scene {
   create(): void {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(PORTRAIT.w, PORTRAIT.h));
     watchViewport(this, () => this.onViewport());
-    audio.preloadSe(['mcSlash', 'mcSpecial', 'mcGuardOk', 'mcPoison', 'mcHeal', 'mcThunder', 'mcNature', 'mcFire', 'mcLight', 'mcDark', 'mcDrain', 'mcMagicGuardOk', 'mcBuff']);
+    audio.preloadSe(['mcSlash', 'mcSpecial', 'mcGuardOk', 'mcPoison', 'mcHeal', 'mcThunder', 'mcNature', 'mcFire', 'mcLight', 'mcDark', 'mcDrain', 'mcMagicGuardOk', 'mcBuff', 'mcWater', 'mcCounter', 'mcCutin', 'mcBurn']);
     this.drawBackground();
     const seed = newSeed();
     this.rng = mulberry32(seed ^ 0x5bd1e995);
@@ -626,7 +626,7 @@ export class MythBattleScene extends Phaser.Scene {
         this.say(`${name(e.id)}は ${STATUS_LABELS[e.status]}になった！`, '#ffd23a');
         this.popup(cardPos(e.side).x, cardPos(e.side).y + 60, STATUS_LABELS[e.status], '#ffd23a');
         // 強化・バリアは「ステータス上昇」の音
-        audio.se(e.status === 'poison' ? 'mcPoison' : e.status === 'boost' || e.status === 'shield' ? 'mcBuff' : 'boing');
+        audio.se(e.status === 'poison' ? 'mcPoison' : e.status === 'burn' ? 'mcBurn' : e.status === 'boost' || e.status === 'shield' ? 'mcBuff' : 'boing');
         return 600;
       case 'skip':
         this.say(`${name(e.id)}は ${e.reason === 'sleep' ? '眠っていて' : '凍っていて'}動けない`, '#b8a8ff');
