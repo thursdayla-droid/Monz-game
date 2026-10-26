@@ -122,10 +122,10 @@ export class MythTitleScene extends Phaser.Scene {
     pack.setScale(270 / pack.height);
     this.tweens.add({ targets: pack, y: y - 12, duration: 1200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     const label = this.add
-      .text(x + 330, y - 30, 'パックを買う', { fontFamily: UI_FONT, fontSize: '44px', fontStyle: '900', color: '#16101c', backgroundColor: '#ffd23a', padding: { x: 20, y: 8 } })
+      .text(x + 235, y - 30, 'パックを買う', { fontFamily: UI_FONT, fontSize: '44px', fontStyle: '900', color: '#16101c', backgroundColor: '#ffd23a', padding: { x: 20, y: 8 } })
       .setOrigin(0.5);
     c.add(label);
-    const coins = this.add.text(x + 330, y + 40, `コイン ${loadLife().coins.toLocaleString()}`, { fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: '#ffffff', stroke: '#16101c', strokeThickness: 6 }).setOrigin(0.5);
+    const coins = this.add.text(x + 235, y + 40, `コイン ${loadLife().coins.toLocaleString()}`, { fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: '#ffffff', stroke: '#16101c', strokeThickness: 6 }).setOrigin(0.5);
     c.add(coins);
     let open = false;
     for (const o of [pack, label]) {

@@ -74,6 +74,8 @@ export interface BattleState {
   round: number;
   /** 今が前半(1)か後半(2)か */
   half: 1 | 2;
+  /** 降参した側 */
+  surrendered?: Side;
   /** このターンの最初に交代した側(交代した側は、そのターン自分の攻撃フェイズが無い) */
   switched?: [boolean, boolean];
   /** 勝った側(引き分けは 'draw')。決まっていなければ null */
@@ -419,6 +421,14 @@ function replaceDown(s: BattleState, events: BattleEvent[], choose?: ChooseRepla
   if (out.length === 2) s.winner = s.rules.bothLastDown === 'draw' ? 'draw' : s.rules.bothLastDown === 'attackerWins' ? s.attacker : other(s.attacker);
   else if (out.length === 1) s.winner = other(out[0]);
   if (s.winner !== null) events.push({ type: 'end', winner: s.winner });
+}
+
+/** 降参(企画者 2026-10-26: バトルの途中で降参できる)。降参した側の負け */
+export function surrender(s: BattleState, side: Side): BattleEvent[] {
+  if (s.winner !== null) return [];
+  s.winner = other(side);
+  s.surrendered = side;
+  return [{ type: 'end', winner: s.winner }];
 }
 
 /** あとで選ぶことにした側(s.pending)の、次に出すカードを決める。選べない番号なら、控えの若い番号のカード */

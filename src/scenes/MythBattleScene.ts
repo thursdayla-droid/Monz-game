@@ -5,7 +5,7 @@ import { abilityOf } from '../core/mythclash/abilities';
 import { card, RARITIES, type Element } from '../core/mythclash/cards';
 import type { SeName } from '../audio/sfx';
 import { counterFx, impactFx, magicFx, slashFx, specialCutin } from '../ui/mythFx';
-import { activeCard, createBattle, legalActions, replaceDowned, resolveRound, type BattleAction, type BattleEvent, type BattleState, type Side } from '../core/mythclash/engine';
+import { activeCard, createBattle, legalActions, replaceDowned, resolveRound, surrender, type BattleAction, type BattleEvent, type BattleState, type Side } from '../core/mythclash/engine';
 import { battleUnlocked, deckOwned, newCollection } from '../core/mythclash/packs';
 import { aiAction, randomDeck } from '../core/mythclash/sim';
 import { eventsFor, viewFor, type BattleView } from '../core/mythclash/view';
@@ -94,6 +94,7 @@ export class MythBattleScene extends Phaser.Scene {
     this.busy = false;
     this.auto = false;
     this.chooser = undefined;
+    this.surrenderBox = undefined;
     this.timerText = undefined;
     this.timerEvent = undefined;
     this.cardImg = {};
@@ -265,6 +266,12 @@ export class MythBattleScene extends Phaser.Scene {
     tg.fillStyle(0x0a0408, 0.9).fillRoundedRect(12, my - 44, 92, 88, 14);
     tg.lineStyle(3, 0xd8b060, 1).strokeRoundedRect(12, my - 44, 92, 88, 14);
     ui.add([tg, this.text(58, my - 28, 'TURN', 18, '#d8b060'), this.text(58, my + 2, String(v.round), 32, '#ffffff'), this.text(58, my + 32, v.half === 1 ? '前半' : '後半', 18, '#ffd23a')]);
+    // 降参(まん中の右、残り秒数の下)
+    if (this.s.winner === null) {
+      const giveUp = this.text(W - 62, my + 34, '🏳 降参', 20, '#ffffff').setBackgroundColor('#3a2a4acc').setPadding(10, 4, 10, 6).setInteractive({ useHandCursor: true });
+      giveUp.on('pointerdown', () => this.confirmSurrender());
+      ui.add(giveUp);
+    }
     const cs = cardScale();
     const ch = cardH();
     // 場のカード(攻撃側・防御側がわかるように)
@@ -339,7 +346,7 @@ export class MythBattleScene extends Phaser.Scene {
         line(`${def.magic.name}`, 18, '#ffffff');
         line(`属性：${def.magic.element}`, 16, ELEMENT_COLORS[def.magic.element]);
         line(describeMagicEffect(def), 15, '#d8c8e8');
-      } else line('？？？（使われたらわかる）', 16, '#8a7a90');
+      } else line('？？？', 16, '#8a7a90');
       if (ab && ab.def.kind !== 'none' && ab.name) {
         y += 8;
         line('特性', 15, '#b8a8c8');
@@ -454,7 +461,7 @@ export class MythBattleScene extends Phaser.Scene {
     if (!this.timerText) this.timerText = this.text(W - 62, midY(), '', 30, '#ffffff').setDepth(350).setPadding(14, 4, 14, 6);
     const low = this.timeLeft <= 10;
     // カードを選んでいるときは、選ぶ画面の上に出す
-    this.timerText.setPosition(this.chooser ? W / 2 : W - 62, this.chooser ? H / 2 - 270 : midY() - 4).setVisible(true).setText(`⏱ ${this.timeLeft}`).setColor(low ? '#ff4a4a' : '#ffffff').setBackgroundColor(low ? '#3a0a10dd' : '#0a0408cc');
+    this.timerText.setPosition(this.chooser ? W / 2 : W - 62, this.chooser ? H / 2 - 270 : midY() - 24).setVisible(true).setText(`⏱ ${this.timeLeft}`).setColor(low ? '#ff4a4a' : '#ffffff').setBackgroundColor(low ? '#3a0a10dd' : '#0a0408cc');
   }
 
   /** 【仮】時間切れ: 攻撃側なら通常攻撃、防御側なら防御(眠っていれば「動けない」) */
@@ -814,6 +821,47 @@ export class MythBattleScene extends Phaser.Scene {
     this.message?.setText(s).setColor(color);
   }
 
+  /** 降参の確認(はい → すぐ負け) */
+  private confirmSurrender(): void {
+    if (this.s.winner !== null || this.surrenderBox) return;
+    audio.se('tap');
+    const box = this.add.container(0, 0).setDepth(600);
+    this.surrenderBox = box;
+    const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.7).setOrigin(0, 0).setInteractive();
+    const panel = this.add.rectangle(W / 2, H / 2, 560, 300, 0x1c1320, 1).setStrokeStyle(5, 0xc0182a, 1);
+    const title = this.text(W / 2, H / 2 - 80, '降参する？', 40, '#ffffff');
+    const note = this.text(W / 2, H / 2 - 28, 'このバトルは負けになります', 22, '#d8c8e8');
+    const yes = this.text(W / 2 - 120, H / 2 + 70, '降参する', 30, '#ffffff').setBackgroundColor('#c0182a').setPadding(22, 8, 22, 10).setInteractive({ useHandCursor: true });
+    const no = this.text(W / 2 + 120, H / 2 + 70, 'つづける', 30, '#16101c').setBackgroundColor('#ffd23a').setPadding(22, 8, 22, 10).setInteractive({ useHandCursor: true });
+    box.add([dim, panel, title, note, yes, no]);
+    no.on('pointerdown', () => {
+      audio.se('back');
+      box.destroy();
+      this.surrenderBox = undefined;
+    });
+    yes.on('pointerdown', () => {
+      box.destroy();
+      this.surrenderBox = undefined;
+      if (this.s.winner !== null) return;
+      // 時間・選ぶ画面・自動を止めて、負けにする(出来事を見せている途中でも、そこで終わり)
+      this.stopTimer();
+      this.chooser?.destroy();
+      this.chooser = undefined;
+      this.auto = false;
+      this.time.removeAllEvents();
+      this.tweens.killAll();
+      surrender(this.s, ME);
+      this.busy = false;
+      this.defBadge?.destroy();
+      this.defBadge = undefined;
+      this.view = viewFor(this.s, ME);
+      this.render();
+      this.showResult();
+    });
+  }
+
+  private surrenderBox?: Phaser.GameObjects.Container;
+
   private showResult(): void {
     const w = this.s.winner;
     const win = w === ME;
@@ -823,7 +871,7 @@ export class MythBattleScene extends Phaser.Scene {
     const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.7).setOrigin(0, 0).setInteractive();
     const t = this.text(W / 2, H / 2 - 150, label, 110, win ? '#ffd23a' : w === 'draw' ? '#ffffff' : '#8ac4ff').setStroke('#16101c', 14).setScale(0.3);
     this.tweens.add({ targets: t, scale: 1, duration: 420, ease: 'Back.easeOut' });
-    const sub = this.text(W / 2, H / 2 - 40, `${this.s.round - 1}ターンで決着`, 30, '#ffffff');
+    const sub = this.text(W / 2, H / 2 - 40, this.s.surrendered === ME ? '降参しました' : `${this.s.round}ターンで決着`, 30, '#ffffff');
     const again = this.text(W / 2 - 150, H / 2 + 80, 'もう一度', 36, '#16101c').setBackgroundColor('#ffd23a').setPadding(28, 10, 28, 12).setInteractive({ useHandCursor: true });
     again.on('pointerdown', () => this.scene.restart({ deck: this.chosenDeck }));
     const back = this.text(W / 2 + 150, H / 2 + 80, 'もどる', 36, '#ffffff').setBackgroundColor('#8a35e0').setPadding(28, 10, 28, 12).setInteractive({ useHandCursor: true });

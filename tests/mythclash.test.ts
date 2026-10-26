@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ABILITIES } from '../src/core/mythclash/abilities';
 import { CARDS, card, cardPower, sortCardIds } from '../src/core/mythclash/cards';
-import { activeCard, createBattle, legalActions, replaceDowned, resolveRound, validDeck, type BattleAction, type BattleEvent, type BattleState } from '../src/core/mythclash/engine';
+import { activeCard, createBattle, legalActions, replaceDowned, resolveRound, surrender, validDeck, type BattleAction, type BattleEvent, type BattleState } from '../src/core/mythclash/engine';
 import { magicEffectOf } from '../src/core/mythclash/magic';
 import { baseDamage, DEFAULT_RULES, elementMultiplier, type BattleRules } from '../src/core/mythclash/rules';
 import { eventsFor, viewFor } from '../src/core/mythclash/view';
@@ -74,6 +74,14 @@ describe('MYTHCLASH cards (from the planner\'s table, unchanged)', () => {
 });
 
 describe('MYTHCLASH battle rules', () => {
+  it('surrender: the side that gives up loses at once, and nothing more happens', () => {
+    const s = battle(PLAIN_A, PLAIN_B);
+    expect(surrender(s, 0)).toEqual([{ type: 'end', winner: 1 }]);
+    expect([s.winner, s.surrendered]).toEqual([1, 0]);
+    expect(resolveRound(s, [N, G])).toEqual([]);
+    expect(legalActions(s, 0)).toEqual([]);
+  });
+
   it('cards can be sorted by power (strong / weak) and by number', () => {
     const ids = [26, 1, 60, 100, 12];
     const strong = sortCardIds(ids, 'strong');
