@@ -90,6 +90,7 @@
 ## タイトル画面（2026-10-26）【確定】
 - 企画者の絵 `design/mythclash/title.png`（1448×1086・横向き）をそのまま使う → `src/scenes/MythTitleScene.ts`（ゲーム用は `public/assets/mythclash/title.webp`。大きさは同じ）。
 - 押せる所：バトルを始める・カードコレクション・チーム編成・ゲームガイド・設定・お知らせ・ランキング。【仮】先の画面はまだないので「準備中」。
+- BGM：企画者の曲「Shadowy Contour」（`music/mythclash_Shadowy_Contour.m4a` → `public/assets/bgm/mythclash.mp3`）【確定 2026-10-26】
 - 【仮】絵に「もどる」がないので、左上に「◀ もどる」を足した（お世話画面へ）。
 - 【未決定】MONZのどこから入るか。いまは確認用に、お世話画面の開発用ボタン「MYTHCLASH」と、アドレスの最後に ?mythclash。
 

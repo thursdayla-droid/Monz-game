@@ -18,7 +18,7 @@ pub = root + '/public/'
 paths = ['assets/title/title.png', 'assets/bunk/reference/bunk_hires_cutout.png', 'assets/bunk/reference/bunk_down_cutout.png']
 for d in ['parts', 'down', 'faces']:
     paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + f'assets/bunk/{d}/*.png'))
-paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/birth/*.webp') + glob.glob(pub + 'assets/home/*.webp') + glob.glob(pub + 'assets/home/icons/*.webp') + glob.glob(pub + 'assets/home/rooms/*.webp') + glob.glob(pub + 'assets/furniture/*.webp') + glob.glob(pub + 'assets/bunk/poses/*.webp') + glob.glob(pub + 'assets/minigame/*.webp'))
+paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/birth/*.webp') + glob.glob(pub + 'assets/home/*.webp') + glob.glob(pub + 'assets/home/icons/*.webp') + glob.glob(pub + 'assets/home/rooms/*.webp') + glob.glob(pub + 'assets/furniture/*.webp') + glob.glob(pub + 'assets/bunk/poses/*.webp') + glob.glob(pub + 'assets/minigame/*.webp') + glob.glob(pub + 'assets/mythclash/*.webp'))
 assets = {}
 for p in paths:
     if p.endswith('.webp'):
@@ -43,10 +43,10 @@ for p in paths:
         Image.open(pub + p).convert('RGBA').save(b, 'WEBP', lossless=True, quality=100, method=4)
     assets[p] = 'data:image/webp;base64,' + base64.b64encode(b.getvalue()).decode()
 for p in sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/bgm/*.mp3')):
-    # 確認用ページの大きさの上限のため、曲は少し軽く(96kbps)して埋め込む。ゲーム本体は元の音質のまま
+    # 確認用ページの大きさの上限(16MB)のため、曲は軽く(モノラル24kbps・2026-10-26 に28kから下げた)して埋め込む。ゲーム本体は元の音質のまま
     import subprocess, tempfile
     tmp = tempfile.mktemp(suffix='.mp3')
-    subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-i', pub + p, '-c:a', 'libmp3lame', '-ac', '1', '-ar', '22050', '-b:a', '28k', tmp], check=True)
+    subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-i', pub + p, '-c:a', 'libmp3lame', '-ac', '1', '-ar', '22050', '-b:a', '24k', tmp], check=True)
     assets[p] = 'data:audio/mpeg;base64,' + base64.b64encode(open(tmp, 'rb').read()).decode()
     os.remove(tmp)
 jsons = {p: json.load(open(pub + p)) for p in ['assets/bunk/parts/parts.json', 'assets/bunk/down/parts.json', 'assets/bunk/faces/faces.json']}

@@ -73,6 +73,7 @@ export class MythTitleScene extends Phaser.Scene {
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('Home'));
     });
     this.cameras.main.fadeIn(300, 0, 0, 0);
+    audio.playBgm('mythclash');
   }
 
   private toast(msg: string): void {
