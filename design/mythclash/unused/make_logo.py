@@ -1,4 +1,5 @@
-"""MYTHCLASH のロゴを、企画者の新しいロゴ(design/mythclash/logo.png)に差しかえた絵を作る(企画者 2026-10-26)。
+"""【使わなくなった 2026-10-26: 新しいロゴ入りのタイトル・パックの絵をもらったため。記録として残す。動かすと public の title.webp を上書きするので注意】
+MYTHCLASH のロゴを、企画者の新しいロゴ(design/mythclash/logo.png)に差しかえた絵を作る(企画者 2026-10-26)。
 使い方: python3 -I design/mythclash/make_logo.py  (このあと make_pack.py)
 - 元の絵(title.png)はそのまま残す。差しかえた絵は title_logo.png
 - パックは 2026-10-26 に新しいロゴ入りの絵をもらったので、ここでは作らない(make_pack.py。前のパックの絵は unused/)

@@ -139,6 +139,10 @@
 - バトルメニューの MYTHCLASH の看板も、新しいタイトルの絵のロゴの所を使う。
 - 【仮】うめた所は完全ではない。ロゴの無い元の絵があれば、もっときれいに作り直せる。
 
+### タイトルの絵の差しかえ（2026-10-26）【確定】
+- 企画者の新しいタイトルの絵（新しいロゴ入り・852×1846）→ `design/mythclash/title.png` → そのまま `public/assets/mythclash/title.webp`。押せる所（4つのボタン）とバトルメニューの看板の切り出しを、新しい絵に合わせた。
+- 前の絵と、ロゴを重ねて作った絵・`make_logo.py` は `design/mythclash/unused/` に残した（もう使わない）。
+
 ### パックの絵の差しかえ（2026-10-26）【確定】
 - 企画者の新しいパックの絵（新しいロゴ入り）→ `design/mythclash/pack.png`。前の絵（とロゴを重ねた絵）は `design/mythclash/unused/`。
 - 背景が透明ではなく、チェック柄が描いてあったので、外側につながったチェック柄だけを消した（`make_pack.py`）→ `public/assets/mythclash/pack.webp`（686×1412）。

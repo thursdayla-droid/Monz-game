@@ -7,7 +7,7 @@ import { MYTH_PACK_IMAGE, openPackBuy } from '../ui/packBuy';
 import { fillSize, watchViewport } from '../ui/viewport';
 
 /**
- * 企画者のタイトルの絵(design/mythclash/title.png・縦長 852x1846。2026-10-26 に横長の絵から差しかえ。前の絵は design/mythclash/unused/)。
+ * 企画者のタイトルの絵(design/mythclash/title.png・縦長 852x1846。2026-10-26 に新しいロゴ入りの絵へ差しかえ。前の絵は design/mythclash/unused/)。
  * 画面いっぱいに出す(企画者 2026-10-26): ゲームの大きさを画面の形に合わせ、絵は画面をおおうように置く(はしが少し切れることがある)
  */
 export const MYTH_TITLE_IMAGE = 'myth:title';
@@ -17,10 +17,10 @@ const PORTRAIT = { w: 720, h: 1280 };
 
 /** 押せる所(絵の座標 [x0, y0, x1, y1]) */
 const ZONES = {
-  battle: [92, 903, 762, 1042],
-  collection: [108, 1063, 746, 1182],
-  team: [108, 1200, 746, 1322],
-  guide: [108, 1338, 746, 1458],
+  battle: [92, 845, 762, 985],
+  collection: [104, 1000, 750, 1122],
+  team: [104, 1140, 750, 1260],
+  guide: [104, 1278, 750, 1400],
 } as const;
 type Zone = keyof typeof ZONES;
 const LABELS: Record<Zone, string> = {
