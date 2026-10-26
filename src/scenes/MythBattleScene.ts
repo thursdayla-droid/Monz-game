@@ -114,7 +114,7 @@ export class MythBattleScene extends Phaser.Scene {
   create(): void {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(PORTRAIT.w, PORTRAIT.h));
     watchViewport(this, () => this.onViewport());
-    audio.preloadSe(['mcSlash', 'mcSpecial', 'mcGuardOk', 'mcPoison', 'mcHeal', 'mcThunder', 'mcNature', 'mcFire', 'mcLight', 'mcDark', 'mcDrain', 'mcMagicGuardOk', 'mcBuff', 'mcWater', 'mcCounter', 'mcCutin', 'mcBurn']);
+    audio.preloadSe(['mcSlash', 'mcSpecial', 'mcGuardOk', 'mcPoison', 'mcHeal', 'mcThunder', 'mcNature', 'mcFire', 'mcLight', 'mcDark', 'mcDrain', 'mcMagicGuardOk', 'mcBuff', 'mcWater', 'mcCounter', 'mcCutin', 'mcBurn', 'mcMagic']);
     this.drawBackground();
     const seed = newSeed();
     this.rng = mulberry32(seed ^ 0x5bd1e995);

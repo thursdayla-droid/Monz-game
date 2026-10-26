@@ -8,6 +8,7 @@ import type { SeName } from './sfx';
  * - 2026-10-26 MYTHCLASH その2: 光魔法・闇魔法・HP吸収・魔法防御成功・ステータス上昇
  * - 2026-10-26 MYTHCLASH その3: 水魔法。カウンター成功は必殺と同じ音(企画者)
  * - 2026-10-26 MYTHCLASH その4: 必殺技のカットイン・火傷
+ * - 2026-10-26 MYTHCLASH その5: 無の魔法
  */
 export const SE_FILES: Partial<Record<SeName, { file: string; gain?: number }>> = {
   mcSlash: { file: 'assets/se/mythclash/attack.mp3' },
@@ -27,6 +28,7 @@ export const SE_FILES: Partial<Record<SeName, { file: string; gain?: number }>> 
   mcCounter: { file: 'assets/se/mythclash/special.mp3' },
   mcCutin: { file: 'assets/se/mythclash/cutin.mp3' },
   mcBurn: { file: 'assets/se/mythclash/burn.mp3' },
+  mcMagic: { file: 'assets/se/mythclash/magic_none.mp3' },
 };
 
 /** 同じ効果音が一度に鳴る数の上限(重なりすぎて音が割れないように) */
