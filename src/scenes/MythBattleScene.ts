@@ -57,7 +57,7 @@ const STATUS_LABELS: Record<string, string> = { sleep: '睡眠', freeze: '凍結
 const cardKey = (id: number, hideMagic: boolean) => `mc:card:${id}${hideMagic ? ':h' : ''}`;
 
 /**
- * MYTHCLASH のバトル画面(テストプレイ。企画者のイメージ図 2026-10-26 をもとに)。相手はCPU。
+ * MYTHCLASH のバトル画面(企画者のイメージ図 2026-10-26 をもとに)。相手はCPU。
  * - 攻撃側と防御側がわかりやすいように: 攻撃側のカードは赤く光って「ATTACK」、防御側は青く光って「DEFENSE」、まん中の矢印は攻撃の向き。
  *   下のボタンも、攻撃側なら 通常攻撃・必殺技・魔法、防御側なら 防御・魔法防御・カウンター
  * - 見せる情報は viewFor / eventsFor を通したものだけ(相手のまだ出ていないカード・使っていない魔法の属性は見せない)
@@ -68,7 +68,6 @@ export class MythBattleScene extends Phaser.Scene {
   private s!: BattleState;
   private view!: BattleView;
   private rng!: Rng;
-  private testDeck = false;
   private busy = false;
   private auto = false;
   private ui?: Phaser.GameObjects.Container;
@@ -84,7 +83,7 @@ export class MythBattleScene extends Phaser.Scene {
     super('MythBattle');
   }
 
-  /** デッキ編成で選んだ3枚(null ならテストプレイのランダム) */
+  /** デッキ編成で選んだ3枚(無ければ前に組んだデッキ) */
   private chosenDeck: number[] | null = null;
 
   init(data: { deck?: number[] | null }): void {
@@ -140,7 +139,7 @@ export class MythBattleScene extends Phaser.Scene {
     this.render();
     this.cameras.main.fadeIn(300, 0, 0, 0);
     audio.playBgm('mythclash');
-    this.say(this.testDeck ? 'テストプレイ（仮のデッキ）　バトル開始！' : 'バトル開始！', '#ffffff');
+    this.say('バトル開始！', '#ffffff');
     this.time.delayedCall(900, () => this.prompt());
   }
 
@@ -149,10 +148,8 @@ export class MythBattleScene extends Phaser.Scene {
     const col = loadLife().mythclash ?? newCollection();
     if (this.chosenDeck && deckOwned(col, this.chosenDeck)) return [...this.chosenDeck];
     if (col.deck && deckOwned(col, col.deck)) return [...col.deck];
-    if (!battleUnlocked(col)) {
-      this.testDeck = true;
-      return randomDeck(rng);
-    }
+    // デッキ編成を通らずに開いたとき(確認用)だけ。ふつうは来ない
+    if (!battleUnlocked(col)) return randomDeck(rng);
     const rank = (id: number) => RARITIES.indexOf(card(id)!.rarity);
     return Object.keys(col.owned)
       .map(Number)
@@ -377,15 +374,17 @@ export class MythBattleScene extends Phaser.Scene {
       const x = 16 + (W - 130 - total) / 2 + bw / 2 + i * (bw + gap);
       const y = H - 66;
       const isSwitch = i === all.length - 1;
-      // 魔法のボタンは、自分のカードの魔法の属性の色(企画者 2026-10-26: 攻撃側のとき魔法の属性がわかりやすいように)
-      const magicEl = 'action' in b && b.action?.type === 'attack' && b.action.kind === 'magic' ? activeCard(this.s, ME).def.magic.element : null;
-      const color = isSwitch ? 0x2a7a4a : magicEl ? Phaser.Display.Color.HexStringToColor(ELEMENT_COLORS[magicEl]).color : attacking ? 0x8a1020 : 0x1a4a9a;
-      const darkText = magicEl === '光' || magicEl === '雷' || magicEl === '無';
+      // 攻撃のボタンは属性の色(企画者 2026-10-26): 通常攻撃・必殺技はカードの属性、魔法は魔法の属性。文字は変えない
+      const me = activeCard(this.s, ME).def;
+      const act = 'action' in b && b.action?.type === 'attack' ? b.action.kind : null;
+      const el = act === 'magic' ? me.magic.element : act ? me.element : null;
+      const color = isSwitch ? 0x2a7a4a : el ? Phaser.Display.Color.HexStringToColor(ELEMENT_COLORS[el]).color : attacking ? 0x8a1020 : 0x1a4a9a;
+      const darkText = el === '光' || el === '雷' || el === '無';
       const g = this.add.graphics();
       const enabled = b.on && !this.busy && this.s.winner === null;
       g.fillStyle(enabled ? color : 0x3a3040, 1).fillRoundedRect(x - bw / 2, y - 40, bw, 80, 12);
       g.lineStyle(3, enabled ? 0xd8b060 : 0x5a5060, 1).strokeRoundedRect(x - bw / 2, y - 40, bw, 80, 12);
-      const label = magicEl ? `魔法・${magicEl}` : b.label;
+      const label = b.label;
       const t = this.text(x, y, label, label.length > 6 ? 20 : label.length > 4 ? 24 : 28, !enabled ? '#8a8090' : darkText ? '#16101c' : '#ffffff');
       ui.add([g, t]);
       if (!enabled) return;
