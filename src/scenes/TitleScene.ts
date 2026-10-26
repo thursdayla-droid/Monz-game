@@ -10,6 +10,7 @@ export const TITLE_FILE = 'assets/title/title.png';
 
 /**
  * タイトル画面。企画者が用意したタイトルの絵(design/title/title.png)をそのまま全面に出す。
+ * 2026-10-26: 企画者の新しい絵(MONZ のロゴと5匹)に差しかえ。前の絵は design/title/unused/
  * タップすると、初回は質問へ、2回目からは出会ったMONZの画面(【仮】ホーム)へ進む。
  */
 export class TitleScene extends Phaser.Scene {
