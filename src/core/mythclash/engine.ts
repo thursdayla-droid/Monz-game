@@ -2,12 +2,14 @@
  * MYTHCLASH のバトル(3対3勝ち抜き戦)。Phaserに依存しない。画面とは分けて、テストできる形にする。
  * 仕様: docs/MYTHCLASH.md(引き継ぎ仕様書 2026-10-26)。【確定】の決まりは変えない。
  *
- * 1ターン(ラウンド)の流れ:
- *  1. 双方が行動を選ぶ(攻撃側: 通常攻撃/必殺/魔法/交代、防御側: 通常防御/カウンター/魔法防御/交代)
- *  2. 交代を先に処理する(交代して出てきたカードに攻撃が当たる。交代した側は、そのターン防御できない)
- *  3. 攻撃を解決する(ダメージ → 耐える → 回復の順で同時に。企画者 2026-10-26)
- *  4. 毒・火傷(場にいるカードだけ)【時期は未決定。rules.dotTiming】
- *  5. 戦闘不能のカードの代わりを出す → 攻撃側と防御側を入れかえる
+ * 1ターンの流れ(企画者 2026-10-26 に変更):
+ *  - 1ターンは前半と後半。場のカードの素早さが高い方が前半の攻撃側、低い方が後半の攻撃側(同じなら乱数)
+ *  - 前半・後半(フェイズ)ごとに、双方が行動を選ぶ(攻撃側: 通常攻撃/必殺/魔法、防御側: 通常防御/カウンター/魔法防御)
+ *  - 交代はターンの最初(前半)だけ。交代は行動を使う(そのフェイズは防御できない)。交代した側は、そのターン自分の攻撃フェイズが無い
+ *    (前半の攻撃側が交代したら、前半は交代だけ。後半は相手の攻撃。後半の攻撃側が交代したら、前半だけでターンが終わる)
+ *  - 攻撃を解決する(ダメージ → 耐える → 回復の順で同時に。企画者 2026-10-26)
+ *  - 前半で戦闘不能が出たら、そのターンは終わり(後半はない)
+ *  - ターンの終わりに毒・火傷を1回(場にいるカードだけ) → 戦闘不能のカードの代わりを出す → 次のターン(素早さで攻撃側を決め直す)
  *
  * ダメージの計算の順番【暫定。未決定の所は rules.ts】:
  *  土台の式 → 属性の倍率 → 乱数(±10%) → 防御(通常防御・魔法防御で半分) → 最終ダメージへの割合の補正
@@ -68,7 +70,12 @@ export interface BattleState {
   teams: [TeamState, TeamState];
   /** このターンの攻撃側 */
   attacker: Side;
+  /** ターン(前半と後半で1ターン)。画面の TURN */
   round: number;
+  /** 今が前半(1)か後半(2)か */
+  half: 1 | 2;
+  /** このターンの最初に交代した側(交代した側は、そのターン自分の攻撃フェイズが無い) */
+  switched?: [boolean, boolean];
   /** 勝った側(引き分けは 'draw')。決まっていなければ null */
   winner: Side | 'draw' | null;
   /** 戦闘不能のカードの代わりを、あとで選ぶ側(画面でプレイヤーが選ぶとき。replaceDowned で決める) */
@@ -90,7 +97,9 @@ export type BattleEvent =
   | { type: 'endure'; side: Side; id: number }
   | { type: 'magicReveal'; side: Side; id: number; element: string }
   | { type: 'down'; side: Side; id: number }
-  | { type: 'end'; winner: Side | 'draw' };
+  | { type: 'end'; winner: Side | 'draw' }
+  /** 前半・後半が始まった(attacker がそのフェイズの攻撃側) */
+  | { type: 'phase'; round: number; half: 1 | 2; attacker: Side };
 
 const other = (s: Side): Side => (s === 0 ? 1 : 0);
 
@@ -113,17 +122,23 @@ export function createBattle(deckA: readonly number[], deckB: readonly number[],
     { cards: deckA.map(newCardState), active: 0 },
     { cards: deckB.map(newCardState), active: 0 },
   ];
-  const sa = teams[0].cards[0].def.spd;
-  const sb = teams[1].cards[0].def.spd;
-  const attacker: Side = sa > sb ? 0 : sb > sa ? 1 : rng() < 0.5 ? 0 : 1;
-  const state: BattleState = { rules, teams, attacker, round: 1, winner: null, rng };
+  const state: BattleState = { rules, teams, attacker: 0, round: 1, half: 1, winner: null, rng };
+  state.attacker = fasterSide(state);
   const events: BattleEvent[] = [];
   enter(state, 0, events);
   enter(state, 1, events);
+  events.push({ type: 'phase', round: 1, half: 1, attacker: state.attacker });
   return { state, events };
 }
 
 export const activeCard = (s: BattleState, side: Side) => s.teams[side].cards[s.teams[side].active];
+
+/** 場のカードの素早さが高い側(同じなら乱数)。前半の攻撃側 */
+function fasterSide(s: BattleState): Side {
+  const a = activeCard(s, 0).def.spd;
+  const b = activeCard(s, 1).def.spd;
+  return a > b ? 0 : b > a ? 1 : s.rng() < 0.5 ? 0 : 1;
+}
 
 function enter(s: BattleState, side: Side, events: BattleEvent[]): void {
   const c = activeCard(s, side);
@@ -156,7 +171,8 @@ export function legalActions(s: BattleState, side: Side): BattleAction[] {
   }
   // 眠っている・凍っているときは「何もしない」(行動が1回消える)を先頭に。交代はできる(企画者 2026-10-26)
   if (asleep) out.push({ type: 'defend', kind: 'guard' });
-  if (!asleep || s.rules.canSwitchWhileAsleep) t.cards.forEach((o, i) => { if (i !== t.active && !o.down) out.push({ type: 'switch', to: i }); });
+  // 交代はターンの最初(前半)だけ(企画者 2026-10-26)
+  if (s.half === 1 && (!asleep || s.rules.canSwitchWhileAsleep)) t.cards.forEach((o, i) => { if (i !== t.active && !o.down) out.push({ type: 'switch', to: i }); });
   return out;
 }
 
@@ -414,10 +430,34 @@ export function replaceDowned(s: BattleState, side: Side, index: number): Battle
   const alive = t.cards.map((c, i) => (c.down ? -1 : i)).filter((i) => i >= 0);
   t.active = alive.includes(index) ? index : alive[0];
   enter(s, side, events);
+  // 新しいターンの前半の攻撃側は、出てきたカードの素早さで決め直す
+  if (s.half === 1 && !s.pending.length) {
+    s.attacker = fasterSide(s);
+    events.push({ type: 'phase', round: s.round, half: 1, attacker: s.attacker });
+  }
   return events;
 }
 
-/** 1ターン進める。actions[side] がその側の行動(選べない行動なら、選べる行動の1番目にする) */
+/** ターンの終わり: 毒・火傷 → 戦闘不能の代わり → 次のターン(前半の攻撃側は素早さで) */
+function endTurn(s: BattleState, events: BattleEvent[], choose?: ChooseReplacement): void {
+  if (s.rules.dotTiming === 'roundEnd') tickDots(s, events);
+  replaceDown(s, events, choose);
+  if (s.winner !== null) return;
+  s.round++;
+  s.half = 1;
+  s.switched = undefined;
+  if (s.rules.dotTiming === 'roundStart') {
+    tickDots(s, events);
+    replaceDown(s, events, choose);
+    if (s.winner !== null) return;
+  }
+  // 代わりを、あとで選ぶ側がいるときは、選んだときに攻撃側を決める(replaceDowned)
+  if (s.pending?.length) return;
+  s.attacker = fasterSide(s);
+  events.push({ type: 'phase', round: s.round, half: 1, attacker: s.attacker });
+}
+
+/** 1フェイズ(前半か後半)進める。actions[side] がその側の行動(選べない行動なら、選べる行動の1番目にする) */
 export function resolveRound(s: BattleState, actions: [BattleAction, BattleAction], choose?: ChooseReplacement): BattleEvent[] {
   const events: BattleEvent[] = [];
   if (s.winner !== null) return events;
@@ -453,17 +493,16 @@ export function resolveRound(s: BattleState, actions: [BattleAction, BattleActio
   const defense = !skipped[other(s.attacker)] && dfn.type === 'defend' ? dfn.kind : null;
   if (defense) events.push({ type: 'defend', side: other(s.attacker), id: activeCard(s, other(s.attacker)).id, kind: defense });
   if (!skipped[s.attacker] && atk.type === 'attack') resolveAttack(s, s.attacker, atk.kind, defense, events);
-  // 必殺のロック: このターンが自分の攻撃ターンで、必殺を使わなかったら外す
+  // 必殺のロック: このフェイズが自分の攻撃フェイズで、必殺を使わなかったら外す
   if (!(atk.type === 'attack' && atk.kind === 'special') && atk.type !== 'switch') attackerCard.specialLock = false;
-  if (s.rules.dotTiming === 'roundEnd') tickDots(s, events);
-  replaceDown(s, events, choose);
-  if (s.winner === null) {
+  if (s.half === 1) s.switched = [acts[0].type === 'switch', acts[1].type === 'switch'];
+  // 前半で戦闘不能が出た・後半が終わった・後半の攻撃側が交代した → ターンの終わり
+  const someoneDown = s.teams.some((t) => t.cards[t.active].down);
+  if (someoneDown || s.half === 2 || s.switched?.[other(s.attacker)]) endTurn(s, events, choose);
+  else {
+    s.half = 2;
     s.attacker = other(s.attacker);
-    s.round++;
-    if (s.rules.dotTiming === 'roundStart') {
-      tickDots(s, events);
-      replaceDown(s, events, choose);
-    }
+    events.push({ type: 'phase', round: s.round, half: 2, attacker: s.attacker });
   }
   return events;
 }

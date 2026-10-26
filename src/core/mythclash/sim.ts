@@ -94,7 +94,8 @@ export function simulate(matches: number, seed: number, decks: (rng: Rng) => [nu
     const { state, log } = playMatch(a, b, Math.floor(rng() * 2 ** 31), rules);
     if (state.winner === 0) winsA++;
     if (state.winner === 'draw') draws++;
-    const r = log.length;
+    // ターンの数(前半と後半で1ターン。企画者 2026-10-26)
+    const r = state.round;
     rounds += r;
     if (r >= 8 && r <= 15) in8to15++;
     if (r > 15) over15++;

@@ -23,6 +23,12 @@ function battle(a: number[], b: number[], rules: BattleRules = FLAT, seed = 1): 
   state.attacker = 0;
   return state;
 }
+/** 今のフェイズ(前半・後半)の攻撃側に atk、防御側に def を選ばせる */
+const ph = (s: BattleState, atk: BattleAction, def: BattleAction) => resolveRound(s, s.attacker === 0 ? [atk, def] : [def, atk]);
+/** 自分(0)の攻撃フェイズまで進める(相手は通常攻撃・自分は防御) */
+const untilMine = (s: BattleState) => {
+  while (s.winner === null && s.attacker !== 0) ph(s, N, G);
+};
 /** 攻撃で受けたHPダメージ(毒・火傷は数えない) */
 const dmgTo = (ev: BattleEvent[], side: 0 | 1) => ev.filter((e) => e.type === 'damage' && e.side === side && e.source !== 'dot').reduce((s, e) => s + (e.type === 'damage' ? e.amount : 0), 0);
 const expected = (attId: number, tgtId: number, kind: 'normal' | 'special' | 'magic', mult = 1) => {
@@ -95,7 +101,7 @@ describe('MYTHCLASH battle rules', () => {
     // 2枚目ではなく3枚目を選ぶ
     const ev2 = replaceDowned(s, 1, 2);
     expect(s.teams[1].active).toBe(2);
-    expect(ev2).toEqual([{ type: 'enter', side: 1, id: PLAIN_B[2] }]);
+    expect(ev2[0]).toEqual({ type: 'enter', side: 1, id: PLAIN_B[2] });
     expect(s.pending).toEqual([]);
     expect(legalActions(s, 1).length).toBeGreaterThan(0);
     // 選ばずに次のターンへ進めたときは、控えの若い番号にする
@@ -145,18 +151,74 @@ describe('MYTHCLASH battle rules', () => {
   });
 
   it('a special locks that card from special on its next attack turn, kept through switching', () => {
+    const canSpecial = (s: BattleState) => legalActions(s, 0).some((a) => a.type === 'attack' && a.kind === 'special');
+    // 012(素早さ2) と 060(素早さ1): 自分(0)が前半の攻撃側
     const s = battle(PLAIN_A, PLAIN_B);
-    resolveRound(s, [SP, G]);
-    resolveRound(s, [G, N]);
-    // 自分の攻撃ターン: 交代すると、ロックは残る
-    expect(legalActions(s, 0).some((a) => a.type === 'attack' && a.kind === 'special')).toBe(false);
+    ph(s, SP, G);
+    ph(s, N, G);
+    expect([s.round, s.half, s.attacker]).toEqual([2, 1, 0]);
+    expect(canSpecial(s)).toBe(false);
+    // ターンの最初に交代 → 交代した自分は、このターン攻撃なし(前半は交代だけ、後半は相手の攻撃)
     resolveRound(s, [SW(1), G]);
-    resolveRound(s, [SW(0), N]);
+    expect([s.half, s.attacker]).toEqual([2, 1]);
+    ph(s, N, G);
+    // 次のターンの最初に、もどす。ロックは残っている
+    // 行動は いつも [自分, 相手] の順
+    resolveRound(s, [SW(0), s.attacker === 1 ? N : G]);
+    expect(s.teams[0].active).toBe(0);
     expect(s.teams[0].cards[0].specialLock).toBe(true);
-    expect(legalActions(s, 0).some((a) => a.type === 'attack' && a.kind === 'special')).toBe(false);
+    untilMine(s);
+    expect(canSpecial(s)).toBe(false);
+    // 必殺を使わずに自分の攻撃フェイズが終わったら、外れる
+    ph(s, N, G);
+    untilMine(s);
+    expect(canSpecial(s)).toBe(true);
+  });
+
+  it('a turn has two halves: the faster card attacks first, then the other; switching only at the start of a turn', () => {
+    // 001(素早さ8) と 060(素早さ1)
+    const s = battle([1, 60, 61], PLAIN_B);
+    expect([s.round, s.half, s.attacker]).toEqual([1, 1, 0]);
+    expect(legalActions(s, 0).some((a) => a.type === 'switch')).toBe(true);
+    ph(s, N, G);
+    expect([s.round, s.half, s.attacker]).toEqual([1, 2, 1]);
+    // 後半は交代できない
+    expect(legalActions(s, 0).some((a) => a.type === 'switch')).toBe(false);
+    expect(legalActions(s, 1).some((a) => a.type === 'switch')).toBe(false);
+    ph(s, N, G);
+    expect([s.round, s.half, s.attacker]).toEqual([2, 1, 0]);
+    // 相手のカードが素早くなると、相手が前半の攻撃側
+    const t = battle([60, 61, 12], [1, 61, 12]);
+    t.attacker = 1;
+    ph(t, N, G);
+    ph(t, N, G);
+    expect([t.round, t.half, t.attacker]).toEqual([2, 1, 1]);
+  });
+
+  it('the side that switched has no attack phase that turn; a knockout in the first half ends the turn', () => {
+    // 後半の攻撃側(相手)が最初に交代 → 前半だけでターンが終わる
+    let s = battle(PLAIN_A, PLAIN_B);
+    const ev = resolveRound(s, [N, SW(1)]);
+    expect(ev.some((e) => e.type === 'attack')).toBe(true);
+    expect([s.round, s.half]).toEqual([2, 1]);
+    // 前半で倒れたら、後半はなし
+    s = battle(PLAIN_A, PLAIN_B);
+    s.teams[1].cards[0].hp = 1;
     resolveRound(s, [N, G]);
-    resolveRound(s, [G, N]);
-    expect(legalActions(s, 0).some((a) => a.type === 'attack' && a.kind === 'special')).toBe(true);
+    expect([s.round, s.half, s.teams[1].active]).toEqual([2, 1, 1]);
+    // 両方が交代 → 攻撃なしでターンが終わる
+    s = battle(PLAIN_A, PLAIN_B);
+    const ev2 = resolveRound(s, [SW(1), SW(1)]);
+    expect(ev2.some((e) => e.type === 'attack')).toBe(false);
+    expect([s.round, s.half]).toEqual([2, 1]);
+  });
+
+  it('poison and burn hit once at the end of the turn (not after each half)', () => {
+    const s = battle(PLAIN_A, PLAIN_B);
+    s.teams[1].cards[0].dot = 'poison';
+    const dot = (ev: BattleEvent[]) => ev.filter((e) => e.type === 'damage' && e.source === 'dot').length;
+    expect(dot(ph(s, N, G))).toBe(0);
+    expect(dot(ph(s, N, G))).toBe(1);
   });
 
   it('switching goes first: the attack hits the card that came in (which cannot defend)', () => {
@@ -233,22 +295,30 @@ describe('MYTHCLASH battle rules', () => {
     expect(activeCard(s, 1).skip).toBe('sleep');
   });
 
-  it('sleep: can switch out; the skip is kept (not used up) while on the bench', () => {
+  it('sleep: can switch out at the start of a turn; the skip is kept (not used up) while on the bench', () => {
     const always = { ...FLAT, strongChance: 1 };
-    const s = battle([14, 60, 61], PLAIN_B, always);
-    resolveRound(s, [MG, G]);
+    // 014(素早さ5) と 029(素早さ6): 相手(1)が前半の攻撃側
+    const s = battle([14, 60, 61], [29, 60, 61], always);
+    s.attacker = 1;
+    ph(s, N, G);
+    ph(s, MG, G);
     expect(activeCard(s, 1).skip).toBe('sleep');
+    // 次のターンの最初: 眠っていても交代できる(行動できない1回は使わない)
+    expect([s.half, s.attacker]).toEqual([1, 1]);
     expect(legalActions(s, 1)).toContainEqual(SW(1));
     let ev = resolveRound(s, [G, SW(1)]);
     expect(ev.some((e) => e.type === 'skip')).toBe(false);
     expect(s.teams[1].cards[0].skip).toBe('sleep');
     // 控えにいる間は減らない
-    resolveRound(s, [N, G]);
+    ph(s, N, G);
     expect(s.teams[1].cards[0].skip).toBe('sleep');
-    // もどってきたら、そこで1回行動できない
-    ev = resolveRound(s, [s.attacker === 0 ? N : G, SW(0)]);
+    // ターンの最初にもどす → まだ減らない
+    resolveRound(s, [(s.attacker as number) === 0 ? N : G, SW(0)]);
+    expect(s.teams[1].active).toBe(0);
     expect(s.teams[1].cards[0].skip).toBe('sleep');
-    ev = resolveRound(s, [G, N]);
+    while (s.half !== 1) ph(s, N, G);
+    // 場にもどったあとの、はじめての行動で1回できない
+    ev = ph(s, s.attacker === 1 ? N : G, s.attacker === 1 ? G : N);
     expect(ev.some((e) => e.type === 'skip' && e.side === 1)).toBe(true);
     expect(s.teams[1].cards[0].skip).toBeNull();
   });
@@ -257,14 +327,16 @@ describe('MYTHCLASH battle rules', () => {
 describe('MYTHCLASH abilities (official 2026-10-26)', () => {
   it('001 狩人の一矢: first normal attack +20%, once per match even after switching', () => {
     const s = battle([1, 60, 61], PLAIN_B);
-    const first = dmgTo(resolveRound(s, [N, G]), 1);
+    const first = dmgTo(ph(s, N, G), 1);
     expect(first).toBe(expected(1, 60, 'normal', 1.2 * 0.5));
-    resolveRound(s, [G, N]);
+    ph(s, N, G);
+    // 交代して、次のターンにもどす
     resolveRound(s, [SW(1), G]);
-    resolveRound(s, [G, N]);
-    resolveRound(s, [SW(0), G]);
-    resolveRound(s, [G, N]);
-    expect(dmgTo(resolveRound(s, [N, G]), 1)).toBe(expected(1, 60, 'normal', 0.5));
+    ph(s, N, G);
+    resolveRound(s, [SW(0), s.attacker === 1 ? N : G]);
+    expect(s.teams[0].active).toBe(0);
+    while (!(s.half === 1 && s.attacker === 0)) ph(s, N, G);
+    expect(dmgTo(ph(s, N, G), 1)).toBe(expected(1, 60, 'normal', 0.5));
   });
 
   it('002 先駆けの牙 (faster), 020 窮地の反撃 (low HP), 058 とどめの一撃 (target low), 094 毒狩りの刃 (poisoned)', () => {
@@ -331,8 +403,9 @@ describe('MYTHCLASH abilities (official 2026-10-26)', () => {
     // 059 初撃の防壁: 初めて受ける通常攻撃 -30%(1回)
     let s = battle(PLAIN_A, [59, 60, 61]);
     expect(dmgTo(resolveRound(s, [N, G]), 1)).toBe(expected(12, 59, 'normal', 0.5 * 0.7));
-    resolveRound(s, [G, N]);
-    expect(dmgTo(resolveRound(s, [N, G]), 1)).toBe(expected(12, 59, 'normal', 0.5));
+    ph(s, N, G);
+    untilMine(s);
+    expect(dmgTo(ph(s, N, G), 1)).toBe(expected(12, 59, 'normal', 0.5));
     // 029 必殺封じの盾
     s = battle(PLAIN_A, [29, 60, 61]);
     expect(dmgTo(resolveRound(s, [SP, G]), 1)).toBe(expected(12, 29, 'special', 0.8));
@@ -343,8 +416,9 @@ describe('MYTHCLASH abilities (official 2026-10-26)', () => {
     s = battle(PLAIN_A, [27, 60, 61]);
     expect(dmgTo(resolveRound(s, [N, G]), 1)).toBe(expected(12, 27, 'normal', 0.5));
     s.teams[1].cards[0].hp = 60;
-    resolveRound(s, [G, N]);
-    expect(dmgTo(resolveRound(s, [N, G]), 1)).toBe(expected(12, 27, 'normal', 0.5 * 0.75));
+    ph(s, N, G);
+    untilMine(s);
+    expect(dmgTo(ph(s, N, G), 1)).toBe(expected(12, 27, 'normal', 0.5 * 0.75));
     // 095 余裕の防御: HPが50%をこえている間 -10%
     s = battle(PLAIN_A, [95, 60, 61]);
     expect(dmgTo(resolveRound(s, [N, G]), 1)).toBe(expected(12, 95, 'normal', 0.5 * 0.9));
@@ -388,8 +462,9 @@ describe('MYTHCLASH abilities (official 2026-10-26)', () => {
     s.teams[1].cards[0].hp = 3;
     resolveRound(s, [SP, G]);
     expect([s.teams[1].cards[0].hp, s.teams[1].cards[0].down]).toEqual([1, false]);
-    resolveRound(s, [G, N]);
-    resolveRound(s, [N, G]);
+    ph(s, N, G);
+    untilMine(s);
+    ph(s, N, G);
     expect(s.teams[1].cards[0].down).toBe(true);
     // 057 は、攻撃の直前のHPが25%未満なら耐えない
     s = battle(PLAIN_A, [57, 60, 61]);

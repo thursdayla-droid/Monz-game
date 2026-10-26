@@ -264,7 +264,7 @@ export class MythBattleScene extends Phaser.Scene {
     const tg = this.add.graphics();
     tg.fillStyle(0x0a0408, 0.9).fillRoundedRect(12, my - 44, 92, 88, 14);
     tg.lineStyle(3, 0xd8b060, 1).strokeRoundedRect(12, my - 44, 92, 88, 14);
-    ui.add([tg, this.text(58, my - 22, 'TURN', 20, '#d8b060'), this.text(58, my + 14, String(v.round), 38, '#ffffff')]);
+    ui.add([tg, this.text(58, my - 28, 'TURN', 18, '#d8b060'), this.text(58, my + 2, String(v.round), 32, '#ffffff'), this.text(58, my + 32, v.half === 1 ? '前半' : '後半', 18, '#ffd23a')]);
     const cs = cardScale();
     const ch = cardH();
     // 場のカード(攻撃側・防御側がわかるように)
@@ -410,7 +410,10 @@ export class MythBattleScene extends Phaser.Scene {
   private prompt(): void {
     if (this.s.winner !== null || this.busy) return;
     if (activeCard(this.s, ME).skip) this.say('眠って（凍って）いて動けない…', '#b8a8ff');
-    else this.say(this.view.attacking ? 'あなたの攻撃！ 技をえらぼう' : '相手の攻撃！ 守り方をえらぼう', this.view.attacking ? '#ff8a8a' : '#8ac4ff');
+    else {
+      const h = this.view.half === 1 ? '前半' : '後半';
+      this.say(this.view.attacking ? `${h}：あなたの攻撃！ 技をえらぼう` : `${h}：相手の攻撃！ 守り方をえらぼう`, this.view.attacking ? '#ff8a8a' : '#8ac4ff');
+    }
     if (this.auto) this.time.delayedCall(500, () => this.auto && !this.busy && !this.chooser && this.choose(aiAction(this.s, ME, this.rng)));
     else this.startTimer(() => this.timeUp());
   }
@@ -692,6 +695,27 @@ export class MythBattleScene extends Phaser.Scene {
       }
       case 'end':
         return 300;
+      case 'phase': {
+        // 前半・後半の始まり(企画者 2026-10-26: 素早さが高い方が前半に攻撃)。前のフェイズの防御の札は消す
+        this.defBadge?.destroy();
+        this.defBadge = undefined;
+        this.roundDefense = undefined;
+        this.view = viewFor(this.s, ME);
+        const busy = this.busy;
+        this.render();
+        this.busy = busy;
+        const mine = e.attacker === ME;
+        const label = `TURN ${e.round} ${e.half === 1 ? '前半' : '後半'}`;
+        const sub = e.half === 1 ? `${mine ? 'あなた' : '相手'}の方が速い！ ${mine ? 'あなた' : '相手'}から攻撃` : `${mine ? 'あなた' : '相手'}の攻撃`;
+        const box = this.add.container(W / 2, midY()).setDepth(70);
+        const bg = this.add.rectangle(0, 0, W, 130, 0x0a0408, 0.85).setStrokeStyle(4, mine ? ATTACK_COLOR : DEFENSE_COLOR, 1);
+        box.add([bg, this.text(0, -22, label, 40, '#ffd23a'), this.text(0, 28, sub, 26, mine ? '#ff8a8a' : '#8ac4ff')]);
+        box.setScale(1, 0);
+        this.tweens.add({ targets: box, scaleY: 1, duration: 160, ease: 'Back.easeOut' });
+        this.tweens.add({ targets: box, alpha: 0, delay: 900, duration: 200, onComplete: () => box.destroy() });
+        audio.se('whoosh');
+        return 1100;
+      }
     }
   }
 

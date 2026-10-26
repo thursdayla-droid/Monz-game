@@ -30,9 +30,11 @@ export interface HiddenCard {
 export interface BattleView {
   me: VisibleCard[];
   opponent: (VisibleCard | HiddenCard)[];
-  /** 自分が攻撃側か */
+  /** 自分が攻撃側か(今のフェイズ) */
   attacking: boolean;
   round: number;
+  /** 前半(1)・後半(2) */
+  half: 1 | 2;
   winner: 'me' | 'opponent' | 'draw' | null;
 }
 
@@ -61,6 +63,7 @@ export function viewFor(s: BattleState, side: Side): BattleView {
     opponent: op.cards.map((c, i) => (c.entered ? show(c, i === op.active, false) : { hidden: true as const })),
     attacking: s.attacker === side,
     round: s.round,
+    half: s.half,
     winner: s.winner === null ? null : s.winner === 'draw' ? 'draw' : s.winner === side ? 'me' : 'opponent',
   };
 }
