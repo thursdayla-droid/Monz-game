@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ABILITIES } from '../src/core/mythclash/abilities';
 import { CARDS, card } from '../src/core/mythclash/cards';
-import { activeCard, createBattle, legalActions, resolveRound, validDeck, type BattleAction, type BattleEvent, type BattleState } from '../src/core/mythclash/engine';
+import { activeCard, createBattle, legalActions, replaceDowned, resolveRound, validDeck, type BattleAction, type BattleEvent, type BattleState } from '../src/core/mythclash/engine';
 import { magicEffectOf } from '../src/core/mythclash/magic';
 import { baseDamage, DEFAULT_RULES, elementMultiplier, type BattleRules } from '../src/core/mythclash/rules';
 import { eventsFor, viewFor } from '../src/core/mythclash/view';
@@ -67,6 +67,28 @@ describe('MYTHCLASH cards (from the planner\'s table, unchanged)', () => {
 });
 
 describe('MYTHCLASH battle rules', () => {
+  it('after a knockout, the player can choose the next card later (pending), the CPU picks right away', () => {
+    const s = battle(PLAIN_A, PLAIN_B);
+    s.teams[1].cards[0].hp = 1;
+    // 自分(0)が攻撃して相手(1)を倒す。相手の代わりは「あとで選ぶ」
+    const ev = resolveRound(s, [N, G], (side) => (side === 1 ? null : undefined));
+    expect(ev.some((e) => e.type === 'down')).toBe(true);
+    expect(s.pending).toEqual([1]);
+    expect(s.teams[1].cards[0].down).toBe(true);
+    // 2枚目ではなく3枚目を選ぶ
+    const ev2 = replaceDowned(s, 1, 2);
+    expect(s.teams[1].active).toBe(2);
+    expect(ev2).toEqual([{ type: 'enter', side: 1, id: PLAIN_B[2] }]);
+    expect(s.pending).toEqual([]);
+    expect(legalActions(s, 1).length).toBeGreaterThan(0);
+    // 選ばずに次のターンへ進めたときは、控えの若い番号にする
+    const t = battle(PLAIN_A, PLAIN_B);
+    t.teams[1].cards[0].hp = 1;
+    resolveRound(t, [N, G], () => null);
+    resolveRound(t, [G, N]);
+    expect([t.teams[1].active, t.pending]).toEqual([1, []]);
+  });
+
   it('deck must be 3 different cards; faster card attacks first', () => {
     expect(validDeck([1, 1, 2])).toBe(false);
     expect(validDeck([1, 2, 3])).toBe(true);

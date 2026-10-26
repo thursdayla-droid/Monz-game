@@ -35,7 +35,15 @@ export type SeName =
   | 'mcSlash'
   | 'mcSpecial'
   | 'mcMagic'
-  | 'mcHit';
+  | 'mcHit'
+  | 'mcThunder'
+  | 'mcFire'
+  | 'mcWater'
+  | 'mcNature'
+  | 'mcLight'
+  | 'mcDark'
+  | 'mcCounter'
+  | 'mcCutin';
 
 let noise: AudioBuffer | null = null;
 function noiseBuf(ctx: BaseAudioContext): AudioBuffer {
@@ -92,6 +100,40 @@ function crunch(ctx: AudioContext, out: AudioNode, amount = 3): AudioNode {
   w.oversample = '2x';
   w.connect(out);
   return w;
+}
+
+/**
+ * ひびき(大きな部屋で鳴らしたような残り音)。重い音に少しまぜて、重厚感を出す(企画者 2026-10-26: 重厚感のある効果音)。
+ * 消えていくノイズで作る(音のファイルは使わない)
+ */
+/** 出口(効果音の音量)ごとに1つのひびき。いくつ鳴らしても、ひびきの強さは同じ */
+const reverbs = new WeakMap<AudioNode, ConvolverNode>();
+function reverb(ctx: AudioContext, out: AudioNode, wet: number): AudioNode {
+  let conv = reverbs.get(out);
+  if (!conv) {
+    const len = Math.floor(ctx.sampleRate * 2.4);
+    const ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = ir.getChannelData(ch);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2);
+    }
+    conv = ctx.createConvolver();
+    conv.buffer = ir;
+    conv.connect(out);
+    reverbs.set(out, conv);
+  }
+  const g = ctx.createGain();
+  g.gain.value = wet;
+  g.connect(conv);
+  return g;
+}
+
+/** 重い音: そのままの音と、ひびきの両方へ */
+function heavy(ctx: AudioContext, out: AudioNode, wet = 0.45, amount = 5): AudioNode {
+  const both = ctx.createGain();
+  both.connect(crunch(ctx, out, amount));
+  both.connect(reverb(ctx, out, wet));
+  return both;
 }
 
 export function playSe(ctx: AudioContext, out: AudioNode, name: SeName, pitch: number): void {
@@ -268,7 +310,7 @@ export function playSe(ctx: AudioContext, out: AudioNode, name: SeName, pitch: n
       hiss(ctx, out, t, 'bandpass', [[0, 600], [0.1, 4200]], 1.6, [[0, 0.0001], [0.05, 0.5], [0.12, 0.0001]], 0.13);
       tone(ctx, out, t + 0.07, 'triangle', [[0, 2600], [0.25, 1900]], [[0, 0.3], [0.3, 0.0001]], 0.32);
       tone(ctx, out, t + 0.07, 'sine', [[0, 3900], [0.2, 3500]], [[0, 0.12], [0.2, 0.0001]], 0.22);
-      const o = crunch(ctx, out, 4);
+      const o = heavy(ctx, out, 0.35, 4);
       hiss(ctx, out, t + 0.09, 'highpass', [[0, 3000]], 0.7, [[0, 0.8], [0.03, 0.0001]], 0.04);
       hiss(ctx, o, t + 0.09, 'bandpass', [[0, 1500], [0.15, 450]], 1, [[0, 0.8], [0.17, 0.0001]], 0.18);
       tone(ctx, o, t + 0.09, 'sine', [[0, 170], [0.22, 42]], [[0, 1], [0.28, 0.0001]], 0.3);
@@ -279,7 +321,8 @@ export function playSe(ctx: AudioContext, out: AudioNode, name: SeName, pitch: n
       tone(ctx, out, t, 'sawtooth', [[0, 180], [0.26, 950]], [[0, 0.0001], [0.24, 0.22], [0.28, 0.0001]], 0.3);
       hiss(ctx, out, t, 'bandpass', [[0, 400], [0.26, 3000]], 2, [[0, 0.0001], [0.24, 0.35], [0.28, 0.0001]], 0.3);
       const b = t + 0.28;
-      const o = crunch(ctx, out, 6);
+      const o = heavy(ctx, out, 0.6, 6);
+      tone(ctx, o, b, 'sine', [[0, 55], [1.2, 24]], [[0, 0.9], [1.4, 0.0001]], 1.45);
       hiss(ctx, out, b, 'highpass', [[0, 2500]], 0.7, [[0, 1], [0.05, 0.0001]], 0.06);
       tone(ctx, o, b, 'sine', [[0, 120], [0.55, 26]], [[0, 1], [0.7, 0.0001]], 0.72);
       tone(ctx, o, b, 'square', [[0, 75], [0.3, 30]], [[0, 0.45], [0.35, 0.0001]], 0.36);
@@ -300,11 +343,80 @@ export function playSe(ctx: AudioContext, out: AudioNode, name: SeName, pitch: n
     }
     case 'mcHit': {
       // MYTHCLASH ダメージが入った「ドスッ」。p: 強さ(ダメージが大きいほど低く・長く)
-      const o = crunch(ctx, out, 5);
+      const o = heavy(ctx, out, 0.3, 5);
       hiss(ctx, out, t, 'highpass', [[0, 2800]], 0.7, [[0, 0.85], [0.03, 0.0001]], 0.04);
       hiss(ctx, o, t, 'bandpass', [[0, 950], [0.2 * p, 280]], 0.9, [[0, 0.9], [0.22 * p, 0.0001]], 0.24 * p);
       tone(ctx, o, t, 'sine', [[0, 150 / p], [0.28 * p, 36]], [[0, 1], [0.34 * p, 0.0001]], 0.36 * p);
       tone(ctx, o, t, 'square', [[0, 62], [0.14, 30]], [[0, 0.4], [0.18, 0.0001]], 0.2);
+      break;
+    }
+    case 'mcThunder': {
+      // 雷の魔法: 「バリバリッ」→ 落ちる「ドガァン」→ ゴロゴロ
+      hiss(ctx, out, t, 'highpass', [[0, 5000], [0.18, 1500]], 0.9, [[0, 0.0001], [0.02, 0.9], [0.06, 0.3], [0.08, 0.8], [0.2, 0.0001]], 0.22);
+      const o = heavy(ctx, out, 0.7, 7);
+      hiss(ctx, o, t + 0.12, 'lowpass', [[0, 5000], [0.6, 250]], 0.7, [[0, 1], [0.7, 0.0001]], 0.72);
+      tone(ctx, o, t + 0.12, 'sine', [[0, 90], [0.8, 28]], [[0, 1], [1.0, 0.0001]], 1.02);
+      hiss(ctx, o, t + 0.5, 'lowpass', [[0, 300], [1.6, 90]], 0.6, [[0, 0.0001], [0.3, 0.55], [1.7, 0.0001]], 1.8);
+      break;
+    }
+    case 'mcFire': {
+      // 炎の魔法: 「ゴォォッ」と燃え上がる + 爆ぜる
+      hiss(ctx, out, t, 'bandpass', [[0, 300], [0.5, 1400]], 0.7, [[0, 0.0001], [0.15, 0.8], [0.8, 0.0001]], 0.82);
+      const o = heavy(ctx, out, 0.5, 5);
+      tone(ctx, o, t + 0.1, 'sawtooth', [[0, 70], [0.6, 40]], [[0, 0.5], [0.7, 0.0001]], 0.72);
+      tone(ctx, o, t + 0.12, 'sine', [[0, 140], [0.5, 40]], [[0, 0.9], [0.6, 0.0001]], 0.62);
+      for (let i = 0; i < 6; i++) hiss(ctx, out, t + 0.15 + i * 0.07, 'highpass', [[0, 2500]], 1, [[0, 0.35], [0.03, 0.0001]], 0.04);
+      break;
+    }
+    case 'mcWater': {
+      // 水の魔法: 「ザバァン」と打ちつける波 + しぶき
+      hiss(ctx, out, t, 'lowpass', [[0, 600], [0.25, 3000], [0.8, 500]], 0.8, [[0, 0.0001], [0.2, 0.9], [0.85, 0.0001]], 0.9);
+      const o = heavy(ctx, out, 0.55, 4);
+      tone(ctx, o, t + 0.18, 'sine', [[0, 130], [0.5, 45]], [[0, 0.9], [0.6, 0.0001]], 0.62);
+      for (let i = 0; i < 5; i++) tone(ctx, out, t + 0.25 + i * 0.06, 'sine', [[0, 900 + i * 230], [0.06, 400]], [[0, 0.12], [0.08, 0.0001]], 0.09);
+      break;
+    }
+    case 'mcNature': {
+      // 自然の魔法: 葉がざわめく「ザワザワ」→ 根が打ちつける「ドンッ」
+      hiss(ctx, out, t, 'bandpass', [[0, 2500], [0.4, 4000]], 1.2, [[0, 0.0001], [0.1, 0.4], [0.2, 0.15], [0.3, 0.4], [0.45, 0.0001]], 0.5);
+      const o = heavy(ctx, out, 0.5, 5);
+      tone(ctx, o, t + 0.35, 'sine', [[0, 110], [0.4, 38]], [[0, 1], [0.5, 0.0001]], 0.52);
+      hiss(ctx, o, t + 0.35, 'lowpass', [[0, 1500], [0.4, 200]], 0.7, [[0, 0.6], [0.45, 0.0001]], 0.47);
+      break;
+    }
+    case 'mcLight': {
+      // 光の魔法: 天からの和音「ファーン」→ まぶしい「ドォン」
+      [523, 659, 784, 1047].forEach((f) => tone(ctx, reverb(ctx, out, 0.8), t, 'triangle', [[0, f], [0.6, f]], [[0, 0.0001], [0.15, 0.12], [0.7, 0.0001]], 0.72));
+      hiss(ctx, out, t, 'highpass', [[0, 6000]], 0.7, [[0, 0.0001], [0.3, 0.25], [0.5, 0.0001]], 0.52);
+      const o = heavy(ctx, out, 0.6, 4);
+      tone(ctx, o, t + 0.4, 'sine', [[0, 200], [0.5, 50]], [[0, 0.9], [0.6, 0.0001]], 0.62);
+      break;
+    }
+    case 'mcDark': {
+      // 闇の魔法: 低い「ブゥゥン」とうず巻く音 → 「ズゥン」
+      const o = heavy(ctx, out, 0.7, 6);
+      tone(ctx, o, t, 'sawtooth', [[0, 55], [0.5, 40]], [[0, 0.0001], [0.3, 0.45], [0.55, 0.0001]], 0.57);
+      hiss(ctx, out, t, 'bandpass', [[0, 300], [0.45, 900]], 4, [[0, 0.0001], [0.3, 0.4], [0.5, 0.0001]], 0.52);
+      tone(ctx, o, t + 0.45, 'sine', [[0, 85], [0.9, 25]], [[0, 1], [1.1, 0.0001]], 1.12);
+      break;
+    }
+    case 'mcCounter': {
+      // カウンター: 金属の「ガキィン」→ はね返す「シュバッ」→「ドゴォン」
+      const r = reverb(ctx, out, 0.6);
+      tone(ctx, r, t, 'triangle', [[0, 1800], [0.4, 1500]], [[0, 0.45], [0.5, 0.0001]], 0.52);
+      tone(ctx, out, t, 'square', [[0, 2700], [0.1, 2400]], [[0, 0.18], [0.12, 0.0001]], 0.13);
+      hiss(ctx, out, t, 'highpass', [[0, 3500]], 0.7, [[0, 0.9], [0.04, 0.0001]], 0.05);
+      hiss(ctx, out, t + 0.18, 'bandpass', [[0, 3500], [0.15, 600]], 1.6, [[0, 0.0001], [0.05, 0.5], [0.16, 0.0001]], 0.17);
+      const o = heavy(ctx, out, 0.5, 6);
+      tone(ctx, o, t + 0.32, 'sine', [[0, 140], [0.5, 32]], [[0, 1], [0.6, 0.0001]], 0.62);
+      hiss(ctx, o, t + 0.32, 'lowpass', [[0, 2500], [0.5, 200]], 0.7, [[0, 0.8], [0.55, 0.0001]], 0.57);
+      break;
+    }
+    case 'mcCutin': {
+      // 必殺技のカットイン: 「ジャキーン」と鋭い光 + 低いうなり
+      tone(ctx, reverb(ctx, out, 0.7), t, 'sawtooth', [[0, 1200], [0.3, 2400]], [[0, 0.0001], [0.05, 0.18], [0.35, 0.0001]], 0.37);
+      hiss(ctx, out, t, 'bandpass', [[0, 1500], [0.3, 6000]], 2, [[0, 0.0001], [0.08, 0.45], [0.32, 0.0001]], 0.34);
+      tone(ctx, heavy(ctx, out, 0.5, 4), t, 'sine', [[0, 60], [0.5, 45]], [[0, 0.0001], [0.1, 0.7], [0.6, 0.0001]], 0.62);
       break;
     }
     case 'cheer':

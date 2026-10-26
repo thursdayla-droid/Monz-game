@@ -71,6 +71,8 @@ export interface BattleState {
   round: number;
   /** 勝った側(引き分けは 'draw')。決まっていなければ null */
   winner: Side | 'draw' | null;
+  /** 戦闘不能のカードの代わりを、あとで選ぶ側(画面でプレイヤーが選ぶとき。replaceDowned で決める) */
+  pending?: Side[];
   rng: Rng;
 }
 
@@ -374,7 +376,13 @@ function tickDots(s: BattleState, events: BattleEvent[]): void {
  * 戦闘不能になった場のカードの代わりを出す。choose: 出すカードの番号(なければ、残りの1番目)【未決定: だれが選ぶか】
  * 残りがなければ、その側の負け
  */
-function replaceDown(s: BattleState, events: BattleEvent[], choose?: (side: Side, alive: number[]) => number): void {
+/**
+ * 戦闘不能のカードの代わりを出す。choose が null を返した側は、あとで選ぶ(s.pending。企画者 2026-10-26: 倒されたら自分で選ぶ)。
+ * choose が無い・番号を返さないときは、控えの若い番号のカード
+ */
+export type ChooseReplacement = (side: Side, alive: number[]) => number | null | undefined;
+
+function replaceDown(s: BattleState, events: BattleEvent[], choose?: ChooseReplacement): void {
   const out: Side[] = [];
   for (const side of [0, 1] as Side[]) {
     const t = s.teams[side];
@@ -385,6 +393,10 @@ function replaceDown(s: BattleState, events: BattleEvent[], choose?: (side: Side
       continue;
     }
     const pick = choose?.(side, alive);
+    if (pick === null) {
+      if (!s.pending?.includes(side)) s.pending = [...(s.pending ?? []), side];
+      continue;
+    }
     t.active = pick !== undefined && alive.includes(pick) ? pick : alive[0];
     enter(s, side, events);
   }
@@ -393,10 +405,24 @@ function replaceDown(s: BattleState, events: BattleEvent[], choose?: (side: Side
   if (s.winner !== null) events.push({ type: 'end', winner: s.winner });
 }
 
+/** あとで選ぶことにした側(s.pending)の、次に出すカードを決める。選べない番号なら、控えの若い番号のカード */
+export function replaceDowned(s: BattleState, side: Side, index: number): BattleEvent[] {
+  const events: BattleEvent[] = [];
+  if (!s.pending?.includes(side)) return events;
+  s.pending = s.pending.filter((x) => x !== side);
+  const t = s.teams[side];
+  const alive = t.cards.map((c, i) => (c.down ? -1 : i)).filter((i) => i >= 0);
+  t.active = alive.includes(index) ? index : alive[0];
+  enter(s, side, events);
+  return events;
+}
+
 /** 1ターン進める。actions[side] がその側の行動(選べない行動なら、選べる行動の1番目にする) */
-export function resolveRound(s: BattleState, actions: [BattleAction, BattleAction], choose?: (side: Side, alive: number[]) => number): BattleEvent[] {
+export function resolveRound(s: BattleState, actions: [BattleAction, BattleAction], choose?: ChooseReplacement): BattleEvent[] {
   const events: BattleEvent[] = [];
   if (s.winner !== null) return events;
+  // 代わりのカードを選んでいない側があれば、先に決める(控えの若い番号)
+  for (const side of s.pending ?? []) events.push(...replaceDowned(s, side, -1));
   const acts = ([0, 1] as Side[]).map((side) => {
     const legal = legalActions(s, side);
     return legal.some((a) => sameAction(a, actions[side])) ? actions[side] : legal[0];

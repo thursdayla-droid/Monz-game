@@ -2,8 +2,10 @@ import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { loadLife } from '../core/lifeSave';
 import { abilityOf } from '../core/mythclash/abilities';
-import { card, RARITIES } from '../core/mythclash/cards';
-import { activeCard, createBattle, legalActions, resolveRound, type BattleAction, type BattleEvent, type BattleState, type Side } from '../core/mythclash/engine';
+import { card, RARITIES, type Element } from '../core/mythclash/cards';
+import type { SeName } from '../audio/sfx';
+import { counterFx, impactFx, magicFx, slashFx, specialCutin } from '../ui/mythFx';
+import { activeCard, createBattle, legalActions, replaceDowned, resolveRound, type BattleAction, type BattleEvent, type BattleState, type Side } from '../core/mythclash/engine';
 import { battleUnlocked, newCollection } from '../core/mythclash/packs';
 import { aiAction, randomDeck } from '../core/mythclash/sim';
 import { eventsFor, viewFor, type BattleView } from '../core/mythclash/view';
@@ -35,6 +37,9 @@ const THUMB_Y = [190, 330, 470];
 const ATTACK_COLOR = 0xff3a3a;
 const DEFENSE_COLOR = 0x3a9dff;
 
+/** 1ターンの秒数(企画者 2026-10-26) */
+const TURN_SECONDS = 30;
+const MAGIC_SE: Record<Element, SeName> = { 炎: 'mcFire', 水: 'mcWater', 雷: 'mcThunder', 自然: 'mcNature', 光: 'mcLight', 闇: 'mcDark', 無: 'mcMagic' };
 const ACTION_LABELS: Record<string, string> = { normal: '通常攻撃', special: '必殺技', magic: '魔法', guard: '防御', counter: 'カウンター', magicGuard: '魔法防御' };
 const STATUS_LABELS: Record<string, string> = { sleep: '睡眠', freeze: '凍結', poison: '毒', burn: '火傷', weaken: '攻撃ダウン', boost: '強化', shield: 'バリア' };
 const cardKey = (id: number, hideMagic: boolean) => `mc:card:${id}${hideMagic ? ':h' : ''}`;
@@ -54,7 +59,6 @@ export class MythBattleScene extends Phaser.Scene {
   private testDeck = false;
   private busy = false;
   private auto = false;
-  private choosingSwitch = false;
   private ui?: Phaser.GameObjects.Container;
   private cardImg: Partial<Record<Side, Phaser.GameObjects.Image>> = {};
   private shownHp: Record<Side, number> = { 0: 0, 1: 0 };
@@ -71,7 +75,9 @@ export class MythBattleScene extends Phaser.Scene {
     this.fitSize();
     this.busy = false;
     this.auto = false;
-    this.choosingSwitch = false;
+    this.chooser = undefined;
+    this.timerText = undefined;
+    this.timerEvent = undefined;
     this.cardImg = {};
     this.hpBar = {};
     this.hpText = {};
@@ -207,20 +213,9 @@ export class MythBattleScene extends Phaser.Scene {
         ui.add(hb);
         if (c.down) ui.add(this.text(x, y - 6, '戦闘不能', 20, '#ff6a6a'));
         // さわると大きく見られる(自分の3枚と、相手の一度でも出たカード。企画者 2026-10-26)
-        if (!(side === ME && this.choosingSwitch)) {
-          const zoom = this.add.zone(x, y, 120, 132).setInteractive({ useHandCursor: true });
-          zoom.on('pointerdown', () => this.zoom(side, i));
-          ui.add(zoom);
-        }
-        // 交代: 自分の控えをさわる
-        if (side === ME && !c.down && !c.active && this.choosingSwitch) {
-          const ring = this.add.graphics();
-          ring.lineStyle(6, 0x4ade80, 1).strokeRoundedRect(x - 64, y - 70, 128, 140, 12);
-          this.tweens.add({ targets: ring, alpha: 0.3, duration: 400, yoyo: true, repeat: -1 });
-          const hit = this.add.zone(x, y, 128, 140).setInteractive({ useHandCursor: true });
-          hit.on('pointerdown', () => this.choose({ type: 'switch', to: i }));
-          ui.add([ring, hit]);
-        }
+        const zoom = this.add.zone(x, y, 120, 132).setInteractive({ useHandCursor: true });
+        zoom.on('pointerdown', () => this.zoom(side, i));
+        ui.add(zoom);
       });
     }
     // まん中: ターン
@@ -271,7 +266,7 @@ export class MythBattleScene extends Phaser.Scene {
           on: legal.some((l) => JSON.stringify(l) === JSON.stringify(a)),
         }));
     const canSwitch = legal.some((l) => l.type === 'switch');
-    const all = [...kinds, { label: this.choosingSwitch ? 'やめる' : '交代', on: canSwitch }];
+    const all = [...kinds, { label: '交代', on: canSwitch }];
     const gap = 20;
     // AUTO の場所を残して、横の長さに入るように
     const bw = Math.min(asleep ? 420 : 250, (W - 360 - gap * (all.length - 1)) / all.length);
@@ -290,12 +285,8 @@ export class MythBattleScene extends Phaser.Scene {
       if (!enabled) return;
       const hit = this.add.zone(x, y, bw, 80).setInteractive({ useHandCursor: true });
       hit.on('pointerdown', () => {
-        if (isSwitch) {
-          audio.se('tap');
-          this.choosingSwitch = !this.choosingSwitch;
-          if (this.choosingSwitch) this.say('交代するカードを えらんでね', '#7dffa0');
-          this.render();
-        } else if ('action' in b && b.action) this.choose(b.action);
+        if (isSwitch) this.openChooser('switch');
+        else if ('action' in b && b.action) this.choose(b.action);
       });
       ui.add(hit);
     });
@@ -310,12 +301,119 @@ export class MythBattleScene extends Phaser.Scene {
     ui.add(this.autoBtn);
   }
 
-  /** 自分の番の案内(AUTOなら自動で選ぶ) */
+  /** 自分の番の案内(AUTOなら自動で選ぶ)。1ターン30秒(企画者 2026-10-26) */
   private prompt(): void {
-    if (this.s.winner !== null) return;
+    if (this.s.winner !== null || this.busy) return;
     if (activeCard(this.s, ME).skip) this.say('眠って（凍って）いて動けない…', '#b8a8ff');
     else this.say(this.view.attacking ? 'あなたの攻撃！ 技をえらぼう' : '相手の攻撃！ 守り方をえらぼう', this.view.attacking ? '#ff8a8a' : '#8ac4ff');
-    if (this.auto) this.time.delayedCall(500, () => this.auto && !this.busy && this.choose(aiAction(this.s, ME, this.rng)));
+    if (this.auto) this.time.delayedCall(500, () => this.auto && !this.busy && !this.chooser && this.choose(aiAction(this.s, ME, this.rng)));
+    else this.startTimer(() => this.timeUp());
+  }
+
+  // ---------------- 1ターン30秒 ----------------
+
+  private timerText?: Phaser.GameObjects.Text;
+  private timerEvent?: Phaser.Time.TimerEvent;
+  private timeLeft = TURN_SECONDS;
+
+  /** 時間を数える。0になったら onEnd */
+  private startTimer(onEnd: () => void): void {
+    this.stopTimer();
+    this.timeLeft = TURN_SECONDS;
+    this.showTimer();
+    this.timerEvent = this.time.addEvent({
+      delay: 1000,
+      repeat: TURN_SECONDS - 1,
+      callback: () => {
+        this.timeLeft--;
+        this.showTimer();
+        if (this.timeLeft <= 5 && this.timeLeft > 0) audio.se('beep');
+        if (this.timeLeft <= 0) {
+          this.stopTimer();
+          onEnd();
+        }
+      },
+    });
+  }
+
+  private stopTimer(): void {
+    this.timerEvent?.remove();
+    this.timerEvent = undefined;
+    this.timerText?.setVisible(false);
+  }
+
+  private showTimer(): void {
+    if (!this.timerText) this.timerText = this.text(W / 2, 140, '', 34, '#ffffff').setDepth(350).setPadding(14, 4, 14, 6);
+    const low = this.timeLeft <= 10;
+    // カードを選んでいるときは、選ぶ画面の上に出す
+    this.timerText.setPosition(W / 2, this.chooser ? 130 : 140).setVisible(true).setText(`⏱ ${this.timeLeft}`).setColor(low ? '#ff4a4a' : '#ffffff').setBackgroundColor(low ? '#3a0a10dd' : '#0a0408cc');
+  }
+
+  /** 【仮】時間切れ: 攻撃側なら通常攻撃、防御側なら防御(眠っていれば「動けない」) */
+  private timeUp(): void {
+    if (this.busy || this.s.winner !== null) return;
+    this.chooser?.destroy();
+    this.chooser = undefined;
+    const legal = legalActions(this.s, ME);
+    const want: BattleAction = this.view.attacking ? { type: 'attack', kind: 'normal' } : { type: 'defend', kind: 'guard' };
+    this.say('時間切れ！', '#ff6a6a');
+    this.choose(legal.some((l) => JSON.stringify(l) === JSON.stringify(want)) ? want : legal[0]);
+  }
+
+  // ---------------- カードを選ぶ(交代・倒されたあと) ----------------
+
+  private chooser?: Phaser.GameObjects.Container;
+
+  /**
+   * 控えのカードを大きく並べて選ぶ(企画者 2026-10-26: 倒されたときと、自分で交代するときはカードを選びたい)。
+   * switch: 自分で交代(やめられる)。down: 倒されたあと(必ず選ぶ。時間切れなら控えの若い番号)
+   */
+  private openChooser(mode: 'switch' | 'down'): void {
+    if (this.chooser || (mode === 'switch' && this.busy)) return;
+    audio.se('tap');
+    const team = this.s.teams[ME];
+    const options = team.cards.map((c, i) => ({ c, i })).filter(({ c, i }) => !c.down && i !== team.active);
+    if (!options.length) return;
+    const box = this.add.container(0, 0).setDepth(300);
+    this.chooser = box;
+    const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.75).setOrigin(0, 0).setInteractive();
+    box.add([dim, this.text(W / 2, 70, mode === 'down' ? '次に出すカードを えらんでね' : '交代するカードを えらんでね', 40, mode === 'down' ? '#ff8a8a' : '#7dffa0')]);
+    const s = 1.0;
+    options.forEach(({ c, i }, k) => {
+      const x = W / 2 + (k - (options.length - 1) / 2) * (MYTH_CARD_W * s + 60);
+      const y = 340;
+      const img = this.add.image(x, y, this.cardTexture(c.id, false)).setScale(s * 0.8);
+      this.tweens.add({ targets: img, scale: s * 0.9, duration: 180, ease: 'Back.easeOut' });
+      const hp = this.text(x, y + (MYTH_CARD_H * s * 0.9) / 2 + 26, `HP ${c.hp} / ${c.def.maxHp}${c.skip ? '・' + STATUS_LABELS[c.skip] : ''}${c.dot ? '・' + STATUS_LABELS[c.dot] : ''}`, 26, '#ffffff');
+      img.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.chosen(mode, i));
+      box.add([img, hp]);
+    });
+    if (mode === 'switch') {
+      const cancel = this.text(W / 2, 660, 'やめる', 32, '#ffffff').setBackgroundColor('#8a35e0').setPadding(28, 8, 28, 10).setInteractive({ useHandCursor: true });
+      cancel.on('pointerdown', () => {
+        audio.se('back');
+        box.destroy();
+        this.chooser = undefined;
+      });
+      box.add(cancel);
+    } else {
+      this.startTimer(() => this.chosen('down', options[0].i));
+      if (this.auto) this.time.delayedCall(600, () => this.chooser === box && this.chosen('down', options[0].i));
+    }
+  }
+
+  private chosen(mode: 'switch' | 'down', index: number): void {
+    this.chooser?.destroy();
+    this.chooser = undefined;
+    if (mode === 'switch') {
+      this.choose({ type: 'switch', to: index });
+      return;
+    }
+    // 倒されたあと: 選んだカードを出して、次のターンへ
+    this.stopTimer();
+    audio.se('select');
+    this.busy = true;
+    this.play(eventsFor(this.s, ME, replaceDowned(this.s, ME, index)), 0);
   }
 
   // ---------------- ターンを進める ----------------
@@ -323,10 +421,11 @@ export class MythBattleScene extends Phaser.Scene {
   private choose(mine: BattleAction): void {
     if (this.busy || this.s.winner !== null) return;
     this.busy = true;
-    this.choosingSwitch = false;
+    this.stopTimer();
     audio.se('select');
     const theirs = aiAction(this.s, CPU, this.rng);
-    const events = eventsFor(this.s, ME, resolveRound(this.s, [mine, theirs]));
+    // 自分のカードが倒されたら、あとで選ぶ(相手は控えの若い番号)
+    const events = eventsFor(this.s, ME, resolveRound(this.s, [mine, theirs], (side) => (side === ME ? null : undefined)));
     this.render();
     this.play(events, 0);
   }
@@ -339,33 +438,60 @@ export class MythBattleScene extends Phaser.Scene {
       this.busy = false;
       this.render();
       if (this.s.winner !== null) this.showResult();
+      else if (this.s.pending?.includes(ME)) this.openChooser('down');
       else this.prompt();
       return;
     }
     const e = events[i];
-    const wait = this.show(e);
+    const wait = this.show(e, events.slice(i + 1));
     this.time.delayedCall(wait, () => this.play(events, i + 1));
   }
 
   /** 出来事を1つ見せて、次まで待つ時間(ミリ秒)を返す */
-  private show(e: BattleEvent): number {
+  private show(e: BattleEvent, later: BattleEvent[]): number {
     const who = (side: Side) => (side === ME ? 'あなた' : '相手');
     const name = (id: number) => card(id)?.name ?? '';
     switch (e.type) {
       case 'attack': {
         const img = this.cardImg[e.side];
-        if (img) this.tweens.add({ targets: img, x: img.x + (e.side === ME ? 90 : -90), duration: 120, yoyo: true, ease: 'Cubic.easeOut' });
+        const from = cardPos(e.side);
+        const to = cardPos(e.side === ME ? CPU : ME);
+        const lunge = () => img && this.tweens.add({ targets: img, x: img.x + (e.side === ME ? 90 : -90), duration: 120, yoyo: true, ease: 'Cubic.easeOut' });
         this.say(`${name(e.id)}の ${ACTION_LABELS[e.kind]}！`, e.side === ME ? '#ff8a8a' : '#8ac4ff');
-        audio.se(e.kind === 'special' ? 'mcSpecial' : e.kind === 'magic' ? 'mcMagic' : 'mcSlash');
-        return e.kind === 'special' ? 850 : 650;
+        if (e.kind === 'magic') {
+          // 属性ごとの魔法の演出と音(雷なら相手に雷が落ちる。企画者 2026-10-26)
+          const el = card(e.id)!.magic.element;
+          audio.se(MAGIC_SE[el]);
+          return magicFx(this, el, from, to) + 100;
+        }
+        if (e.kind === 'special') {
+          // 必殺技: カットイン → 体当たり → 大きな当たり(カウンターされたら、当たりはカウンターの演出で)
+          const countered = later.some((x) => x.type === 'counter' && x.success);
+          audio.se('mcCutin');
+          const cut = specialCutin(this, this.cardTexture(e.id, e.side === CPU && !this.s.teams[CPU].cards[this.s.teams[CPU].active].magicRevealed), name(e.id), e.side === ME);
+          this.time.delayedCall(cut - 150, () => {
+            lunge();
+            audio.se('mcSpecial');
+            if (!countered) this.time.delayedCall(380, () => impactFx(this, to, 0xff5a3a, true));
+          });
+          return cut + 600;
+        }
+        lunge();
+        audio.se('mcSlash');
+        this.time.delayedCall(60, () => slashFx(this, to));
+        return 700;
       }
       case 'defend':
         this.say(`${who(e.side)}は ${ACTION_LABELS[e.kind]}`, '#d8d8ff');
         return 450;
       case 'counter':
         this.say(e.success ? 'カウンター成功！' : 'カウンター失敗…', e.success ? '#7dffa0' : '#ffb070');
-        if (e.success) audio.se('guard', { pitch: 1 });
-        return 550;
+        if (!e.success) {
+          audio.se('knock');
+          return 550;
+        }
+        audio.se('mcCounter');
+        return counterFx(this, cardPos(e.side), cardPos(e.side === ME ? CPU : ME));
       case 'damage': {
         this.shownHp[e.side] = Math.max(0, this.shownHp[e.side] - e.amount);
         this.drawHp(e.side);
