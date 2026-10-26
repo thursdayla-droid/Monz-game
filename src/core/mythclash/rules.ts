@@ -16,21 +16,21 @@ export interface BattleRules {
   magicScale: number;
   /** 最低ダメージ【未決定】(負の値・0のときにこれにする) */
   minDamage: number;
-  /** 毒・火傷: 最大HPの割合【確定 5%】・端数【未決定】・入る時【未決定】 */
+  /** 毒・火傷: 最大HPの割合【確定 5%】・端数【確定 2026-10-26: 切り上げ】・入る時【確定 2026-10-26: ターンの終わり】 */
   dotRate: number;
   dotRounding: 'ceil' | 'floor' | 'round';
   dotTiming: 'roundEnd' | 'roundStart';
   /** 強い追加効果のコイントス【確定 50%】 */
   strongChance: number;
-  /** 睡眠・凍結のあいだに交代できるか【未決定】 */
+  /** 睡眠・凍結のあいだに交代できるか【確定 2026-10-26: できる。控えにいる間は、行動できない回数は減らない】 */
   canSwitchWhileAsleep: boolean;
-  /** 睡眠・凍結と毒・火傷を同時に持てるか【未決定】 */
+  /** 睡眠・凍結と毒・火傷を同時に持てるか【確定 2026-10-26: 持てる】 */
   sleepAndDotTogether: boolean;
   /** カウンターではね返すダメージを、はね返される側(攻撃した側)の防御で計算し直すか【未決定。前の版の指示書では そうする】 */
   reflectUsesAttackerDef: boolean;
   /** 魔法防御が、相手の自己回復・自己強化・バリアまで止めるか【未決定】 */
   magicGuardBlocksSelfEffects: boolean;
-  /** 最後の1枚どうしが同時に戦闘不能になったとき【未決定】 */
+  /** 最後の1枚どうしが同時に戦闘不能になったとき【確定 2026-10-26: 引き分け】 */
   bothLastDown: 'draw' | 'attackerWins' | 'defenderWins';
 }
 
@@ -45,7 +45,7 @@ export const DEFAULT_RULES: BattleRules = {
   dotRounding: 'ceil',
   dotTiming: 'roundEnd',
   strongChance: 0.5,
-  canSwitchWhileAsleep: false,
+  canSwitchWhileAsleep: true,
   sleepAndDotTogether: true,
   reflectUsesAttackerDef: true,
   magicGuardBlocksSelfEffects: false,

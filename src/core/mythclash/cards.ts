@@ -1,7 +1,7 @@
 /**
  * MYTHCLASH のカード(CardDefinition)。Phaserに依存しない。MONZの育成モンスターとは別のデータ。
  * 元は企画者のカード表(design/mythclash/*.csv → tools/mythclash_cards.py → cardData.ts)。値は書きかえない。
- * 企画者決定(2026-10-26): HPは表の値を正式に使う。No.056 血の女王は世界神話。
+ * 企画者決定(2026-10-26): HPは表の値を正式に使う(変わる可能性あり)。No.056 血の女王はダーク童話(tools/mythclash_cards.py の PLANNER_FIXES)。
  * 魔法名・魔法属性・魔法補正値は【暫定】(表の列名どおり)。魔法の効果は magic.ts、特殊能力は abilities.ts。
  */
 import { RAW_CARDS } from './cardData';

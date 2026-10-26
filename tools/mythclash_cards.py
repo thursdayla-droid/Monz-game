@@ -1,7 +1,8 @@
 """MYTHCLASH のカード表(企画者の CSV)を、ゲーム用のデータ(src/core/mythclash/cardData.ts)に書き出す。
 使い方: python3 -I tools/mythclash_cards.py
 - CSV は design/mythclash/MYTHCLASH_100_cards_names_completed.csv(企画者から受け取ったまま。変えない)
-- 値は書きかえない。列をそのまま写すだけ(HPは企画者決定 2026-10-26 で表の値を正式に使う)
+- 値は書きかえない。列をそのまま写すだけ(HPは企画者決定 2026-10-26 で表の値を正式に使う。今後変わる可能性あり)
+- ただし企画者が直すと決めた所だけ、下の PLANNER_FIXES で上書きする(CSV そのものは残す)
 """
 import csv
 import json
@@ -18,6 +19,11 @@ COLS = {
     '魔法名（仮）': 'magicName', '魔法補正値（暫定）': 'magicModifier', '魔法効果コード（旧）': 'magicEffectCode',
     '魔法効果説明（旧・要更新）': 'magicEffectOldText', '固有能力コード（暫定）': 'abilityCode', '備考': 'note',
 }
+# 企画者が決めた修正(日付つき)。CSV は受け取ったまま残し、ここで上書きする
+PLANNER_FIXES = {
+    56: {'theme': 'ダーク童話'},  # 2026-10-26: 血の女王はダーク童話
+}
+
 NUM = {'hp', 'atk', 'def', 'mag', 'spd', 'magicModifier'}
 
 rows = []
@@ -34,6 +40,7 @@ with open(SRC, encoding='utf-8-sig') as f:
                 d[key] = v or None
             else:
                 d[key] = v
+        d.update(PLANNER_FIXES.get(d['no'], {}))
         rows.append(d)
 
 body = ',\n'.join('  ' + json.dumps(r, ensure_ascii=False) for r in rows)

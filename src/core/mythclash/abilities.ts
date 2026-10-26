@@ -5,7 +5,7 @@
  * - 割合の補正は「最終ダメージ」にかける(計算の順番は engine.ts の damage の説明)
  * - 回復は最大HPをこえない
  * - 特性による効果は、魔法そのものの効果とは別に管理する(ここに書く)
- * No.003 は特性名・発動条件が既存データにないため【未確定】。毒の「+2」強化は廃止(毒は魔法の決まりのまま)。
+ * No.003 は特性なし。毒は魔法「深海の劇毒」で付く(企画者 2026-10-26)。毒の「+2」強化は廃止(毒は魔法の決まりのまま)。
  */
 
 export type AbilityDef =
@@ -29,8 +29,8 @@ export type AbilityDef =
   | { kind: 'endure'; minHpRate: number; attacksOnly: boolean }
   /** 睡眠の50%判定に失敗したら、1回だけ50%で判定し直す(魔法ごと) */
   | { kind: 'sleepReroll' }
-  /** 名前・効果が決まっていない(何もしない) */
-  | { kind: 'undecided' };
+  /** 特性なし(何もしない) */
+  | { kind: 'none' };
 
 export interface Ability {
   code: string;
@@ -47,8 +47,8 @@ export const LOW_HP = 0.5;
 export const ABILITIES: Record<string, Ability> = {
   first_normal20: { code: 'first_normal20', name: '狩人の一矢', once: true, def: { kind: 'dealUp', attack: 'normal', rate: 0.2, when: 'first' } },
   faster_normal15: { code: 'faster_normal15', name: '先駆けの牙', once: false, def: { kind: 'dealUp', attack: 'normal', rate: 0.15, when: 'faster' } },
-  // No.003: 特性名・発動条件は既存データになし【未確定】。毒の+2強化は廃止(企画者 2026-10-26)
-  poison_plus2: { code: 'poison_plus2', name: null, once: false, def: { kind: 'undecided' } },
+  // No.003: 特性なし。毒は魔法「深海の劇毒」の効果として付く(企画者 2026-10-26)。毒の+2強化は廃止。コードは表のまま残す
+  poison_plus2: { code: 'poison_plus2', name: null, once: false, def: { kind: 'none' } },
   heal_below15: { code: 'heal_below15', name: '黄金の生命力', once: true, def: { kind: 'healWhenLow', amount: 15 } },
   sleep_heal15: { code: 'sleep_heal15', name: '夢喰いの恩恵', once: false, def: { kind: 'healOnStatus', status: 'sleep', amount: 15 } },
   freeze_heal10: { code: 'freeze_heal10', name: '氷結の恵み', once: false, def: { kind: 'healOnStatus', status: 'freeze', amount: 10 } },
@@ -70,7 +70,7 @@ export const ABILITIES: Record<string, Ability> = {
   heal_below20: { code: 'heal_below20', name: '逆境の再生', once: true, def: { kind: 'healWhenLow', amount: 20 } },
   first_magic20: { code: 'first_magic20', name: '魔力の解放', once: true, def: { kind: 'dealUp', attack: 'magic', rate: 0.2, when: 'first' } },
   execute_normal20: { code: 'execute_normal20', name: '追い詰める刃', once: false, def: { kind: 'dealUp', attack: 'normal', rate: 0.2, when: 'targetLow' } },
-  // HP条件なし。攻撃以外(毒・火傷)のダメージでも耐えるかは【未決定】→ ひとまず攻撃だけ
+  // HP条件なし。毒・火傷のダメージでは耐えない(企画者 2026-10-26・確定)
   endure1: { code: 'endure1', name: '最後の踏ん張り', once: true, def: { kind: 'endure', minHpRate: 0, attacksOnly: true } },
   first_magic_reduce25: { code: 'first_magic_reduce25', name: '魔法障壁', once: true, def: { kind: 'takeDown', attack: 'magic', rate: 0.25, when: 'first' } },
   poison_normal15: { code: 'poison_normal15', name: '毒狩りの刃', once: false, def: { kind: 'dealUp', attack: 'normal', rate: 0.15, when: 'targetPoison' } },

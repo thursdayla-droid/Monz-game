@@ -152,9 +152,9 @@ export function legalActions(s: BattleState, side: Side): BattleAction[] {
   } else if (!asleep) {
     out.push({ type: 'defend', kind: 'guard' }, { type: 'defend', kind: 'counter' }, { type: 'defend', kind: 'magicGuard' });
   }
+  // 眠っている・凍っているときは「何もしない」(行動が1回消える)を先頭に。交代はできる(企画者 2026-10-26)
+  if (asleep) out.push({ type: 'defend', kind: 'guard' });
   if (!asleep || s.rules.canSwitchWhileAsleep) t.cards.forEach((o, i) => { if (i !== t.active && !o.down) out.push({ type: 'switch', to: i }); });
-  // 眠っていて何もできないときは、何もしない(行動が1回消える)
-  if (!out.length) out.push({ type: 'defend', kind: 'guard' });
   return out;
 }
 

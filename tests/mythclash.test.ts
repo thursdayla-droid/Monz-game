@@ -44,8 +44,10 @@ describe('MYTHCLASH cards (from the planner\'s table, unchanged)', () => {
       [56, '血の女王', '闇'],
       [100, '黒潮の略奪王', '水'],
     ]);
-    // 企画者決定 2026-10-26: 血の女王は世界神話・HPは表の値
-    expect([card(56)!.theme, card(100)!.maxHp, card(1)!.maxHp]).toEqual(['世界神話', 180, 145]);
+    // 企画者決定 2026-10-26: 血の女王はダーク童話(ダーク童話26・世界神話30)・HPは表の値
+    expect([card(56)!.theme, card(100)!.maxHp, card(1)!.maxHp]).toEqual(['ダーク童話', 180, 145]);
+    const theme = (t: string) => CARDS.filter((c) => c.theme === t).length;
+    expect([theme('ダーク童話'), theme('世界神話')]).toEqual([26, 30]);
   });
 
   it('has 28 abilities (N5/R6/SR10/UR5/SEC2), all with a definition; magic codes all map', () => {
@@ -57,8 +59,10 @@ describe('MYTHCLASH cards (from the planner\'s table, unchanged)', () => {
     // 毒・火傷の古い数字(4・5・8)は使わない
     expect(magicEffectOf('poison8')).toEqual(magicEffectOf('poison4'));
     expect(magicEffectOf('burn8').effect).toEqual({ kind: 'burn' });
-    // No.003 の「+2」強化は廃止。特性名は未確定
-    expect(ABILITIES.poison_plus2).toMatchObject({ name: null, def: { kind: 'undecided' } });
+    // No.003: 特性なし(毒は魔法「深海の劇毒」で付く)。「+2」強化は廃止
+    expect(ABILITIES.poison_plus2).toMatchObject({ name: null, def: { kind: 'none' } });
+    expect(card(3)!.magic).toMatchObject({ name: '深海の劇毒', effectCode: 'poison8' });
+    expect(magicEffectOf('poison8').effect).toEqual({ kind: 'poison' });
   });
 });
 
@@ -188,6 +192,26 @@ describe('MYTHCLASH battle rules', () => {
     expect(dmgTo(ev, 0)).toBe(0);
     resolveRound(s, [MG, G]);
     expect(activeCard(s, 1).skip).toBe('sleep');
+  });
+
+  it('sleep: can switch out; the skip is kept (not used up) while on the bench', () => {
+    const always = { ...FLAT, strongChance: 1 };
+    const s = battle([14, 60, 61], PLAIN_B, always);
+    resolveRound(s, [MG, G]);
+    expect(activeCard(s, 1).skip).toBe('sleep');
+    expect(legalActions(s, 1)).toContainEqual(SW(1));
+    let ev = resolveRound(s, [G, SW(1)]);
+    expect(ev.some((e) => e.type === 'skip')).toBe(false);
+    expect(s.teams[1].cards[0].skip).toBe('sleep');
+    // 控えにいる間は減らない
+    resolveRound(s, [N, G]);
+    expect(s.teams[1].cards[0].skip).toBe('sleep');
+    // もどってきたら、そこで1回行動できない
+    ev = resolveRound(s, [s.attacker === 0 ? N : G, SW(0)]);
+    expect(s.teams[1].cards[0].skip).toBe('sleep');
+    ev = resolveRound(s, [G, N]);
+    expect(ev.some((e) => e.type === 'skip' && e.side === 1)).toBe(true);
+    expect(s.teams[1].cards[0].skip).toBeNull();
   });
 });
 
