@@ -18,22 +18,26 @@ import { fillSize, viewRatio, watchViewport } from '../ui/viewport';
 import { MYTH_TITLE_IMAGE } from './MythTitleScene';
 
 /**
- * 横向き(iPhone を横にしたときの形)。企画者のイメージ図(2026-10-26)も横向き。
- * 高さは720のまま、横の長さを画面の形に合わせる(全画面。企画者 2026-10-26)。並べ方は横の長さから決める
+ * 縦向き(企画者 2026-10-26: 縦でよい。相手が上・自分が下)。横は720のまま、縦の長さを画面の形に合わせる(全画面)。
+ * 上から: 相手のHP → 相手の3枚 → 相手の場のカード → (TURN・攻撃の向きの矢印・残り秒数・メッセージ) → 自分の場のカード → 自分の3枚 → 自分のHP → ボタン
  */
-let W = 1560;
-const H = 720;
+const W = 720;
+let H = 1280;
 const PORTRAIT = { w: 720, h: 1280 };
 const ME: Side = 0;
 const CPU: Side = 1;
-const cardPos = (side: Side) => ({ x: W / 2 + (side === ME ? -260 : 260), y: 340 });
-const CARD_S = 0.82;
-const THUMB_S = 0.3;
-const thumbX = (side: Side) => (side === ME ? 80 : W - 80);
-/** 上の名前・HPの板の幅と、左はし */
-const panelW = () => Math.min(500, (W - 300 - 170) / 2);
-const panelX = (side: Side) => (side === ME ? 150 : W - 150 - panelW());
-const THUMB_Y = [190, 330, 470];
+/** 相手の3枚の下と、自分の3枚の上(この間に場のカード2枚) */
+const TOP = 228;
+const bottomTop = () => H - 340;
+const MID_GAP = 120;
+const cardScale = () => Math.min(1, (bottomTop() - TOP - MID_GAP - 20) / 2 / MYTH_CARD_H);
+const cardH = () => MYTH_CARD_H * cardScale();
+const cardPos = (side: Side) => ({ x: W / 2, y: side === CPU ? TOP + 10 + cardH() / 2 : bottomTop() - 10 - cardH() / 2 });
+const midY = () => (TOP + bottomTop()) / 2;
+const THUMB_S = 0.26;
+const thumbPos = (side: Side, i: number) => ({ x: W / 2 + (i - 1) * 112, y: side === CPU ? 162 : H - 276 });
+/** 名前・HPの板(まん中の高さ) */
+const panelY = (side: Side) => (side === CPU ? 56 : H - 166);
 const ATTACK_COLOR = 0xff3a3a;
 const DEFENSE_COLOR = 0x3a9dff;
 
@@ -87,9 +91,9 @@ export class MythBattleScene extends Phaser.Scene {
     preloadPacks(this, ['mythclash']);
   }
 
-  /** 画面の形に合わせて横の長さを決める。縦向きのときは「横にしてね」 */
+  /** 画面の形に合わせて縦の長さを決める(横は720のまま。縦が1280より短くはしない) */
   private fitSize(): void {
-    W = fillSize(this, { w: 1280, h: H }, { minRatio: 1280 / H, maxRatio: 1700 / H }).w;
+    H = fillSize(this, { w: W, h: 1280 }, { minRatio: 0.42, maxRatio: W / 1280 }).h;
     this.scale.setGameSize(W, H);
   }
 
@@ -144,20 +148,42 @@ export class MythBattleScene extends Phaser.Scene {
     // タイトルの絵の闘技場の所を、暗くして背景にする【仮】
     if (this.textures.exists(MYTH_TITLE_IMAGE)) {
       const src = this.textures.get(MYTH_TITLE_IMAGE).getSourceImage() as HTMLImageElement;
-      const key = `mb:bg:${W}`;
+      const key = `mb:bg:${H}`;
       canvasTextureOnce(this, key, W, H, (ctx) => {
-        const sh = (src.width * H) / W;
-        ctx.drawImage(src, 0, 260, src.width, sh, 0, 0, W, H);
+        // 暗い赤から黒へ。上にタイトルの絵のお城、下に闘技場の床をうすく(タイトルのボタンは出さない)
+        const g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, '#2a0a12');
+        g.addColorStop(0.5, '#120508');
+        g.addColorStop(1, '#2a0a10');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, W, H);
+        const fade = (sy: number, sh: number, dy: number, dh: number, fromTop: boolean) => {
+          const c = document.createElement('canvas');
+          c.width = W;
+          c.height = Math.round(dh);
+          const cx = c.getContext('2d')!;
+          cx.drawImage(src, 0, sy, src.width, sh, 0, 0, W, dh);
+          cx.globalCompositeOperation = 'destination-in';
+          const m = cx.createLinearGradient(0, 0, 0, dh);
+          m.addColorStop(0, fromTop ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0)');
+          m.addColorStop(1, fromTop ? 'rgba(0,0,0,0)' : 'rgba(0,0,0,0.9)');
+          cx.fillStyle = m;
+          cx.fillRect(0, 0, W, dh);
+          ctx.drawImage(c, 0, dy);
+        };
+        fade(0, 500, 0, (500 * W) / src.width, true);
+        const fh = (380 * W) / src.width;
+        fade(src.height - 380, 380, H - fh, fh, false);
       });
       bg.add(this.add.image(0, 0, key).setOrigin(0, 0));
     }
-    bg.add(this.add.rectangle(0, 0, W, H, 0x0a0408, 0.45).setOrigin(0, 0));
-    // スマホが縦のときは「横にしてね」(そのままでも遊べる)
+    bg.add(this.add.rectangle(0, 0, W, H, 0x0a0408, 0.35).setOrigin(0, 0));
+    // スマホが横のときは「縦にしてね」(そのままでも遊べる)
     this.turnHint?.destroy();
     this.turnHint = undefined;
-    if (viewRatio(this) < 1) {
+    if (viewRatio(this) > 1) {
       const c = this.add.container(W / 2, H / 2).setDepth(400);
-      c.add([this.add.rectangle(0, 0, 640, 150, 0x16101c, 0.9).setStrokeStyle(4, 0xffd23a, 1), this.text(0, 0, 'スマホを 横にしてね', 44, '#ffd23a')]);
+      c.add([this.add.rectangle(0, 0, 640, 150, 0x16101c, 0.9).setStrokeStyle(4, 0xffd23a, 1), this.text(0, 0, 'スマホを 縦にしてね', 44, '#ffd23a')]);
       this.tweens.add({ targets: c, alpha: 0, delay: 2500, duration: 500 });
       this.turnHint = c;
     }
@@ -171,36 +197,34 @@ export class MythBattleScene extends Phaser.Scene {
     this.ui = ui;
     const v = this.view;
     const attacking = v.attacking;
-    // 上: 自分と相手の名前・HP
+    // 名前・HP(相手は上、自分は下)
     for (const side of [ME, CPU]) {
       const cards = side === ME ? v.me : v.opponent;
       const act = cards.find((c) => !c.hidden && c.active);
-      const left = side === ME;
-      const px = panelX(side);
-      const pw = panelW();
+      const mine = side === ME;
+      const top = panelY(side) - 42;
       const g = this.add.graphics();
-      g.fillStyle(0x0a0408, 0.85).fillRoundedRect(px, 14, pw, 92, 14);
-      g.lineStyle(3, left ? 0xc0182a : 0x2a6ad8, 1).strokeRoundedRect(px, 14, pw, 92, 14);
+      g.fillStyle(0x0a0408, 0.85).fillRoundedRect(20, top, W - 40, 84, 14);
+      g.lineStyle(3, mine ? 0xc0182a : 0x2a6ad8, 1).strokeRoundedRect(20, top, W - 40, 84, 14);
       ui.add(g);
-      ui.add(this.text(left ? px + 20 : px + pw - 20, 38, left ? 'あなた' : 'CPU', 22, '#b8a8c8', left ? 0 : 1));
-      if (act && !act.hidden) ui.add(this.text(left ? px + 110 : px + pw - 110, 38, act.name, 26, '#ffffff', left ? 0 : 1));
+      ui.add(this.text(40, top + 24, mine ? 'あなた' : 'CPU', 22, '#b8a8c8', 0));
+      if (act && !act.hidden) ui.add(this.text(130, top + 24, act.name, 26, '#ffffff', 0));
       const bar = this.add.graphics();
-      const hpT = this.text(left ? px + pw - 20 : px + 20, 71, '', 24, '#ffffff', left ? 1 : 0);
+      const hpT = this.text(W - 40, top + 58, '', 24, '#ffffff', 1);
       this.hpBar[side] = bar;
       this.hpText[side] = hpT;
       ui.add([bar, hpT]);
       this.drawHp(side);
-      // 横: チームの3枚
+      // チームの3枚(横にならべる)
       cards.forEach((c, i) => {
-        const x = thumbX(side);
-        const y = THUMB_Y[i];
+        const { x, y } = thumbPos(side, i);
         const box = this.add.graphics();
         const on = !c.hidden && c.active;
-        box.fillStyle(0x0a0408, 0.8).fillRoundedRect(x - 60, y - 66, 120, 132, 10);
-        box.lineStyle(on ? 5 : 2, on ? 0xffd23a : 0x6a5a70, 1).strokeRoundedRect(x - 60, y - 66, 120, 132, 10);
+        box.fillStyle(0x0a0408, 0.8).fillRoundedRect(x - 50, y - 64, 100, 128, 10);
+        box.lineStyle(on ? 5 : 2, on ? 0xffd23a : 0x6a5a70, 1).strokeRoundedRect(x - 50, y - 64, 100, 128, 10);
         ui.add(box);
         if (c.hidden) {
-          ui.add(this.text(x, y, '？？？', 26, '#8a7a90'));
+          ui.add(this.text(x, y, '？？？', 22, '#8a7a90'));
           return;
         }
         const img = this.add.image(x, y - 6, this.cardTexture(c.id, side === CPU && !c.magicElement)).setScale(THUMB_S);
@@ -208,21 +232,24 @@ export class MythBattleScene extends Phaser.Scene {
         ui.add(img);
         const rate = c.hp / c.maxHp;
         const hb = this.add.graphics();
-        hb.fillStyle(0x000000, 0.8).fillRect(x - 52, y + 52, 104, 9);
-        hb.fillStyle(rate > 0.5 ? 0x4ade80 : rate > 0.25 ? 0xffd23a : 0xff4a4a, 1).fillRect(x - 52, y + 52, 104 * rate, 9);
+        hb.fillStyle(0x000000, 0.8).fillRect(x - 42, y + 50, 84, 8);
+        hb.fillStyle(rate > 0.5 ? 0x4ade80 : rate > 0.25 ? 0xffd23a : 0xff4a4a, 1).fillRect(x - 42, y + 50, 84 * rate, 8);
         ui.add(hb);
-        if (c.down) ui.add(this.text(x, y - 6, '戦闘不能', 20, '#ff6a6a'));
+        if (c.down) ui.add(this.text(x, y - 6, '戦闘不能', 18, '#ff6a6a'));
         // さわると大きく見られる(自分の3枚と、相手の一度でも出たカード。企画者 2026-10-26)
-        const zoom = this.add.zone(x, y, 120, 132).setInteractive({ useHandCursor: true });
+        const zoom = this.add.zone(x, y, 100, 128).setInteractive({ useHandCursor: true });
         zoom.on('pointerdown', () => this.zoom(side, i));
         ui.add(zoom);
       });
     }
-    // まん中: ターン
+    // まん中の左: ターン
+    const my = midY();
     const tg = this.add.graphics();
-    tg.fillStyle(0x0a0408, 0.9).fillRoundedRect(W / 2 - 70, 10, 140, 100, 16);
-    tg.lineStyle(3, 0xd8b060, 1).strokeRoundedRect(W / 2 - 70, 10, 140, 100, 16);
-    ui.add([tg, this.text(W / 2, 34, 'TURN', 22, '#d8b060'), this.text(W / 2, 74, String(v.round), 44, '#ffffff')]);
+    tg.fillStyle(0x0a0408, 0.9).fillRoundedRect(12, my - 44, 92, 88, 14);
+    tg.lineStyle(3, 0xd8b060, 1).strokeRoundedRect(12, my - 44, 92, 88, 14);
+    ui.add([tg, this.text(58, my - 22, 'TURN', 20, '#d8b060'), this.text(58, my + 14, String(v.round), 38, '#ffffff')]);
+    const cs = cardScale();
+    const ch = cardH();
     // 場のカード(攻撃側・防御側がわかるように)
     for (const side of [ME, CPU]) {
       const cards = side === ME ? v.me : v.opponent;
@@ -231,25 +258,27 @@ export class MythBattleScene extends Phaser.Scene {
       const isAtk = (side === ME) === attacking;
       const { x, y } = cardPos(side);
       const col = isAtk ? ATTACK_COLOR : DEFENSE_COLOR;
-      const glow = this.add.rectangle(x, y, MYTH_CARD_W * CARD_S + 26, MYTH_CARD_H * CARD_S + 26, col, 0.35).setStrokeStyle(5, col, 1);
+      const cw = MYTH_CARD_W * cs;
+      const glow = this.add.rectangle(x, y, cw + 24, ch + 24, col, 0.35).setStrokeStyle(5, col, 1);
       this.tweens.add({ targets: glow, alpha: 0.55, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      const img = this.add.image(x, y, this.cardTexture(act.id, side === CPU && !act.magicElement)).setScale(CARD_S * (isAtk ? 1.04 : 0.98));
+      const img = this.add.image(x, y, this.cardTexture(act.id, side === CPU && !act.magicElement)).setScale(cs * (isAtk ? 1.04 : 0.97));
       this.cardImg[side] = img;
-      const tag = this.text(x, y - (MYTH_CARD_H * CARD_S) / 2 - 30, isAtk ? '⚔ ATTACK' : '🛡 DEFENSE', 30, '#ffffff').setBackgroundColor(isAtk ? '#c0182a' : '#1f5fc8').setPadding(16, 4, 16, 6);
+      // 攻撃側・防御側の札は、カードの右に
+      const sx = x + cw / 2 + 22;
+      const tag = this.text(sx, y - ch / 2 + 26, isAtk ? '⚔ ATTACK' : '🛡 DEFENSE', 26, '#ffffff', 0).setBackgroundColor(isAtk ? '#c0182a' : '#1f5fc8').setPadding(12, 4, 12, 6);
       ui.add([glow, img, tag]);
       img.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.zoom(side, this.s.teams[side].active));
-      // 状態(眠り・毒など)は、カードの下に
+      // 状態(眠り・毒など)は、札の下に
       const st = this.s.teams[side].cards[this.s.teams[side].active];
-      const marks = [act.skip && STATUS_LABELS[act.skip], act.dot && STATUS_LABELS[act.dot], st.shield > 0 && `バリア${st.shield}`, st.specialLock && side === ME && '必殺：次は使えない'].filter(Boolean) as string[];
-      if (marks.length) ui.add(this.text(x, y + (MYTH_CARD_H * CARD_S) / 2 + 22, marks.join('・'), 22, '#ffd23a').setBackgroundColor('#0a0408cc').setPadding(10, 2, 10, 4));
+      const marks = [act.skip && STATUS_LABELS[act.skip], act.dot && STATUS_LABELS[act.dot], st.shield > 0 && `バリア${st.shield}`, st.specialLock && side === ME && '必殺は次のターン使えない'].filter(Boolean) as string[];
+      if (marks.length) ui.add(this.text(sx, y - ch / 2 + 90, marks.join('\n'), 20, '#ffd23a', 0).setBackgroundColor('#0a0408cc').setPadding(8, 2, 8, 4).setWordWrapWidth(W - sx - 24, true));
     }
-    // 攻撃の向きの矢印
-    const dir = attacking ? 1 : -1;
-    const arrow = this.text(W / 2, 330, dir > 0 ? '▶▶' : '◀◀', 64, attacking ? '#ff5a5a' : '#5aa8ff');
-    this.tweens.add({ targets: arrow, x: W / 2 + dir * 18, duration: 500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    // 攻撃の向きの矢印(自分の攻撃なら上へ、相手の攻撃なら下へ)
+    const arrow = this.text(W / 2, my - 24, attacking ? '▲▲' : '▼▼', 46, attacking ? '#ff5a5a' : '#5aa8ff');
+    this.tweens.add({ targets: arrow, y: my - 24 + (attacking ? -10 : 10), duration: 500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     ui.add(arrow);
     // メッセージ
-    this.message = this.text(W / 2, 572, this.message?.text ?? '', 28, '#ffffff').setBackgroundColor('#0a0408cc').setPadding(18, 6, 18, 8);
+    this.message = this.text(W / 2, my + 28, this.message?.text ?? '', 24, '#ffffff').setBackgroundColor('#0a0408cc').setPadding(14, 4, 14, 6);
     ui.add(this.message);
     this.buildButtons(ui);
   }
@@ -267,20 +296,20 @@ export class MythBattleScene extends Phaser.Scene {
         }));
     const canSwitch = legal.some((l) => l.type === 'switch');
     const all = [...kinds, { label: '交代', on: canSwitch }];
-    const gap = 20;
-    // AUTO の場所を残して、横の長さに入るように
-    const bw = Math.min(asleep ? 420 : 250, (W - 360 - gap * (all.length - 1)) / all.length);
+    const gap = 10;
+    // AUTO の場所(右はし)を残して、横に入るように
+    const bw = Math.min(asleep ? 280 : 150, (W - 130 - gap * (all.length - 1)) / all.length);
     const total = all.length * bw + (all.length - 1) * gap;
     all.forEach((b, i) => {
-      const x = W / 2 - total / 2 + bw / 2 + i * (bw + gap) - 60;
-      const y = 660;
+      const x = 16 + (W - 130 - total) / 2 + bw / 2 + i * (bw + gap);
+      const y = H - 66;
       const isSwitch = i === all.length - 1;
       const color = isSwitch ? 0x2a7a4a : attacking ? 0x8a1020 : 0x1a4a9a;
       const g = this.add.graphics();
       const enabled = b.on && !this.busy && this.s.winner === null;
       g.fillStyle(enabled ? color : 0x3a3040, 1).fillRoundedRect(x - bw / 2, y - 40, bw, 80, 12);
       g.lineStyle(3, enabled ? 0xd8b060 : 0x5a5060, 1).strokeRoundedRect(x - bw / 2, y - 40, bw, 80, 12);
-      const t = this.text(x, y, b.label, b.label.length > 6 ? 22 : 30, enabled ? '#ffffff' : '#8a8090');
+      const t = this.text(x, y, b.label, b.label.length > 6 ? 20 : b.label.length > 4 ? 24 : 28, enabled ? '#ffffff' : '#8a8090');
       ui.add([g, t]);
       if (!enabled) return;
       const hit = this.add.zone(x, y, bw, 80).setInteractive({ useHandCursor: true });
@@ -291,7 +320,7 @@ export class MythBattleScene extends Phaser.Scene {
       ui.add(hit);
     });
     // AUTO(自動で選ぶ)
-    this.autoBtn = this.text(W - 80, 660, 'AUTO', 26, this.auto ? '#16101c' : '#ffd23a').setBackgroundColor(this.auto ? '#ffd23a' : '#0a0408').setPadding(16, 14, 16, 16);
+    this.autoBtn = this.text(W - 58, H - 66, 'AUTO', 22, this.auto ? '#16101c' : '#ffd23a').setBackgroundColor(this.auto ? '#ffd23a' : '#0a0408').setPadding(16, 14, 16, 16);
     this.autoBtn.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
       this.auto = !this.auto;
       audio.se('tap');
@@ -343,10 +372,10 @@ export class MythBattleScene extends Phaser.Scene {
   }
 
   private showTimer(): void {
-    if (!this.timerText) this.timerText = this.text(W / 2, 140, '', 34, '#ffffff').setDepth(350).setPadding(14, 4, 14, 6);
+    if (!this.timerText) this.timerText = this.text(W - 62, midY(), '', 30, '#ffffff').setDepth(350).setPadding(14, 4, 14, 6);
     const low = this.timeLeft <= 10;
     // カードを選んでいるときは、選ぶ画面の上に出す
-    this.timerText.setPosition(W / 2, this.chooser ? 130 : 140).setVisible(true).setText(`⏱ ${this.timeLeft}`).setColor(low ? '#ff4a4a' : '#ffffff').setBackgroundColor(low ? '#3a0a10dd' : '#0a0408cc');
+    this.timerText.setPosition(this.chooser ? W / 2 : W - 62, this.chooser ? H / 2 - 270 : midY() - 4).setVisible(true).setText(`⏱ ${this.timeLeft}`).setColor(low ? '#ff4a4a' : '#ffffff').setBackgroundColor(low ? '#3a0a10dd' : '#0a0408cc');
   }
 
   /** 【仮】時間切れ: 攻撃側なら通常攻撃、防御側なら防御(眠っていれば「動けない」) */
@@ -377,11 +406,11 @@ export class MythBattleScene extends Phaser.Scene {
     const box = this.add.container(0, 0).setDepth(300);
     this.chooser = box;
     const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.75).setOrigin(0, 0).setInteractive();
-    box.add([dim, this.text(W / 2, 70, mode === 'down' ? '次に出すカードを えらんでね' : '交代するカードを えらんでね', 40, mode === 'down' ? '#ff8a8a' : '#7dffa0')]);
+    box.add([dim, this.text(W / 2, H / 2 - 330, mode === 'down' ? '次に出すカードを えらんでね' : '交代するカードを えらんでね', 40, mode === 'down' ? '#ff8a8a' : '#7dffa0')]);
     const s = 1.0;
     options.forEach(({ c, i }, k) => {
-      const x = W / 2 + (k - (options.length - 1) / 2) * (MYTH_CARD_W * s + 60);
-      const y = 340;
+      const x = W / 2 + (k - (options.length - 1) / 2) * (MYTH_CARD_W * s * 0.9 + 40);
+      const y = H / 2;
       const img = this.add.image(x, y, this.cardTexture(c.id, false)).setScale(s * 0.8);
       this.tweens.add({ targets: img, scale: s * 0.9, duration: 180, ease: 'Back.easeOut' });
       const hp = this.text(x, y + (MYTH_CARD_H * s * 0.9) / 2 + 26, `HP ${c.hp} / ${c.def.maxHp}${c.skip ? '・' + STATUS_LABELS[c.skip] : ''}${c.dot ? '・' + STATUS_LABELS[c.dot] : ''}`, 26, '#ffffff');
@@ -389,7 +418,7 @@ export class MythBattleScene extends Phaser.Scene {
       box.add([img, hp]);
     });
     if (mode === 'switch') {
-      const cancel = this.text(W / 2, 660, 'やめる', 32, '#ffffff').setBackgroundColor('#8a35e0').setPadding(28, 8, 28, 10).setInteractive({ useHandCursor: true });
+      const cancel = this.text(W / 2, H / 2 + 300, 'やめる', 32, '#ffffff').setBackgroundColor('#8a35e0').setPadding(28, 8, 28, 10).setInteractive({ useHandCursor: true });
       cancel.on('pointerdown', () => {
         audio.se('back');
         box.destroy();
@@ -456,7 +485,7 @@ export class MythBattleScene extends Phaser.Scene {
         const img = this.cardImg[e.side];
         const from = cardPos(e.side);
         const to = cardPos(e.side === ME ? CPU : ME);
-        const lunge = () => img && this.tweens.add({ targets: img, x: img.x + (e.side === ME ? 90 : -90), duration: 120, yoyo: true, ease: 'Cubic.easeOut' });
+        const lunge = () => img && this.tweens.add({ targets: img, y: img.y + (e.side === ME ? -80 : 80), duration: 120, yoyo: true, ease: 'Cubic.easeOut' });
         this.say(`${name(e.id)}の ${ACTION_LABELS[e.kind]}！`, e.side === ME ? '#ff8a8a' : '#8ac4ff');
         if (e.kind === 'magic') {
           // 属性ごとの魔法の演出と音(雷なら相手に雷が落ちる。企画者 2026-10-26)
@@ -588,15 +617,14 @@ export class MythBattleScene extends Phaser.Scene {
     // まだ見せていないカードのHPは出さない(相手の場のカードは出ているので見せてよい)
     const max = act.def.maxHp;
     const hp = this.shownHp[side];
-    const left = side === ME;
-    const px = panelX(side);
-    const bw = panelW() - 160;
+    const mine = side === ME;
+    const top = panelY(side) - 42;
+    const bx = 40;
+    const bw = W - 240;
     bar.clear();
-    // 自分は左から、相手は右から(真ん中を向く)
-    const bx = left ? px + 20 : px + 140;
-    bar.fillStyle(0x000000, 1).fillRoundedRect(bx, 58, bw, 26, 8);
+    bar.fillStyle(0x000000, 1).fillRoundedRect(bx, top + 46, bw, 24, 8);
     const rate = Math.max(0, Math.min(1, hp / max));
-    bar.fillStyle(left ? 0xd83030 : 0x2a7ae8, 1).fillRoundedRect(left ? bx : bx + bw * (1 - rate), 58, Math.max(1, bw * rate), 26, 8);
+    bar.fillStyle(mine ? 0xd83030 : 0x2a7ae8, 1).fillRoundedRect(bx, top + 46, Math.max(1, bw * rate), 24, 8);
     this.hpText[side]?.setText(`${hp} / ${max}`);
   }
 
@@ -616,12 +644,12 @@ export class MythBattleScene extends Phaser.Scene {
     audio.se(win ? 'cheer' : 'back');
     const box = this.add.container(0, 0).setDepth(100);
     const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.7).setOrigin(0, 0).setInteractive();
-    const t = this.text(W / 2, 250, label, 110, win ? '#ffd23a' : w === 'draw' ? '#ffffff' : '#8ac4ff').setStroke('#16101c', 14).setScale(0.3);
+    const t = this.text(W / 2, H / 2 - 150, label, 110, win ? '#ffd23a' : w === 'draw' ? '#ffffff' : '#8ac4ff').setStroke('#16101c', 14).setScale(0.3);
     this.tweens.add({ targets: t, scale: 1, duration: 420, ease: 'Back.easeOut' });
-    const sub = this.text(W / 2, 360, `${this.s.round - 1}ターンで決着`, 30, '#ffffff');
-    const again = this.text(W / 2 - 170, 480, 'もう一度', 36, '#16101c').setBackgroundColor('#ffd23a').setPadding(28, 10, 28, 12).setInteractive({ useHandCursor: true });
+    const sub = this.text(W / 2, H / 2 - 40, `${this.s.round - 1}ターンで決着`, 30, '#ffffff');
+    const again = this.text(W / 2 - 150, H / 2 + 80, 'もう一度', 36, '#16101c').setBackgroundColor('#ffd23a').setPadding(28, 10, 28, 12).setInteractive({ useHandCursor: true });
     again.on('pointerdown', () => this.scene.restart());
-    const back = this.text(W / 2 + 170, 480, 'もどる', 36, '#ffffff').setBackgroundColor('#8a35e0').setPadding(28, 10, 28, 12).setInteractive({ useHandCursor: true });
+    const back = this.text(W / 2 + 150, H / 2 + 80, 'もどる', 36, '#ffffff').setBackgroundColor('#8a35e0').setPadding(28, 10, 28, 12).setInteractive({ useHandCursor: true });
     back.on('pointerdown', () => this.leave());
     box.add([dim, t, sub, again, back]);
   }
