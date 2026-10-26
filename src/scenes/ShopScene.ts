@@ -7,6 +7,8 @@ import { canvasTexture, canvasTextureOnce, UI_FONT } from '../ui/paint';
 import { preloadPacks } from '../render/packs';
 import { assetUrl } from '../assetUrl';
 import { homeIconKey, homeImageKey, homePlace } from './HomeScene';
+import { MYTH_PACK_FILE, MYTH_PACK_IMAGE, openPackBuy } from '../ui/packBuy';
+import { PACK_PRICE } from '../core/mythclash/packs';
 
 const W = 720;
 const H = 1280;
@@ -30,7 +32,8 @@ const SERIES_COLORS: Record<FurnitureSeries, { bg: number; fg: string }> = {
 
 /**
  * ショップとアイテムボックス(企画者決定 2026-10-21)。
- * - ショップ: タブは「家具」「引越し券」(コスチュームは後回し)。コインで買う。買った物はアイテムボックスに入る
+ * - ショップ: タブは「家具」「その他」(コスチュームは後回し)。その他は 引越し券 と MYTHCLASH のカードパック(企画者決定 2026-10-26)。
+ *   コインで買う。いくつかまとめて買える(2026-10-26)。買った物はアイテムボックスに入る。カードパックは買うとすぐ開ける
  * - アイテムボックス: タブは「家具」「その他」。家具は「部屋に置く」、引越し券は「引っ越す？」へ
  * 家具はシリーズ(STREET・POP・CYBER)で切りかえる。どの部屋にも、どのシリーズでも置ける。
  * 【仮】家具の絵がまだないので、カードには名前と色だけを出す。
@@ -49,9 +52,10 @@ export class ShopScene extends Phaser.Scene {
     super('Shop');
   }
 
-  init(data: { mode?: ItemScreenMode }): void {
+  init(data: { mode?: ItemScreenMode; tab?: Tab }): void {
     this.mode = data?.mode ?? 'shop';
-    this.tab = 'furniture';
+    // カードパックを開けて戻ってきたときは「その他」のまま
+    this.tab = data?.tab ?? 'furniture';
     this.busy = false;
   }
 
@@ -61,6 +65,7 @@ export class ShopScene extends Phaser.Scene {
       const f = FURNITURE.find((x) => x.id === id);
       if (f && !this.textures.exists(furnitureKey(id))) this.load.image(furnitureKey(id), assetUrl(f.file));
     }
+    if (this.mode === 'shop' && !this.textures.exists(MYTH_PACK_IMAGE)) this.load.image(MYTH_PACK_IMAGE, assetUrl(MYTH_PACK_FILE));
   }
 
   create(): void {
@@ -116,7 +121,7 @@ export class ShopScene extends Phaser.Scene {
     chrome.removeAll(true);
     const tabs: [Tab, string][] = [
       ['furniture', '家具'],
-      ['other', this.mode === 'shop' ? '引越し券' : 'その他'],
+      ['other', 'その他'],
     ];
     tabs.forEach(([tab, label], i) => {
       const x = W / 2 + (i - 0.5) * 330;
@@ -204,6 +209,32 @@ export class ShopScene extends Phaser.Scene {
       c.add(hit);
       list.add(c);
     });
+    if (this.mode === 'shop') list.add(this.packRow(30, 260 + others.length * 250));
+  }
+
+  /** MYTHCLASH のカードパック(買うとすぐ開ける。アイテムボックスには入らない) */
+  private packRow(x: number, y: number): Phaser.GameObjects.Container {
+    const c = this.add.container(x, y);
+    const g = this.add.graphics();
+    g.fillStyle(0xfbf1dc, 1).fillRoundedRect(0, 0, W - 60, 220, 20);
+    g.lineStyle(6, 0x16101c, 1).strokeRoundedRect(0, 0, W - 60, 220, 20);
+    g.fillStyle(0x1c1320, 1).fillRoundedRect(24, 14, 170, 192, 14);
+    c.add(g);
+    if (this.textures.exists(MYTH_PACK_IMAGE)) {
+      const img = this.add.image(109, 110, MYTH_PACK_IMAGE);
+      img.setScale(178 / img.height);
+      c.add(img);
+    }
+    c.add([this.t(220, 40, 'カードパック', 36, INK, 0, 0), this.t(220, 96, 'MYTHCLASH のカードが1枚', 24, '#5a4a66', 0, 0), this.priceRow(220, 160, PACK_PRICE)]);
+    c.add(this.t(W - 90, 176, '10パックもある', 22, '#5a4a66', 1, 0.5));
+    const hit = this.add.zone(0, 0, W - 60, 220).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+    hit.on('pointerdown', () => {
+      if (this.busy) return;
+      this.busy = true;
+      openPackBuy(this, { back: 'Shop', backData: { mode: 'shop', tab: 'other' }, bgm: 'home', record: this.record, onClose: () => (this.busy = false) });
+    });
+    c.add(hit);
+    return c;
   }
 
   private priceRow(x: number, y: number, price: number): Phaser.GameObjects.Container {
@@ -295,36 +326,113 @@ export class ShopScene extends Phaser.Scene {
     this.tweens.add({ targets: box, alpha: 1, duration: 140 });
   }
 
+  /** 買う確認。−・＋で数を変えて、まとめて買える(企画者決定 2026-10-26) */
   private confirmBuy(id: string, name: string, price: number): void {
     if (this.busy) return;
     audio.se('tap');
-    const enough = (this.record?.coins ?? 0) >= price;
-    this.dialog(
-      [
-        { text: `${name}を買う？`, size: 36 },
-        { text: `${price.toLocaleString()} コイン`, size: 30, color: '#c2410c' },
-        ...(enough ? [] : [{ text: 'コインが たりません', size: 26, color: '#c2410c' }]),
-      ],
-      [
-        { label: 'やめる', kind: 'no', onTap: () => audio.se('back') },
-        { label: ' 買う ', kind: enough ? 'yes' : 'off', onTap: () => this.buy(id) },
-      ],
-    );
+    this.busy = true;
+    const coins = this.record?.coins ?? 0;
+    const max = Math.max(1, Math.min(99, Math.floor(coins / price)));
+    let n = 1;
+    const box = this.add.container(0, 0).setDepth(100);
+    const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.55).setOrigin(0, 0).setInteractive();
+    const h = 520;
+    const top = H / 2 - h / 2;
+    const g = this.add.graphics();
+    g.fillStyle(0xfbf1dc, 1).fillRoundedRect(60, top, W - 120, h, 24);
+    g.lineStyle(8, 0x16101c, 1).strokeRoundedRect(60, top, W - 120, h, 24);
+    const title = this.t(W / 2, top + 60, `${name}を買う？`, 34).setWordWrapWidth(W - 180, true);
+    const unit = this.t(W / 2, top + 118, `1つ ${price.toLocaleString()} コイン`, 24, '#5a4a66');
+    const count = this.t(W / 2, top + 200, '', 56);
+    const total = this.t(W / 2, top + 280, '', 30, '#c2410c');
+    const warn = this.t(W / 2, top + 326, '', 24, '#c2410c');
+    box.add([dim, g, title, unit, count, total, warn]);
+    let buyBtn: Phaser.GameObjects.Text | null = null;
+    const refresh = () => {
+      const enough = coins >= price * n;
+      count.setText(`× ${n}`);
+      total.setText(`${(price * n).toLocaleString()} コイン`);
+      warn.setText(enough ? '' : 'コインが たりません');
+      buyBtn?.setBackgroundColor(enough ? '#ffd23a' : '#9a9098').setColor(enough ? INK : '#ffffff');
+    };
+    const step = (x: number, label: string, d: number) =>
+      this.button(x, top + 200, label, 44, () => {
+        const next = Math.max(1, Math.min(max, n + d));
+        if (next === n) return;
+        audio.se('tap');
+        n = next;
+        refresh();
+      }, 'no').setPadding(26, 2, 26, 8);
+    box.add([step(W / 2 - 170, '－', -1), step(W / 2 + 170, '＋', 1)]);
+    const close = () => {
+      box.destroy();
+      this.busy = false;
+    };
+    box.add(this.button(W / 2 - 120, top + h - 70, 'やめる', 32, () => {
+      audio.se('back');
+      close();
+    }, 'no'));
+    buyBtn = this.button(W / 2 + 120, top + h - 70, ' 買う ', 32, () => {
+      if (coins < price * n) return;
+      close();
+      this.buy(id, n);
+    });
+    box.add(buyBtn);
+    refresh();
+    box.setAlpha(0);
+    this.tweens.add({ targets: box, alpha: 1, duration: 140 });
   }
 
-  private buy(id: string): void {
+  private buy(id: string, n: number): void {
     const record = this.record!;
-    if (!record.buy(id)) return;
+    const got = record.buyMany(id, n);
+    if (!got) return;
     audio.se('select');
     this.showCoins();
     this.drawList();
-    const got = record.lastBought;
-    if (MYSTERY_ITEMS[id] && got && this.textures.exists(furnitureKey(got))) {
-      // 金マッチョ: 当たった像を見せる
-      this.dialog([{ text: 'これが当たった！', size: 34 }, { text: '', size: 0, image: furnitureKey(got) }, { text: 'アイテムボックスに入れました', size: 26 }], []);
+    if (MYSTERY_ITEMS[id]) {
+      if (got.length === 1 && this.textures.exists(furnitureKey(got[0]))) {
+        // 金マッチョ: 当たった像を見せる
+        this.dialog([{ text: 'これが当たった！', size: 34 }, { text: '', size: 0, image: furnitureKey(got[0]) }, { text: 'アイテムボックスに入れました', size: 26 }], []);
+        return;
+      }
+      // まとめて買ったときは、当たった物の名前と数
+      const tally = new Map<string, number>();
+      for (const g of got) tally.set(g, (tally.get(g) ?? 0) + 1);
+      this.prizeDialog(tally);
       return;
     }
-    this.dialog([{ text: 'アイテムボックスに\n入れました！', size: 34 }], []);
+    this.dialog([{ text: got.length > 1 ? `${got.length}こ\nアイテムボックスに\n入れました！` : 'アイテムボックスに\n入れました！', size: 34 }], []);
+  }
+
+  /** まとめて買った ふくびきの家具: 当たった像を並べて、それぞれの数を出す。さわると閉じる */
+  private prizeDialog(tally: Map<string, number>): void {
+    this.busy = true;
+    const box = this.add.container(0, 0).setDepth(100);
+    const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.55).setOrigin(0, 0).setInteractive();
+    const h = 520;
+    const top = H / 2 - h / 2;
+    const g = this.add.graphics();
+    g.fillStyle(0xfbf1dc, 1).fillRoundedRect(60, top, W - 120, h, 24);
+    g.lineStyle(8, 0x16101c, 1).strokeRoundedRect(60, top, W - 120, h, 24);
+    box.add([dim, g, this.t(W / 2, top + 56, 'これが当たった！', 34)]);
+    const items = [...tally];
+    items.forEach(([id, k], i) => {
+      const x = W / 2 + (i - (items.length - 1) / 2) * 260;
+      if (this.textures.exists(furnitureKey(id))) {
+        const img = this.add.image(x, top + 250, furnitureKey(id));
+        img.setScale(Math.min(220 / img.height, 220 / img.width));
+        box.add(img);
+      }
+      box.add(this.t(x, top + 390, `× ${k}`, 40));
+    });
+    box.add(this.t(W / 2, top + h - 50, 'アイテムボックスに入れました', 26));
+    this.time.delayedCall(250, () =>
+      dim.once('pointerdown', () => {
+        box.destroy();
+        this.busy = false;
+      }),
+    );
   }
 
   private useFurniture(f: FurnitureDef): void {

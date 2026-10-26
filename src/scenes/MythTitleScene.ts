@@ -2,6 +2,8 @@ import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { preloadPacks } from '../render/packs';
 import { UI_FONT } from '../ui/paint';
+import { loadLife } from '../core/lifeSave';
+import { MYTH_PACK_IMAGE, openPackBuy } from '../ui/packBuy';
 
 /** 企画者のタイトルの絵(design/mythclash/title.png・1448x1086)。画面の大きさも絵と同じにする(横向き) */
 export const MYTH_TITLE_IMAGE = 'myth:title';
@@ -72,8 +74,32 @@ export class MythTitleScene extends Phaser.Scene {
       this.cameras.main.fadeOut(200, 0, 0, 0);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('BattleMenu'));
     });
+    this.buildPackButton();
     this.cameras.main.fadeIn(300, 0, 0, 0);
     audio.playBgm('mythclash');
+  }
+
+  /** パックを買う(企画者決定 2026-10-26: タイトル画面からも買える)。【仮】絵にないので、左下の空いている所に出す */
+  private buildPackButton(): void {
+    const x = 180;
+    const y = 770;
+    const glow = this.add.circle(x, y, 190, 0xffd23a, 0.18);
+    this.tweens.add({ targets: glow, scale: 1.15, alpha: 0.05, duration: 1000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    const pack = this.add.image(x, y, MYTH_PACK_IMAGE).setAngle(-8);
+    pack.setScale(330 / pack.height);
+    this.tweens.add({ targets: pack, y: y - 12, duration: 1200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    const label = this.add
+      .text(x, y + 205, 'パックを買う', { fontFamily: UI_FONT, fontSize: '36px', fontStyle: '900', color: '#16101c', backgroundColor: '#ffd23a', padding: { x: 20, y: 8 } })
+      .setOrigin(0.5);
+    this.add.text(x, y + 262, `コイン ${loadLife().coins.toLocaleString()}`, { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '900', color: '#ffffff', stroke: '#16101c', strokeThickness: 6 }).setOrigin(0.5);
+    let open = false;
+    for (const o of [pack, label]) {
+      o.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
+        if (open) return;
+        open = true;
+        openPackBuy(this, { back: 'MythTitle', bgm: 'mythclash', onClose: () => (open = false) });
+      });
+    }
   }
 
   private toast(msg: string): void {

@@ -10,6 +10,8 @@ import { drawPrize, furniture, isFurniture, itemPrice, MOVE_TICKET, MYSTERY_ITEM
 import { catchUp, dayKey, expToNext, levelUpCoins, newNeeds, NEEDS_RULES, stepNeeds, isNight, type Needs } from './needs';
 import type { KeyValueStore } from './save';
 import { isSpecies, type SpeciesId } from './species';
+import { addCards, fixCollection, newCollection, openPacks, PACK_PRICE, type MythCollection } from './mythclash/packs';
+import type { Rng } from './rng';
 import { addStats, autoGrowthAt, currentStats, FREE_POINTS_PER_LEVEL, levelUpRng, LOVE_RULES, rollAutoGrowth, STAT_KEYS, STAT_MAX, zeroStats, type StatBlock, type StatKey } from './stats';
 
 export const LIFE_KEY = 'monz:life';
@@ -90,6 +92,8 @@ export interface LifeData {
   claimed: string[];
   /** ミニゲームごとの自分の最高記録(将来のランキング用にも) */
   records: Record<string, MinigameRecord>;
+  /** MYTHCLASH の持っているカード(はじめてパックを買ったときにできる。古いデータには無い = 0枚) */
+  mythclash?: MythCollection;
 }
 
 export interface MinigameRecord {
@@ -200,6 +204,7 @@ export function migrateLife(raw: unknown, now = Date.now()): LifeData | null {
     lastSeen: num(d.lastSeen, now),
     claimed: Array.isArray(d.claimed) ? (d.claimed as unknown[]).map(String).slice(-CLAIMED_KEEP) : [],
     records: d.records && typeof d.records === 'object' ? (d.records as Record<string, MinigameRecord>) : {},
+    ...(d.mythclash ? { mythclash: fixCollection(d.mythclash) } : {}),
   };
 }
 
@@ -248,14 +253,18 @@ export function clearLife(store = defaultStore()): void {
   }
 }
 
-export function saveLife(data: LifeData, store = defaultStore()): void {
+/** 保存する。保存できたら true(保存できない環境では false。止まらない) */
+export function saveLife(data: LifeData, store = defaultStore()): boolean {
   try {
     // 今保存されている正しいデータを予備に残してから、新しいデータを保存する
     const current = store?.getItem(LIFE_KEY);
     if (current && readKey(store, LIFE_KEY)) store?.setItem(LIFE_BACKUP_KEY, current);
-    store?.setItem(LIFE_KEY, JSON.stringify(data));
+    if (!store) return false;
+    store.setItem(LIFE_KEY, JSON.stringify(data));
+    return true;
   } catch {
     /* 保存できなくても続ける */
+    return false;
   }
 }
 
@@ -328,10 +337,10 @@ export class LifeRecord {
   }
 
   /** データを変えて保存する(save=false なら保存はあとで) */
-  private update(patch: Partial<LifeData>, monzPatch?: Partial<MonzData>, save = true): void {
+  private update(patch: Partial<LifeData>, monzPatch?: Partial<MonzData>, save = true): boolean {
     const uid = this.monz.uid;
     this.data = { ...this.data, ...patch, monz: monzPatch ? this.data.monz.map((m) => (m.uid === uid ? { ...m, ...monzPatch } : m)) : (patch.monz ?? this.data.monz) };
-    if (save) saveLife(this.data, this.store);
+    return save ? saveLife(this.data, this.store) : true;
   }
 
   add(n: number): void {
@@ -379,17 +388,56 @@ export class LifeRecord {
    * ふくびきの家具(金マッチョ)は、当たった家具がアイテムボックスに入る(lastBought)。rand: 当たりを選ぶ乱数
    */
   buy(id: string, rand: () => number = Math.random): boolean {
+    return this.buyMany(id, 1, rand) !== null;
+  }
+
+  /**
+   * まとめて買う(企画者決定 2026-10-26: 家具もふくめて、まとめて買える)。手に入れた物の一覧を返す(買えなければ null)。
+   * ふくびきの家具は1つずつ当たりを選ぶ。コインと持ち物は1回で変える
+   */
+  buyMany(id: string, count: number, rand: () => number = Math.random): string[] | null {
     const price = itemPrice(id);
+    const n = Math.floor(count);
     // VIPの家具は、VIPルームを開放してから。当たりの家具はショップでは買えない
-    if (furniture(id)?.series === 'vip' && !this.data.vipOpen) return false;
-    if (furniture(id)?.prize) return false;
-    if (price === undefined || !this.spend(price)) return false;
+    if (furniture(id)?.series === 'vip' && !this.data.vipOpen) return null;
+    if (furniture(id)?.prize) return null;
+    if (price === undefined || !(n >= 1) || price * n > this.data.coins) return null;
     const inv = this.data.inventory;
-    const got = drawPrize(id, rand());
-    this.lastBought = got;
+    const got = Array.from({ length: n }, () => drawPrize(id, rand()));
+    this.lastBought = got[got.length - 1];
     // 引越し券を買うと、4つめの部屋が見つかる(それまでは存在を知らせない)
-    this.update({ inventory: { ...inv, owned: [...inv.owned, got] }, ...(id === MOVE_TICKET ? { secretRoom: true } : {}) });
-    return true;
+    this.update({ coins: this.data.coins - price * n, inventory: { ...inv, owned: [...inv.owned, ...got] }, ...(id === MOVE_TICKET ? { secretRoom: true } : {}) });
+    this.emit({ type: 'coins', coins: this.data.coins, delta: -price * n });
+    return got;
+  }
+
+  // ---------------- MYTHCLASH のカードパック ----------------
+
+  get mythclash(): MythCollection {
+    return this.data.mythclash ?? newCollection();
+  }
+
+  /**
+   * カードパックを買って開ける(1パック1枚)。コインと持っているカードを1回の保存でいっしょに変える。
+   * - purchaseId: 買うボタンを出すたびに作る番号。同じ番号では2回買えない(二重の購入を防ぐ)
+   * - 保存に失敗したら、元にもどして null(コインもカードも変わらない)
+   * 返すもの: 出たカード(順番どおり)と、はじめて手に入れたカード
+   */
+  buyPacks(count: number, purchaseId: string, rng: Rng): { cards: number[]; newIds: number[] } | null {
+    const n = Math.floor(count);
+    const cost = PACK_PRICE * n;
+    if (!(n >= 1) || cost > this.data.coins || this.data.claimed.includes(purchaseId)) return null;
+    const before = this.data;
+    const col = this.mythclash;
+    const cards = openPacks(n, rng);
+    const newIds = [...new Set(cards)].filter((id) => !col.owned[id]);
+    const ok = this.update({ coins: before.coins - cost, mythclash: addCards(col, cards), claimed: [...before.claimed, purchaseId].slice(-CLAIMED_KEEP) });
+    if (!ok) {
+      this.data = before;
+      return null;
+    }
+    this.emit({ type: 'coins', coins: this.data.coins, delta: -cost });
+    return { cards, newIds };
   }
 
   /** アイテムボックスの家具を部屋に置く。置いた家具の番号(なければ null)。置ける場所かどうかは画面の側で確かめる */
