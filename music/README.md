@@ -11,6 +11,7 @@ Claude Code が、音量をそろえてから `public/assets/bgm/` に入れ、`
 | DASH MONZ | dash.m4a | public/assets/bgm/dash.mp3 |
 | MONZ SLUGGER | slugger_Diamond_Glory.m4a | public/assets/bgm/slugger.mp3 |
 | MYTHCLASH | mythclash_Shadowy_Contour.m4a | public/assets/bgm/mythclash.mp3 |
+| MYTHCLASH パック開封 | mythclash_pack.m4a | public/assets/bgm/mythclash_pack.mp3 |
 
 - 歌・ラップなし（インスト）。
 - アプリで公開してよい（商用利用できる）曲だけを使う。

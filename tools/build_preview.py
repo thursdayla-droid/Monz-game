@@ -42,7 +42,11 @@ for p in paths:
     else:
         Image.open(pub + p).convert('RGBA').save(b, 'WEBP', lossless=True, quality=100, method=4)
     assets[p] = 'data:image/webp;base64,' + base64.b64encode(b.getvalue()).decode()
+# まだ画面で使っていない曲は、確認用ページに入れない(ページの大きさの上限 16MB のため)。使う画面ができたら外す
+BGM_NOT_YET = {'assets/bgm/mythclash_pack.mp3'}
 for p in sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/bgm/*.mp3')):
+    if p in BGM_NOT_YET:
+        continue
     # 確認用ページの大きさの上限(16MB)のため、曲は軽く(モノラル24kbps・2026-10-26 に28kから下げた)して埋め込む。ゲーム本体は元の音質のまま
     import subprocess, tempfile
     tmp = tempfile.mktemp(suffix='.mp3')

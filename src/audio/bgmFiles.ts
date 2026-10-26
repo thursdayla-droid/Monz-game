@@ -7,8 +7,9 @@
  * - dash: ミニゲーム DASH MONZ(2026-10-20 企画者決定。元は music/dash.m4a)
  * - slugger: 「Diamond Glory」ミニゲーム MONZ SLUGGER(2026-10-21 企画者決定)
  * - mythclash: 「Shadowy Contour」カードゲーム MYTHCLASH(2026-10-26 企画者決定)
+ * - mythclashPack: MYTHCLASH のパック開封(2026-10-26 企画者決定。開封の画面はまだ。元は music/mythclash_pack.m4a)
  */
-export type BgmName = 'main' | 'home' | 'card' | 'dash' | 'slugger' | 'mythclash';
+export type BgmName = 'main' | 'home' | 'card' | 'dash' | 'slugger' | 'mythclash' | 'mythclashPack';
 
 export interface BgmFile {
   file: string;
@@ -23,4 +24,5 @@ export const BGM_FILES: Record<BgmName, BgmFile> = {
   dash: { file: 'dash.mp3', loop: true },
   slugger: { file: 'slugger.mp3', loop: true },
   mythclash: { file: 'mythclash.mp3', loop: true },
+  mythclashPack: { file: 'mythclash_pack.mp3', loop: true },
 };
