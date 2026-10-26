@@ -9,6 +9,7 @@ import { activeCard, createBattle, legalActions, replaceDowned, resolveRound, ty
 import { battleUnlocked, newCollection } from '../core/mythclash/packs';
 import { aiAction, randomDeck } from '../core/mythclash/sim';
 import { eventsFor, viewFor, type BattleView } from '../core/mythclash/view';
+import { halved, incomingEstimates } from '../core/mythclash/estimate';
 import { mulberry32, newSeed, type Rng } from '../core/rng';
 import { preloadPacks } from '../render/packs';
 import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W } from '../ui/mythCardArt';
@@ -68,6 +69,7 @@ export class MythBattleScene extends Phaser.Scene {
   private shownHp: Record<Side, number> = { 0: 0, 1: 0 };
   private hpBar: Partial<Record<Side, Phaser.GameObjects.Graphics>> = {};
   private hpText: Partial<Record<Side, Phaser.GameObjects.Text>> = {};
+  private cardHpBar: Partial<Record<Side, { bar: Phaser.GameObjects.Graphics; text: Phaser.GameObjects.Text; x: number; y: number; w: number }>> = {};
   private message?: Phaser.GameObjects.Text;
   private autoBtn?: Phaser.GameObjects.Text;
 
@@ -85,6 +87,7 @@ export class MythBattleScene extends Phaser.Scene {
     this.cardImg = {};
     this.hpBar = {};
     this.hpText = {};
+    this.cardHpBar = {};
   }
 
   preload(): void {
@@ -194,6 +197,7 @@ export class MythBattleScene extends Phaser.Scene {
 
   private render(): void {
     this.ui?.destroy();
+    this.cardHpBar = {};
     const ui = this.add.container(0, 0);
     this.ui = ui;
     const v = this.view;
@@ -268,12 +272,19 @@ export class MythBattleScene extends Phaser.Scene {
       const sx = x + cw / 2 + 22;
       const tag = this.text(sx, y - ch / 2 + 26, isAtk ? '⚔ ATTACK' : '🛡 DEFENSE', 26, '#ffffff', 0).setBackgroundColor(isAtk ? '#c0182a' : '#1f5fc8').setPadding(12, 4, 12, 6);
       ui.add([glow, img, tag]);
+      // 札の下にも HP バー(企画者 2026-10-26)
+      const cbar = this.add.graphics();
+      const chp = this.text(sx, y - ch / 2 + 92, '', 20, '#ffffff', 0);
+      this.cardHpBar[side] = { bar: cbar, text: chp, x: sx, y: y - ch / 2 + 62, w: W - sx - 22 };
+      ui.add([cbar, chp]);
+      this.drawHp(side);
       img.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.zoom(side, this.s.teams[side].active));
       // 状態(眠り・毒など)は、札の下に
       const st = this.s.teams[side].cards[this.s.teams[side].active];
       const marks = [act.skip && STATUS_LABELS[act.skip], act.dot && STATUS_LABELS[act.dot], st.shield > 0 && `バリア${st.shield}`, st.specialLock && side === ME && '必殺は次のターン使えない'].filter(Boolean) as string[];
-      if (marks.length) ui.add(this.text(sx, y - ch / 2 + 90, marks.join('\n'), 20, '#ffd23a', 0).setBackgroundColor('#0a0408cc').setPadding(8, 2, 8, 4).setWordWrapWidth(W - sx - 24, true));
+      if (marks.length) ui.add(this.text(sx, y - ch / 2 + 128, marks.join('\n'), 20, '#ffd23a', 0).setBackgroundColor('#0a0408cc').setPadding(8, 2, 8, 4).setWordWrapWidth(W - sx - 24, true));
     }
+    this.buildEstimate(ui);
     // 攻撃の向きの矢印(自分の攻撃なら上へ、相手の攻撃なら下へ)
     const arrow = this.text(W / 2, my - 24, attacking ? '▲▲' : '▼▼', 46, attacking ? '#ff5a5a' : '#5aa8ff');
     this.tweens.add({ targets: arrow, y: my - 24 + (attacking ? -10 : 10), duration: 500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
@@ -282,6 +293,39 @@ export class MythBattleScene extends Phaser.Scene {
     this.message = this.text(W / 2, my + 28, this.message?.text ?? '', 24, '#ffffff').setBackgroundColor('#0a0408cc').setPadding(14, 4, 14, 6);
     ui.add(this.message);
     this.buildButtons(ui);
+  }
+
+  /**
+   * 左の空いている所に、相手の攻撃で受けるダメージの目安(企画者 2026-10-26)。
+   * 通常攻撃・必殺技は相手のカードが出たらわかる。魔法は、相手のそのカードが一度使ったら次のターンからわかる
+   */
+  private buildEstimate(ui: Phaser.GameObjects.Container): void {
+    // 出来事を見せている間は出さない(まだ見せていない、次に出てくるカードの目安が出てしまわないように)
+    if (this.busy || this.s.winner !== null || this.s.pending?.length) return;
+    const v = this.view;
+    if (!v.opponent.some((c) => !c.hidden && c.active) || !v.me.some((c) => !c.hidden && c.active && !c.down)) return;
+    const est = incomingEstimates(this.s, ME);
+    const p = cardPos(CPU);
+    const x0 = 12;
+    const w = W / 2 - (MYTH_CARD_W * cardScale()) / 2 - 24;
+    const top = p.y - cardH() / 2 + 6;
+    const r = (d: { min: number; max: number }) => (d.min === d.max ? `${d.min}` : `${d.min}〜${d.max}`);
+    const rows: [string, string, string][] = [
+      ['通常攻撃', r(est.normal), `防御で ${r(halved(est.normal))}`],
+      ['必殺技', est.specialLocked ? '次は来ない' : r(est.special), est.specialLocked ? '' : 'カウンターで はね返せる'],
+      ['魔法', est.magic ? r(est.magic) : '？？？', est.magic ? `魔法防御で ${r(halved(est.magic))}` : '使われたらわかる'],
+    ];
+    const h = 44 + rows.length * 74;
+    const g = this.add.graphics();
+    g.fillStyle(0x0a0408, 0.82).fillRoundedRect(x0, top, w, h, 12);
+    g.lineStyle(2, 0x2a6ad8, 1).strokeRoundedRect(x0, top, w, h, 12);
+    ui.add([g, this.text(x0 + w / 2, top + 20, '相手から受ける目安', 18, '#8ac4ff')]);
+    rows.forEach(([label, val, note], i) => {
+      const y = top + 50 + i * 74;
+      ui.add(this.text(x0 + 12, y, label, 18, '#b8a8c8', 0));
+      ui.add(this.text(x0 + w - 12, y + 22, val, val.length > 6 ? 22 : 28, est.magic || i < 2 ? '#ffffff' : '#8a7a90', 1));
+      if (note) ui.add(this.text(x0 + 12, y + 50, note, 15, '#a89ab8', 0));
+    });
   }
 
   private buildButtons(ui: Phaser.GameObjects.Container): void {
@@ -638,6 +682,14 @@ export class MythBattleScene extends Phaser.Scene {
     const rate = Math.max(0, Math.min(1, hp / max));
     bar.fillStyle(mine ? 0xd83030 : 0x2a7ae8, 1).fillRoundedRect(bx, top + 46, Math.max(1, bw * rate), 24, 8);
     this.hpText[side]?.setText(`${hp} / ${max}`);
+    // 札の下の HP バー
+    const cb = this.cardHpBar[side];
+    if (cb) {
+      cb.bar.clear();
+      cb.bar.fillStyle(0x000000, 1).fillRoundedRect(cb.x, cb.y, cb.w, 16, 6);
+      cb.bar.fillStyle(rate > 0.5 ? 0x4ade80 : rate > 0.25 ? 0xffd23a : 0xff4a4a, 1).fillRoundedRect(cb.x, cb.y, Math.max(1, cb.w * rate), 16, 6);
+      cb.text.setText(`HP ${hp} / ${max}`);
+    }
   }
 
   private popup(x: number, y: number, s: string, color: string): void {

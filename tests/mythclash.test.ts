@@ -5,6 +5,7 @@ import { activeCard, createBattle, legalActions, replaceDowned, resolveRound, va
 import { magicEffectOf } from '../src/core/mythclash/magic';
 import { baseDamage, DEFAULT_RULES, elementMultiplier, type BattleRules } from '../src/core/mythclash/rules';
 import { eventsFor, viewFor } from '../src/core/mythclash/view';
+import { estimateDamage, incomingEstimates } from '../src/core/mythclash/estimate';
 
 const N: BattleAction = { type: 'attack', kind: 'normal' };
 const SP: BattleAction = { type: 'attack', kind: 'special' };
@@ -67,6 +68,22 @@ describe('MYTHCLASH cards (from the planner\'s table, unchanged)', () => {
 });
 
 describe('MYTHCLASH battle rules', () => {
+  it('damage estimate covers the real damage range; magic estimate only after the magic was used', () => {
+    // 乱数の はば ±10% の中に、実際のダメージ(補正なしのカード)が入る
+    for (let seed = 1; seed <= 30; seed++) {
+      const s = battle(PLAIN_A, PLAIN_B, DEFAULT_RULES, seed);
+      const est = estimateDamage(s, 0, 'normal');
+      const real = dmgTo(resolveRound(s, [N, MD]), 1);
+      expect(real).toBeGreaterThanOrEqual(est.min);
+      expect(real).toBeLessThanOrEqual(est.max);
+    }
+    const s = battle([14, 60, 61], PLAIN_B);
+    // 相手(0)の魔法は、まだ使っていないので見えない
+    expect(incomingEstimates(s, 1).magic).toBeNull();
+    resolveRound(s, [MG, MD]);
+    expect(incomingEstimates(s, 1).magic).not.toBeNull();
+  });
+
   it('after a knockout, the player can choose the next card later (pending), the CPU picks right away', () => {
     const s = battle(PLAIN_A, PLAIN_B);
     s.teams[1].cards[0].hp = 1;
