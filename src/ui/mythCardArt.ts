@@ -27,8 +27,10 @@ export const ELEMENT_COLORS: Record<Element, string> = {
 /**
  * カードのおもて。【仮】100枚の絵が届くまでは、絵の所に属性の色と文字を出す。
  * 数字・名前・属性・魔法・特性はカード表のとおり(企画者決定 2026-10-26)
+ * hideMagicElement: 対戦相手のカードで、まだ魔法を使っていないとき(魔法属性は使うまで見せない。確定ルール)。
+ *   魔法の名前から属性がわかってしまうことがあるので、名前も「？？？」にする【仮】
  */
-export function drawMythCard(ctx: CanvasRenderingContext2D, c: CardDefinition): void {
+export function drawMythCard(ctx: CanvasRenderingContext2D, c: CardDefinition, opts: { hideMagicElement?: boolean } = {}): void {
   const w = MYTH_CARD_W;
   const h = MYTH_CARD_H;
   const rc = RARITY_COLORS[c.rarity];
@@ -103,7 +105,8 @@ export function drawMythCard(ctx: CanvasRenderingContext2D, c: CardDefinition): 
     ctx.fillStyle = '#ffffff';
     ctx.fillText(text, 72, y);
   };
-  line(342, '魔法', `${c.magic.name}（${c.magic.element}）`, ELEMENT_COLORS[c.magic.element]);
+  if (opts.hideMagicElement) line(342, '魔法', '？？？', '#b8a8c8');
+  else line(342, '魔法', `${c.magic.name}（${c.magic.element}）`, ELEMENT_COLORS[c.magic.element]);
   const ab = abilityOf(c.abilityCode);
   line(372, '特性', ab?.name ?? '—', '#ffd23a');
   ctx.textAlign = 'center';

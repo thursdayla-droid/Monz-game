@@ -63,6 +63,8 @@ export class MythTitleScene extends Phaser.Scene {
         audio.se('tap');
         // カードコレクション = お世話画面と同じバインダー(企画者 2026-10-26)
         if (id === 'collection') this.go('Binder', { back: 'MythTitle' });
+        // 【仮】テストプレイ(企画者 2026-10-26)。チーム編成・相手選びができるまでは、すぐCPUと対戦
+        else if (id === 'battle') this.go('MythBattle');
         else this.toast(`${LABELS[id]}は準備中です`);
       });
     }
