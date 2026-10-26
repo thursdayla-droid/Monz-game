@@ -92,7 +92,8 @@
 - 押せる所：バトルを始める・カードコレクション・チーム編成・ゲームガイド・設定・お知らせ・ランキング。【仮】先の画面はまだないので「準備中」。
 - BGM：企画者の曲「Shadowy Contour」（`music/mythclash_Shadowy_Contour.m4a` → `public/assets/bgm/mythclash.mp3`）【確定 2026-10-26】
 - 【仮】絵に「もどる」がないので、左上に「◀ もどる」を足した（お世話画面へ）。
-- 【未決定】MONZのどこから入るか。いまは確認用に、お世話画面の開発用ボタン「MYTHCLASH」と、アドレスの最後に ?mythclash。
+- 入口【確定 2026-10-26】：お世話画面の「バトル」→ バトルメニュー（`BattleMenuScene`）で、アクションバトルと MYTHCLASH を選ぶ。タイトルの「もどる」はバトルメニューへ。確認用に ?mythclash でも直接開ける。
+- 【仮】バトルメニューの画面はプログラムで描いたもの（看板に、DASHの背景とMYTHCLASHのタイトルの絵を切り出して使う）。「アクションバトル」という名前も仮。
 
 ## 作ったもの（2026-10-26。画面はまだ）
 - `src/core/mythclash/`：`cards.ts`（カード表をそのまま読む。`cardData.ts` は `tools/mythclash_cards.py` で CSV から作る）・`rules.ts`（数字と未決定の切りかえ）・`magic.ts`（古い効果コード → 新しい決まり）・`abilities.ts`（特性28種類）・`engine.ts`（3対3のバトル）・`view.ts`（見せてよい情報だけ作る）・`sim.ts`（シミュレーション）

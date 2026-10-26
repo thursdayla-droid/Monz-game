@@ -33,7 +33,7 @@ const LABELS: Record<Zone, string> = {
 
 /**
  * MYTHCLASH のタイトル画面(企画者の絵 2026-10-26)。
- * 【仮】ボタンの先の画面はまだないので「準備中」を出す。MONZのどこから入るかは未決定 → いまはお世話画面の開発用ボタン・?mythclash から
+ * 【仮】ボタンの先の画面はまだないので「準備中」を出す。入口はお世話画面の「バトル」→ バトルメニュー(企画者決定 2026-10-26)。?mythclash でも直接開ける
  */
 export class MythTitleScene extends Phaser.Scene {
   private toastObj?: Phaser.GameObjects.Text;
@@ -63,14 +63,14 @@ export class MythTitleScene extends Phaser.Scene {
         this.toast(`${LABELS[id]}は準備中です`);
       });
     }
-    // もどる(絵にないので、左上の空いている所に出す)
+    // もどる(絵にないので、左上の空いている所に出す)。バトルメニューへ
     const back = this.add
       .text(28, 28, '◀ もどる', { fontFamily: UI_FONT, fontSize: '40px', fontStyle: '900', color: '#ffffff', backgroundColor: '#16101ccc', padding: { x: 22, y: 12 } })
       .setInteractive({ useHandCursor: true });
     back.on('pointerdown', () => {
       audio.se('back');
       this.cameras.main.fadeOut(200, 0, 0, 0);
-      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('Home'));
+      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('BattleMenu'));
     });
     this.cameras.main.fadeIn(300, 0, 0, 0);
     audio.playBgm('mythclash');

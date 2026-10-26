@@ -910,6 +910,6 @@ export class BattleScene extends Phaser.Scene {
     audio.se('back');
     this.uiCam.fadeOut(200, 0, 0, 0);
     this.cameras.main.fadeOut(200, 0, 0, 0);
-    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('Home'));
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('BattleMenu'));
   }
 }

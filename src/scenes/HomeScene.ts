@@ -524,8 +524,6 @@ export class HomeScene extends Phaser.Scene {
     // 【仮】部屋を変えるのは、いずれショップでコインを使う(企画者決定)。ショップができるまでの確認用
     button(428, '部屋を選び直す', () => this.scene.start('RoomSelect'));
     button(344, '+1000コイン', () => this.record?.add(1000));
-    // 【仮】MYTHCLASH の入口は未決定。確認用
-    button(470, 'MYTHCLASH', () => this.scene.start('MythTitle'));
     // 時間を進めて、お腹がすいたり眠くなったりするのを確かめる
     button(386, '6時間すすめる', () => {
       this.record?.advance(6);
@@ -549,11 +547,11 @@ export class HomeScene extends Phaser.Scene {
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('MinigameSelect'));
     }
     else if (action === 'battle') {
-      // 操作するバトル(企画者の仕様 2026-10-22)。今は練習場
+      // バトルメニュー: アクションバトル(練習場)と MYTHCLASH を選ぶ(企画者決定 2026-10-26)
       this.busy = true;
       audio.se('next');
       this.cameras.main.fadeOut(200, 0, 0, 0);
-      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('Battle'));
+      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('BattleMenu'));
     }
     else this.comingSoon(HOME_ACTION_LABELS[action]);
   }
