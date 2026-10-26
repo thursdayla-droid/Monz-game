@@ -5,22 +5,22 @@ import { UI_FONT } from '../ui/paint';
 import { loadLife } from '../core/lifeSave';
 import { MYTH_PACK_IMAGE, openPackBuy } from '../ui/packBuy';
 
-/** 企画者のタイトルの絵(design/mythclash/title.png・1448x1086)。画面の大きさも絵と同じにする(横向き) */
+/**
+ * 企画者のタイトルの絵(design/mythclash/title.png・縦長 852x1846。2026-10-26 に横長の絵から差しかえ。前の絵は design/mythclash/unused/)。
+ * 画面の大きさも絵と同じ形にする(iPhone の縦の画面いっぱいになる)
+ */
 export const MYTH_TITLE_IMAGE = 'myth:title';
 export const MYTH_TITLE_FILE = 'assets/mythclash/title.webp';
-const W = 1448;
-const H = 1086;
+const W = 852;
+const H = 1846;
 const PORTRAIT = { w: 720, h: 1280 };
 
 /** 押せる所(絵の座標 [x0, y0, x1, y1]) */
 const ZONES = {
-  battle: [365, 540, 1085, 685],
-  collection: [445, 695, 1000, 782],
-  team: [445, 792, 1000, 882],
-  guide: [445, 898, 1000, 990],
-  settings: [1148, 28, 1238, 118],
-  news: [1240, 28, 1330, 118],
-  ranking: [1332, 28, 1424, 118],
+  battle: [92, 903, 762, 1042],
+  collection: [108, 1063, 746, 1182],
+  team: [108, 1200, 746, 1322],
+  guide: [108, 1338, 746, 1458],
 } as const;
 type Zone = keyof typeof ZONES;
 const LABELS: Record<Zone, string> = {
@@ -28,9 +28,6 @@ const LABELS: Record<Zone, string> = {
   collection: 'カードコレクション',
   team: 'チーム編成',
   guide: 'ゲームガイド',
-  settings: '設定',
-  news: 'お知らせ',
-  ranking: 'ランキング',
 };
 
 /**
@@ -39,6 +36,7 @@ const LABELS: Record<Zone, string> = {
  */
 export class MythTitleScene extends Phaser.Scene {
   private toastObj?: Phaser.GameObjects.Text;
+  private leaving = false;
 
   constructor() {
     super('MythTitle');
@@ -53,6 +51,7 @@ export class MythTitleScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.leaving = false;
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(PORTRAIT.w, PORTRAIT.h));
     this.add.image(0, 0, MYTH_TITLE_IMAGE).setOrigin(0, 0).setDisplaySize(W, H);
     for (const id of Object.keys(ZONES) as Zone[]) {
@@ -62,7 +61,9 @@ export class MythTitleScene extends Phaser.Scene {
         z.setFillStyle(0xffffff, 0.25);
         this.tweens.add({ targets: z, fillAlpha: 0, duration: 220 });
         audio.se('tap');
-        this.toast(`${LABELS[id]}は準備中です`);
+        // カードコレクション = お世話画面と同じバインダー(企画者 2026-10-26)
+        if (id === 'collection') this.go('Binder', { back: 'MythTitle' });
+        else this.toast(`${LABELS[id]}は準備中です`);
       });
     }
     // もどる(絵にないので、左上の空いている所に出す)。バトルメニューへ
@@ -71,27 +72,33 @@ export class MythTitleScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     back.on('pointerdown', () => {
       audio.se('back');
-      this.cameras.main.fadeOut(200, 0, 0, 0);
-      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('BattleMenu'));
+      this.go('BattleMenu');
     });
     this.buildPackButton();
     this.cameras.main.fadeIn(300, 0, 0, 0);
     audio.playBgm('mythclash');
   }
 
-  /** パックを買う(企画者決定 2026-10-26: タイトル画面からも買える)。【仮】絵にないので、左下の空いている所に出す */
+  private go(scene: string, data?: object): void {
+    if (this.leaving) return;
+    this.leaving = true;
+    this.cameras.main.fadeOut(200, 0, 0, 0);
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start(scene, data));
+  }
+
+  /** パックを買う(企画者決定 2026-10-26: タイトル画面からも買える。このボタンでよい)。絵にないので、下の床の所に出す */
   private buildPackButton(): void {
-    const x = 180;
-    const y = 770;
-    const glow = this.add.circle(x, y, 190, 0xffd23a, 0.18);
+    const x = 250;
+    const y = 1610;
+    const glow = this.add.circle(x, y, 170, 0xffd23a, 0.18);
     this.tweens.add({ targets: glow, scale: 1.15, alpha: 0.05, duration: 1000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     const pack = this.add.image(x, y, MYTH_PACK_IMAGE).setAngle(-8);
-    pack.setScale(330 / pack.height);
+    pack.setScale(270 / pack.height);
     this.tweens.add({ targets: pack, y: y - 12, duration: 1200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     const label = this.add
-      .text(x, y + 205, 'パックを買う', { fontFamily: UI_FONT, fontSize: '36px', fontStyle: '900', color: '#16101c', backgroundColor: '#ffd23a', padding: { x: 20, y: 8 } })
+      .text(x + 330, y - 30, 'パックを買う', { fontFamily: UI_FONT, fontSize: '44px', fontStyle: '900', color: '#16101c', backgroundColor: '#ffd23a', padding: { x: 20, y: 8 } })
       .setOrigin(0.5);
-    this.add.text(x, y + 262, `コイン ${loadLife().coins.toLocaleString()}`, { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '900', color: '#ffffff', stroke: '#16101c', strokeThickness: 6 }).setOrigin(0.5);
+    this.add.text(x + 330, y + 40, `コイン ${loadLife().coins.toLocaleString()}`, { fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: '#ffffff', stroke: '#16101c', strokeThickness: 6 }).setOrigin(0.5);
     let open = false;
     for (const o of [pack, label]) {
       o.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
@@ -105,7 +112,7 @@ export class MythTitleScene extends Phaser.Scene {
   private toast(msg: string): void {
     this.toastObj?.destroy();
     const t = this.add
-      .text(W / 2, H - 50, msg, { fontFamily: UI_FONT, fontSize: '40px', fontStyle: '900', color: '#ffffff', backgroundColor: '#16101cdd', padding: { x: 28, y: 12 } })
+      .text(W / 2, H * 0.83, msg, { fontFamily: UI_FONT, fontSize: '40px', fontStyle: '900', color: '#ffffff', backgroundColor: '#16101cdd', padding: { x: 28, y: 12 } })
       .setOrigin(0.5);
     this.toastObj = t;
     this.tweens.add({ targets: t, alpha: 0, delay: 1200, duration: 400, onComplete: () => t.destroy() });

@@ -341,6 +341,21 @@ export class HomeScene extends Phaser.Scene {
       .setDepth(DEPTH.ui)
       .setInteractive({ useHandCursor: true })
       .on('pointerdown', () => this.startEdit());
+    // バインダーボタン(企画者決定 2026-10-26: もようがえの下)。MYTHCLASH の持っているカードを見る
+    canvasTexture(this, 'home:binderButton', 150, 60, (ctx) => {
+      drawPanel(ctx, 150, 60, 97);
+      ctx.fillStyle = ink;
+      ctx.font = `900 22px ${UI_FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('バインダー', 75, 31);
+      ctx.textAlign = 'left';
+    });
+    this.add
+      .image(W - 16 - 75, 14 + 84 + 10 + 30 + 68 * 2, 'home:binderButton')
+      .setDepth(DEPTH.ui)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => this.openBinder());
     coinCard.add(this.add.image(0, 0, 'home:coinCard'));
     const shown = { v: record.coins };
     const label = this.add.text(104, 2, shown.v.toLocaleString(), { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '34px', color: ink }).setOrigin(1, 0.5);
@@ -507,14 +522,14 @@ export class HomeScene extends Phaser.Scene {
         .setDepth(DEPTH.ui)
         .setInteractive({ useHandCursor: true })
         .on('pointerdown', onTap);
-    button(260, '最初から', () => {
+    button(330, '最初から', () => {
       // お世話画面のデータ(場所・コイン)も消して、場所を決め直す
       this.resetting = true;
       clearSave();
       clearLife();
       this.scene.start('Title');
     });
-    button(302, '誕生をもう一度', () => {
+    button(372, '誕生をもう一度', () => {
       // 確認用(企画者決定 2026-10-22): お世話のデータを全部消して、生まれるところから(最初の質問の答えだけ残す)。
       // 画面を閉じるときの保存で戻らないようにする
       this.resetting = true;
@@ -522,10 +537,10 @@ export class HomeScene extends Phaser.Scene {
       this.scene.start('Birth', { intro: true });
     });
     // 【仮】部屋を変えるのは、いずれショップでコインを使う(企画者決定)。ショップができるまでの確認用
-    button(428, '部屋を選び直す', () => this.scene.start('RoomSelect'));
-    button(344, '+1000コイン', () => this.record?.add(1000));
+    button(498, '部屋を選び直す', () => this.scene.start('RoomSelect'));
+    button(414, '+1000コイン', () => this.record?.add(1000));
     // 時間を進めて、お腹がすいたり眠くなったりするのを確かめる
-    button(386, '6時間すすめる', () => {
+    button(456, '6時間すすめる', () => {
       this.record?.advance(6);
       this.toast('6時間すすめました');
     });
@@ -579,6 +594,15 @@ export class HomeScene extends Phaser.Scene {
         return;
       }
     }
+  }
+
+  /** カードバインダー(BinderScene) */
+  private openBinder(): void {
+    if (this.busy) return;
+    this.busy = true;
+    audio.se('next');
+    this.cameras.main.fadeOut(200, 0, 0, 0);
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('Binder', { back: 'Home' }));
   }
 
   /** ショップ・アイテムボックス(ShopScene) */
