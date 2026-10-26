@@ -110,6 +110,7 @@ export class MythBattleScene extends Phaser.Scene {
   create(): void {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(PORTRAIT.w, PORTRAIT.h));
     watchViewport(this, () => this.onViewport());
+    audio.preloadSe(['mcSlash', 'mcSpecial', 'mcGuardOk', 'mcPoison', 'mcHeal', 'mcThunder', 'mcNature', 'mcFire']);
     this.drawBackground();
     const seed = newSeed();
     this.rng = mulberry32(seed ^ 0x5bd1e995);
@@ -392,6 +393,8 @@ export class MythBattleScene extends Phaser.Scene {
   // ---------------- カードを選ぶ(交代・倒されたあと) ----------------
 
   private chooser?: Phaser.GameObjects.Container;
+  /** このターンの防御(防御成功の音を鳴らすため) */
+  private roundDefense?: { side: Side; kind: string };
 
   /**
    * 控えのカードを大きく並べて選ぶ(企画者 2026-10-26: 倒されたときと、自分で交代するときはカードを選びたい)。
@@ -451,6 +454,7 @@ export class MythBattleScene extends Phaser.Scene {
     if (this.busy || this.s.winner !== null) return;
     this.busy = true;
     this.stopTimer();
+    this.roundDefense = undefined;
     audio.se('select');
     const theirs = aiAction(this.s, CPU, this.rng);
     // 自分のカードが倒されたら、あとで選ぶ(相手は控えの若い番号)
@@ -511,6 +515,7 @@ export class MythBattleScene extends Phaser.Scene {
         return 700;
       }
       case 'defend':
+        this.roundDefense = { side: e.side, kind: e.kind };
         this.say(`${who(e.side)}は ${ACTION_LABELS[e.kind]}`, '#d8d8ff');
         return 450;
       case 'counter':
@@ -534,7 +539,12 @@ export class MythBattleScene extends Phaser.Scene {
         this.popup(p.x, p.y - 40, e.amount > 0 ? `-${e.amount}` : e.absorbed ? 'バリア！' : '0', e.source === 'dot' ? '#c070ff' : '#ff4a4a');
         if (e.absorbed > 0 && e.amount > 0) this.popup(p.x, p.y + 30, `バリア -${e.absorbed}`, '#8ac4ff');
         if (e.source === 'dot') this.say(`${name(e.id)}は 毒・火傷のダメージ`, '#c070ff');
-        if (e.amount > 0) audio.se('mcHit', { pitch: Math.min(1.6, 0.8 + e.amount / 60) });
+        // 防御で半分にしたとき(通常攻撃を防御・魔法を魔法防御)は「防御成功」の音。
+        // 攻撃・必殺・魔法の当たる音は、攻撃したときの音(企画者のファイル)に入っているので、ここでは鳴らさない
+        const d = this.roundDefense;
+        const guarded = d?.side === e.side && ((e.source === 'normal' && d.kind === 'guard') || (e.source === 'magic' && d.kind === 'magicGuard'));
+        if (guarded) audio.se('mcGuardOk');
+        else if (e.amount > 0 && (e.source === 'reflect' || e.source === 'dot')) audio.se('mcHit', { pitch: Math.min(1.6, 0.8 + e.amount / 60) });
         this.cameras.main.shake(120, e.amount >= 30 ? 0.008 : 0.004);
         return 650;
       }
@@ -543,7 +553,7 @@ export class MythBattleScene extends Phaser.Scene {
         this.drawHp(e.side);
         const p = cardPos(e.side);
         this.popup(p.x, p.y - 40, `+${e.amount}`, '#4ade80');
-        audio.se('happy');
+        audio.se('mcHeal');
         return 550;
       }
       case 'status':
@@ -553,7 +563,7 @@ export class MythBattleScene extends Phaser.Scene {
         }
         this.say(`${name(e.id)}は ${STATUS_LABELS[e.status]}になった！`, '#ffd23a');
         this.popup(cardPos(e.side).x, cardPos(e.side).y + 60, STATUS_LABELS[e.status], '#ffd23a');
-        audio.se('boing');
+        audio.se(e.status === 'poison' ? 'mcPoison' : 'boing');
         return 600;
       case 'skip':
         this.say(`${name(e.id)}は ${e.reason === 'sleep' ? '眠っていて' : '凍っていて'}動けない`, '#b8a8ff');

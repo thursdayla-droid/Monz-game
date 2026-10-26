@@ -5,9 +5,15 @@ const cache = new Map<string, Promise<AudioBuffer>>();
 
 /** 曲を読み込んでおく(何度呼んでも1回だけ読む) */
 export function loadBuffer(ctx: BaseAudioContext, file: string): Promise<AudioBuffer> {
+  return loadAudio(ctx, `assets/bgm/${file}`);
+}
+
+/** 音のファイルを読み込んでおく(path は assets/ からの場所。効果音でも使う) */
+export function loadAudio(ctx: BaseAudioContext, path: string): Promise<AudioBuffer> {
+  const file = path;
   let p = cache.get(file);
   if (!p) {
-    const url = assetUrl(`assets/bgm/${file}`);
+    const url = assetUrl(path);
     // 確認用ページでは曲がページに埋め込まれている(data:)。fetch が禁止されている場所でも鳴るよう、自分で読む
     const bytes = url.startsWith('data:') ? Promise.resolve(dataUrlToBuffer(url)) : fetch(url).then((r) => r.arrayBuffer());
     p = bytes.then((data) => ctx.decodeAudioData(data));

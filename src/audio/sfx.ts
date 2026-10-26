@@ -43,7 +43,10 @@ export type SeName =
   | 'mcLight'
   | 'mcDark'
   | 'mcCounter'
-  | 'mcCutin';
+  | 'mcCutin'
+  | 'mcGuardOk'
+  | 'mcPoison'
+  | 'mcHeal';
 
 let noise: AudioBuffer | null = null;
 function noiseBuf(ctx: BaseAudioContext): AudioBuffer {
@@ -419,6 +422,20 @@ export function playSe(ctx: AudioContext, out: AudioNode, name: SeName, pitch: n
       tone(ctx, heavy(ctx, out, 0.5, 4), t, 'sine', [[0, 60], [0.5, 45]], [[0, 0.0001], [0.1, 0.7], [0.6, 0.0001]], 0.62);
       break;
     }
+    // ---- ここから下の3つは、ファイルが読み込めなかったときの仮の音(本番は seFiles.ts のファイル) ----
+    case 'mcGuardOk':
+      // 防御成功【仮】: 盾で受ける金属音
+      tone(ctx, reverb(ctx, out, 0.5), t, 'triangle', [[0, 1400], [0.3, 1100]], [[0, 0.4], [0.35, 0.0001]], 0.37);
+      tone(ctx, heavy(ctx, out, 0.3, 4), t, 'sine', [[0, 120], [0.2, 50]], [[0, 0.7], [0.25, 0.0001]], 0.27);
+      break;
+    case 'mcPoison':
+      // 毒【仮】: ぶくぶく
+      for (let i = 0; i < 5; i++) tone(ctx, out, t + i * 0.08, 'sine', [[0, 300 + i * 40], [0.07, 520 + i * 40]], [[0, 0.2], [0.08, 0.0001]], 0.09);
+      break;
+    case 'mcHeal':
+      // 回復【仮】: きらきら上がる音
+      [660, 880, 1100, 1320].forEach((f, i) => tone(ctx, reverb(ctx, out, 0.5), t + i * 0.06, 'sine', [[0, f]], [[0, 0.18], [0.3, 0.0001]], 0.32));
+      break;
     case 'cheer':
       // MONZ SLUGGER: ホームランの歓声(ふくらんで消える ざわめき + 指笛)
       hiss(ctx, out, t, 'bandpass', [[0, 700], [0.6, 1600], [1.8, 900]], 0.6, [[0, 0.0001], [0.35, 0.45], [1.9, 0.0001]], 2.0);

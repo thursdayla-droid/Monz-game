@@ -15,3 +15,18 @@ Claude Code が、音量をそろえてから `public/assets/bgm/` に入れ、`
 
 - 歌・ラップなし（インスト）。
 - アプリで公開してよい（商用利用できる）曲だけを使う。
+
+## 効果音（2026-10-26〜）
+企画者の効果音は `music/se/`（受け取ったまま）。ゲーム用は音の大きさをそろえて（-15 LUFS）`public/assets/se/` に入れ、`src/audio/seFiles.ts` に登録する。
+
+| 使う場面 | ファイル | ゲームの中の名前 |
+| --- | --- | --- |
+| MYTHCLASH 通常攻撃 | se/mythclash/attack.mp3 | mcSlash |
+| MYTHCLASH 必殺技 | se/mythclash/special.mp3 | mcSpecial |
+| MYTHCLASH 攻撃を防御で受けた（防御成功） | se/mythclash/guard_success.mp3 | mcGuardOk |
+| MYTHCLASH 毒 | se/mythclash/poison.mp3 | mcPoison |
+| MYTHCLASH 回復 | se/mythclash/heal.mp3 | mcHeal |
+| MYTHCLASH 雷の魔法 | se/mythclash/magic_thunder.mp3 | mcThunder |
+| MYTHCLASH 自然の魔法 | se/mythclash/magic_nature.mp3 | mcNature |
+| MYTHCLASH 炎の魔法 | se/mythclash/magic_fire.mp3 | mcFire |
+
