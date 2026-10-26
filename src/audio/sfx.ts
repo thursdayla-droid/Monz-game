@@ -46,7 +46,10 @@ export type SeName =
   | 'mcCutin'
   | 'mcGuardOk'
   | 'mcPoison'
-  | 'mcHeal';
+  | 'mcHeal'
+  | 'mcDrain'
+  | 'mcMagicGuardOk'
+  | 'mcBuff';
 
 let noise: AudioBuffer | null = null;
 function noiseBuf(ctx: BaseAudioContext): AudioBuffer {
@@ -431,6 +434,18 @@ export function playSe(ctx: AudioContext, out: AudioNode, name: SeName, pitch: n
     case 'mcPoison':
       // 毒【仮】: ぶくぶく
       for (let i = 0; i < 5; i++) tone(ctx, out, t + i * 0.08, 'sine', [[0, 300 + i * 40], [0.07, 520 + i * 40]], [[0, 0.2], [0.08, 0.0001]], 0.09);
+      break;
+    case 'mcDrain':
+      // HP吸収【仮】: 吸いこむ音
+      hiss(ctx, out, t, 'bandpass', [[0, 3000], [0.4, 400]], 3, [[0, 0.0001], [0.2, 0.35], [0.45, 0.0001]], 0.47);
+      break;
+    case 'mcMagicGuardOk':
+      // 魔法防御成功【仮】: 光の壁ではじく音
+      tone(ctx, reverb(ctx, out, 0.6), t, 'sine', [[0, 1600], [0.4, 1200]], [[0, 0.3], [0.45, 0.0001]], 0.47);
+      break;
+    case 'mcBuff':
+      // ステータス上昇【仮】: 上がっていく音
+      tone(ctx, out, t, 'triangle', [[0, 400], [0.35, 1200]], [[0, 0.25], [0.4, 0.0001]], 0.42);
       break;
     case 'mcHeal':
       // 回復【仮】: きらきら上がる音

@@ -110,7 +110,7 @@ export class MythBattleScene extends Phaser.Scene {
   create(): void {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(PORTRAIT.w, PORTRAIT.h));
     watchViewport(this, () => this.onViewport());
-    audio.preloadSe(['mcSlash', 'mcSpecial', 'mcGuardOk', 'mcPoison', 'mcHeal', 'mcThunder', 'mcNature', 'mcFire']);
+    audio.preloadSe(['mcSlash', 'mcSpecial', 'mcGuardOk', 'mcPoison', 'mcHeal', 'mcThunder', 'mcNature', 'mcFire', 'mcLight', 'mcDark', 'mcDrain', 'mcMagicGuardOk', 'mcBuff']);
     this.drawBackground();
     const seed = newSeed();
     this.rng = mulberry32(seed ^ 0x5bd1e995);
@@ -542,8 +542,8 @@ export class MythBattleScene extends Phaser.Scene {
         // 防御で半分にしたとき(通常攻撃を防御・魔法を魔法防御)は「防御成功」の音。
         // 攻撃・必殺・魔法の当たる音は、攻撃したときの音(企画者のファイル)に入っているので、ここでは鳴らさない
         const d = this.roundDefense;
-        const guarded = d?.side === e.side && ((e.source === 'normal' && d.kind === 'guard') || (e.source === 'magic' && d.kind === 'magicGuard'));
-        if (guarded) audio.se('mcGuardOk');
+        if (d?.side === e.side && e.source === 'normal' && d.kind === 'guard') audio.se('mcGuardOk');
+        else if (d?.side === e.side && e.source === 'magic' && d.kind === 'magicGuard') audio.se('mcMagicGuardOk');
         else if (e.amount > 0 && (e.source === 'reflect' || e.source === 'dot')) audio.se('mcHit', { pitch: Math.min(1.6, 0.8 + e.amount / 60) });
         this.cameras.main.shake(120, e.amount >= 30 ? 0.008 : 0.004);
         return 650;
@@ -553,7 +553,8 @@ export class MythBattleScene extends Phaser.Scene {
         this.drawHp(e.side);
         const p = cardPos(e.side);
         this.popup(p.x, p.y - 40, `+${e.amount}`, '#4ade80');
-        audio.se('mcHeal');
+        // HP吸収の魔法は吸収の音、それ以外の回復は回復の音
+        audio.se(e.source === 'drain' ? 'mcDrain' : 'mcHeal');
         return 550;
       }
       case 'status':
@@ -563,7 +564,8 @@ export class MythBattleScene extends Phaser.Scene {
         }
         this.say(`${name(e.id)}は ${STATUS_LABELS[e.status]}になった！`, '#ffd23a');
         this.popup(cardPos(e.side).x, cardPos(e.side).y + 60, STATUS_LABELS[e.status], '#ffd23a');
-        audio.se(e.status === 'poison' ? 'mcPoison' : 'boing');
+        // 強化・バリアは「ステータス上昇」の音
+        audio.se(e.status === 'poison' ? 'mcPoison' : e.status === 'boost' || e.status === 'shield' ? 'mcBuff' : 'boing');
         return 600;
       case 'skip':
         this.say(`${name(e.id)}は ${e.reason === 'sleep' ? '眠っていて' : '凍っていて'}動けない`, '#b8a8ff');

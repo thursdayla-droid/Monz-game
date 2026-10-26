@@ -29,4 +29,8 @@ Claude Code が、音量をそろえてから `public/assets/bgm/` に入れ、`
 | MYTHCLASH 雷の魔法 | se/mythclash/magic_thunder.mp3 | mcThunder |
 | MYTHCLASH 自然の魔法 | se/mythclash/magic_nature.mp3 | mcNature |
 | MYTHCLASH 炎の魔法 | se/mythclash/magic_fire.mp3 | mcFire |
-
+| MYTHCLASH 光の魔法 | se/mythclash/magic_light.mp3 | mcLight |
+| MYTHCLASH 闇の魔法 | se/mythclash/magic_dark.mp3 | mcDark |
+| MYTHCLASH HP吸収の魔法 | se/mythclash/drain.mp3 | mcDrain |
+| MYTHCLASH 魔法防御成功 | se/mythclash/magic_guard_success.mp3 | mcMagicGuardOk |
+| MYTHCLASH ステータス上昇（強化・バリア） | se/mythclash/buff.mp3 | mcBuff |
