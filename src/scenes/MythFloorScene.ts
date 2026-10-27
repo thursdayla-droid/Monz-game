@@ -3,6 +3,8 @@ import { audio } from '../audio/engine';
 import { loadLife } from '../core/lifeSave';
 import { card } from '../core/mythclash/cards';
 import { BATTLES_PER_FLOOR, type MythMatch } from '../core/mythclash/modes';
+import { towerOpponent } from '../core/mythclash/opponents';
+import { opponentFaceTexture } from '../ui/opponentFace';
 import { deckOwned, newCollection } from '../core/mythclash/packs';
 import { preloadPacks } from '../render/packs';
 import { showCardZoom } from '../ui/cardZoom';
@@ -38,6 +40,8 @@ const ZONES = {
   team: [625, 1525, 885, 1610],
   tower: [640, 45, 870, 115],
 } as const;
+/** 「敵チーム」の帯(絵の座標。まん中・顔の位置) */
+const BANNER = { x: 470, y: 453, face: 300 };
 const SERIF = '"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif';
 const cardKey = (id: number) => `mc:card:${id}`;
 
@@ -106,6 +110,7 @@ export class MythFloorScene extends Phaser.Scene {
 
     this.drawProgress();
     this.drawTeam();
+    this.drawOpponent();
 
     const zone = (z: readonly [number, number, number, number], fn: () => void) => {
       const [x0, y0, x1, y1] = z;
@@ -166,6 +171,34 @@ export class MythFloorScene extends Phaser.Scene {
         }
       }
     }
+  }
+
+  /**
+   * 相手(企画者 2026-10-27: 戦う前に どんな相手か)。「敵チーム」の帯(文字は make_floor.py で消した)に 顔と「○○のチーム」。
+   * 顔をさわると、肩書きと ひとことを出す。カードは「？」で隠したまま
+   */
+  private drawOpponent(): void {
+    const { k } = this;
+    const op = towerOpponent(this.match.floor, this.match.battle);
+    const boss = this.match.battle === BATTLES_PER_FLOOR - 1;
+    const cx = this.px(BANNER.x);
+    const cy = this.py(BANNER.y);
+    const face = this.add.image(this.px(BANNER.face), cy, opponentFaceTexture(this, op, 52 * k, boss)).setInteractive({ useHandCursor: true });
+    this.add
+      .text(cx + 30 * k, cy, `${op.name}のチーム`, { fontFamily: SERIF, fontSize: `${Math.round(34 * k)}px`, fontStyle: '900', color: boss ? '#ffb0a0' : '#fff4dc', stroke: '#2a0408', strokeThickness: 5 * k })
+      .setOrigin(0.5);
+    // ひとこと(ふきだし)。顔をさわると出たり消えたり
+    const bubble = this.add.container(this.px(470), this.py(BANNER.y + 70)).setDepth(10);
+    const t = this.add.text(0, 0, `${op.title}\n「${op.line}」`, { fontFamily: UI_FONT, fontSize: `${Math.round(24 * k)}px`, fontStyle: '900', color: '#ffffff', align: 'center', lineSpacing: 4 * k }).setOrigin(0.5, 0);
+    const bg = this.add.rectangle(0, -8 * k, t.width + 40 * k, t.height + 20 * k, 0x16060a, 0.92).setOrigin(0.5, 0).setStrokeStyle(3 * k, boss ? 0xff6a3a : 0xd8a64a, 1);
+    bubble.add([bg, t]);
+    this.tweens.add({ targets: bubble, alpha: 0, delay: 2600, duration: 400 });
+    face.on('pointerdown', () => {
+      if (this.dialog) return;
+      this.tweens.killTweensOf(bubble);
+      bubble.setAlpha(1);
+      this.tweens.add({ targets: bubble, alpha: 0, delay: 2600, duration: 400 });
+    });
   }
 
   /** あなたのチーム(今のデッキ。先頭から出る) */

@@ -4,6 +4,8 @@ import { LifeRecord, loadLife } from '../core/lifeSave';
 import { cpuAction, cpuReplacement, CPU_LABELS, type CpuLevel } from '../core/mythclash/cpu';
 import { BATTLE_MODE, BATTLES_PER_FLOOR, TOWER_FLOORS, towerBattle, type MythMatch } from '../core/mythclash/modes';
 import { newTowerRun } from './MythTowerScene';
+import { opponentFor } from '../core/mythclash/opponents';
+import { opponentFaceTexture } from '../ui/opponentFace';
 import { abilityOf } from '../core/mythclash/abilities';
 import { card, RARITIES, type Element } from '../core/mythclash/cards';
 import type { SeName } from '../audio/sfx';
@@ -43,6 +45,8 @@ const THUMB_S = 0.26;
 const thumbPos = (side: Side, i: number) => ({ x: W / 2 + (i - 1) * 112, y: side === CPU ? 162 : H - 276 });
 /** 名前・HPの板(まん中の高さ) */
 const panelY = (side: Side) => (side === CPU ? 56 : H - 166);
+/** 相手の板で、顔の分だけ右へずらす */
+const FACE_SHIFT = 76;
 const ATTACK_COLOR = 0xff3a3a;
 const DEFENSE_COLOR = 0x3a9dff;
 
@@ -161,7 +165,7 @@ export class MythBattleScene extends Phaser.Scene {
     const intro = this.matchIntro();
     if (intro) this.banner(intro.main, intro.sub, intro.color);
     else this.say('バトル開始！', '#ffffff');
-    this.time.delayedCall(intro ? 1600 : 900, () => this.prompt());
+    this.time.delayedCall(intro ? 2600 : 900, () => this.prompt());
   }
 
   /** デッキ編成で選んだ3枚(企画者 2026-10-26)。無ければ前に組んだデッキ・レアの高い3枚。3種類なければテスト用のランダム */
@@ -245,8 +249,12 @@ export class MythBattleScene extends Phaser.Scene {
       g.fillStyle(0x0a0408, 0.85).fillRoundedRect(20, top, W - 40, 84, 14);
       g.lineStyle(3, mine ? 0xc0182a : 0x2a6ad8, 1).strokeRoundedRect(20, top, W - 40, 84, 14);
       ui.add(g);
-      ui.add(this.text(40, top + 24, mine ? 'あなた' : this.isBoss() ? 'BOSS' : 'CPU', 22, mine || !this.isBoss() ? '#b8a8c8' : '#ff5a5a', 0));
-      if (act && !act.hidden) ui.add(this.text(130, top + 24, act.name, 26, '#ffffff', 0));
+      // 相手の顔(企画者 2026-10-27: 戦っている時に相手の顔)。板の左はしに丸く出して、名前とHPは右へずらす
+      const op = !mine && this.match ? opponentFor(this.match) : null;
+      const lx = op ? 40 + FACE_SHIFT : 40;
+      if (op) ui.add(this.add.image(20 + FACE_SHIFT / 2 + 6, top + 42, opponentFaceTexture(this, op, 40, this.isBoss())));
+      ui.add(this.text(lx, top + 24, mine ? 'あなた' : op ? op.name : this.isBoss() ? 'BOSS' : 'CPU', 22, mine ? '#b8a8c8' : this.isBoss() ? '#ff5a5a' : '#ffd890', 0));
+      if (act && !act.hidden) ui.add(this.text(lx + (op ? 150 : 90), top + 24, act.name, 26, '#ffffff', 0));
       const bar = this.add.graphics();
       const hpT = this.text(W - 40, top + 58, '', 24, '#ffffff', 1);
       this.hpBar[side] = bar;
@@ -898,7 +906,8 @@ export class MythBattleScene extends Phaser.Scene {
     const ghost = fx.on ? fx.ghost : hp;
     const top = panelY(side) - 42;
     bar.clear();
-    this.drawBar(bar, 40, top + 44, W - 250, 28, hp, ghost, max);
+    const shift = side === CPU && this.match ? FACE_SHIFT : 0;
+    this.drawBar(bar, 40 + shift, top + 44, W - 250 - shift, 28, hp, ghost, max);
     this.hpText[side]?.setText(`${hp} / ${max}`).setFontSize(28);
     // 札の下の HP バー
     const cb = this.cardHpBar[side];
@@ -1008,13 +1017,30 @@ export class MythBattleScene extends Phaser.Scene {
     return boss ? { main: `${m.floor}階 ボス戦！`, sub: 'この階のボスがあらわれた！', color: '#ff5a5a' } : { main: `${m.floor}階 ${m.battle + 1}戦目`, sub: `ボスまで あと${BATTLES_PER_FLOOR - 1 - m.battle}戦`, color: '#ffd23a' };
   }
 
-  /** まん中の大きな帯(少しで消える) */
+  /**
+   * まん中の大きな帯(少しで消える)。相手がいるときは、相手の顔・肩書き・名前・ひとことも出す(企画者 2026-10-27)
+   */
   private banner(main: string, sub: string, color: string): void {
+    const op = this.match ? opponentFor(this.match) : null;
     const c = this.add.container(W / 2, midY()).setDepth(300);
-    c.add([this.add.rectangle(0, 0, W, 170, 0x0a0408, 0.85).setStrokeStyle(4, Phaser.Display.Color.HexStringToColor(color).color, 1), this.text(0, -26, main, 60, color).setStroke('#16101c', 10), this.text(0, 46, sub, 26, '#ffffff')]);
+    const col = Phaser.Display.Color.HexStringToColor(color).color;
+    if (!op) {
+      c.add([this.add.rectangle(0, 0, W, 170, 0x0a0408, 0.85).setStrokeStyle(4, col, 1), this.text(0, -26, main, 60, color).setStroke('#16101c', 10), this.text(0, 46, sub, 26, '#ffffff')]);
+    } else {
+      const boss = this.isBoss();
+      c.add(this.add.rectangle(0, 0, W, 300, 0x0a0408, 0.9).setStrokeStyle(4, col, 1));
+      c.add(this.text(0, -118, `${main}　${sub}`, 24, color).setStroke('#16101c', 6));
+      const face = this.add.image(-W / 2 + 130, 18, opponentFaceTexture(this, op, 100, boss));
+      c.add(face);
+      c.add(this.text(-W / 2 + 250, -48, op.title, 24, '#d8c8b0', 0));
+      c.add(this.text(-W / 2 + 250, 0, op.name, 50, boss ? '#ff6a4a' : '#ffd23a', 0).setStroke('#16101c', 8));
+      c.add(this.text(-W / 2 + 250, 64, `「${op.line}」`, 24, '#ffffff', 0).setWordWrapWidth(W - 280, true));
+      face.setScale(0.6);
+      this.tweens.add({ targets: face, scale: 1, duration: 360, ease: 'Back.easeOut' });
+    }
     c.setScale(1, 0.1);
     this.tweens.add({ targets: c, scaleY: 1, duration: 220, ease: 'Back.easeOut' });
-    this.tweens.add({ targets: c, alpha: 0, delay: 1300, duration: 300, onComplete: () => c.destroy() });
+    this.tweens.add({ targets: c, alpha: 0, delay: op ? 2300 : 1300, duration: 300, onComplete: () => c.destroy() });
   }
 
   /**

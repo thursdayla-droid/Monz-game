@@ -109,3 +109,15 @@ describe('MYTHCLASH battle mode and CPU levels', () => {
     expect(counters / n).toBeLessThan(0.7);
   });
 });
+
+describe('MYTHCLASH opponents', () => {
+  it('every tower battle has its own opponent, and battle mode has one per CPU level', async () => {
+    const { ALL_OPPONENTS, opponentFor, towerOpponent } = await import('../src/core/mythclash/opponents');
+    expect(ALL_OPPONENTS).toHaveLength(33);
+    expect(new Set(ALL_OPPONENTS.map((o) => o.id)).size).toBe(33);
+    expect(new Set(ALL_OPPONENTS.map((o) => o.name)).size).toBe(33);
+    for (const o of ALL_OPPONENTS) expect(o.name && o.title && o.line).toBeTruthy();
+    expect(opponentFor({ mode: 'tower', floor: 10, battle: 2, runId: 'r' })).toEqual(towerOpponent(10, 2));
+    expect(opponentFor({ mode: 'battle', level: 'weak' }).id).toBe('b-weak');
+  });
+});
