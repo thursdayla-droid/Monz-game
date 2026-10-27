@@ -5,7 +5,7 @@
  * - バトルモード: CPUの強さ(弱い・普通・強い)を選んで1回バトル。
  * - コイン(企画者「それでいい」): バトルモードの勝ち 弱い100・普通200・強い400。負け・降参・引き分けは0。
  *   ストーリーは階をクリアしたとき: はじめて 500×階、クリアずみの階は その2割。
- * - 経験値はお世話しているMONZに入る(企画者)。【仮】数字は下の表
+ * - 経験値はお世話しているMONZに入る(企画者)。数字は下の表(企画者「それでOK」2026-10-27)
  */
 import type { Rarity } from './cards';
 import type { CpuLevel } from './cpu';
@@ -22,7 +22,7 @@ export interface TowerBattle {
 }
 
 /**
- * 各階の相手【仮：カードの選び方は企画者に見せて確認】。
+ * 各階の相手(企画者「カードはOK」2026-10-27)。
  * レアの並び(案を企画者に見せた表のとおり): 1階 ざこN3・ボスR1N2 → … → 10階 ざこUR1SR2・ボスUR3。
  * CPU: 1〜3階は ざこ弱い・ボス普通、4〜10階は ざこ普通・ボス強い
  */
@@ -55,7 +55,7 @@ export function towerReward(floor: number, first: boolean): { coins: number; exp
   return { coins: Math.round(TOWER_REWARD.coinsPerFloor * floor * r), exp: Math.round(TOWER_REWARD.expPerFloor * floor * r) };
 }
 
-/** バトルモード: 相手のカードのレアと、勝ったときの報酬(負けは0)。経験値は【仮】 */
+/** バトルモード: 相手のカードのレアと、勝ったときの報酬(負けは0)。経験値も確定(2026-10-27) */
 export const BATTLE_MODE: Record<CpuLevel, { rarities: Rarity[]; coins: number; exp: number }> = {
   weak: { rarities: ['N', 'R'], coins: 100, exp: 5 },
   normal: { rarities: ['R', 'SR'], coins: 200, exp: 10 },
