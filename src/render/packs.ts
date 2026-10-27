@@ -8,7 +8,7 @@ import { MYTH_TITLE_FILE, MYTH_TITLE_IMAGE } from '../scenes/MythTitleScene';
 import { OPPONENT_ART, opponentArtFile, opponentArtKey } from '../ui/opponentFace';
 import { MYTH_FLOOR_FILE, MYTH_FLOOR_IMAGE, MYTH_FLOOR_ORB, MYTH_FLOOR_ORB_FILE } from '../scenes/MythFloorScene';
 import { MYTH_TOWER_FILE, MYTH_TOWER_IMAGE, MYTH_TOWER_PARTS, MYTH_TOWER_PARTS_FILE } from '../scenes/MythTowerScene';
-import { MYTH_PACK_FILE, MYTH_PACK_IMAGE } from '../ui/packBuy';
+import { MYTH_PACK_FILE, MYTH_PACK_IMAGE, MYTH_CARD_BACK, MYTH_CARD_BACK_FILE } from '../ui/packBuy';
 import { SELECT_CARD_ART, SELECT_IMAGE } from '../scenes/MinigameSelectScene';
 import { CARD_IMAGES } from '../ui/cardArt';
 import { SLUG_BATTER_ART, slugBatterKey, SLUG_PITCHER_ART, slugPitcherKey, SLUGGER_BG_FILE, SLUGGER_BG_KEY, SLUGGER_LOGO_FILE, SLUGGER_LOGO_KEY } from '../scenes/SluggerScene';
@@ -44,6 +44,7 @@ function packFiles(name: Exclude<PackName, 'bunk'>): PackFile[] {
       return [
         { key: MYTH_TITLE_IMAGE, url: MYTH_TITLE_FILE },
         { key: MYTH_PACK_IMAGE, url: MYTH_PACK_FILE },
+        { key: MYTH_CARD_BACK, url: MYTH_CARD_BACK_FILE },
         { key: MYTH_TOWER_IMAGE, url: MYTH_TOWER_FILE },
         { key: MYTH_TOWER_PARTS, url: MYTH_TOWER_PARTS_FILE },
         { key: MYTH_FLOOR_IMAGE, url: MYTH_FLOOR_FILE },

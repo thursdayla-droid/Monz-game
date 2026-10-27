@@ -8,6 +8,9 @@ import { UI_FONT } from './paint';
 
 export const MYTH_PACK_IMAGE = 'myth:pack';
 export const MYTH_PACK_FILE = 'assets/mythclash/pack.webp';
+/** カードの裏面(企画者の絵 2026-10-27。design/mythclash/make_card_back.py で切り抜く) */
+export const MYTH_CARD_BACK = 'myth:cardBack';
+export const MYTH_CARD_BACK_FILE = 'assets/mythclash/card_back.webp';
 
 const INK = '#16101c';
 

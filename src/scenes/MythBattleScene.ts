@@ -4,6 +4,7 @@ import { LifeRecord, loadLife } from '../core/lifeSave';
 import { cpuAction, cpuReplacement, CPU_LABELS, type CpuLevel } from '../core/mythclash/cpu';
 import { BATTLE_MODE, BATTLES_PER_FLOOR, TOWER_FLOORS, towerBattle, type MythMatch } from '../core/mythclash/modes';
 import { newTowerRun } from './MythTowerScene';
+import { MYTH_CARD_BACK } from '../ui/packBuy';
 import { opponentFor } from '../core/mythclash/opponents';
 import { opponentFaceTexture } from '../ui/opponentFace';
 import { abilityOf } from '../core/mythclash/abilities';
@@ -270,7 +271,10 @@ export class MythBattleScene extends Phaser.Scene {
         box.lineStyle(on ? 5 : 2, on ? 0xffd23a : 0x6a5a70, 1).strokeRoundedRect(x - 50, y - 64, 100, 128, 10);
         ui.add(box);
         if (c.hidden) {
-          ui.add(this.text(x, y, '？？？', 22, '#8a7a90'));
+          // まだ出ていない相手のカードは、裏面(企画者の絵 2026-10-27)
+          const back = this.add.image(x, y, MYTH_CARD_BACK);
+          back.setScale(Math.min(92 / back.width, 120 / back.height));
+          ui.add(back);
           return;
         }
         const img = this.add.image(x, y - 6, this.cardTexture(c.id, side === CPU && !c.magicElement)).setScale(THUMB_S);
