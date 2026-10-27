@@ -10,6 +10,8 @@ import { drawPrize, furniture, isFurniture, itemPrice, MOVE_TICKET, MYSTERY_ITEM
 import { catchUp, dayKey, expToNext, levelUpCoins, newNeeds, NEEDS_RULES, stepNeeds, isNight, type Needs } from './needs';
 import type { KeyValueStore } from './save';
 import { isSpecies, type SpeciesId } from './species';
+import type { CpuLevel } from './mythclash/cpu';
+import { BATTLE_MODE, TOWER_FLOORS, towerReward } from './mythclash/modes';
 import { addCards, deckOwned, fixCollection, newCollection, openPacks, PACK_PRICE, type MythCollection } from './mythclash/packs';
 import type { Rng } from './rng';
 import { addStats, autoGrowthAt, currentStats, FREE_POINTS_PER_LEVEL, levelUpRng, LOVE_RULES, rollAutoGrowth, STAT_KEYS, STAT_MAX, zeroStats, type StatBlock, type StatKey } from './stats';
@@ -422,6 +424,26 @@ export class LifeRecord {
     const col = this.mythclash;
     if (!deckOwned(col, deck)) return false;
     return this.update({ mythclash: { ...col, deck: [...deck] } });
+  }
+
+  /**
+   * MYTHCLASH のストーリーモードで階をクリアした(企画者 2026-10-27)。はじめてなら多く、クリアずみの階は2割。
+   * コインと、お世話しているMONZの経験値。同じ runId では2回もらえない(null)
+   */
+  mythTowerClear(floor: number, runId: string, now = Date.now()): { first: boolean; coins: number; exp: number } | null {
+    if (!(floor >= 1 && floor <= TOWER_FLOORS) || this.data.claimed.includes(runId)) return null;
+    const col = this.mythclash;
+    const first = floor > (col.towerCleared ?? 0);
+    const r = towerReward(floor, first);
+    if (first) this.update({ mythclash: { ...col, towerCleared: floor } });
+    this.grant({ runId, source: 'mythclash', ...r }, now);
+    return { first, ...r };
+  }
+
+  /** MYTHCLASH のバトルモードで勝った(企画者 2026-10-27: 負けは0なので呼ばない)。同じ runId では2回もらえない(null) */
+  mythBattleWin(level: CpuLevel, runId: string, now = Date.now()): { coins: number; exp: number } | null {
+    const { coins, exp } = BATTLE_MODE[level];
+    return this.grant({ runId, source: 'mythclash', coins, exp }, now) ? { coins, exp } : null;
   }
 
   /**

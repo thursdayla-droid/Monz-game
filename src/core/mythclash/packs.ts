@@ -7,6 +7,7 @@
  * 買う処理は LifeRecord.buyPacks(コインと持っているカードを1回の保存でいっしょに変える)。お世話画面のショップと MYTHCLASH の画面の両方から使う
  */
 import { CARDS, RARITIES, type Rarity } from './cards';
+import { TOWER_FLOORS } from './modes';
 import type { Rng } from '../rng';
 
 export const PACK_PRICE = 500;
@@ -49,6 +50,8 @@ export interface MythCollection {
   packs: number;
   /** 前に組んだデッキ(ちがうカード3枚。先頭から出る)。古いデータには無い */
   deck?: number[];
+  /** ストーリーモード(タワー)で、クリアしたいちばん上の階(企画者 2026-10-27)。古いデータには無い(0階と同じ) */
+  towerCleared?: number;
 }
 
 export const newCollection = (): MythCollection => ({ owned: {}, packs: 0 });
@@ -65,7 +68,8 @@ export function fixCollection(raw: unknown): MythCollection {
   const packs = Math.floor(Number(d.packs));
   const deck = Array.isArray(d.deck) ? d.deck.map(Number) : [];
   const deckOk = deck.length === 3 && new Set(deck).size === 3 && deck.every((id) => owned[id] > 0);
-  return { owned, packs: Number.isFinite(packs) && packs > 0 ? packs : 0, ...(deckOk ? { deck } : {}) };
+  const tower = Math.min(TOWER_FLOORS, Math.floor(Number(d.towerCleared)));
+  return { owned, packs: Number.isFinite(packs) && packs > 0 ? packs : 0, ...(deckOk ? { deck } : {}), ...(tower > 0 ? { towerCleared: tower } : {}) };
 }
 
 export function addCards(col: MythCollection, ids: readonly number[]): MythCollection {

@@ -1,6 +1,9 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
-import { loadLife } from '../core/lifeSave';
+import { LifeRecord, loadLife } from '../core/lifeSave';
+import { cpuAction, cpuReplacement, CPU_LABELS, type CpuLevel } from '../core/mythclash/cpu';
+import { BATTLE_MODE, BATTLES_PER_FLOOR, TOWER_FLOORS, towerBattle, type MythMatch } from '../core/mythclash/modes';
+import { newTowerRun } from './MythModeScene';
 import { abilityOf } from '../core/mythclash/abilities';
 import { card, RARITIES, type Element } from '../core/mythclash/cards';
 import type { SeName } from '../audio/sfx';
@@ -61,8 +64,10 @@ const cardKey = (id: number, hideMagic: boolean) => `mc:card:${id}${hideMagic ? 
  * - 攻撃側と防御側がわかりやすいように: 攻撃側のカードは赤く光って「ATTACK」、防御側は青く光って「DEFENSE」、まん中の矢印は攻撃の向き。
  *   下のボタンも、攻撃側なら 通常攻撃・必殺技・魔法、防御側なら 防御・魔法防御・カウンター
  * - 見せる情報は viewFor / eventsFor を通したものだけ(相手のまだ出ていないカード・使っていない魔法の属性は見せない)
- * 【仮】デッキ: チーム編成ができるまで、持っているカードの中からレアの高い3枚(3種類なければ、テスト用にランダムな3枚)。相手もランダム。
- * 【仮】CPUのかしこさは、バランス確認用のかんたんなAI(sim.ts の aiAction)。曲はタイトルと同じ
+ * - 自分のデッキはデッキ編成で選んだ3枚。どの戦いか(match)で相手が変わる(企画者 2026-10-27):
+ *   ストーリー = その階の決まった相手(ざこ2戦 → ボス)。勝つと次の戦い、ボスに勝つと階クリア(報酬)。負けたら その階の1戦目から
+ *   バトルモード = CPUの強さのレアからランダムな3枚。勝つとコインと経験値(負けは0)
+ * 【仮】曲はタイトルと同じ
  */
 export class MythBattleScene extends Phaser.Scene {
   private s!: BattleState;
@@ -90,9 +95,15 @@ export class MythBattleScene extends Phaser.Scene {
 
   /** デッキ編成で選んだ3枚(無ければ前に組んだデッキ) */
   private chosenDeck: number[] | null = null;
+  /** どのモードの戦いか(無いときは確認用のバトル: 相手はランダム・CPU普通・報酬なし) */
+  private match?: MythMatch;
+  private level: CpuLevel = 'normal';
+  /** このバトルの報酬の番号(バトルモード。2回もらわないように) */
+  private battleRun = '';
 
-  init(data: { deck?: number[] | null }): void {
+  init(data: { deck?: number[] | null; match?: MythMatch }): void {
     this.chosenDeck = data?.deck ?? null;
+    this.match = data?.match;
     this.clearBadges();
     this.fitSize();
     this.busy = false;
@@ -136,7 +147,10 @@ export class MythBattleScene extends Phaser.Scene {
     this.rng = mulberry32(seed ^ 0x5bd1e995);
     const deckRng = mulberry32(seed);
     const mine = this.pickMyDeck(deckRng);
-    const theirs = randomDeck(deckRng);
+    const m = this.match;
+    const theirs = m?.mode === 'tower' ? [...towerBattle(m.floor, m.battle).deck] : randomDeck(deckRng, m?.mode === 'battle' ? BATTLE_MODE[m.level].rarities : undefined);
+    this.level = m?.mode === 'tower' ? towerBattle(m.floor, m.battle).cpu : m?.mode === 'battle' ? m.level : 'normal';
+    this.battleRun = `myth:battle:${seed.toString(36)}:${Date.now().toString(36)}`;
     const { state } = createBattle(mine, theirs, seed);
     this.s = state;
     for (const side of [ME, CPU]) this.shownHp[side] = activeCard(state, side).hp;
@@ -144,8 +158,10 @@ export class MythBattleScene extends Phaser.Scene {
     this.render();
     this.cameras.main.fadeIn(300, 0, 0, 0);
     audio.playBgm('mythclash');
-    this.say('バトル開始！', '#ffffff');
-    this.time.delayedCall(900, () => this.prompt());
+    const intro = this.matchIntro();
+    if (intro) this.banner(intro.main, intro.sub, intro.color);
+    else this.say('バトル開始！', '#ffffff');
+    this.time.delayedCall(intro ? 1600 : 900, () => this.prompt());
   }
 
   /** デッキ編成で選んだ3枚(企画者 2026-10-26)。無ければ前に組んだデッキ・レアの高い3枚。3種類なければテスト用のランダム */
@@ -229,7 +245,7 @@ export class MythBattleScene extends Phaser.Scene {
       g.fillStyle(0x0a0408, 0.85).fillRoundedRect(20, top, W - 40, 84, 14);
       g.lineStyle(3, mine ? 0xc0182a : 0x2a6ad8, 1).strokeRoundedRect(20, top, W - 40, 84, 14);
       ui.add(g);
-      ui.add(this.text(40, top + 24, mine ? 'あなた' : 'CPU', 22, '#b8a8c8', 0));
+      ui.add(this.text(40, top + 24, mine ? 'あなた' : this.isBoss() ? 'BOSS' : 'CPU', 22, mine || !this.isBoss() ? '#b8a8c8' : '#ff5a5a', 0));
       if (act && !act.hidden) ui.add(this.text(130, top + 24, act.name, 26, '#ffffff', 0));
       const bar = this.add.graphics();
       const hpT = this.text(W - 40, top + 58, '', 24, '#ffffff', 1);
@@ -546,9 +562,9 @@ export class MythBattleScene extends Phaser.Scene {
     this.roundDefense = undefined;
     // 行動を選んだときの音(企画者のファイル)
     audio.se('mcSelect');
-    const theirs = aiAction(this.s, CPU, this.rng);
-    // 自分のカードが倒されたら、あとで選ぶ(相手は控えの若い番号)
-    const events = eventsFor(this.s, ME, resolveRound(this.s, [mine, theirs], (side) => (side === ME ? null : undefined)));
+    const theirs = cpuAction(this.s, CPU, this.level, this.rng);
+    // 自分のカードが倒されたら、あとで選ぶ(相手はCPUの強さで選ぶ。強いCPUは相性のよいカード)
+    const events = eventsFor(this.s, ME, resolveRound(this.s, [mine, theirs], (side, alive) => (side === ME ? null : cpuReplacement(this.s, side, this.level, alive))));
     this.render();
     this.play(events, 0);
   }
@@ -979,27 +995,93 @@ export class MythBattleScene extends Phaser.Scene {
 
   private surrenderBox?: Phaser.GameObjects.Container;
 
+  private isBoss(): boolean {
+    return this.match?.mode === 'tower' && towerBattle(this.match.floor, this.match.battle).boss;
+  }
+
+  /** はじめに出す帯(何階の何戦目か・CPUの強さ) */
+  private matchIntro(): { main: string; sub: string; color: string } | null {
+    const m = this.match;
+    if (!m) return null;
+    if (m.mode === 'battle') return { main: `CPU ${CPU_LABELS[m.level]}`, sub: 'バトルモード', color: '#ffd23a' };
+    const boss = towerBattle(m.floor, m.battle).boss;
+    return boss ? { main: `${m.floor}F ボス戦！`, sub: 'この階のボスがあらわれた！', color: '#ff5a5a' } : { main: `${m.floor}F ${m.battle + 1}戦目`, sub: `ボスまで あと${BATTLES_PER_FLOOR - 1 - m.battle}戦`, color: '#ffd23a' };
+  }
+
+  /** まん中の大きな帯(少しで消える) */
+  private banner(main: string, sub: string, color: string): void {
+    const c = this.add.container(W / 2, midY()).setDepth(300);
+    c.add([this.add.rectangle(0, 0, W, 170, 0x0a0408, 0.85).setStrokeStyle(4, Phaser.Display.Color.HexStringToColor(color).color, 1), this.text(0, -26, main, 60, color).setStroke('#16101c', 10), this.text(0, 46, sub, 26, '#ffffff')]);
+    c.setScale(1, 0.1);
+    this.tweens.add({ targets: c, scaleY: 1, duration: 220, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: c, alpha: 0, delay: 1300, duration: 300, onComplete: () => c.destroy() });
+  }
+
+  /**
+   * 結果。報酬(企画者 2026-10-27): バトルモードは勝ったときだけ。ストーリーはボスに勝って階をクリアしたとき(はじめては多く、クリアずみは2割)。
+   * 負け・降参・引き分けは0。経験値はお世話しているMONZに入る
+   */
   private showResult(): void {
     const w = this.s.winner;
     const win = w === ME;
+    const m = this.match;
     const label = w === 'draw' ? 'DRAW' : win ? 'WIN!' : 'LOSE…';
     audio.se(win ? 'cheer' : 'back');
     const box = this.add.container(0, 0).setDepth(100);
     const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.7).setOrigin(0, 0).setInteractive();
-    const t = this.text(W / 2, H / 2 - 150, label, 110, win ? '#ffd23a' : w === 'draw' ? '#ffffff' : '#8ac4ff').setStroke('#16101c', 14).setScale(0.3);
+    const t = this.text(W / 2, H / 2 - 190, label, 110, win ? '#ffd23a' : w === 'draw' ? '#ffffff' : '#8ac4ff').setStroke('#16101c', 14).setScale(0.3);
     this.tweens.add({ targets: t, scale: 1, duration: 420, ease: 'Back.easeOut' });
-    const sub = this.text(W / 2, H / 2 - 40, this.s.surrendered === ME ? '降参しました' : `${this.s.round}ターンで決着`, 30, '#ffffff');
-    const again = this.text(W / 2 - 150, H / 2 + 80, 'もう一度', 36, '#16101c').setBackgroundColor('#ffd23a').setPadding(28, 10, 28, 12).setInteractive({ useHandCursor: true });
-    again.on('pointerdown', () => this.scene.restart({ deck: this.chosenDeck }));
-    const back = this.text(W / 2 + 150, H / 2 + 80, 'もどる', 36, '#ffffff').setBackgroundColor('#8a35e0').setPadding(28, 10, 28, 12).setInteractive({ useHandCursor: true });
-    back.on('pointerdown', () => this.leave());
-    box.add([dim, t, sub, again, back]);
+    const sub = this.text(W / 2, H / 2 - 80, this.s.surrendered === ME ? '降参しました' : `${this.s.round}ターンで決着`, 30, '#ffffff');
+    box.add([dim, t, sub]);
+    const lines: [string, string][] = [];
+    const buttons: [string, () => void][] = [];
+    const deck = this.chosenDeck;
+    if (m?.mode === 'tower') {
+      const toTower = () => this.leave('MythMode', { view: 'tower' });
+      const boss = towerBattle(m.floor, m.battle).boss;
+      if (win && !boss) {
+        lines.push([`${m.floor}F ${m.battle + 1}戦目 突破！ HPは全部もどるよ`, '#7dffa0']);
+        buttons.push(['つぎへ', () => this.scene.restart({ deck, match: { ...m, battle: m.battle + 1 } })], ['やめる', toTower]);
+      } else if (win) {
+        const r = new LifeRecord(loadLife()).mythTowerClear(m.floor, m.runId);
+        lines.push([`${m.floor}F クリア！${r?.first ? '（はじめて！）' : ''}`, '#ffd23a']);
+        if (r) lines.push([`コイン +${r.coins.toLocaleString()}　経験値 +${r.exp}`, '#ffffff']);
+        if (m.floor < TOWER_FLOORS) buttons.push(['次の階へ', () => this.leave('MythDeck', { mode: 'battle', match: { mode: 'tower', floor: m.floor + 1, battle: 0, runId: newTowerRun(m.floor + 1) } })]);
+        else lines.push(['タワーの てっぺんに着いた！', '#ffb070']);
+        buttons.push(['もどる', toTower]);
+      } else {
+        lines.push([`${m.floor}F の1戦目から やり直し`, '#ffb070']);
+        buttons.push(['もう一度', () => this.scene.restart({ deck, match: { ...m, battle: 0, runId: newTowerRun(m.floor) } })], ['もどる', toTower]);
+      }
+    } else {
+      if (win && m?.mode === 'battle') {
+        const r = new LifeRecord(loadLife()).mythBattleWin(m.level, this.battleRun);
+        if (r) lines.push([`コイン +${r.coins.toLocaleString()}　経験値 +${r.exp}`, '#ffffff']);
+      }
+      buttons.push(['もう一度', () => this.scene.restart({ deck, match: m })], ['もどる', () => (m ? this.leave('MythMode', { view: 'cpu' }) : this.leave())]);
+    }
+    const by = H / 2 + 60 + lines.length * 48;
+    // 後ろの文字が透けないように、板をしく
+    const plate = this.add.graphics();
+    plate.fillStyle(0x16101c, 0.92).fillRoundedRect(40, H / 2 - 130, W - 80, by - H / 2 + 200, 24);
+    plate.lineStyle(4, win ? 0xffd23a : 0x5a4a66, 1).strokeRoundedRect(40, H / 2 - 130, W - 80, by - H / 2 + 200, 24);
+    box.addAt(plate, 1);
+    lines.forEach(([s, color], i) => box.add(this.text(W / 2, H / 2 - 20 + i * 48, s, 30, color)));
+    buttons.forEach(([s, fn], i) => {
+      const first = i === 0;
+      const b = this.text(W / 2 + (buttons.length === 1 ? 0 : i === 0 ? -150 : 150), by, s, 36, first ? '#16101c' : '#ffffff')
+        .setBackgroundColor(first ? '#ffd23a' : '#8a35e0')
+        .setPadding(28, 10, 28, 12)
+        .setInteractive({ useHandCursor: true });
+      b.once('pointerdown', fn);
+      box.add(b);
+    });
   }
 
-  private leave(): void {
+  private leave(scene = 'MythTitle', data?: object): void {
     audio.se('back');
     this.cameras.main.fadeOut(220, 0, 0, 0);
-    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('MythTitle'));
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start(scene, data));
   }
 
   private cardTexture(id: number, hideMagic: boolean): string {
