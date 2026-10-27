@@ -23,14 +23,116 @@ function dotKey(scene: Phaser.Scene): string {
   });
 }
 
+/** 葉っぱ(先がとがって、まん中に葉脈。明るい緑から濃い緑へ)。2026-10-26 企画者「草のエフェクトださい」で作り直し */
 function leafKey(scene: Phaser.Scene): string {
-  return canvasTextureOnce(scene, 'fx:leaf', 40, 24, (ctx) => {
-    ctx.fillStyle = '#ffffff';
+  return canvasTextureOnce(scene, 'fx:leaf2', 64, 32, (ctx) => {
+    const g = ctx.createLinearGradient(0, 0, 64, 32);
+    g.addColorStop(0, '#d8ff8a');
+    g.addColorStop(0.5, '#4ec43a');
+    g.addColorStop(1, '#1d6a1a');
+    ctx.fillStyle = g;
     ctx.beginPath();
-    ctx.moveTo(2, 12);
-    ctx.quadraticCurveTo(20, -6, 38, 12);
-    ctx.quadraticCurveTo(20, 30, 2, 12);
+    ctx.moveTo(2, 16);
+    ctx.bezierCurveTo(14, -2, 44, -2, 62, 16);
+    ctx.bezierCurveTo(44, 34, 14, 34, 2, 16);
     ctx.fill();
+    ctx.strokeStyle = 'rgba(12,50,10,0.9)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // 葉脈
+    ctx.strokeStyle = 'rgba(230,255,190,0.8)';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(4, 16);
+    ctx.lineTo(60, 16);
+    for (let i = 1; i < 5; i++) {
+      const x = 8 + i * 10;
+      ctx.moveTo(x, 16);
+      ctx.lineTo(x + 7, 8);
+      ctx.moveTo(x, 16);
+      ctx.lineTo(x + 7, 24);
+    }
+    ctx.stroke();
+  });
+}
+
+/** 魔法陣(白でかいて、色をつけて使う)。地面に置くときは縦につぶす */
+function circleKey(scene: Phaser.Scene): string {
+  return canvasTextureOnce(scene, 'fx:circle', 256, 256, (ctx) => {
+    ctx.translate(128, 128);
+    ctx.strokeStyle = '#ffffff';
+    ctx.shadowColor = '#ffffff';
+    ctx.shadowBlur = 8;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(0, 0, 118, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, 100, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(0, 0, 54, 0, Math.PI * 2);
+    ctx.stroke();
+    // 六芒星
+    for (const off of [0, Math.PI / 3]) {
+      ctx.beginPath();
+      for (let i = 0; i <= 3; i++) {
+        const a = off + (i * Math.PI * 2) / 3 - Math.PI / 2;
+        if (i === 0) ctx.moveTo(Math.cos(a) * 100, Math.sin(a) * 100);
+        else ctx.lineTo(Math.cos(a) * 100, Math.sin(a) * 100);
+      }
+      ctx.stroke();
+    }
+    // ふちの模様(文字のかわりの小さな線)
+    for (let i = 0; i < 36; i++) {
+      const a = (i / 36) * Math.PI * 2;
+      const r0 = 103;
+      const r1 = i % 3 === 0 ? 116 : 110;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * r0, Math.sin(a) * r0);
+      ctx.lineTo(Math.cos(a) * r1, Math.sin(a) * r1);
+      ctx.stroke();
+    }
+  });
+}
+
+/** 曲がったつるを、根もとから先へ t(0〜1)まで描く。太さは先ほど細く、ところどころにトゲ */
+function drawVine(g: Phaser.GameObjects.Graphics, pts: Pt[], t: number, width: number): void {
+  const n = Math.max(1, Math.floor((pts.length - 1) * t));
+  for (const [w, col, a] of [[1, 0x10380e, 1], [0.55, 0x3a9a2a, 1], [0.22, 0xb8f07a, 0.9]] as const) {
+    for (let i = 0; i < n; i++) {
+      const k = 1 - i / (pts.length - 1);
+      g.lineStyle(Math.max(1.5, width * w * (0.35 + 0.65 * k)), col, a);
+      g.lineBetween(pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y);
+    }
+  }
+  // トゲ
+  g.fillStyle(0x10380e, 1);
+  for (let i = 3; i < n; i += 4) {
+    const p0 = pts[i];
+    const p1 = pts[i + 1];
+    const dx = p1.x - p0.x;
+    const dy = p1.y - p0.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len;
+    const ny = dx / len;
+    const side = i % 8 === 3 ? 1 : -1;
+    const k = 1 - i / (pts.length - 1);
+    const s = 6 + 8 * k;
+    g.fillTriangle(p0.x + nx * s * 0.4 * side, p0.y + ny * s * 0.4 * side, p1.x, p1.y, p0.x + nx * s * 1.6 * side + dx * 0.2, p0.y + ny * s * 1.6 * side + dy * 0.2);
+  }
+}
+
+/** ベジェ曲線の点 */
+function bezier(p0: Pt, p1: Pt, p2: Pt, p3: Pt, n: number): Pt[] {
+  return Array.from({ length: n + 1 }, (_, i) => {
+    const t = i / n;
+    const u = 1 - t;
+    return {
+      x: u * u * u * p0.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * p3.x,
+      y: u * u * u * p0.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * p3.y,
+    };
   });
 }
 
@@ -139,46 +241,79 @@ export function magicFx(scene: Phaser.Scene, element: Element, from: Pt, to: Pt)
       return 1100;
     }
     case '自然': {
-      // 葉がうずを巻いて集まり、根(つる)が下から打ちつける
+      // 1. 発動: 相手の足もとに緑の魔法陣、使ったカードのまわりから緑の光がのぼる
+      // 2. 命中: トゲのあるつるが地面から何本も伸びて、相手にからみつく + 葉がはじける
+      // 3. 余韻: 葉がゆれながら舞い落ち、花粉のような光の粒
       const leaf = leafKey(scene);
-      for (let i = 0; i < 18; i++) {
-        const a0 = rand(0, Math.PI * 2);
-        const p = scene.add.image(to.x, to.y, leaf).setTint(i % 3 ? color : 0xa8ff60).setDepth(DEPTH).setScale(rand(0.8, 1.4));
-        const o = { a: a0, r: 240 };
-        scene.tweens.add({
-          targets: o,
-          a: a0 + Math.PI * 2,
-          r: 20,
-          duration: 650,
-          ease: 'Sine.easeIn',
-          onUpdate: () => {
-            p.setPosition(to.x + Math.cos(o.a) * o.r, to.y + Math.sin(o.a) * o.r * 0.7);
-            p.setRotation(o.a + Math.PI / 2);
-          },
-          onComplete: () => p.destroy(),
-        });
+      const ground = to.y + 150;
+      // 地面に寝かせた魔法陣(入れものを縦につぶし、中の絵だけを回す)
+      const ring = scene.add.container(to.x, ground).setScale(0.2, 0.07).setAlpha(0).setDepth(DEPTH - 2);
+      const ringImg = scene.add.image(0, 0, circleKey(scene)).setTint(0x7dff6a).setBlendMode(Phaser.BlendModes.ADD);
+      ring.add(ringImg);
+      scene.tweens.add({ targets: ring, scaleX: 1.5, scaleY: 0.45, alpha: 0.95, duration: 380, ease: 'Cubic.easeOut' });
+      scene.tweens.add({ targets: ringImg, angle: 140, duration: 1500 });
+      scene.tweens.add({ targets: ring, alpha: 0, delay: 1150, duration: 350, onComplete: () => ring.destroy() });
+      for (let i = 0; i < 14; i++) {
+        const m = scene.add.image(from.x + rand(-120, 120), from.y + rand(40, 160), key).setTint(i % 2 ? 0x9dff6a : 0x3ec46a).setScale(rand(0.15, 0.35)).setDepth(DEPTH).setBlendMode(Phaser.BlendModes.ADD);
+        scene.tweens.add({ targets: m, y: m.y - rand(120, 220), alpha: 0, duration: rand(450, 700), delay: rand(0, 200), onComplete: () => m.destroy() });
       }
-      scene.time.delayedCall(500, () => {
-        for (let i = 0; i < 4; i++) {
-          const g = scene.add.graphics().setDepth(DEPTH);
-          const x = to.x + (i - 1.5) * 50;
-          const p = { t: 0 };
-          scene.tweens.add({
-            targets: p,
-            t: 1,
-            duration: 180,
-            delay: i * 40,
-            onUpdate: () => {
-              g.clear();
-              g.lineStyle(14, 0x2a6a20, 1).lineBetween(x, H, x + Math.sin(i) * 30, H - (H - to.y + 60) * p.t);
-              g.lineStyle(6, color, 1).lineBetween(x, H, x + Math.sin(i) * 30, H - (H - to.y + 60) * p.t);
-            },
-            onComplete: () => scene.tweens.add({ targets: g, alpha: 0, duration: 300, delay: 150, onComplete: () => g.destroy() }),
-          });
-        }
-        impactFx(scene, to, color, true);
+      scene.time.delayedCall(300, () => {
+        // つる: 地面から生えて、カードのまわりを曲がりながら上へ
+        const vines = scene.add.graphics().setDepth(DEPTH + 1);
+        const paths = [-1, 1, -0.45, 0.45, 0].map((side, k) => {
+          const x0 = to.x + side * rand(120, 170);
+          const p0 = { x: x0, y: ground + 30 };
+          const p1 = { x: x0 - side * 40, y: to.y + 60 };
+          const p2 = { x: to.x + side * (k < 2 ? 190 : 110), y: to.y - 40 };
+          const p3 = { x: to.x - side * rand(20, 90), y: to.y - rand(110, 170) };
+          return bezier(p0, p1, p2, p3, 28);
+        });
+        const p = { t: 0 };
+        scene.tweens.add({
+          targets: p,
+          t: 1,
+          duration: 330,
+          ease: 'Cubic.easeOut',
+          onUpdate: () => {
+            vines.clear();
+            paths.forEach((pts, k) => drawVine(vines, pts, Math.min(1, p.t * (1 + k * 0.08)), k < 2 ? 30 : 22));
+          },
+          onComplete: () => {
+            // しめつけ
+            scene.tweens.add({ targets: vines, scaleX: 0.97, x: to.x * 0.03, duration: 90, yoyo: true, repeat: 1 });
+            scene.tweens.add({ targets: vines, alpha: 0, delay: 650, duration: 350, onComplete: () => vines.destroy() });
+          },
+        });
+        scene.time.delayedCall(260, () => {
+          impactFx(scene, to, color, true);
+          scene.cameras.main.shake(260, 0.009);
+          // 葉がはじける → ゆれながら落ちる
+          for (let i = 0; i < 26; i++) {
+            const a = rand(0, Math.PI * 2);
+            const d = rand(90, 260);
+            const lf = scene.add.image(to.x, to.y, leaf).setScale(rand(0.9, 1.6)).setRotation(a).setDepth(DEPTH + 2);
+            const tx = to.x + Math.cos(a) * d;
+            const ty = to.y + Math.sin(a) * d * 0.8;
+            scene.tweens.add({ targets: lf, x: tx, y: ty, rotation: a + rand(-3, 3), duration: 320, ease: 'Cubic.easeOut' });
+            scene.tweens.add({
+              targets: lf,
+              y: ty + rand(140, 260),
+              x: tx + rand(-50, 50),
+              rotation: `+=${rand(-4, 4)}`,
+              alpha: 0,
+              delay: 320,
+              duration: rand(700, 1000),
+              ease: 'Sine.easeIn',
+              onComplete: () => lf.destroy(),
+            });
+          }
+          for (let i = 0; i < 18; i++) {
+            const sp = scene.add.image(to.x + rand(-160, 160), to.y + rand(-160, 120), key).setTint(i % 3 ? 0xeaff9a : 0xffe8a0).setScale(0.05).setDepth(DEPTH + 2).setBlendMode(Phaser.BlendModes.ADD);
+            scene.tweens.add({ targets: sp, scale: rand(0.18, 0.32), alpha: 0, y: sp.y - rand(30, 90), delay: rand(100, 600), duration: 600, onComplete: () => sp.destroy() });
+          }
+        });
       });
-      return 1100;
+      return 1300;
     }
     default: {
       // 炎・水・無: 使ったカードから相手へ玉が飛んでいき、はじける
