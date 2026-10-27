@@ -69,11 +69,12 @@ function drawArtCard(ctx: CanvasRenderingContext2D, art: CanvasImageSource, hide
   ctx.restore();
   if (hideMagicElement) {
     // 魔法の名前・属性・効果の説明を、使うまでかくす(企画者 2026-10-27「対戦中は魔法の種類が相手に見えちゃうから使うまで隠して」)。
-    // カードによって 説明の行のあり・なしで並びがちがうので、魔法のわく全体(1064×1478 の絵で x 66〜1000・y 1146〜1276)をおおって、「魔法　？？？」と書く
-    const x0 = (66 / 1064) * w;
-    const y0 = (1146 / 1478) * h;
-    const bw = (934 / 1064) * w;
-    const bh = (130 / 1478) * h;
+    // カードによって 説明の行のあり・なしで並びがちがうので、「魔法」の文字もふくめて 魔法のわく全体(1064×1478 の絵で x 52〜1012・y 1132〜1284)をおおって「？？？」だけ出す
+    // (企画者 2026-10-27「魔法の文字も半分消えたりしてるから、魔法の文字も隠しちゃっていい」)
+    const x0 = (52 / 1064) * w;
+    const y0 = (1132 / 1478) * h;
+    const bw = (960 / 1064) * w;
+    const bh = (152 / 1478) * h;
     roundRectPath(ctx, x0, y0, bw, bh, 5);
     ctx.fillStyle = '#140c14';
     ctx.fill();
@@ -81,14 +82,10 @@ function drawArtCard(ctx: CanvasRenderingContext2D, art: CanvasImageSource, hide
     ctx.lineWidth = 1.2;
     ctx.stroke();
     ctx.textBaseline = 'middle';
-    ctx.textAlign = 'left';
-    ctx.font = `900 15px ${UI_FONT}`;
-    ctx.fillStyle = '#4aa8ff';
-    ctx.fillText('魔法', x0 + 10, y0 + bh / 2 + 1);
     ctx.textAlign = 'center';
-    ctx.font = `900 16px ${UI_FONT}`;
+    ctx.font = `900 18px ${UI_FONT}`;
     ctx.fillStyle = '#b8a8c8';
-    ctx.fillText('？？？', x0 + bw / 2 + 14, y0 + bh / 2 + 1);
+    ctx.fillText('？？？', x0 + bw / 2, y0 + bh / 2 + 1);
   }
 }
 
