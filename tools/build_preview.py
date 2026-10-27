@@ -25,9 +25,9 @@ for p in paths:
         # 確認用ページの上限のため、大きい背景だけ少し圧縮しなおす(ゲーム本体はそのまま)
         data = open(pub + p, 'rb').read()
         if p.startswith('assets/mythclash/opponents/'):
-            # 対戦相手の顔(33人分)は、確認用ページでは 180×180 に小さくする(画面では丸く小さく出すので見た目はほぼ同じ)
+            # 対戦相手の顔(33人分)は、確認用ページでは 160×160 に小さくする(画面では丸く小さく出すので見た目はほぼ同じ)
             bb = io.BytesIO()
-            Image.open(pub + p).resize((180, 180), Image.LANCZOS).save(bb, 'WEBP', quality=66, method=6)
+            Image.open(pub + p).resize((160, 160), Image.LANCZOS).save(bb, 'WEBP', quality=62, method=6)
             data = bb.getvalue()
         # 2026-10-27: 対戦相手の顔の分をあけるため、少し小さい絵(60KBより大きい)も圧縮しなおす
         elif len(data) > 60_000:

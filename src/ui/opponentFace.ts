@@ -5,9 +5,9 @@ import { canvasTextureOnce } from './paint';
 /**
  * 対戦相手の顔(丸い枠)。企画者 2026-10-27: 戦う前と、戦っている時に 相手の顔を出す。
  * 顔の絵は企画者が用意する(public/assets/mythclash/opponents/<id>.webp)。届いた絵の id を OPPONENT_ART に足す。
- * 絵がまだ無い相手は、影の絵(プログラムで描いたもの)【仮】
+ * 絵がまだ無い相手は、影の絵(プログラムで描いたもの)。2026-10-27 に33人全員の絵がそろった
  */
-export const OPPONENT_ART: readonly string[] = ['t1-1', 't1-2', 't1-3', 't2-1', 't2-2', 't2-3', 't3-1', 't3-2', 't3-3', 't4-1', 't4-2', 't4-3', 't5-1', 't5-2', 't5-3', 't6-1', 't6-2', 't6-3', 't7-1', 't7-2', 't7-3', 't8-1', 't8-2', 't8-3', 't9-1', 't9-2', 't9-3', 't10-1', 't10-2', 't10-3'];
+export const OPPONENT_ART: readonly string[] = ['t1-1', 't1-2', 't1-3', 't2-1', 't2-2', 't2-3', 't3-1', 't3-2', 't3-3', 't4-1', 't4-2', 't4-3', 't5-1', 't5-2', 't5-3', 't6-1', 't6-2', 't6-3', 't7-1', 't7-2', 't7-3', 't8-1', 't8-2', 't8-3', 't9-1', 't9-2', 't9-3', 't10-1', 't10-2', 't10-3', 'b-weak', 'b-normal', 'b-strong'];
 export const opponentArtKey = (id: string) => `myth:opp:${id}`;
 export const opponentArtFile = (id: string) => `assets/mythclash/opponents/${id}.webp`;
 
