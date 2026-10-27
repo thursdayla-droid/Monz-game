@@ -8,7 +8,6 @@ import { preloadPacks } from '../render/packs';
 import { showCardZoom } from '../ui/cardZoom';
 import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W } from '../ui/mythCardArt';
 import { canvasTextureOnce, UI_FONT } from '../ui/paint';
-import { fitArt } from '../ui/artFit';
 import { fillSize, watchViewport } from '../ui/viewport';
 
 /**
@@ -72,6 +71,10 @@ export class MythFloorScene extends Phaser.Scene {
     this.W = size.w;
     this.H = size.h;
     this.scale.setGameSize(size.w, size.h);
+    this.k = Math.max(size.w / ART.w, size.h / ART.h);
+    this.ox = (size.w - ART.w * this.k) / 2;
+    // 画面いっぱい(企画者 2026-10-27「画面いっぱいでいい」)。上下が切れるときは、下のボタン・1階が残るように 上を多めに切る
+    this.oy = (size.h - ART.h * this.k) * 0.75;
   }
 
   preload(): void {
@@ -90,9 +93,8 @@ export class MythFloorScene extends Phaser.Scene {
   create(): void {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(PORTRAIT.w, PORTRAIT.h));
     watchViewport(this, () => !this.leaving && this.scene.restart({ match: this.match }));
-    // 絵は全部 画面に入れる(はしを切らない。企画者 2026-10-27)。すき間は同じ絵をぼかしてしく
-    ({ k: this.k, ox: this.ox, oy: this.oy } = fitArt(this, MYTH_FLOOR_IMAGE, ART, { w: this.W, h: this.H }));
     const { k } = this;
+    this.add.image(this.ox, this.oy, MYTH_FLOOR_IMAGE).setOrigin(0, 0).setScale(k);
     const col = loadLife().mythclash ?? newCollection();
     this.deck = col.deck && deckOwned(col, col.deck) ? [...col.deck] : null;
 
@@ -120,6 +122,14 @@ export class MythFloorScene extends Phaser.Scene {
     zone(ZONES.team, () => this.go('MythDeck', { mode: 'edit', match: this.match }, 'tap'));
     zone(ZONES.back, () => this.leaveFloor());
     zone(ZONES.tower, () => this.leaveFloor());
+    // 絵の下が切れて見えないときは、左上にも戻るを出す
+    if (this.py(ZONES.back[3]) > this.H) {
+      const u = this.W / ART.w;
+      this.add
+        .text(20 * u, 110 * u, '◀ 戻る', { fontFamily: UI_FONT, fontSize: `${Math.round(36 * u)}px`, fontStyle: '900', color: '#ffffff', backgroundColor: '#16101ccc', padding: { x: 16, y: 8 } })
+        .setInteractive({ useHandCursor: true })
+        .on('pointerdown', () => !this.dialog && this.leaveFloor());
+    }
     this.cameras.main.fadeIn(250, 0, 0, 0);
     audio.playBgm('mythclash');
   }

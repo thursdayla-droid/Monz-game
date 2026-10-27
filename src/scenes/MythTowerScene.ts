@@ -5,7 +5,7 @@ import { TOWER_FLOORS, towerOpenFloors, type MythMatch } from '../core/mythclash
 import { newCollection } from '../core/mythclash/packs';
 import { newSeed } from '../core/rng';
 import { preloadPacks } from '../render/packs';
-import { fitArt } from '../ui/artFit';
+import { UI_FONT } from '../ui/paint';
 import { fillSize, watchViewport } from '../ui/viewport';
 
 /**
@@ -56,7 +56,7 @@ export const newTowerRun = (floor: number): string => `myth:tower:${floor}:${Dat
  * - 1階〜(クリアした階の次)まで さわれる。クリアした階もまた遊べる。さわると階の画面(MythFloorScene)
  * - 行ける階は札が金色に光る(絵の1階・2階と同じ)。まだ行けない階は鍵(絵のとおり)。10階は絵の赤い札のまま
  * - クリアした階には「CLEAR」、次に挑戦する階は光がゆれる
- * - 絵は全部 画面に入れる(企画者 2026-10-27「画面内に収まってない」)。すき間は同じ絵をぼかしてしく
+ * - 画面いっぱいに出す(タイトルと同じ。はしが少し切れることがある)
  */
 export class MythTowerScene extends Phaser.Scene {
   private leaving = false;
@@ -75,6 +75,10 @@ export class MythTowerScene extends Phaser.Scene {
     this.W = size.w;
     this.H = size.h;
     this.scale.setGameSize(size.w, size.h);
+    this.k = Math.max(size.w / ART.w, size.h / ART.h);
+    this.ox = (size.w - ART.w * this.k) / 2;
+    // 画面いっぱい(企画者 2026-10-27「画面いっぱいでいい」)。上下が切れるときは、下のボタン・1階が残るように 上を多めに切る
+    this.oy = (size.h - ART.h * this.k) * 0.75;
   }
 
   preload(): void {
@@ -85,20 +89,26 @@ export class MythTowerScene extends Phaser.Scene {
     this.leaving = false;
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(PORTRAIT.w, PORTRAIT.h));
     watchViewport(this, () => !this.leaving && this.scene.restart());
+    const { k, ox, oy } = this;
     const parts = this.textures.get(MYTH_TOWER_PARTS);
     for (const [name, [x, y, w, h]] of Object.entries(FRAMES)) if (!parts.has(name)) parts.add(name, 0, x, y, w, h);
-    // 絵は全部 画面に入れる(はしを切らない。企画者 2026-10-27)
-    ({ k: this.k, ox: this.ox, oy: this.oy } = fitArt(this, MYTH_TOWER_IMAGE, ART, { w: this.W, h: this.H }));
-    const { k, ox, oy } = this;
+    this.add.image(ox, oy, MYTH_TOWER_IMAGE).setOrigin(0, 0).setScale(k);
 
     const cleared = (loadLife().mythclash ?? newCollection()).towerCleared ?? 0;
     const open = towerOpenFloors(cleared);
     for (let f = 1; f <= TOWER_FLOORS; f++) this.floor(f, f <= cleared, f <= open, f === open && f > cleared);
 
-    // 絵の「戻る」
+    // 絵の「戻る」。絵の下が切れて見えないときは、左上にも出す
     const [bx0, by0, bx1, by1] = BACK_ZONE;
     const bz = this.add.rectangle(ox + bx0 * k, oy + by0 * k, (bx1 - bx0) * k, (by1 - by0) * k, 0xffffff, 0).setOrigin(0, 0).setInteractive({ useHandCursor: true });
     bz.on('pointerdown', () => this.back(bz));
+    if (oy + by1 * k > this.H) {
+      const u = this.W / ART.w;
+      const t = this.add
+        .text(20 * u, 20 * u, '◀ 戻る', { fontFamily: UI_FONT, fontSize: `${Math.round(40 * u)}px`, fontStyle: '900', color: '#ffffff', backgroundColor: '#16101ccc', padding: { x: 18, y: 10 } })
+        .setInteractive({ useHandCursor: true });
+      t.on('pointerdown', () => this.back());
+    }
     this.cameras.main.fadeIn(250, 0, 0, 0);
     audio.playBgm('mythclash');
   }
