@@ -508,7 +508,8 @@ export function resolveRound(s: BattleState, actions: [BattleAction, BattleActio
   const atk = acts[s.attacker];
   const dfn = acts[other(s.attacker)];
   const defense = !skipped[other(s.attacker)] && dfn.type === 'defend' ? dfn.kind : null;
-  if (defense) events.push({ type: 'defend', side: other(s.attacker), id: activeCard(s, other(s.attacker)).id, kind: defense });
+  // 攻撃が無い(攻撃側が交代した・眠っている)ときは、防御も見せない
+  if (defense && !skipped[s.attacker] && atk.type === 'attack') events.push({ type: 'defend', side: other(s.attacker), id: activeCard(s, other(s.attacker)).id, kind: defense });
   if (!skipped[s.attacker] && atk.type === 'attack') resolveAttack(s, s.attacker, atk.kind, defense, events);
   // 必殺のロック: このフェイズが自分の攻撃フェイズで、必殺を使わなかったら外す
   if (!(atk.type === 'attack' && atk.kind === 'special') && atk.type !== 'switch') attackerCard.specialLock = false;
