@@ -93,8 +93,7 @@ export class MythBattleScene extends Phaser.Scene {
 
   init(data: { deck?: number[] | null }): void {
     this.chosenDeck = data?.deck ?? null;
-    this.defBadge?.destroy();
-    this.defBadge = undefined;
+    this.clearBadges();
     this.fitSize();
     this.busy = false;
     this.auto = false;
@@ -563,8 +562,7 @@ export class MythBattleScene extends Phaser.Scene {
         // 動いている途中のHPバーは、そのまま最後まで動かす(値は同じになる)
       }
       this.busy = false;
-      this.defBadge?.destroy();
-      this.defBadge = undefined;
+      this.clearBadges();
       this.render();
       if (this.s.winner !== null) this.showResult();
       else if (this.s.pending?.includes(ME)) this.openChooser('down');
@@ -587,6 +585,7 @@ export class MythBattleScene extends Phaser.Scene {
         const to = cardPos(e.side === ME ? CPU : ME);
         const lunge = () => img && this.tweens.add({ targets: img, y: img.y + (e.side === ME ? -80 : 80), duration: 120, yoyo: true, ease: 'Cubic.easeOut' });
         this.say(`${name(e.id)}の ${ACTION_LABELS[e.kind]}！`, e.side === ME ? '#ff8a8a' : '#8ac4ff');
+        this.showAttack(e.side, e.kind, e.id);
         if (e.kind === 'magic') {
           // 属性ごとの魔法の演出と音(雷なら相手に雷が落ちる。企画者 2026-10-26)
           const el = card(e.id)!.magic.element;
@@ -612,6 +611,16 @@ export class MythBattleScene extends Phaser.Scene {
       }
       case 'defend':
         this.roundDefense = { side: e.side, kind: e.kind };
+        // 攻撃側の選んだ行動を先に、つぎに防御側(どちらも出したまま)
+        {
+          const a = later.find((x) => x.type === 'attack');
+          if (a && a.type === 'attack') {
+            this.showAttack(a.side, a.kind, a.id);
+            this.say(`${who(a.side)}は ${ACTION_LABELS[a.kind]}！ ${who(e.side)}は ${ACTION_LABELS[e.kind]}`, '#ffffff');
+            this.time.delayedCall(450, () => this.showDefense(e.side, e.kind));
+            return 1250;
+          }
+        }
         this.say(`${who(e.side)}は ${ACTION_LABELS[e.kind]}`, '#d8d8ff');
         this.showDefense(e.side, e.kind);
         return 650;
@@ -733,8 +742,7 @@ export class MythBattleScene extends Phaser.Scene {
         return 300;
       case 'phase': {
         // 前半・後半の始まり(企画者 2026-10-26: 素早さが高い方が前半に攻撃)。前のフェイズの防御の札は消す
-        this.defBadge?.destroy();
-        this.defBadge = undefined;
+        this.clearBadges();
         this.roundDefense = undefined;
         this.view = viewFor(this.s, ME);
         const busy = this.busy;
@@ -779,28 +787,55 @@ export class MythBattleScene extends Phaser.Scene {
     });
   }
 
-  private defBadge?: Phaser.GameObjects.Container;
+  /** 選んだ行動の大きな札(攻撃側・防御側) */
+  private badges: Partial<Record<Side, Phaser.GameObjects.Container>> = {};
 
   /**
    * 防御側が何を選んだか、場のカードの上に大きく出す(企画者 2026-10-26: 防御側が何を選んだか分かりにくい)。
    * そのターンの出来事が終わるまで出しておく
    */
-  private showDefense(side: Side, kind: string): void {
-    this.defBadge?.destroy();
+  private clearBadges(): void {
+    for (const b of Object.values(this.badges)) b?.destroy();
+    this.badges = {};
+  }
+
+  /**
+   * 攻撃側が何を選んだか、攻撃側のカードの上に大きく出す(企画者 2026-10-27: 攻撃側がどの行動を選んだか分かりにくい)。
+   * 通常攻撃=赤、必殺技=金、魔法=魔法の属性の色。そのフェイズの出来事が終わるまで出しておく
+   */
+  private showAttack(side: Side, kind: string, id: number): void {
+    if (this.badges[side]) return;
+    const el = card(id)!.magic.element;
+    const look =
+      kind === 'magic'
+        ? { color: Phaser.Display.Color.HexStringToColor(ELEMENT_COLORS[el]).color, bg: '#3a1a5a', icon: '🔮' }
+        : kind === 'special'
+          ? { color: 0xffb020, bg: '#b86a00', icon: '💥' }
+          : { color: 0xff3a3a, bg: '#c0182a', icon: '⚔' };
+    this.badge(side, look, kind === 'magic' ? `${look.icon} 魔法（${el}）` : `${look.icon} ${ACTION_LABELS[kind]}`);
+    audio.se('whoosh');
+  }
+
+  private badge(side: Side, look: { color: number; bg: string; icon: string }, text: string): void {
+    this.badges[side]?.destroy();
     const p = cardPos(side);
-    const look = DEFENSE_LOOK[kind] ?? DEFENSE_LOOK.guard;
     const c = this.add.container(p.x, p.y).setDepth(45);
     const cw = MYTH_CARD_W * cardScale() + 30;
     const ch = cardH() + 30;
     const ring = this.add.rectangle(0, 0, cw, ch).setStrokeStyle(10, look.color, 1);
     const glow = this.add.rectangle(0, 0, cw, ch, look.color, 0.18);
-    const label = this.text(0, 0, `${look.icon} ${ACTION_LABELS[kind]}`, 40, '#ffffff').setBackgroundColor(look.bg).setPadding(22, 8, 22, 10).setStroke('#16101c', 6);
+    const label = this.text(0, 0, text, 40, '#ffffff').setBackgroundColor(look.bg).setPadding(22, 8, 22, 10).setStroke('#16101c', 6);
     c.add([glow, ring, label]);
     c.setScale(1.4).setAlpha(0);
     this.tweens.add({ targets: c, scale: 1, alpha: 1, duration: 220, ease: 'Back.easeOut' });
     this.tweens.add({ targets: ring, alpha: 0.4, duration: 450, yoyo: true, repeat: -1 });
+    this.badges[side] = c;
+  }
+
+  private showDefense(side: Side, kind: string): void {
+    const look = DEFENSE_LOOK[kind] ?? DEFENSE_LOOK.guard;
+    this.badge(side, look, `${look.icon} ${ACTION_LABELS[kind]}`);
     audio.se('guard');
-    this.defBadge = c;
   }
 
   /** カードを大きく見る。見せてよいカードだけ(相手のまだ出ていないカードは出さない) */
@@ -935,8 +970,7 @@ export class MythBattleScene extends Phaser.Scene {
       this.tweens.killAll();
       surrender(this.s, ME);
       this.busy = false;
-      this.defBadge?.destroy();
-      this.defBadge = undefined;
+      this.clearBadges();
       this.view = viewFor(this.s, ME);
       this.render();
       this.showResult();
