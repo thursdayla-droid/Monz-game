@@ -124,6 +124,15 @@
 - BUNKの見た目：元の絵のパーツ（構えた姿）を動かして攻撃の形にする（描き直さない）。色違いは `recolorPixels`（配色 cobalt【仮】）
 - 育成ステータスは反映しない（企画者決定 2026-10-22）
 
+## 6.6 MYTHCLASH（カードゲーム。くわしくは `docs/MYTHCLASH.md`）
+
+- 入口：お世話の「バトル」→ バトルメニュー → MYTHCLASH のタイトル（`MythTitleScene`）
+- タイトルの「バトルを始める」→ モードえらび（`MythModeScene`：ストーリー／バトル。3種類集めるまで押せない）
+  - ストーリー：タワーの絵の画面（`MythTowerScene`・企画者の絵）で階をえらぶ → デッキ編成 → ざこ2戦＋ボス。負けたらその階の1戦目から。HPは毎回もどる（2026-10-27）
+  - バトル：CPU 弱い・普通・強い（`src/core/mythclash/cpu.ts`）→ デッキ編成 → 1回バトル
+- 報酬（2026-10-27）：バトル勝ち 100・200・400コイン、タワーのはじめてのクリア 500×階（2回目から2割）、負けは0。経験値はお世話しているMONZへ（数字は【仮】。`src/core/mythclash/modes.ts`）
+- ほか：パック（ショップ・タイトル）・パック開封（`MythPackScene`）・バインダー（`BinderScene`）・デッキ編成（`MythDeckScene`）・バトル（`MythBattleScene`）
+
 ## 7. 素材の保存場所
 
 | 種類 | 元の絵（企画者の絵） | ゲームで使う形 |
@@ -135,6 +144,7 @@
 | お世話画面のアイコン・肉・手 | `design/home/` | `public/assets/home/` |
 | 家具 | `design/furniture/` | `public/assets/furniture/` |
 | ミニゲーム | `design/minigame/` | `public/assets/minigame/` |
+| MYTHCLASH | `design/mythclash/`（タイトル・パック・タワーの絵、`make_*.py`） | `public/assets/mythclash/` |
 | 曲 | — | `public/assets/bgm/`（home・main・card・dash・slugger） |
 
 - 絵を作る・切り抜く道具：`design/**/make_*.py`、`design/minigame/cutout.py`、`tools/*.py`
@@ -143,7 +153,7 @@
 ## 8. 保存データ（`src/core/lifeSave.ts`、`localStorage`）
 
 - `monz:save`：最初の質問の答え（`src/core/save.ts`）
-- `monz:life`（版4）：コイン・MONZ（レベル・経験値・ステータス・愛・お腹など）・持ち物（`owned`／置いた家具 `placed`：場所・向き・大きさ）・部屋 `place`・`secretRoom`（VIPを見つけた）・`vipOpen`（VIP開放）・ミニゲームの記録・もらった報酬の番号
+- `monz:life`（版4）：コイン・MONZ（レベル・経験値・ステータス・愛・お腹など）・持ち物（`owned`／置いた家具 `placed`：場所・向き・大きさ）・部屋 `place`・`secretRoom`（VIPを見つけた）・`vipOpen`（VIP開放）・ミニゲームの記録・もらった報酬の番号・MYTHCLASH（`mythclash`：持っているカード・デッキ・タワーのクリアした階 `towerCleared`）
 - 保存のたびに1つ前を `monz:life:backup` に残す。古い形のデータは読みこむときに今の形に直す
 - **データの形を変えるときは、今のデータが読めなくならないようにする**（`migrateLife` と `tests/` で確かめる）
 

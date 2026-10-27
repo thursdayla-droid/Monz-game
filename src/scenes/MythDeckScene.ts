@@ -86,7 +86,7 @@ export class MythDeckScene extends Phaser.Scene {
     const col = this.record.mythclash;
     const back = this.text(90, 46, '◀ もどる', 28, '#ffffff').setBackgroundColor('#16101ccc').setPadding(14, 6, 14, 8).setInteractive({ useHandCursor: true });
     // モードえらびから来たときは、そこへもどる
-    back.on('pointerdown', () => (this.match ? this.go('MythMode', { view: this.match.mode === 'tower' ? 'tower' : 'cpu' }) : this.go('MythTitle')));
+    back.on('pointerdown', () => (this.match ? (this.match.mode === 'tower' ? this.go('MythTower') : this.go('MythMode', { view: 'cpu' })) : this.go('MythTitle')));
     L.add([back, this.text(W / 2 + 60, 46, this.mode === 'edit' ? 'チーム編成' : `デッキ編成${this.matchLabel()}`, 40, '#ffd23a').setStroke('#16101c', 8)]);
 
     if (!battleUnlocked(col)) {
@@ -189,7 +189,7 @@ export class MythDeckScene extends Phaser.Scene {
   private matchLabel(): string {
     const m = this.match;
     if (!m) return '';
-    return m.mode === 'tower' ? `　${m.floor}F` : `　CPU ${CPU_LABELS[m.level]}`;
+    return m.mode === 'tower' ? `　${m.floor}階` : `　CPU ${CPU_LABELS[m.level]}`;
   }
 
   /** さわる(短く)と onTap、長押し(0.45秒)で onHold */

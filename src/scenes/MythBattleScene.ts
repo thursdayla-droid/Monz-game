@@ -3,7 +3,7 @@ import { audio } from '../audio/engine';
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { cpuAction, cpuReplacement, CPU_LABELS, type CpuLevel } from '../core/mythclash/cpu';
 import { BATTLE_MODE, BATTLES_PER_FLOOR, TOWER_FLOORS, towerBattle, type MythMatch } from '../core/mythclash/modes';
-import { newTowerRun } from './MythModeScene';
+import { newTowerRun } from './MythTowerScene';
 import { abilityOf } from '../core/mythclash/abilities';
 import { card, RARITIES, type Element } from '../core/mythclash/cards';
 import type { SeName } from '../audio/sfx';
@@ -1005,7 +1005,7 @@ export class MythBattleScene extends Phaser.Scene {
     if (!m) return null;
     if (m.mode === 'battle') return { main: `CPU ${CPU_LABELS[m.level]}`, sub: 'バトルモード', color: '#ffd23a' };
     const boss = towerBattle(m.floor, m.battle).boss;
-    return boss ? { main: `${m.floor}F ボス戦！`, sub: 'この階のボスがあらわれた！', color: '#ff5a5a' } : { main: `${m.floor}F ${m.battle + 1}戦目`, sub: `ボスまで あと${BATTLES_PER_FLOOR - 1 - m.battle}戦`, color: '#ffd23a' };
+    return boss ? { main: `${m.floor}階 ボス戦！`, sub: 'この階のボスがあらわれた！', color: '#ff5a5a' } : { main: `${m.floor}階 ${m.battle + 1}戦目`, sub: `ボスまで あと${BATTLES_PER_FLOOR - 1 - m.battle}戦`, color: '#ffd23a' };
   }
 
   /** まん中の大きな帯(少しで消える) */
@@ -1037,20 +1037,20 @@ export class MythBattleScene extends Phaser.Scene {
     const buttons: [string, () => void][] = [];
     const deck = this.chosenDeck;
     if (m?.mode === 'tower') {
-      const toTower = () => this.leave('MythMode', { view: 'tower' });
+      const toTower = () => this.leave('MythTower');
       const boss = towerBattle(m.floor, m.battle).boss;
       if (win && !boss) {
-        lines.push([`${m.floor}F ${m.battle + 1}戦目 突破！ HPは全部もどるよ`, '#7dffa0']);
+        lines.push([`${m.floor}階 ${m.battle + 1}戦目 突破！ HPは全部もどるよ`, '#7dffa0']);
         buttons.push(['つぎへ', () => this.scene.restart({ deck, match: { ...m, battle: m.battle + 1 } })], ['やめる', toTower]);
       } else if (win) {
         const r = new LifeRecord(loadLife()).mythTowerClear(m.floor, m.runId);
-        lines.push([`${m.floor}F クリア！${r?.first ? '（はじめて！）' : ''}`, '#ffd23a']);
+        lines.push([`${m.floor}階 クリア！${r?.first ? '（はじめて！）' : ''}`, '#ffd23a']);
         if (r) lines.push([`コイン +${r.coins.toLocaleString()}　経験値 +${r.exp}`, '#ffffff']);
         if (m.floor < TOWER_FLOORS) buttons.push(['次の階へ', () => this.leave('MythDeck', { mode: 'battle', match: { mode: 'tower', floor: m.floor + 1, battle: 0, runId: newTowerRun(m.floor + 1) } })]);
         else lines.push(['タワーの てっぺんに着いた！', '#ffb070']);
         buttons.push(['もどる', toTower]);
       } else {
-        lines.push([`${m.floor}F の1戦目から やり直し`, '#ffb070']);
+        lines.push([`${m.floor}階 の1戦目から やり直し`, '#ffb070']);
         buttons.push(['もう一度', () => this.scene.restart({ deck, match: { ...m, battle: 0, runId: newTowerRun(m.floor) } })], ['もどる', toTower]);
       }
     } else {
