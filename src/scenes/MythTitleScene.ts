@@ -4,11 +4,13 @@ import { preloadPacks } from '../render/packs';
 import { UI_FONT } from '../ui/paint';
 import { loadLife } from '../core/lifeSave';
 import { MYTH_PACK_IMAGE, openPackBuy } from '../ui/packBuy';
+import { fitArt } from '../ui/artFit';
 import { fillSize, watchViewport } from '../ui/viewport';
 
 /**
  * 企画者のタイトルの絵(design/mythclash/title.png・縦長 852x1846。2026-10-26 に新しいロゴ入りの絵へ差しかえ。前の絵は design/mythclash/unused/)。
- * 画面いっぱいに出す(企画者 2026-10-26): ゲームの大きさを画面の形に合わせ、絵は画面をおおうように置く(はしが少し切れることがある)
+ * 画面いっぱいに出す(企画者 2026-10-26): ゲームの大きさを画面の形に合わせる。
+ * 絵は全部 画面に入れる(企画者 2026-10-27: タワーと同じに。前は画面をおおうように置いて、はしが少し切れることがあった)
  */
 export const MYTH_TITLE_IMAGE = 'myth:title';
 export const MYTH_TITLE_FILE = 'assets/mythclash/title.webp';
@@ -53,9 +55,6 @@ export class MythTitleScene extends Phaser.Scene {
     this.W = size.w;
     this.H = size.h;
     this.scale.setGameSize(size.w, size.h);
-    this.k = Math.max(size.w / ART.w, size.h / ART.h);
-    this.ox = (size.w - ART.w * this.k) / 2;
-    this.oy = (size.h - ART.h * this.k) / 2;
   }
 
   preload(): void {
@@ -67,8 +66,9 @@ export class MythTitleScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(PORTRAIT.w, PORTRAIT.h));
     // 画面の形が変わったら(スマホを回したなど)、作り直す
     watchViewport(this, () => !this.leaving && this.scene.restart());
+    // 絵は全部 画面に入れる(はしを切らない。企画者 2026-10-27: タワーと同じに)。すき間は同じ絵をぼかしてしく
+    ({ k: this.k, ox: this.ox, oy: this.oy } = fitArt(this, MYTH_TITLE_IMAGE, ART, { w: this.W, h: this.H }));
     const { k, ox, oy } = this;
-    this.add.image(ox, oy, MYTH_TITLE_IMAGE).setOrigin(0, 0).setScale(k);
     for (const id of Object.keys(ZONES) as Zone[]) {
       const [x0, y0, x1, y1] = ZONES[id];
       const z = this.add.rectangle(ox + x0 * k, oy + y0 * k, (x1 - x0) * k, (y1 - y0) * k, 0xffffff, 0).setOrigin(0, 0).setInteractive({ useHandCursor: true });
@@ -106,12 +106,9 @@ export class MythTitleScene extends Phaser.Scene {
 
   /** パックを買う(企画者決定 2026-10-26: タイトル画面からも買える。このボタンでよい)。絵にないので、下の床の所に出す */
   private buildPackButton(): void {
-    // 画面の下からの位置で置く(絵の下のはしが切れても見えるように)。
-    // 画面が横に広くて、ゲームガイドの下に入らないときは、右上の空の所に小さめに置く
-    const u = this.W / ART.w;
-    const guideBottom = this.oy + ZONES.guide[3] * this.k;
-    const roomy = this.H - guideBottom >= 330 * u;
-    const c = roomy ? this.add.container(0, this.H - 236 * u).setScale(u) : this.add.container(this.W - 580 * u, 170 * u).setScale(u * 0.75);
+    // 絵の下の床の所(ゲームガイドの下)に、絵と同じ大きさの割合で置く。絵は全部画面に入るので、いつもここに入る
+    const u = this.k;
+    const c = this.add.container(this.ox, this.oy + (ART.h - 236) * u).setScale(u);
     const x = 250;
     const y = 0;
     const glow = this.add.circle(x, y, 170, 0xffd23a, 0.18);
