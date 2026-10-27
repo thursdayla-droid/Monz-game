@@ -15,7 +15,7 @@ import { activeCard, createBattle, legalActions, replaceDowned, resolveRound, su
 import { battleUnlocked, deckOwned, newCollection } from '../core/mythclash/packs';
 import { aiAction, randomDeck } from '../core/mythclash/sim';
 import { eventsFor, viewFor, type BattleView } from '../core/mythclash/view';
-import { describeAbility, describeMagicEffect } from '../core/mythclash/describe';
+import { describeAbility, describeMagicEffect, abilityLines } from '../core/mythclash/describe';
 import { ELEMENT_COLORS, useCardArt } from '../ui/mythCardArt';
 import { mulberry32, newSeed, type Rng } from '../core/rng';
 import { preloadPacks } from '../render/packs';
@@ -879,7 +879,7 @@ export class MythBattleScene extends Phaser.Scene {
     // 出来事を見せている間は、まだ見せていないHPを出さないように、場のカードは見えているHPにする
     const hp = this.busy && index === this.s.teams[side].active ? this.shownHp[side] : c.hp;
     const marks = [c.down && '戦闘不能', c.skip && STATUS_LABELS[c.skip], c.dot && STATUS_LABELS[c.dot], st.shield > 0 && `バリア${st.shield}`].filter(Boolean);
-    showCardZoom(this, this.cardTexture(c.id, side === CPU && !c.magicElement), [`HP ${hp} / ${c.maxHp}`, ...(marks.length ? [marks.join('・')] : [])]);
+    showCardZoom(this, this.cardTexture(c.id, side === CPU && !c.magicElement), [`HP ${hp} / ${c.maxHp}`, ...(marks.length ? [marks.join('・')] : []), ...abilityLines(card(c.id)!)]);
   }
 
   /** HPの色: 半分より多い=緑、半分以下=黄、4分の1以下=赤(上のバーも札の下のバーも同じ) */

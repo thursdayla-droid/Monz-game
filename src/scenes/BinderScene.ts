@@ -1,11 +1,13 @@
 import * as Phaser from 'phaser';
+import { abilityLines } from '../core/mythclash/describe';
+import { showCardZoom } from '../ui/cardZoom';
 import { preloadPacks } from '../render/packs';
 import { audio } from '../audio/engine';
 import { loadLife } from '../core/lifeSave';
 import { card, cardNo, CARDS, sortCardIds } from '../core/mythclash/cards';
 import { addSortChips, cardSortChoice } from '../ui/sortChips';
 import { battleUnlocked, kindsToUnlock, newCollection, ownedCount, ownedKinds, type MythCollection } from '../core/mythclash/packs';
-import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W, useCardArt, cardZoomTexture } from '../ui/mythCardArt';
+import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W, useCardArt } from '../ui/mythCardArt';
 import { canvasTextureOnce, roundRectPath, UI_FONT } from '../ui/paint';
 
 const W = 720;
@@ -179,28 +181,11 @@ export class BinderScene extends Phaser.Scene {
     return c;
   }
 
-  /** カードを大きく見る(さわると閉じる) */
+  /** カードを大きく見る(さわると閉じる)。特性の説明も出す(企画者 2026-10-27) */
   private zoom(id: number, n: number): void {
     if (this.busy) return;
     this.busy = true;
-    audio.se('tap');
-    const box = this.add.container(0, 0).setDepth(100);
-    const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.8).setOrigin(0, 0).setInteractive();
-    // 企画者のカードの絵があれば、くっきりした大きい絵で見せる(2026-10-27)
-    const key = cardZoomTexture(this, cardKey(id));
-    const f = this.textures.getFrame(key);
-    const s = Math.min((W - 80) / f.width, (H * 0.68) / f.height);
-    const img = this.add.image(W / 2, H * 0.45, key).setScale(s * 0.6);
-    const t = this.add.text(W / 2, H * 0.45 + (f.height * s) / 2 + 50, `持っている：${n}枚`, { fontFamily: UI_FONT, fontSize: '32px', fontStyle: '900', color: '#ffffff' }).setOrigin(0.5);
-    box.add([dim, img, t]);
-    this.tweens.add({ targets: img, scale: s, duration: 200, ease: 'Back.easeOut' });
-    this.time.delayedCall(200, () =>
-      dim.once('pointerdown', () => {
-        audio.se('back');
-        box.destroy();
-        this.busy = false;
-      }),
-    );
+    showCardZoom(this, cardKey(id), [card(id)!.name, ...abilityLines(card(id)!), `持っている：${n}枚`], () => (this.busy = false));
   }
 
   private leave(): void {

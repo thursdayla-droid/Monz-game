@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { abilityLines } from '../core/mythclash/describe';
 import { preloadPacks } from '../render/packs';
 import { audio } from '../audio/engine';
 import { LifeRecord, loadLife } from '../core/lifeSave';
@@ -126,7 +127,7 @@ export class MythDeckScene extends Phaser.Scene {
         continue;
       }
       const img = this.add.image(x, y, this.tex(id)).setScale(SLOT_S);
-      this.touchable(img, () => this.tapSlot(i), () => showCardZoom(this, this.tex(id), [card(id)!.name]));
+      this.touchable(img, () => this.tapSlot(i), () => showCardZoom(this, this.tex(id), [card(id)!.name, ...abilityLines(card(id)!)]));
       L.add(img);
     }
 
@@ -160,7 +161,7 @@ export class MythDeckScene extends Phaser.Scene {
       if (n >= 0) L.add(this.text(x, y, `${n + 1}`, 64, '#ffd23a').setStroke('#16101c', 10));
       const cnt = ownedCount(this.record.mythclash, id);
       if (cnt > 1) L.add(this.text(x + gw / 2 - 18, y + gh / 2 - 14, `×${cnt}`, 20, '#ffffff').setStroke('#16101c', 6));
-      this.touchable(img, () => this.tapCard(id), () => showCardZoom(this, this.tex(id), [card(id)!.name, `持っている：${cnt}枚`]));
+      this.touchable(img, () => this.tapCard(id), () => showCardZoom(this, this.tex(id), [card(id)!.name, ...abilityLines(card(id)!), `持っている：${cnt}枚`]));
     });
     const pageY = top + ROWS * (gh + 30) + 6;
     if (pages > 1) {

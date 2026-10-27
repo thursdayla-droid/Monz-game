@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { abilityLines } from '../core/mythclash/describe';
 import { audio } from '../audio/engine';
 import { loadLife } from '../core/lifeSave';
 import { card, CARDS, type Rarity } from '../core/mythclash/cards';
@@ -339,7 +340,7 @@ export class MythPackScene extends Phaser.Scene {
       this.tweens.add({ targets: img, scale: s, alpha: 1, duration: 220, delay: i * 45, ease: 'Back.easeOut' });
       // さわると大きく見られる(企画者 2026-10-26)
       img.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
-        if (this.phase === 'grid') showCardZoom(this, cardKey(id), [card(id)!.name]);
+        if (this.phase === 'grid') showCardZoom(this, cardKey(id), [card(id)!.name, ...abilityLines(card(id)!)]);
       });
       if (this.d.newIds.includes(id) && !seen.has(id)) this.newBadge(x + (MYTH_CARD_W * s) / 2 - 18 * u, y - (MYTH_CARD_H * s) / 2 + 8 * u, Math.min(1.2 * u, Math.max(0.7, s * 2.2)));
       seen.add(id);

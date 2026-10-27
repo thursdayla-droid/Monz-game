@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { abilityLines } from '../core/mythclash/describe';
 import { audio } from '../audio/engine';
 import { loadLife } from '../core/lifeSave';
 import { card } from '../core/mythclash/cards';
@@ -219,7 +220,7 @@ export class MythFloorScene extends Phaser.Scene {
       const tex = canvasTextureOnce(this, cardKey(id), MYTH_CARD_W, MYTH_CARD_H, (ctx) => drawMythCard(ctx, card(id)!));
       const s = Math.min(((x1 - x0) * k) / MYTH_CARD_W, ((y1 - y0) * k) / MYTH_CARD_H) * 0.96;
       const img = this.add.image(cx, cy, tex).setScale(s).setInteractive({ useHandCursor: true });
-      img.on('pointerdown', () => !this.dialog && showCardZoom(this, tex, [card(id)!.name]));
+      img.on('pointerdown', () => !this.dialog && showCardZoom(this, tex, [card(id)!.name, ...abilityLines(card(id)!)]));
     });
   }
 

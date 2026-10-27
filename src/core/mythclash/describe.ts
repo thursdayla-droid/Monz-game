@@ -2,7 +2,7 @@
  * 魔法の効果・特性の説明の文(画面に出す)。Phaserに依存しない。
  * 中身は magic.ts・abilities.ts の決まりから作る(決まりを変えたら、説明も自動で変わる)
  */
-import type { Ability } from './abilities';
+import { abilityOf, type Ability } from './abilities';
 import type { CardDefinition } from './cards';
 import { magicEffectOf } from './magic';
 import { DEFAULT_RULES, type BattleRules } from './rules';
@@ -70,4 +70,14 @@ export function describeAbility(ab: Ability): string {
     case 'none':
       return '';
   }
+}
+
+/**
+ * カードを大きく見るときの、特性の説明(企画者 2026-10-27: バインダーやパックでカードをアップしたとき、特性がわかるように)。
+ * 特性が無いカードは「特性：なし」
+ */
+export function abilityLines(c: CardDefinition): string[] {
+  const ab = abilityOf(c.abilityCode);
+  if (!ab || ab.def.kind === 'none' || !ab.name) return ['特性：なし'];
+  return [`特性：${ab.name}`, describeAbility(ab)];
 }
