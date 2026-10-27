@@ -1,3 +1,4 @@
+import type * as Phaser from 'phaser';
 import { abilityOf } from '../core/mythclash/abilities';
 import { cardNo, type CardDefinition, type Element, type Rarity } from '../core/mythclash/cards';
 import { roundRectPath, UI_FONT } from './paint';
@@ -30,7 +31,68 @@ export const ELEMENT_COLORS: Record<Element, string> = {
  * hideMagicElement: 対戦相手のカードで、まだ魔法を使っていないとき(魔法属性は使うまで見せない。確定ルール)。
  *   魔法の名前から属性がわかってしまうことがあるので、名前も「？？？」にする【仮】
  */
+/**
+ * 企画者のカードの絵(カード全体。企画者決定 2026-10-27: 文字まで入った絵をそのまま使う)。絵があるカードの番号。
+ * 絵は design/mythclash/make_cards.py で作る(public/assets/mythclash/cards/NNN.webp・600×833)。届いたら番号を足す
+ */
+export const CARD_ART_IDS: readonly number[] = [1];
+export const cardArtKey = (id: number) => `myth:cardart:${id}`;
+export const cardArtFile = (id: number) => `assets/mythclash/cards/${String(id).padStart(3, '0')}.webp`;
+const cardArt = new Map<number, CanvasImageSource>();
+
+/**
+ * 読みこんだカードの絵を drawMythCard で使えるようにする(カードを描く画面の create の最初で呼ぶ)。
+ * 絵より先にプログラムの絵でカードを作ってしまっていたら、それを消して作り直させる
+ */
+export function useCardArt(scene: Phaser.Scene): void {
+  for (const id of CARD_ART_IDS) {
+    if (cardArt.has(id) || !scene.textures.exists(cardArtKey(id))) continue;
+    cardArt.set(id, scene.textures.get(cardArtKey(id)).getSourceImage() as HTMLImageElement);
+    for (const k of [`mc:card:${id}`, `mc:card:${id}:h`]) if (scene.textures.exists(k)) scene.textures.remove(k);
+  }
+}
+
+/** 大きく見るときの絵(企画者の絵があれば、くっきりした大きい絵) */
+export function cardZoomTexture(scene: Phaser.Scene, key: string): string {
+  const m = /^mc:card:(\d+)$/.exec(key);
+  return m && scene.textures.exists(cardArtKey(Number(m[1]))) ? cardArtKey(Number(m[1])) : key;
+}
+
+/** 企画者の絵のカード(魔法の属性をかくすときは、絵の属性の所を「？？？」でおおう) */
+function drawArtCard(ctx: CanvasRenderingContext2D, art: CanvasImageSource, hideMagicElement: boolean): void {
+  const w = MYTH_CARD_W;
+  const h = MYTH_CARD_H;
+  ctx.save();
+  roundRectPath(ctx, 0, 0, w, h, 14);
+  ctx.clip();
+  ctx.drawImage(art, 0, 0, w, h);
+  ctx.restore();
+  if (hideMagicElement) {
+    // 絵の「魔法」の行の右の属性のしるし(1064×1478 の絵で x 790〜990・y 1185〜1265)
+    const x0 = (786 / 1064) * w;
+    const y0 = (1182 / 1478) * h;
+    const bw = (208 / 1064) * w;
+    const bh = (86 / 1478) * h;
+    roundRectPath(ctx, x0, y0, bw, bh, 6);
+    ctx.fillStyle = '#1a1018';
+    ctx.fill();
+    ctx.strokeStyle = '#6a5a70';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = '#b8a8c8';
+    ctx.font = `900 13px ${UI_FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('？？？', x0 + bw / 2, y0 + bh / 2 + 1);
+  }
+}
+
 export function drawMythCard(ctx: CanvasRenderingContext2D, c: CardDefinition, opts: { hideMagicElement?: boolean } = {}): void {
+  const picture = cardArt.get(c.id);
+  if (picture) {
+    drawArtCard(ctx, picture, !!opts.hideMagicElement);
+    return;
+  }
   const w = MYTH_CARD_W;
   const h = MYTH_CARD_H;
   const rc = RARITY_COLORS[c.rarity];

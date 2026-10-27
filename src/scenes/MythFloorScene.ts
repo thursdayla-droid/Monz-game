@@ -8,7 +8,7 @@ import { opponentFaceTexture } from '../ui/opponentFace';
 import { deckOwned, newCollection } from '../core/mythclash/packs';
 import { preloadPacks } from '../render/packs';
 import { showCardZoom } from '../ui/cardZoom';
-import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W } from '../ui/mythCardArt';
+import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W, useCardArt } from '../ui/mythCardArt';
 import { canvasTextureOnce, UI_FONT } from '../ui/paint';
 import { fillSize, watchViewport } from '../ui/viewport';
 
@@ -97,6 +97,8 @@ export class MythFloorScene extends Phaser.Scene {
   }
 
   create(): void {
+    // 企画者のカードの絵を使えるようにする(2026-10-27)
+    useCardArt(this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(PORTRAIT.w, PORTRAIT.h));
     watchViewport(this, () => !this.leaving && this.scene.restart({ match: this.match }));
     const { k } = this;

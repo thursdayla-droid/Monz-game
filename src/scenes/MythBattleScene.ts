@@ -16,7 +16,7 @@ import { battleUnlocked, deckOwned, newCollection } from '../core/mythclash/pack
 import { aiAction, randomDeck } from '../core/mythclash/sim';
 import { eventsFor, viewFor, type BattleView } from '../core/mythclash/view';
 import { describeAbility, describeMagicEffect } from '../core/mythclash/describe';
-import { ELEMENT_COLORS } from '../ui/mythCardArt';
+import { ELEMENT_COLORS, useCardArt } from '../ui/mythCardArt';
 import { mulberry32, newSeed, type Rng } from '../core/rng';
 import { preloadPacks } from '../render/packs';
 import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W } from '../ui/mythCardArt';
@@ -146,6 +146,8 @@ export class MythBattleScene extends Phaser.Scene {
   }
 
   create(): void {
+    // 企画者のカードの絵を使えるようにする(2026-10-27)
+    useCardArt(this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(PORTRAIT.w, PORTRAIT.h));
     watchViewport(this, () => this.onViewport());
     audio.preloadSe(['mcSlash', 'mcSpecial', 'mcGuardOk', 'mcPoison', 'mcHeal', 'mcThunder', 'mcNature', 'mcFire', 'mcLight', 'mcDark', 'mcDrain', 'mcMagicGuardOk', 'mcBuff', 'mcWater', 'mcCounter', 'mcCutin', 'mcBurn', 'mcMagic', 'mcSelect']);

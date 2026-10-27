@@ -18,13 +18,18 @@ pub = root + '/public/'
 paths = ['assets/title/title.png', 'assets/bunk/reference/bunk_hires_cutout.png', 'assets/bunk/reference/bunk_down_cutout.png']
 for d in ['parts', 'down', 'faces']:
     paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + f'assets/bunk/{d}/*.png'))
-paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/birth/*.webp') + glob.glob(pub + 'assets/home/*.webp') + glob.glob(pub + 'assets/home/icons/*.webp') + glob.glob(pub + 'assets/home/rooms/*.webp') + glob.glob(pub + 'assets/furniture/*.webp') + glob.glob(pub + 'assets/bunk/poses/*.webp') + glob.glob(pub + 'assets/minigame/*.webp') + glob.glob(pub + 'assets/mythclash/*.webp') + glob.glob(pub + 'assets/mythclash/opponents/*.webp'))
+paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/birth/*.webp') + glob.glob(pub + 'assets/home/*.webp') + glob.glob(pub + 'assets/home/icons/*.webp') + glob.glob(pub + 'assets/home/rooms/*.webp') + glob.glob(pub + 'assets/furniture/*.webp') + glob.glob(pub + 'assets/bunk/poses/*.webp') + glob.glob(pub + 'assets/minigame/*.webp') + glob.glob(pub + 'assets/mythclash/*.webp') + glob.glob(pub + 'assets/mythclash/opponents/*.webp') + glob.glob(pub + 'assets/mythclash/cards/*.webp'))
 assets = {}
 for p in paths:
     if p.endswith('.webp'):
         # 確認用ページの上限のため、大きい背景だけ少し圧縮しなおす(ゲーム本体はそのまま)
         data = open(pub + p, 'rb').read()
-        if p.startswith('assets/mythclash/opponents/'):
+        if p.startswith('assets/mythclash/cards/'):
+            # 企画者のカードの絵(最大100枚)は、確認用ページでは 360×500 に小さくする(大きく見たときに少しぼける。ゲーム本体はそのまま)
+            bb = io.BytesIO()
+            Image.open(pub + p).resize((360, 500), Image.LANCZOS).save(bb, 'WEBP', quality=66, method=6)
+            data = bb.getvalue()
+        elif p.startswith('assets/mythclash/opponents/'):
             # 対戦相手の顔(33人分)は、確認用ページでは 160×160 に小さくする(画面では丸く小さく出すので見た目はほぼ同じ)
             bb = io.BytesIO()
             Image.open(pub + p).resize((160, 160), Image.LANCZOS).save(bb, 'WEBP', quality=62, method=6)

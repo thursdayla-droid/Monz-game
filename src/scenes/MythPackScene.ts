@@ -4,7 +4,7 @@ import { loadLife } from '../core/lifeSave';
 import { card, CARDS, type Rarity } from '../core/mythclash/cards';
 import { newCollection, ownedKinds } from '../core/mythclash/packs';
 import { preloadPacks } from '../render/packs';
-import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W, RARITY_COLORS } from '../ui/mythCardArt';
+import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W, RARITY_COLORS, useCardArt } from '../ui/mythCardArt';
 import { MYTH_PACK_IMAGE, type PackOpenData, MYTH_CARD_BACK } from '../ui/packBuy';
 import { canvasTextureOnce, roundRectPath, UI_FONT } from '../ui/paint';
 import { showCardZoom } from '../ui/cardZoom';
@@ -64,6 +64,8 @@ export class MythPackScene extends Phaser.Scene {
   }
 
   create(): void {
+    // 企画者のカードの絵を使えるようにする(2026-10-27)
+    useCardArt(this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(PORTRAIT.w, PORTRAIT.h));
     const { W, H } = this;
     const bg = this.add.graphics();

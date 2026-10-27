@@ -1,11 +1,12 @@
 import * as Phaser from 'phaser';
+import { preloadPacks } from '../render/packs';
 import { audio } from '../audio/engine';
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { card, sortCardIds } from '../core/mythclash/cards';
 import { addSortChips, cardSortChoice } from '../ui/sortChips';
 import { battleUnlocked, deckOwned, kindsToUnlock, ownedCount } from '../core/mythclash/packs';
 import { showCardZoom } from '../ui/cardZoom';
-import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W } from '../ui/mythCardArt';
+import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W, useCardArt } from '../ui/mythCardArt';
 import { canvasTextureOnce, UI_FONT } from '../ui/paint';
 import { fillSize } from '../ui/viewport';
 import type { MythMatch } from '../core/mythclash/modes';
@@ -57,7 +58,13 @@ export class MythDeckScene extends Phaser.Scene {
     this.scale.setGameSize(W, this.H);
   }
 
+  preload(): void {
+    preloadPacks(this, ['mythclash']);
+  }
+
   create(): void {
+    // 企画者のカードの絵を使えるようにする(2026-10-27)
+    useCardArt(this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(PORTRAIT.w, PORTRAIT.h));
     this.record = new LifeRecord(loadLife());
     const col = this.record.mythclash;

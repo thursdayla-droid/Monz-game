@@ -1,10 +1,11 @@
 import * as Phaser from 'phaser';
+import { preloadPacks } from '../render/packs';
 import { audio } from '../audio/engine';
 import { loadLife } from '../core/lifeSave';
 import { card, cardNo, CARDS, sortCardIds } from '../core/mythclash/cards';
 import { addSortChips, cardSortChoice } from '../ui/sortChips';
 import { battleUnlocked, kindsToUnlock, newCollection, ownedCount, ownedKinds, type MythCollection } from '../core/mythclash/packs';
-import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W } from '../ui/mythCardArt';
+import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W, useCardArt, cardZoomTexture } from '../ui/mythCardArt';
 import { canvasTextureOnce, roundRectPath, UI_FONT } from '../ui/paint';
 
 const W = 720;
@@ -50,7 +51,13 @@ export class BinderScene extends Phaser.Scene {
     return Math.ceil(CARDS.length / PER_PAGE);
   }
 
+  preload(): void {
+    preloadPacks(this, ['mythclash']);
+  }
+
   create(): void {
+    // 企画者のカードの絵を使えるようにする(2026-10-27)
+    useCardArt(this);
     this.col = loadLife().mythclash ?? newCollection();
     // 表紙の内側(黒っぽい赤の革)
     const bg = this.add.graphics();
@@ -179,9 +186,12 @@ export class BinderScene extends Phaser.Scene {
     audio.se('tap');
     const box = this.add.container(0, 0).setDepth(100);
     const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.8).setOrigin(0, 0).setInteractive();
-    const s = Math.min((W - 80) / MYTH_CARD_W, (H * 0.68) / MYTH_CARD_H);
-    const img = this.add.image(W / 2, H * 0.45, cardKey(id)).setScale(s * 0.6);
-    const t = this.add.text(W / 2, H * 0.45 + (MYTH_CARD_H * s) / 2 + 50, `持っている：${n}枚`, { fontFamily: UI_FONT, fontSize: '32px', fontStyle: '900', color: '#ffffff' }).setOrigin(0.5);
+    // 企画者のカードの絵があれば、くっきりした大きい絵で見せる(2026-10-27)
+    const key = cardZoomTexture(this, cardKey(id));
+    const f = this.textures.getFrame(key);
+    const s = Math.min((W - 80) / f.width, (H * 0.68) / f.height);
+    const img = this.add.image(W / 2, H * 0.45, key).setScale(s * 0.6);
+    const t = this.add.text(W / 2, H * 0.45 + (f.height * s) / 2 + 50, `持っている：${n}枚`, { fontFamily: UI_FONT, fontSize: '32px', fontStyle: '900', color: '#ffffff' }).setOrigin(0.5);
     box.add([dim, img, t]);
     this.tweens.add({ targets: img, scale: s, duration: 200, ease: 'Back.easeOut' });
     this.time.delayedCall(200, () =>
