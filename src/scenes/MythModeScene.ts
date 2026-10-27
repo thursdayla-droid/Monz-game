@@ -115,7 +115,8 @@ export class MythModeScene extends Phaser.Scene {
     const col = loadLife().mythclash ?? newCollection();
     const ok = battleUnlocked(col);
     const top = H / 2 - 200;
-    this.panel(L, top, 240, '#8a35e0', '🏰 ストーリー', 'タワーを 1階から のぼろう', ok ? () => this.go('MythTower') : null);
+    // 名前は BLOOD TOWER(企画者 2026-10-27: 「ストーリーじゃなくて BLOOD TOWER」)
+    this.panel(L, top, 240, '#8a35e0', '🏰 BLOOD TOWER', 'タワーを 1階から のぼろう', ok ? () => this.go('MythTower') : null);
     this.panel(L, top + 300, 240, '#c0182a', '⚔ バトル', 'CPUの強さを えらんで 1回バトル', ok ? () => this.switchView('cpu') : null);
     if (!ok) L.add(this.text(W / 2, top + 500, `異なるカードをあと${kindsToUnlock(col)}種類集めると\nバトル解放！`, 32, '#ffb070'));
   }
