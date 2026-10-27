@@ -7,7 +7,7 @@ import { canvasTextureOnce } from './paint';
  * 顔の絵は企画者が用意する(public/assets/mythclash/opponents/<id>.webp)。届いた絵の id を OPPONENT_ART に足す。
  * 絵がまだ無い相手は、影の絵(プログラムで描いたもの)【仮】
  */
-export const OPPONENT_ART: readonly string[] = [];
+export const OPPONENT_ART: readonly string[] = ['t1-1', 't1-2', 't1-3'];
 export const opponentArtKey = (id: string) => `myth:opp:${id}`;
 export const opponentArtFile = (id: string) => `assets/mythclash/opponents/${id}.webp`;
 
