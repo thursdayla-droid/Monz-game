@@ -53,7 +53,7 @@ export const newTowerRun = (floor: number): string => `myth:tower:${floor}:${Dat
 
 /**
  * ストーリーモードの階えらび(企画者の絵 2026-10-27)。
- * - 1階〜(クリアした階の次)まで さわれる。クリアした階もまた遊べる
+ * - 1階〜(クリアした階の次)まで さわれる。クリアした階もまた遊べる。さわると階の画面(MythFloorScene)
  * - 行ける階は札が金色に光る(絵の1階・2階と同じ)。まだ行けない階は鍵(絵のとおり)。10階は絵の赤い札のまま
  * - クリアした階には「CLEAR」、次に挑戦する階は光がゆれる
  * - 画面いっぱいに出す(タイトルと同じ。はしが少し切れることがある)
@@ -151,7 +151,7 @@ export class MythTowerScene extends Phaser.Scene {
 
   private start(floor: number): void {
     const match: MythMatch = { mode: 'tower', floor, battle: 0, runId: newTowerRun(floor) };
-    this.go('MythDeck', { mode: 'battle', match }, 'tap');
+    this.go('MythFloor', { match }, 'tap');
   }
 
   private back(z?: Phaser.GameObjects.Rectangle): void {

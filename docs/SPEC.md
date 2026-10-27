@@ -128,7 +128,7 @@
 
 - 入口：お世話の「バトル」→ バトルメニュー → MYTHCLASH のタイトル（`MythTitleScene`）
 - タイトルの「バトルを始める」→ モードえらび（`MythModeScene`：ストーリー／バトル。3種類集めるまで押せない）
-  - ストーリー：タワーの絵の画面（`MythTowerScene`・企画者の絵）で階をえらぶ → デッキ編成 → ざこ2戦＋ボス。負けたらその階の1戦目から。HPは毎回もどる（2026-10-27）
+  - ストーリー：タワーの絵の画面（`MythTowerScene`・企画者の絵）で階をえらぶ → 階の画面（`MythFloorScene`・企画者の絵：進み具合・あなたのチーム・バトル開始・チーム編成）→ ざこ2戦＋ボス。負けたらその階の1戦目から。HPは毎回もどる（2026-10-27）
   - バトル：CPU 弱い・普通・強い（`src/core/mythclash/cpu.ts`）→ デッキ編成 → 1回バトル
 - 報酬（2026-10-27）：バトル勝ち 100・200・400コイン、タワーのはじめてのクリア 500×階（2回目から2割）、負けは0。経験値はお世話しているMONZへ（数字は【仮】。`src/core/mythclash/modes.ts`）
 - ほか：パック（ショップ・タイトル）・パック開封（`MythPackScene`）・バインダー（`BinderScene`）・デッキ編成（`MythDeckScene`）・バトル（`MythBattleScene`）
@@ -144,7 +144,7 @@
 | お世話画面のアイコン・肉・手 | `design/home/` | `public/assets/home/` |
 | 家具 | `design/furniture/` | `public/assets/furniture/` |
 | ミニゲーム | `design/minigame/` | `public/assets/minigame/` |
-| MYTHCLASH | `design/mythclash/`（タイトル・パック・タワーの絵、`make_*.py`） | `public/assets/mythclash/` |
+| MYTHCLASH | `design/mythclash/`（タイトル・パック・タワー・階の画面の絵、`make_*.py`） | `public/assets/mythclash/` |
 | 曲 | — | `public/assets/bgm/`（home・main・card・dash・slugger） |
 
 - 絵を作る・切り抜く道具：`design/**/make_*.py`、`design/minigame/cutout.py`、`tools/*.py`

@@ -86,7 +86,7 @@ export class MythDeckScene extends Phaser.Scene {
     const col = this.record.mythclash;
     const back = this.text(90, 46, '◀ もどる', 28, '#ffffff').setBackgroundColor('#16101ccc').setPadding(14, 6, 14, 8).setInteractive({ useHandCursor: true });
     // モードえらびから来たときは、そこへもどる
-    back.on('pointerdown', () => (this.match ? (this.match.mode === 'tower' ? this.go('MythTower') : this.go('MythMode', { view: 'cpu' })) : this.go('MythTitle')));
+    back.on('pointerdown', () => this.goBack());
     L.add([back, this.text(W / 2 + 60, 46, this.mode === 'edit' ? 'チーム編成' : `デッキ編成${this.matchLabel()}`, 40, '#ffd23a').setStroke('#16101c', 8)]);
 
     if (!battleUnlocked(col)) {
@@ -179,10 +179,18 @@ export class MythDeckScene extends Phaser.Scene {
     if (ready)
       go.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
         this.record.setMythDeck(this.deck);
-        if (this.mode === 'edit') this.go('MythTitle');
+        if (this.mode === 'edit') this.goBack();
         else this.go('MythBattle', { deck: [...this.deck], match: this.match });
       });
     L.add(go);
+  }
+
+  /** もどる先: ストーリーの階の画面から来たら そこへ(企画者の絵 2026-10-27)・バトルモードならCPUえらび・ほかはタイトル */
+  private goBack(): void {
+    const m = this.match;
+    if (m?.mode === 'tower') this.go('MythFloor', { match: m });
+    else if (m) this.go('MythMode', { view: 'cpu' });
+    else this.go('MythTitle');
   }
 
   /** 題の横に出す、どの戦いか(3F・CPU 強い) */

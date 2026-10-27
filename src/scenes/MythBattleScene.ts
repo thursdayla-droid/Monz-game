@@ -1041,17 +1041,17 @@ export class MythBattleScene extends Phaser.Scene {
       const boss = towerBattle(m.floor, m.battle).boss;
       if (win && !boss) {
         lines.push([`${m.floor}階 ${m.battle + 1}戦目 突破！ HPは全部もどるよ`, '#7dffa0']);
-        buttons.push(['つぎへ', () => this.scene.restart({ deck, match: { ...m, battle: m.battle + 1 } })], ['やめる', toTower]);
+        buttons.push(['つぎへ', () => this.leave('MythFloor', { match: { ...m, battle: m.battle + 1 } })], ['やめる', toTower]);
       } else if (win) {
         const r = new LifeRecord(loadLife()).mythTowerClear(m.floor, m.runId);
         lines.push([`${m.floor}階 クリア！${r?.first ? '（はじめて！）' : ''}`, '#ffd23a']);
         if (r) lines.push([`コイン +${r.coins.toLocaleString()}　経験値 +${r.exp}`, '#ffffff']);
-        if (m.floor < TOWER_FLOORS) buttons.push(['次の階へ', () => this.leave('MythDeck', { mode: 'battle', match: { mode: 'tower', floor: m.floor + 1, battle: 0, runId: newTowerRun(m.floor + 1) } })]);
+        if (m.floor < TOWER_FLOORS) buttons.push(['次の階へ', () => this.leave('MythFloor', { match: { mode: 'tower', floor: m.floor + 1, battle: 0, runId: newTowerRun(m.floor + 1) } })]);
         else lines.push(['タワーの てっぺんに着いた！', '#ffb070']);
         buttons.push(['もどる', toTower]);
       } else {
         lines.push([`${m.floor}階 の1戦目から やり直し`, '#ffb070']);
-        buttons.push(['もう一度', () => this.scene.restart({ deck, match: { ...m, battle: 0, runId: newTowerRun(m.floor) } })], ['もどる', toTower]);
+        buttons.push(['もう一度', () => this.leave('MythFloor', { match: { ...m, battle: 0, runId: newTowerRun(m.floor) } })], ['もどる', toTower]);
       }
     } else {
       if (win && m?.mode === 'battle') {
