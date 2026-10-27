@@ -21,7 +21,7 @@ export const MYTH_FLOOR_ORB_FILE = 'assets/mythclash/floor_parts.webp';
 const ART = { w: 941, h: 1672 };
 const PORTRAIT = { w: 720, h: 1280 };
 /** 絵の座標 */
-const DIGIT = { x: 432, y: 210 };
+const DIGIT = { x: 446, y: 210 };
 const NODES = [
   { x: 320, y: 303 },
   { x: 470, y: 303 },
