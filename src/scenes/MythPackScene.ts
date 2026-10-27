@@ -5,7 +5,7 @@ import { card, CARDS, type Rarity } from '../core/mythclash/cards';
 import { newCollection, ownedKinds } from '../core/mythclash/packs';
 import { preloadPacks } from '../render/packs';
 import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W, RARITY_COLORS } from '../ui/mythCardArt';
-import { MYTH_PACK_IMAGE, type PackOpenData } from '../ui/packBuy';
+import { MYTH_PACK_IMAGE, type PackOpenData, MYTH_CARD_BACK } from '../ui/packBuy';
 import { canvasTextureOnce, roundRectPath, UI_FONT } from '../ui/paint';
 import { showCardZoom } from '../ui/cardZoom';
 
@@ -17,7 +17,7 @@ const CARD_OF_PACK = 0.8;
 /** カードの下の、パックに入ったままの割合 */
 const CARD_TUCK = 0.15;
 const cardKey = (id: number) => `mc:card:${id}`;
-const BACK_KEY = 'mc:card:back';
+const BACK_KEY = 'mc:card:back2';
 
 type Phase = 'cut' | 'cutting' | 'reveal' | 'grid' | 'leaving';
 
@@ -69,7 +69,11 @@ export class MythPackScene extends Phaser.Scene {
     const bg = this.add.graphics();
     bg.fillGradientStyle(0x2a0a12, 0x2a0a12, 0x0a0408, 0x0a0408, 1).fillRect(0, 0, W, H);
     for (const id of new Set(this.d.cards)) canvasTextureOnce(this, cardKey(id), MYTH_CARD_W, MYTH_CARD_H, (ctx) => drawMythCard(ctx, card(id)!));
-    canvasTextureOnce(this, BACK_KEY, MYTH_CARD_W, MYTH_CARD_H, (ctx) => drawBack(ctx));
+    // カードの裏面: 企画者の絵(2026-10-27「パック開封の時も使って」)。表と同じ大きさにして、めくったときに形が変わらないようにする
+    canvasTextureOnce(this, BACK_KEY, MYTH_CARD_W, MYTH_CARD_H, (ctx) => {
+      if (this.textures.exists(MYTH_CARD_BACK)) ctx.drawImage(this.textures.get(MYTH_CARD_BACK).getSourceImage() as HTMLImageElement, 0, 0, MYTH_CARD_W, MYTH_CARD_H);
+      else drawBack(ctx);
+    });
     audio.playBgm('mythclashPack');
     this.cameras.main.fadeIn(250, 0, 0, 0);
     this.showPack();
@@ -358,7 +362,7 @@ export class MythPackScene extends Phaser.Scene {
   }
 }
 
-/** 【仮】カードのうら */
+/** 企画者の裏面の絵が読めなかったときだけ使う、プログラムで描いたカードのうら */
 function drawBack(ctx: CanvasRenderingContext2D): void {
   const w = MYTH_CARD_W;
   const h = MYTH_CARD_H;
