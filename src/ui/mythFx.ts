@@ -447,6 +447,10 @@ export function counterFx(scene: Phaser.Scene, defender: Pt, attacker: Pt): numb
  * コイントス(企画者 2026-10-27: 50%で効果が出るものは、コイントスして見せる)。
  * 結果はもう決まっている(win)。コインが回りながら上がって落ち、表(成功)か裏(失敗)で止まる。返すのは全体の長さ
  */
+/** コイントスのコインの表(企画者の絵。design/mythclash/make_coin.py で切り抜く) */
+export const MYTH_COIN_FRONT = 'myth:coinFront';
+export const MYTH_COIN_FRONT_FILE = 'assets/mythclash/coin_front.webp';
+
 export function coinTossFx(scene: Phaser.Scene, x: number, y: number, win: boolean, title: string, onFlip?: () => void, onLand?: (win: boolean) => void): number {
   const R = 70;
   const face = (key: string, front: boolean) =>
@@ -479,7 +483,10 @@ export function coinTossFx(scene: Phaser.Scene, x: number, y: number, win: boole
       ctx.textBaseline = 'middle';
       ctx.fillText(front ? '表' : '裏', c, c + 4);
     });
-  const front = face('fx:coin:front', true);
+  // 表は企画者の絵(2026-10-27)。絵が読めていなければ、プログラムで描いた金色の「表」。裏は絵が届くまでプログラムの銀色の「裏」【仮】
+  const front = scene.textures.exists(MYTH_COIN_FRONT)
+    ? canvasTextureOnce(scene, 'fx:coin:front:art', R * 2 + 8, R * 2 + 8, (ctx) => ctx.drawImage(scene.textures.get(MYTH_COIN_FRONT).getSourceImage() as HTMLImageElement, 0, 0, R * 2 + 8, R * 2 + 8))
+    : face('fx:coin:front', true);
   const back = face('fx:coin:back', false);
   const box = scene.add.container(x, y).setDepth(DEPTH + 30);
   const dim = scene.add.rectangle(0, 0, 520, 360, 0x0a0408, 0.78).setStrokeStyle(4, 0xd8b060, 1);

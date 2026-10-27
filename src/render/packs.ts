@@ -5,6 +5,7 @@ import { REFERENCE_FILES, REFERENCE_ORIGINAL } from '../scenes/CompareScene';
 import { BUNK_POSE_IMAGES, bunkPoseKey, HAND_FILE, HAND_KEY, HOME_ICONS, homeIconKey, homeImageFile, homeImageKey, homePlace, MEAT_FILE, MEAT_KEY } from '../scenes/HomeScene';
 import { TITLE_FILE, TITLE_IMAGE } from '../scenes/TitleScene';
 import { MYTH_TITLE_FILE, MYTH_TITLE_IMAGE } from '../scenes/MythTitleScene';
+import { MYTH_COIN_FRONT, MYTH_COIN_FRONT_FILE } from '../ui/mythFx';
 import { CARD_ART_IDS, cardArtFile, cardArtKey } from '../ui/mythCardArt';
 import { OPPONENT_ART, opponentArtFile, opponentArtKey } from '../ui/opponentFace';
 import { MYTH_FLOOR_FILE, MYTH_FLOOR_IMAGE, MYTH_FLOOR_ORB, MYTH_FLOOR_ORB_FILE } from '../scenes/MythFloorScene';
@@ -46,6 +47,7 @@ function packFiles(name: Exclude<PackName, 'bunk'>): PackFile[] {
         { key: MYTH_TITLE_IMAGE, url: MYTH_TITLE_FILE },
         { key: MYTH_PACK_IMAGE, url: MYTH_PACK_FILE },
         { key: MYTH_CARD_BACK, url: MYTH_CARD_BACK_FILE },
+        { key: MYTH_COIN_FRONT, url: MYTH_COIN_FRONT_FILE },
         ...CARD_ART_IDS.map((id) => ({ key: cardArtKey(id), url: cardArtFile(id) })),
         { key: MYTH_TOWER_IMAGE, url: MYTH_TOWER_FILE },
         { key: MYTH_TOWER_PARTS, url: MYTH_TOWER_PARTS_FILE },
