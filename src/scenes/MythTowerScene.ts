@@ -55,7 +55,7 @@ export const newTowerRun = (floor: number): string => `myth:tower:${floor}:${Dat
  * - 行ける階は札が金色に光る(元の札の色を金色にした部品)。まだ行けない階は鍵(前の絵の鍵)。10階は絵の赤い札のまま
  * - クリアした階には「CLEAR」、次に挑戦する階は光がゆれる
  * - 画面いっぱいに出す(タイトルと同じ。はしが少し切れることがある。左右は背景だけなので、たいてい左右が少し切れる)
- * - 新しい絵には「戻る」が無いので、左下にプログラムで描いたボタンを出す【仮】
+ * - 新しい絵には「戻る」が無いので、左下にプログラムで描いたボタンを出す(企画者「良い」2026-10-27)
  */
 export class MythTowerScene extends Phaser.Scene {
   private leaving = false;
@@ -140,7 +140,7 @@ export class MythTowerScene extends Phaser.Scene {
     });
   }
 
-  /** 戻る(左下。絵の札と同じ 黒・赤・金の色)【仮】 */
+  /** 戻る(左下。絵の札と同じ 黒・赤・金の色) */
   private backButton(): void {
     const u = Math.min(this.W, this.H * (ART.w / ART.h)) / ART.w;
     const bw = 300 * u;
