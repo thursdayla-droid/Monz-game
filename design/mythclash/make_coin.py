@@ -1,5 +1,5 @@
 """
-コイントスのコインの表面(企画者の絵 coin_front.png 2026-10-27)を、ゲームで使う形にする。
+コイントスのコインの表面(企画者の絵 coin_front.png)と裏面(coin_back.png。もとからとうめい)を、ゲームで使う形にする(2026-10-27)。
 - まわりのチェック柄(とうめいの見本の模様。本当のとうめいではない)を消す:
   外側からつながっている「白・うすい灰色」の所だけを消し、いちばん大きいかたまり(コイン)を残す
 - 256×256 → public/assets/mythclash/coin_front.webp
@@ -42,3 +42,11 @@ rgba = np.dstack([a.astype(np.uint8), mask])
 out = Image.fromarray(rgba, 'RGBA').crop((cx - side // 2, cy - side // 2, cx + side // 2, cy + side // 2)).resize((256, 256), Image.LANCZOS)
 out.save(os.path.join(OUT, 'coin_front.webp'), 'WEBP', quality=88, method=6)
 print('ok', side)
+
+# 裏面: もとから背景がとうめいなので、とうめいでない所に合わせて正方形に切り出すだけ → coin_back.webp
+back = Image.open(os.path.join(HERE, 'coin_back.png')).convert('RGBA')
+bx0, by0, bx1, by1 = back.getbbox()
+side = max(bx1 - bx0, by1 - by0)
+cx, cy = (bx0 + bx1) // 2, (by0 + by1) // 2
+back.crop((cx - side // 2, cy - side // 2, cx + side // 2, cy + side // 2)).resize((256, 256), Image.LANCZOS).save(os.path.join(OUT, 'coin_back.webp'), 'WEBP', quality=88, method=6)
+print('back ok', side)
