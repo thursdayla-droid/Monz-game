@@ -4,7 +4,7 @@ import { loadLife } from '../core/lifeSave';
 import { abilityOf } from '../core/mythclash/abilities';
 import { card, RARITIES, type Element } from '../core/mythclash/cards';
 import type { SeName } from '../audio/sfx';
-import { counterFx, impactFx, magicFx, slashFx, specialCutin } from '../ui/mythFx';
+import { coinTossFx, counterFx, impactFx, magicFx, slashFx, specialCutin } from '../ui/mythFx';
 import { activeCard, createBattle, legalActions, replaceDowned, resolveRound, surrender, type BattleAction, type BattleEvent, type BattleState, type Side } from '../core/mythclash/engine';
 import { battleUnlocked, deckOwned, newCollection } from '../core/mythclash/packs';
 import { aiAction, randomDeck } from '../core/mythclash/sim';
@@ -647,6 +647,12 @@ export class MythBattleScene extends Phaser.Scene {
         else if (e.amount > 0 && (e.source === 'reflect' || e.source === 'dot')) audio.se('mcHit', { pitch: Math.min(1.6, 0.8 + e.amount / 60) });
         this.cameras.main.shake(120, e.amount >= 30 ? 0.008 : 0.004);
         return 1000;
+      }
+      case 'coinToss': {
+        const label: Record<string, string> = { sleep: '睡眠', freeze: '凍結', poison: '毒', burn: '火傷', weaken: '攻撃ダウン' };
+        const what = label[e.effect] ?? '追加効果';
+        this.say(`${what}が効くか… コイントス！`, '#ffd23a');
+        return coinTossFx(this, W / 2, midY(), e.win, `${what}のコイントス`, () => audio.se('tap', { pitch: 1.6 }), (win) => audio.se(win ? 'select' : 'back'));
       }
       case 'effectBlocked':
         this.say(`魔法防御で 追加効果を防いだ！`, '#c8a8ff');

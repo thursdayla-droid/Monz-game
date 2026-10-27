@@ -442,3 +442,87 @@ export function counterFx(scene: Phaser.Scene, defender: Pt, attacker: Pt): numb
   });
   return 1100;
 }
+
+/**
+ * コイントス(企画者 2026-10-27: 50%で効果が出るものは、コイントスして見せる)。
+ * 結果はもう決まっている(win)。コインが回りながら上がって落ち、表(成功)か裏(失敗)で止まる。返すのは全体の長さ
+ */
+export function coinTossFx(scene: Phaser.Scene, x: number, y: number, win: boolean, title: string, onFlip?: () => void, onLand?: (win: boolean) => void): number {
+  const R = 70;
+  const face = (key: string, front: boolean) =>
+    canvasTextureOnce(scene, key, R * 2 + 8, R * 2 + 8, (ctx) => {
+      const c = R + 4;
+      const g = ctx.createRadialGradient(c - 20, c - 24, 6, c, c, R);
+      if (front) {
+        g.addColorStop(0, '#fff6c0');
+        g.addColorStop(0.55, '#f0c030');
+        g.addColorStop(1, '#a06a08');
+      } else {
+        g.addColorStop(0, '#f0f0f8');
+        g.addColorStop(0.55, '#9aa0b8');
+        g.addColorStop(1, '#4a5068');
+      }
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(c, c, R, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.lineWidth = 6;
+      ctx.strokeStyle = front ? '#7a4a00' : '#2a3048';
+      ctx.stroke();
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(c, c, R - 12, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = front ? '#6a3a00' : '#1e2236';
+      ctx.font = `900 64px ${UI_FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(front ? '表' : '裏', c, c + 4);
+    });
+  const front = face('fx:coin:front', true);
+  const back = face('fx:coin:back', false);
+  const box = scene.add.container(x, y).setDepth(DEPTH + 30);
+  const dim = scene.add.rectangle(0, 0, 520, 360, 0x0a0408, 0.78).setStrokeStyle(4, 0xd8b060, 1);
+  const t = scene.add.text(0, -140, title, { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '900', color: '#ffd23a' }).setOrigin(0.5);
+  const coin = scene.add.image(0, 10, front);
+  const shadow = scene.add.ellipse(0, 110, 120, 22, 0x000000, 0.5);
+  box.add([dim, shadow, t, coin]);
+  box.setAlpha(0);
+  scene.tweens.add({ targets: box, alpha: 1, duration: 150 });
+  // くるくる回る(横はばを 1 → 0 → 1 にして、0 のときに面をかえる)
+  const flips = 7;
+  let side = true;
+  const spin = { k: 0 };
+  scene.tweens.add({
+    targets: spin,
+    k: flips,
+    duration: 1100,
+    ease: 'Cubic.easeOut',
+    onUpdate: () => {
+      const f = spin.k % 1;
+      coin.scaleX = Math.abs(Math.cos(f * Math.PI));
+      const now = Math.floor(spin.k + 0.5) % 2 === 0;
+      if (now !== side) {
+        side = now;
+        // 回っている間は表と裏を交互に(止まったときに結果の面にする)
+        coin.setTexture(side ? front : back);
+        onFlip?.();
+      }
+    },
+    onComplete: () => {
+      coin.setTexture(win ? front : back).setScale(1);
+      onLand?.(win);
+      const res = scene.add.text(0, 132, win ? '表！ 成功' : '裏… 失敗', { fontFamily: UI_FONT, fontSize: '36px', fontStyle: '900', color: win ? '#ffd23a' : '#b8c0d8', stroke: '#16101c', strokeThickness: 8 }).setOrigin(0.5).setScale(0.4);
+      box.add(res);
+      scene.tweens.add({ targets: res, scale: 1, duration: 200, ease: 'Back.easeOut' });
+      scene.tweens.add({ targets: coin, scale: 1.18, duration: 120, yoyo: true });
+      if (win) impactFx(scene, { x, y: y + 10 }, 0xffd23a, false);
+      scene.tweens.add({ targets: box, alpha: 0, delay: 650, duration: 220, onComplete: () => box.destroy() });
+    },
+  });
+  // 上がって落ちる
+  scene.tweens.add({ targets: [coin], y: -60, duration: 550, ease: 'Quad.easeOut', yoyo: true });
+  scene.tweens.add({ targets: shadow, scaleX: 0.5, alpha: 0.2, duration: 550, ease: 'Quad.easeOut', yoyo: true });
+  return 2050;
+}
+

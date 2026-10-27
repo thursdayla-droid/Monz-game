@@ -74,6 +74,25 @@ describe('MYTHCLASH cards (from the planner\'s table, unchanged)', () => {
 });
 
 describe('MYTHCLASH battle rules', () => {
+  it('50% effects show a coin toss whose result matches the effect; 100% effects have no toss', () => {
+    // 014 眠り茨の姫(睡眠 50%)
+    let wins = 0;
+    for (let seed = 1; seed <= 40; seed++) {
+      const s = battle([14, 60, 61], PLAIN_B, DEFAULT_RULES, seed);
+      const ev = resolveRound(s, [MG, G]);
+      const t = ev.filter((e) => e.type === 'coinToss');
+      expect(t).toHaveLength(1);
+      const st = ev.find((e) => e.type === 'status');
+      expect(st && st.type === 'status' && st.applied).toBe(t[0].type === 'coinToss' && t[0].win);
+      if (t[0].type === 'coinToss' && t[0].win) wins++;
+    }
+    expect(wins).toBeGreaterThan(8);
+    expect(wins).toBeLessThan(32);
+    // 魔法防御なら、コイントスもしない
+    const g = battle([14, 60, 61], PLAIN_B);
+    expect(resolveRound(g, [MG, MD]).some((e) => e.type === 'coinToss')).toBe(false);
+  });
+
   it('surrender: the side that gives up loses at once, and nothing more happens', () => {
     const s = battle(PLAIN_A, PLAIN_B);
     expect(surrender(s, 0)).toEqual([{ type: 'end', winner: 1 }]);

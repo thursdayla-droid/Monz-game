@@ -100,6 +100,8 @@ export type BattleEvent =
   | { type: 'magicReveal'; side: Side; id: number; element: string }
   | { type: 'down'; side: Side; id: number }
   | { type: 'end'; winner: Side | 'draw' }
+  /** 50%などの追加効果のコイントス(win: 表 = 効果が出る) */
+  | { type: 'coinToss'; side: Side; id: number; effect: string; win: boolean }
   /** 魔法防御で、魔法の追加効果(相手にかかるもの)を防いだ */
   | { type: 'effectBlocked'; side: Side; id: number }
   /** 前半・後半が始まった(attacker がそのフェイズの攻撃側) */
@@ -345,12 +347,18 @@ function applyMagicEffect(s: BattleState, side: Side, att: CardBattleState, tSid
   }
   if (m.onTarget && tgt.down) return;
   if (!m.onTarget && guarded && rules.magicGuardBlocksSelfEffects) return;
-  let hit = m.chance >= 1 || s.rng() < m.chance;
+  // 50%などで決まる効果は、コイントス(企画者 2026-10-27: 画面でコイントスを見せる)。結果は乱数で先に決まる
+  const toss = (): boolean => {
+    const win = s.rng() < m.chance;
+    events.push({ type: 'coinToss', side, id: att.id, effect: e.kind, win });
+    return win;
+  };
+  let hit = m.chance >= 1 || toss();
   const ab = att.ability;
-  // 夢への執念: 睡眠の判定に失敗したら、1回だけ判定し直す
+  // 夢への執念: 睡眠の判定に失敗したら、1回だけ判定し直す(もう1回コイントス)
   if (!hit && e.kind === 'sleep' && ab && ab.def.kind === 'sleepReroll') {
     events.push({ type: 'ability', side, id: att.id, code: ab.code });
-    hit = s.rng() < m.chance;
+    hit = toss();
   }
   if (e.kind === 'sleep' || e.kind === 'freeze') {
     const ok = hit && !tgt.skip && (rules.sleepAndDotTogether || !tgt.dot);
