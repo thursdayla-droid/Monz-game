@@ -46,6 +46,8 @@ const THUMB_S = 0.26;
 const thumbPos = (side: Side, i: number) => ({ x: W / 2 + (i - 1) * 112, y: side === CPU ? 162 : H - 276 });
 /** 名前・HPの板(まん中の高さ) */
 const panelY = (side: Side) => (side === CPU ? 56 : H - 166);
+/** バトルの始めに 相手の顔とひとことを出しておく時間(企画者 2026-10-27「少し長めに。読みきれない」2.6秒→4秒) */
+const INTRO_MS = 4000;
 /** 相手の板で、顔の分だけ右へずらす */
 const FACE_SHIFT = 76;
 const ATTACK_COLOR = 0xff3a3a;
@@ -166,7 +168,7 @@ export class MythBattleScene extends Phaser.Scene {
     const intro = this.matchIntro();
     if (intro) this.banner(intro.main, intro.sub, intro.color);
     else this.say('バトル開始！', '#ffffff');
-    this.time.delayedCall(intro ? 2600 : 900, () => this.prompt());
+    this.time.delayedCall(intro ? INTRO_MS + 300 : 900, () => this.prompt());
   }
 
   /** デッキ編成で選んだ3枚(企画者 2026-10-26)。無ければ前に組んだデッキ・レアの高い3枚。3種類なければテスト用のランダム */
@@ -1044,7 +1046,7 @@ export class MythBattleScene extends Phaser.Scene {
     }
     c.setScale(1, 0.1);
     this.tweens.add({ targets: c, scaleY: 1, duration: 220, ease: 'Back.easeOut' });
-    this.tweens.add({ targets: c, alpha: 0, delay: op ? 2300 : 1300, duration: 300, onComplete: () => c.destroy() });
+    this.tweens.add({ targets: c, alpha: 0, delay: op ? INTRO_MS - 300 : 1300, duration: 300, onComplete: () => c.destroy() });
   }
 
   /**

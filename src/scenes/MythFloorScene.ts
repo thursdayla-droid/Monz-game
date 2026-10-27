@@ -42,6 +42,8 @@ const ZONES = {
 } as const;
 /** 「敵チーム」の帯(絵の座標。まん中・顔の位置) */
 const BANNER = { x: 470, y: 453, face: 300 };
+/** 相手のひとことを出しておく時間(企画者 2026-10-27「少し長めに。読みきれない」2.6秒→4.5秒) */
+const SPEECH_MS = 4500;
 const SERIF = '"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif';
 const cardKey = (id: number) => `mc:card:${id}`;
 
@@ -192,12 +194,12 @@ export class MythFloorScene extends Phaser.Scene {
     const t = this.add.text(0, 0, `${op.title}\n「${op.line}」`, { fontFamily: UI_FONT, fontSize: `${Math.round(24 * k)}px`, fontStyle: '900', color: '#ffffff', align: 'center', lineSpacing: 4 * k }).setOrigin(0.5, 0);
     const bg = this.add.rectangle(0, -8 * k, t.width + 40 * k, t.height + 20 * k, 0x16060a, 0.92).setOrigin(0.5, 0).setStrokeStyle(3 * k, boss ? 0xff6a3a : 0xd8a64a, 1);
     bubble.add([bg, t]);
-    this.tweens.add({ targets: bubble, alpha: 0, delay: 2600, duration: 400 });
+    this.tweens.add({ targets: bubble, alpha: 0, delay: SPEECH_MS, duration: 400 });
     face.on('pointerdown', () => {
       if (this.dialog) return;
       this.tweens.killTweensOf(bubble);
       bubble.setAlpha(1);
-      this.tweens.add({ targets: bubble, alpha: 0, delay: 2600, duration: 400 });
+      this.tweens.add({ targets: bubble, alpha: 0, delay: SPEECH_MS, duration: 400 });
     });
   }
 
