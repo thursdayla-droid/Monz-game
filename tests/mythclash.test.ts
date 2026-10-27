@@ -215,6 +215,15 @@ describe('MYTHCLASH battle rules', () => {
     s.teams[1].cards[0].hp = 1;
     resolveRound(s, [N, G]);
     expect([s.round, s.half, s.teams[1].active]).toEqual([2, 1, 1]);
+    // 自分のカードが前半で倒れたとき: 次のカードを選ぶまで待ち、選んだら次のターンの前半
+    s = battle(PLAIN_A, PLAIN_B);
+    s.attacker = 1;
+    s.teams[0].cards[0].hp = 1;
+    resolveRound(s, [G, N], (side) => (side === 0 ? null : undefined));
+    expect([s.round, s.half, s.pending]).toEqual([2, 1, [0]]);
+    const next = replaceDowned(s, 0, 2);
+    expect([s.round, s.half, s.teams[0].active]).toEqual([2, 1, 2]);
+    expect(next.some((e) => e.type === 'phase' && e.round === 2 && e.half === 1)).toBe(true);
     // 両方が交代 → 攻撃なしでターンが終わる
     s = battle(PLAIN_A, PLAIN_B);
     const ev2 = resolveRound(s, [SW(1), SW(1)]);
