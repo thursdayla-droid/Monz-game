@@ -22,6 +22,8 @@ export interface BattleRules {
   dotTiming: 'roundEnd' | 'roundStart';
   /** 強い追加効果のコイントス【確定 50%】 */
   strongChance: number;
+  /** 睡眠・凍結で行動できない回数【確定 2026-10-27: 2回(前は1回)】 */
+  skipActions: number;
   /** 睡眠・凍結のあいだに交代できるか【確定 2026-10-26: できる。控えにいる間は、行動できない回数は減らない】 */
   canSwitchWhileAsleep: boolean;
   /** 睡眠・凍結と毒・火傷を同時に持てるか【確定 2026-10-26: 持てる】 */
@@ -45,6 +47,7 @@ export const DEFAULT_RULES: BattleRules = {
   dotRounding: 'ceil',
   dotTiming: 'roundEnd',
   strongChance: 0.5,
+  skipActions: 2,
   canSwitchWhileAsleep: true,
   sleepAndDotTogether: true,
   reflectUsesAttackerDef: true,

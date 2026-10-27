@@ -685,7 +685,13 @@ export class MythBattleScene extends Phaser.Scene {
         audio.se(e.status === 'poison' ? 'mcPoison' : e.status === 'burn' ? 'mcBurn' : e.status === 'boost' || e.status === 'shield' ? 'mcBuff' : 'boing');
         return 600;
       case 'skip':
-        this.say(`${name(e.id)}は ${e.reason === 'sleep' ? '眠っていて' : '凍っていて'}動けない`, '#b8a8ff');
+        {
+          const left = this.s.teams[e.side].cards.find((c) => c.id === e.id)?.skipLeft ?? 0;
+          this.say(`${name(e.id)}は ${e.reason === 'sleep' ? '眠っていて' : '凍っていて'}動けない${left > 0 ? `（あと${left}回）` : '（次から動ける）'}`, '#b8a8ff');
+          const busy = this.busy;
+          this.render();
+          this.busy = busy;
+        }
         return 650;
       case 'ability':
         this.say(`特性「${abilityOf(e.code)?.name ?? ''}」！`, '#ffd23a');
@@ -754,8 +760,8 @@ export class MythBattleScene extends Phaser.Scene {
     const c = this.s.teams[side].cards[this.s.teams[side].active];
     const p = (r: number) => `${Math.round(r * 100)}%`;
     const chips: [string, string][] = [];
-    if (c.skip === 'sleep') chips.push(['💤 睡眠', '#6a4ad8']);
-    if (c.skip === 'freeze') chips.push(['❄ 凍結', '#2aa8c8']);
+    if (c.skip === 'sleep') chips.push([`💤 睡眠 あと${c.skipLeft}回`, '#6a4ad8']);
+    if (c.skip === 'freeze') chips.push([`❄ 凍結 あと${c.skipLeft}回`, '#2aa8c8']);
     if (c.dot === 'poison') chips.push(['☠ 毒', '#8a2ac8']);
     if (c.dot === 'burn') chips.push(['🔥 火傷', '#d8501a']);
     if (c.weakenNormal > 0) chips.push([`⬇ 攻撃 −${p(c.weakenNormal)}`, '#c0182a']);

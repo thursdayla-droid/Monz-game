@@ -43,6 +43,8 @@ export interface CardBattleState {
   magicRevealed: boolean;
   /** 次の行動ができない(睡眠・凍結) */
   skip: 'sleep' | 'freeze' | null;
+  /** 睡眠・凍結で、あと何回行動できないか(企画者 2026-10-27: 2回) */
+  skipLeft: number;
   /** 毒・火傷(どちらか一方だけ) */
   dot: 'poison' | 'burn' | null;
   /** 必殺を使ったので、次の自分の攻撃ターンに必殺を選べない */
@@ -112,7 +114,7 @@ const other = (s: Side): Side => (s === 0 ? 1 : 0);
 function newCardState(id: number): CardBattleState {
   const def = cardDef(id);
   if (!def) throw new Error(`MYTHCLASH: カード No.${id} がない`);
-  return { id, def, ability: abilityOf(def.abilityCode), hp: def.maxHp, down: false, entered: false, magicRevealed: false, skip: null, dot: null, specialLock: false, abilityUsed: false, afterSpecial: false, shield: 0, weakenNormal: 0, weakenMagic: 0, boostNormal: 0, boostMagic: 0 };
+  return { id, def, ability: abilityOf(def.abilityCode), hp: def.maxHp, down: false, entered: false, magicRevealed: false, skip: null, skipLeft: 0, dot: null, specialLock: false, abilityUsed: false, afterSpecial: false, shield: 0, weakenNormal: 0, weakenMagic: 0, boostNormal: 0, boostMagic: 0 };
 }
 
 /** デッキが正しいか(ちがうカードIDが3枚。企画者決定) */
@@ -362,7 +364,10 @@ function applyMagicEffect(s: BattleState, side: Side, att: CardBattleState, tSid
   }
   if (e.kind === 'sleep' || e.kind === 'freeze') {
     const ok = hit && !tgt.skip && (rules.sleepAndDotTogether || !tgt.dot);
-    if (ok) tgt.skip = e.kind;
+    if (ok) {
+      tgt.skip = e.kind;
+      tgt.skipLeft = rules.skipActions;
+    }
     events.push({ type: 'status', side: tSide, id: tgt.id, status: e.kind, applied: ok });
     if (ok && ab && ab.def.kind === 'healOnStatus' && ab.def.status === e.kind) {
       events.push({ type: 'ability', side, id: att.id, code: ab.code });
@@ -499,7 +504,8 @@ export function resolveRound(s: BattleState, actions: [BattleAction, BattleActio
     const c = activeCard(s, side);
     if (c.skip && acts[side].type !== 'switch') {
       events.push({ type: 'skip', side, id: c.id, reason: c.skip });
-      c.skip = null;
+      c.skipLeft = Math.max(0, c.skipLeft - 1);
+      if (c.skipLeft === 0) c.skip = null;
       skipped[side] = true;
     }
   }

@@ -19,9 +19,9 @@ export function describeMagicEffect(c: CardDefinition, rules: BattleRules = DEFA
     case 'none':
       return '追加効果なし';
     case 'sleep':
-      return `相手を睡眠${chance}。次の行動が1回できない`;
+      return `相手を睡眠${chance}。行動が${rules.skipActions}回できない`;
     case 'freeze':
-      return `相手を凍結${chance}。次の行動が1回できない`;
+      return `相手を凍結${chance}。行動が${rules.skipActions}回できない`;
     case 'poison':
       return `相手を毒${chance}。毎ターン最大HPの${pct(rules.dotRate)}`;
     case 'burn':

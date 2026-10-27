@@ -320,14 +320,24 @@ describe('MYTHCLASH battle rules', () => {
     expect(s2.teams[1].cards[0].dot).toBe('poison');
   });
 
-  it('sleep: loses the next action once, with no immunity (can be put to sleep again right away)', () => {
+  it('sleep: loses the next 2 actions, with no immunity (can be put to sleep again right away)', () => {
     const always = { ...FLAT, strongChance: 1 };
     const s = battle([14, 60, 61], PLAIN_B, always);
     resolveRound(s, [MG, G]);
-    expect(activeCard(s, 1).skip).toBe('sleep');
-    const ev = resolveRound(s, [G, N]);
+    expect([activeCard(s, 1).skip, activeCard(s, 1).skipLeft]).toEqual(['sleep', 2]);
+    // 1回目: 後半の攻撃ができない
+    let ev = resolveRound(s, [G, N]);
     expect(ev.some((e) => e.type === 'skip')).toBe(true);
     expect(dmgTo(ev, 0)).toBe(0);
+    expect(activeCard(s, 1).skipLeft).toBe(1);
+    // 2回目: 次のターンの守りもできない(自分の通常攻撃は 半分にならない)
+    ev = resolveRound(s, [N, G]);
+    expect(ev.some((e) => e.type === 'skip' && e.side === 1)).toBe(true);
+    expect(dmgTo(ev, 1)).toBe(expected(14, 60, 'normal'));
+    expect(activeCard(s, 1).skip).toBeNull();
+    // 3回目は動ける
+    ev = resolveRound(s, [G, N]);
+    expect(ev.some((e) => e.type === 'skip')).toBe(false);
     resolveRound(s, [MG, G]);
     expect(activeCard(s, 1).skip).toBe('sleep');
   });
@@ -354,9 +364,11 @@ describe('MYTHCLASH battle rules', () => {
     expect(s.teams[1].active).toBe(0);
     expect(s.teams[1].cards[0].skip).toBe('sleep');
     while (s.half !== 1) ph(s, N, G);
-    // 場にもどったあとの、はじめての行動で1回できない
-    ev = ph(s, s.attacker === 1 ? N : G, s.attacker === 1 ? G : N);
-    expect(ev.some((e) => e.type === 'skip' && e.side === 1)).toBe(true);
+    // 場にもどったあとの行動から、2回できない
+    for (let k = 0; k < 2; k++) {
+      ev = ph(s, s.attacker === 1 ? N : G, s.attacker === 1 ? G : N);
+      expect(ev.some((e) => e.type === 'skip' && e.side === 1)).toBe(true);
+    }
     expect(s.teams[1].cards[0].skip).toBeNull();
   });
 });
