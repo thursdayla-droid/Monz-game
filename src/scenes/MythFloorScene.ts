@@ -11,32 +11,32 @@ import { canvasTextureOnce, UI_FONT } from '../ui/paint';
 import { fillSize, watchViewport } from '../ui/viewport';
 
 /**
- * 企画者の「階に入ったときの画面」の絵(design/mythclash/floor.png・852x1846。2026-10-27)。
- * make_floor.py で「第1階層」の数字・1戦目の光った玉・見本のカードを消した背景(floor.webp)と、光った玉(floor_parts.webp)を作る
+ * 企画者の「階に入ったときの画面」の絵(design/mythclash/floor.png・941x1672(9:16)。2026-10-27 に新しい絵へ差しかえ。前の絵は unused/)。
+ * 新しい絵は「第　階層」の数字が空いていて、玉は光っておらず、あなたのチームの枠は空。make_floor.py で背景(floor.webp)と、光った玉(floor_parts.webp・前の絵の玉)を作る
  */
 export const MYTH_FLOOR_IMAGE = 'myth:floor';
 export const MYTH_FLOOR_FILE = 'assets/mythclash/floor.webp';
 export const MYTH_FLOOR_ORB = 'myth:floorOrb';
 export const MYTH_FLOOR_ORB_FILE = 'assets/mythclash/floor_parts.webp';
-const ART = { w: 852, h: 1846 };
+const ART = { w: 941, h: 1672 };
 const PORTRAIT = { w: 720, h: 1280 };
 /** 絵の座標 */
-const DIGIT = { x: 401, y: 153 };
+const DIGIT = { x: 432, y: 210 };
 const NODES = [
-  { x: 288, y: 222 },
-  { x: 425, y: 222 },
-  { x: 562, y: 218 },
+  { x: 320, y: 303 },
+  { x: 470, y: 303 },
+  { x: 625, y: 300 },
 ];
 const SLOTS = [
-  [62, 1086, 276, 1366],
-  [315, 1090, 532, 1370],
-  [568, 1085, 785, 1365],
+  [125, 1040, 337, 1305],
+  [368, 1040, 580, 1305],
+  [610, 1040, 822, 1305],
 ] as const;
 const ZONES = {
-  start: [120, 1510, 735, 1680],
-  back: [20, 1705, 255, 1795],
-  team: [590, 1718, 830, 1795],
-  tower: [612, 14, 832, 86],
+  start: [200, 1355, 745, 1490],
+  back: [45, 1515, 290, 1610],
+  team: [625, 1525, 885, 1610],
+  tower: [640, 45, 870, 115],
 } as const;
 const SERIF = '"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif';
 const cardKey = (id: number) => `mc:card:${id}`;
@@ -73,8 +73,8 @@ export class MythFloorScene extends Phaser.Scene {
     this.scale.setGameSize(size.w, size.h);
     this.k = Math.max(size.w / ART.w, size.h / ART.h);
     this.ox = (size.w - ART.w * this.k) / 2;
-    // 画面いっぱい(企画者 2026-10-27「画面いっぱいでいい」)。上下が切れるときは、下のボタン・1階が残るように 上を多めに切る
-    this.oy = (size.h - ART.h * this.k) * 0.75;
+    // 画面いっぱい(企画者 2026-10-27「画面いっぱいでいい」)
+    this.oy = (size.h - ART.h * this.k) / 2;
   }
 
   preload(): void {
@@ -100,7 +100,7 @@ export class MythFloorScene extends Phaser.Scene {
 
     // 第○階層
     this.add
-      .text(this.px(DIGIT.x), this.py(DIGIT.y), String(this.match.floor), { fontFamily: SERIF, fontSize: `${Math.round((this.match.floor >= 10 ? 56 : 74) * k)}px`, fontStyle: '900', color: '#ffd04a', stroke: '#3a1a04', strokeThickness: Math.max(2, 5 * k) })
+      .text(this.px(DIGIT.x), this.py(DIGIT.y), String(this.match.floor), { fontFamily: SERIF, fontSize: `${Math.round((this.match.floor >= 10 ? 50 : 64) * k)}px`, fontStyle: '900', color: '#ffd04a', stroke: '#3a1a04', strokeThickness: Math.max(2, 5 * k) })
       .setOrigin(0.5)
       .setShadow(0, 0, '#ff9a20', 16 * k, false, true);
 
