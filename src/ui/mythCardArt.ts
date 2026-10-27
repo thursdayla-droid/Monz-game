@@ -58,7 +58,7 @@ export function cardZoomTexture(scene: Phaser.Scene, key: string): string {
   return m && scene.textures.exists(cardArtKey(Number(m[1]))) ? cardArtKey(Number(m[1])) : key;
 }
 
-/** 企画者の絵のカード(魔法の属性をかくすときは、絵の属性の所を「？？？」でおおう) */
+/** 企画者の絵のカード(相手がまだ魔法を使っていないときは、絵の魔法の名前・属性・説明を「？？？」でおおう) */
 function drawArtCard(ctx: CanvasRenderingContext2D, art: CanvasImageSource, hideMagicElement: boolean): void {
   const w = MYTH_CARD_W;
   const h = MYTH_CARD_H;
@@ -68,22 +68,27 @@ function drawArtCard(ctx: CanvasRenderingContext2D, art: CanvasImageSource, hide
   ctx.drawImage(art, 0, 0, w, h);
   ctx.restore();
   if (hideMagicElement) {
-    // 絵の「魔法」の行の右の属性のしるし(1064×1478 の絵で x 790〜990・y 1185〜1265)
-    const x0 = (786 / 1064) * w;
-    const y0 = (1182 / 1478) * h;
-    const bw = (208 / 1064) * w;
-    const bh = (86 / 1478) * h;
-    roundRectPath(ctx, x0, y0, bw, bh, 6);
-    ctx.fillStyle = '#1a1018';
+    // 魔法の名前・属性・効果の説明を、使うまでかくす(企画者 2026-10-27「対戦中は魔法の種類が相手に見えちゃうから使うまで隠して」)。
+    // カードによって 説明の行のあり・なしで並びがちがうので、魔法のわく全体(1064×1478 の絵で x 66〜1000・y 1146〜1276)をおおって、「魔法　？？？」と書く
+    const x0 = (66 / 1064) * w;
+    const y0 = (1146 / 1478) * h;
+    const bw = (934 / 1064) * w;
+    const bh = (130 / 1478) * h;
+    roundRectPath(ctx, x0, y0, bw, bh, 5);
+    ctx.fillStyle = '#140c14';
     ctx.fill();
-    ctx.strokeStyle = '#6a5a70';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = '#5a4a60';
+    ctx.lineWidth = 1.2;
     ctx.stroke();
-    ctx.fillStyle = '#b8a8c8';
-    ctx.font = `900 13px ${UI_FONT}`;
-    ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('？？？', x0 + bw / 2, y0 + bh / 2 + 1);
+    ctx.textAlign = 'left';
+    ctx.font = `900 15px ${UI_FONT}`;
+    ctx.fillStyle = '#4aa8ff';
+    ctx.fillText('魔法', x0 + 10, y0 + bh / 2 + 1);
+    ctx.textAlign = 'center';
+    ctx.font = `900 16px ${UI_FONT}`;
+    ctx.fillStyle = '#b8a8c8';
+    ctx.fillText('？？？', x0 + bw / 2 + 14, y0 + bh / 2 + 1);
   }
 }
 
