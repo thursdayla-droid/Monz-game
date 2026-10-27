@@ -46,6 +46,8 @@ export class MythDeckScene extends Phaser.Scene {
     this.mode = data?.mode ?? 'battle';
     this.page = 0;
     this.leaving = false;
+    this.sel = null;
+    this.pick = null;
     this.H = fillSize(this, PORTRAIT, { minRatio: 0.42, maxRatio: PORTRAIT.w / PORTRAIT.h }).h;
     this.scale.setGameSize(W, this.H);
   }
@@ -88,14 +90,22 @@ export class MythDeckScene extends Phaser.Scene {
     }
 
     // 上: 3つの枠(入れた順に、先頭から場に出る)
-    L.add(this.text(W / 2, 108, 'ちがうカードを3枚えらんでね（1番から順に出る）', 22, '#d8c8e8'));
+    const hint = this.pick !== null ? '入れかえる枠をタップしてね' : this.sel !== null ? `${this.sel + 1}番に入れるカードをタップしてね` : 'ちがうカードを3枚えらんでね（1番から順に出る）';
+    L.add(this.text(W / 2, 108, hint, 22, this.pick !== null || this.sel !== null ? '#7de8ff' : '#d8c8e8'));
     const sw = MYTH_CARD_W * SLOT_S;
     const sh = MYTH_CARD_H * SLOT_S;
     for (let i = 0; i < 3; i++) {
       const x = W / 2 + (i - 1) * (sw + 24);
       const y = 140 + sh / 2;
       const frame = this.add.graphics();
-      frame.lineStyle(4, 0xffd23a, this.deck[i] ? 1 : 0.5).strokeRoundedRect(x - sw / 2 - 6, y - sh / 2 - 6, sw + 12, sh + 12, 12);
+      // 入れかえの相手をえらんでいるときは、枠を水色に光らせる
+      const glow = this.sel === i || (this.pick !== null && this.deck.length === 3);
+      frame.lineStyle(glow ? 7 : 4, glow ? 0x7de8ff : 0xffd23a, this.deck[i] || glow ? 1 : 0.5).strokeRoundedRect(x - sw / 2 - 6, y - sh / 2 - 6, sw + 12, sh + 12, 12);
+      if (glow) this.tweens.add({ targets: frame, alpha: 0.4, duration: 450, yoyo: true, repeat: -1 });
+      // 枠(空いていても)をさわれるように
+      const hitSlot = this.add.zone(x, y, sw + 12, sh + 12).setInteractive({ useHandCursor: true });
+      hitSlot.on('pointerup', () => this.tapSlot(i));
+      L.add(hitSlot);
       L.add([frame, this.text(x - sw / 2 + 4, y - sh / 2 - 4, String(i + 1), 26, '#ffd23a').setOrigin(0, 0).setStroke('#16101c', 6).setDepth(2)]);
       const id = this.deck[i];
       if (id === undefined) {
@@ -103,7 +113,7 @@ export class MythDeckScene extends Phaser.Scene {
         continue;
       }
       const img = this.add.image(x, y, this.tex(id)).setScale(SLOT_S);
-      this.touchable(img, () => this.toggle(id), () => showCardZoom(this, this.tex(id), [card(id)!.name]));
+      this.touchable(img, () => this.tapSlot(i), () => showCardZoom(this, this.tex(id), [card(id)!.name]));
       L.add(img);
     }
 
@@ -129,10 +139,15 @@ export class MythDeckScene extends Phaser.Scene {
       const n = this.deck.indexOf(id);
       if (n >= 0) img.setTint(0x777777);
       L.add(img);
+      if (this.pick === id) {
+        const ring = this.add.rectangle(x, y, gw + 12, gh + 12).setStrokeStyle(7, 0x7de8ff, 1);
+        this.tweens.add({ targets: ring, alpha: 0.4, duration: 450, yoyo: true, repeat: -1 });
+        L.add(ring);
+      }
       if (n >= 0) L.add(this.text(x, y, `${n + 1}`, 64, '#ffd23a').setStroke('#16101c', 10));
       const cnt = ownedCount(this.record.mythclash, id);
       if (cnt > 1) L.add(this.text(x + gw / 2 - 18, y + gh / 2 - 14, `×${cnt}`, 20, '#ffffff').setStroke('#16101c', 6));
-      this.touchable(img, () => this.toggle(id), () => showCardZoom(this, this.tex(id), [card(id)!.name, `持っている：${cnt}枚`]));
+      this.touchable(img, () => this.tapCard(id), () => showCardZoom(this, this.tex(id), [card(id)!.name, `持っている：${cnt}枚`]));
     });
     const pageY = top + ROWS * (gh + 30) + 6;
     if (pages > 1) {
@@ -149,7 +164,7 @@ export class MythDeckScene extends Phaser.Scene {
       arrow(W - 110, '▶', 1);
       L.add(this.text(W / 2, pageY, `${this.page + 1} / ${pages}`, 26, '#ffffff'));
     }
-    L.add(this.text(W / 2, pageY + 44, 'さわると えらぶ・はずす　長押しで 大きく見る', 18, '#9a8aa8'));
+    L.add(this.text(W / 2, pageY + 44, 'さわると えらぶ・はずす　枠→カードで入れかえ　長押しで 大きく見る', 18, '#9a8aa8'));
 
     // 下: バトル開始 / 決定
     const ready = this.deck.length === 3;
@@ -183,17 +198,70 @@ export class MythDeckScene extends Phaser.Scene {
     obj.on('pointerout', () => timer?.remove());
   }
 
-  private toggle(id: number): void {
-    const i = this.deck.indexOf(id);
-    if (i >= 0) {
+  /** 入れかえ: えらんだ枠(sel)か、入れかえたいカード(pick) */
+  private sel: number | null = null;
+  private pick: number | null = null;
+
+  /**
+   * 枠をさわる(企画者 2026-10-27: デッキとバインダーのカードを入れかえたい)。
+   * - カードを先にえらんでいたら(pick)、その枠のカードと入れかえる
+   * - カードの入った枠: 1回目でえらぶ(水色に光る)、もう一度さわると外す
+   */
+  private tapSlot(i: number): void {
+    if (this.pick !== null) {
+      const id = this.pick;
+      this.pick = null;
+      if (i < this.deck.length) this.deck[i] = id;
+      else this.deck.push(id);
+      audio.se('select');
+    } else if (this.deck[i] === undefined) {
+      audio.se('tap', { pitch: 0.8 });
+      this.sel = null;
+    } else if (this.sel === i) {
       this.deck.splice(i, 1);
+      this.sel = null;
+      audio.se('back');
+    } else {
+      this.sel = i;
+      audio.se('tap');
+    }
+    this.draw();
+  }
+
+  /**
+   * 持っているカードをさわる。
+   * - 枠をえらんでいたら(sel)、その枠に入れる(デッキの中のカードなら、場所を入れかえる)
+   * - デッキのカードなら外す。空きがあれば入れる
+   * - 3枚うまっていたら、入れかえるカードとしてえらぶ(次に枠をさわる)
+   */
+  private tapCard(id: number): void {
+    const n = this.deck.indexOf(id);
+    if (this.sel !== null) {
+      const i = this.sel;
+      this.sel = null;
+      if (n === i) {
+        audio.se('tap');
+      } else if (n >= 0) {
+        [this.deck[i], this.deck[n]] = [this.deck[n], this.deck[i]];
+        audio.se('select');
+      } else {
+        this.deck[i] = id;
+        audio.se('select');
+      }
+    } else if (this.pick === id) {
+      this.pick = null;
+      audio.se('back');
+    } else if (n >= 0) {
+      this.deck.splice(n, 1);
+      this.pick = null;
       audio.se('back');
     } else if (this.deck.length < 3) {
       this.deck.push(id);
+      this.pick = null;
       audio.se('select');
     } else {
-      audio.se('tap', { pitch: 0.8 });
-      return;
+      this.pick = id;
+      audio.se('tap');
     }
     this.draw();
   }
