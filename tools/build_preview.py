@@ -18,13 +18,19 @@ pub = root + '/public/'
 paths = ['assets/title/title.png', 'assets/bunk/reference/bunk_hires_cutout.png', 'assets/bunk/reference/bunk_down_cutout.png']
 for d in ['parts', 'down', 'faces']:
     paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + f'assets/bunk/{d}/*.png'))
-paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/birth/*.webp') + glob.glob(pub + 'assets/home/*.webp') + glob.glob(pub + 'assets/home/icons/*.webp') + glob.glob(pub + 'assets/home/rooms/*.webp') + glob.glob(pub + 'assets/furniture/*.webp') + glob.glob(pub + 'assets/bunk/poses/*.webp') + glob.glob(pub + 'assets/minigame/*.webp') + glob.glob(pub + 'assets/mythclash/*.webp'))
+paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/birth/*.webp') + glob.glob(pub + 'assets/home/*.webp') + glob.glob(pub + 'assets/home/icons/*.webp') + glob.glob(pub + 'assets/home/rooms/*.webp') + glob.glob(pub + 'assets/furniture/*.webp') + glob.glob(pub + 'assets/bunk/poses/*.webp') + glob.glob(pub + 'assets/minigame/*.webp') + glob.glob(pub + 'assets/mythclash/*.webp') + glob.glob(pub + 'assets/mythclash/opponents/*.webp'))
 assets = {}
 for p in paths:
     if p.endswith('.webp'):
         # 確認用ページの上限のため、大きい背景だけ少し圧縮しなおす(ゲーム本体はそのまま)
         data = open(pub + p, 'rb').read()
-        if len(data) > 80_000:
+        if p.startswith('assets/mythclash/opponents/'):
+            # 対戦相手の顔(33人分)は、確認用ページでは 180×180 に小さくする(画面では丸く小さく出すので見た目はほぼ同じ)
+            bb = io.BytesIO()
+            Image.open(pub + p).resize((180, 180), Image.LANCZOS).save(bb, 'WEBP', quality=66, method=6)
+            data = bb.getvalue()
+        # 2026-10-27: 対戦相手の顔の分をあけるため、少し小さい絵(60KBより大きい)も圧縮しなおす
+        elif len(data) > 60_000:
             bb = io.BytesIO()
             Image.open(pub + p).save(bb, 'WEBP', quality=55, method=6)
             data = bb.getvalue()
@@ -47,7 +53,7 @@ BGM_NOT_YET: set[str] = set()
 for p in sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/bgm/*.mp3') + glob.glob(pub + 'assets/se/**/*.mp3', recursive=True)):
     if p in BGM_NOT_YET:
         continue
-    # 確認用ページの大きさの上限(16MB)のため、曲は軽く(モノラル20kbps・2026-10-26 に28k→24k→20kと下げた)して埋め込む。ゲーム本体は元の音質のまま
+    # 確認用ページの大きさの上限(16MB)のため、曲は軽く(モノラル20kbps・2026-10-26 に28k→24k→20kと下げた。22kHzでは実際は16kbpsになる)して埋め込む。ゲーム本体は元の音質のまま
     import subprocess, tempfile
     tmp = tempfile.mktemp(suffix='.mp3')
     # 効果音は短いので、確認用ページでも音質をあまり落とさない(48kbps)
