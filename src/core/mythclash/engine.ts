@@ -100,6 +100,8 @@ export type BattleEvent =
   | { type: 'magicReveal'; side: Side; id: number; element: string }
   | { type: 'down'; side: Side; id: number }
   | { type: 'end'; winner: Side | 'draw' }
+  /** 魔法防御で、魔法の追加効果(相手にかかるもの)を防いだ */
+  | { type: 'effectBlocked'; side: Side; id: number }
   /** 前半・後半が始まった(attacker がそのフェイズの攻撃側) */
   | { type: 'phase'; round: number; half: 1 | 2; attacker: Side };
 
@@ -336,7 +338,12 @@ function applyMagicEffect(s: BattleState, side: Side, att: CardBattleState, tSid
   const m = magicEffectOf(att.def.magic.effectCode, rules.strongChance);
   const e = m.effect;
   if (e.kind === 'none') return;
-  if (m.onTarget && (guarded || tgt.down)) return;
+  if (m.onTarget && guarded && !tgt.down) {
+    // 魔法防御で、相手にかかる追加効果を防いだ(画面で知らせる)
+    events.push({ type: 'effectBlocked', side: tSide, id: tgt.id });
+    return;
+  }
+  if (m.onTarget && tgt.down) return;
   if (!m.onTarget && guarded && rules.magicGuardBlocksSelfEffects) return;
   let hit = m.chance >= 1 || s.rng() < m.chance;
   const ab = att.ability;

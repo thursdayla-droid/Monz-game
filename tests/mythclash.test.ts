@@ -151,8 +151,9 @@ describe('MYTHCLASH battle rules', () => {
     const always = { ...FLAT, strongChance: 1 };
     // 014 眠り茨の姫(睡眠の魔法)
     let s = battle([14, 60, 61], PLAIN_B, always);
-    resolveRound(s, [MG, MD]);
+    const blocked = resolveRound(s, [MG, MD]);
     expect(activeCard(s, 1).skip).toBeNull();
+    expect(blocked.some((e) => e.type === 'effectBlocked' && e.side === 1)).toBe(true);
     s = battle([14, 60, 61], PLAIN_B, always);
     resolveRound(s, [MG, G]);
     expect(activeCard(s, 1).skip).toBe('sleep');

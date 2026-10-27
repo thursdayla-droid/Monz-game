@@ -73,6 +73,11 @@ export class MythBattleScene extends Phaser.Scene {
   private ui?: Phaser.GameObjects.Container;
   private cardImg: Partial<Record<Side, Phaser.GameObjects.Image>> = {};
   private shownHp: Record<Side, number> = { 0: 0, 1: 0 };
+  /**
+   * HPバーの動き(企画者 2026-10-27: HPのゲージとダメージ量が分かりにくい)。
+   * disp: いま見えているHP(数字とバー)。ghost: 減った分を白く残しておく所(少しおくれて追いつく)
+   */
+  private hpFx: Record<Side, { disp: number; ghost: number; on: boolean }> = { 0: { disp: 0, ghost: 0, on: false }, 1: { disp: 0, ghost: 0, on: false } };
   private hpBar: Partial<Record<Side, Phaser.GameObjects.Graphics>> = {};
   private hpText: Partial<Record<Side, Phaser.GameObjects.Text>> = {};
   private cardHpBar: Partial<Record<Side, { bar: Phaser.GameObjects.Graphics; text: Phaser.GameObjects.Text; x: number; y: number; w: number }>> = {};
@@ -553,7 +558,10 @@ export class MythBattleScene extends Phaser.Scene {
   private play(events: BattleEvent[], i: number): void {
     if (i >= events.length) {
       this.view = viewFor(this.s, ME);
-      for (const side of [ME, CPU]) this.shownHp[side] = activeCard(this.s, side).hp;
+      for (const side of [ME, CPU]) {
+        this.shownHp[side] = activeCard(this.s, side).hp;
+        // 動いている途中のHPバーは、そのまま最後まで動かす(値は同じになる)
+      }
       this.busy = false;
       this.defBadge?.destroy();
       this.defBadge = undefined;
@@ -616,32 +624,40 @@ export class MythBattleScene extends Phaser.Scene {
         audio.se('mcCounter');
         return counterFx(this, cardPos(e.side), cardPos(e.side === ME ? CPU : ME));
       case 'damage': {
-        this.shownHp[e.side] = Math.max(0, this.shownHp[e.side] - e.amount);
-        this.drawHp(e.side);
+        const before = this.shownHp[e.side];
+        this.shownHp[e.side] = Math.max(0, before - e.amount);
+        this.animateHp(e.side, before, this.shownHp[e.side]);
         const img = this.cardImg[e.side];
         if (img) {
           this.tweens.add({ targets: img, angle: { from: -4, to: 4 }, duration: 50, yoyo: true, repeat: 2, onComplete: () => img.setAngle(0) });
           img.setTint(0xff7070);
           this.time.delayedCall(80, () => img.clearTint());
         }
-        const p = cardPos(e.side);
-        this.popup(p.x, p.y - 40, e.amount > 0 ? `-${e.amount}` : e.absorbed ? 'バリア！' : '0', e.source === 'dot' ? '#c070ff' : '#ff4a4a');
-        if (e.absorbed > 0 && e.amount > 0) this.popup(p.x, p.y + 30, `バリア -${e.absorbed}`, '#8ac4ff');
-        if (e.source === 'dot') this.say(`${name(e.id)}は 毒・火傷のダメージ`, '#c070ff');
         // 防御で半分にしたとき(通常攻撃を防御・魔法を魔法防御)は「防御成功」の音。
         // 攻撃・必殺・魔法の当たる音は、攻撃したときの音(企画者のファイル)に入っているので、ここでは鳴らさない
         const d = this.roundDefense;
+        const halved = d?.side === e.side && ((e.source === 'normal' && d.kind === 'guard') || (e.source === 'magic' && d.kind === 'magicGuard'));
+        const dot = this.s.teams[e.side].cards.find((c) => c.id === e.id)?.dot;
+        const note = e.source === 'dot' ? (dot === 'burn' ? '火傷' : '毒') : e.source === 'reflect' ? 'はね返し！' : halved ? (d?.kind === 'guard' ? '防御で半分' : '魔法防御で半分') : e.absorbed > 0 ? `バリアが ${e.absorbed} 防いだ` : undefined;
+        this.damagePopup(e.side, e.amount > 0 ? `-${e.amount}` : '0', e.source === 'dot' ? '#d080ff' : e.amount >= 40 ? '#ff2a2a' : '#ff5a4a', note);
+        if (e.source === 'dot') this.say(`${name(e.id)}は ${dot === 'burn' ? '火傷' : '毒'}のダメージ ${e.amount}`, '#c070ff');
+        else this.say(`${name(e.id)}に ${e.amount} のダメージ！`, '#ff8a8a');
         if (d?.side === e.side && e.source === 'normal' && d.kind === 'guard') audio.se('mcGuardOk');
         else if (d?.side === e.side && e.source === 'magic' && d.kind === 'magicGuard') audio.se('mcMagicGuardOk');
         else if (e.amount > 0 && (e.source === 'reflect' || e.source === 'dot')) audio.se('mcHit', { pitch: Math.min(1.6, 0.8 + e.amount / 60) });
         this.cameras.main.shake(120, e.amount >= 30 ? 0.008 : 0.004);
-        return 650;
+        return 1000;
       }
+      case 'effectBlocked':
+        this.say(`魔法防御で 追加効果を防いだ！`, '#c8a8ff');
+        this.damagePopup(e.side, '🛡', '#c8a8ff', '追加効果を防いだ');
+        return 800;
       case 'heal': {
-        this.shownHp[e.side] = Math.min(activeCard(this.s, e.side).def.maxHp, this.shownHp[e.side] + e.amount);
-        this.drawHp(e.side);
-        const p = cardPos(e.side);
-        this.popup(p.x, p.y - 40, `+${e.amount}`, '#4ade80');
+        const before = this.shownHp[e.side];
+        this.shownHp[e.side] = Math.min(activeCard(this.s, e.side).def.maxHp, before + e.amount);
+        this.animateHp(e.side, before, this.shownHp[e.side]);
+        this.damagePopup(e.side, `+${e.amount}`, '#4ade80', e.source === 'drain' ? '吸収' : '回復');
+        this.say(`${name(e.id)}の HPが ${e.amount} 回復`, '#7dffa0');
         // HP吸収の魔法は吸収の音、それ以外の回復は回復の音
         audio.se(e.source === 'drain' ? 'mcDrain' : 'mcHeal');
         return 550;
@@ -688,6 +704,7 @@ export class MythBattleScene extends Phaser.Scene {
         this.view = viewFor(this.s, ME);
         const id = e.type === 'switch' ? e.to : e.id;
         this.shownHp[e.side] = this.s.teams[e.side].cards.find((c) => c.id === id)?.hp ?? this.shownHp[e.side];
+        this.syncHp(e.side);
         const busy = this.busy;
         this.render();
         this.busy = busy;
@@ -786,30 +803,84 @@ export class MythBattleScene extends Phaser.Scene {
     showCardZoom(this, this.cardTexture(c.id, side === CPU && !c.magicElement), [`HP ${hp} / ${c.maxHp}`, ...(marks.length ? [marks.join('・')] : [])]);
   }
 
+  /** HPの色: 半分より多い=緑、半分以下=黄、4分の1以下=赤(上のバーも札の下のバーも同じ) */
+  private hpColor(rate: number): number {
+    return rate > 0.5 ? 0x4ade80 : rate > 0.25 ? 0xffd23a : 0xff4a4a;
+  }
+
+  /** HPバーを1本かく。減った分(ghost)は白く残る。10%ごとに目もり */
+  private drawBar(g: Phaser.GameObjects.Graphics, x: number, y: number, w: number, h: number, hp: number, ghost: number, max: number): void {
+    const r = Math.max(0, Math.min(1, hp / max));
+    const gr = Math.max(r, Math.min(1, ghost / max));
+    g.fillStyle(0x000000, 1).fillRoundedRect(x - 3, y - 3, w + 6, h + 6, 8);
+    g.fillStyle(0x2a2030, 1).fillRoundedRect(x, y, w, h, 6);
+    if (gr > r) g.fillStyle(0xffffff, 0.9).fillRect(x + w * r, y, w * (gr - r), h);
+    if (r > 0) {
+      g.fillStyle(this.hpColor(r), 1).fillRoundedRect(x, y, Math.max(6, w * r), h, 6);
+      // つや
+      g.fillStyle(0xffffff, 0.25).fillRect(x + 3, y + 3, Math.max(0, w * r - 6), h * 0.3);
+    }
+    g.lineStyle(2, 0x000000, 0.5);
+    for (let i = 1; i < 10; i++) g.lineBetween(x + (w * i) / 10, y, x + (w * i) / 10, y + h);
+  }
+
   private drawHp(side: Side): void {
     const bar = this.hpBar[side];
     if (!bar) return;
     const act = activeCard(this.s, side);
     // まだ見せていないカードのHPは出さない(相手の場のカードは出ているので見せてよい)
     const max = act.def.maxHp;
-    const hp = this.shownHp[side];
-    const mine = side === ME;
+    const fx = this.hpFx[side];
+    const hp = fx.on ? Math.round(fx.disp) : this.shownHp[side];
+    const ghost = fx.on ? fx.ghost : hp;
     const top = panelY(side) - 42;
-    const bx = 40;
-    const bw = W - 240;
     bar.clear();
-    bar.fillStyle(0x000000, 1).fillRoundedRect(bx, top + 46, bw, 24, 8);
-    const rate = Math.max(0, Math.min(1, hp / max));
-    bar.fillStyle(mine ? 0xd83030 : 0x2a7ae8, 1).fillRoundedRect(bx, top + 46, Math.max(1, bw * rate), 24, 8);
-    this.hpText[side]?.setText(`${hp} / ${max}`);
+    this.drawBar(bar, 40, top + 44, W - 250, 28, hp, ghost, max);
+    this.hpText[side]?.setText(`${hp} / ${max}`).setFontSize(28);
     // 札の下の HP バー
     const cb = this.cardHpBar[side];
     if (cb) {
       cb.bar.clear();
-      cb.bar.fillStyle(0x000000, 1).fillRoundedRect(cb.x, cb.y, cb.w, 16, 6);
-      cb.bar.fillStyle(rate > 0.5 ? 0x4ade80 : rate > 0.25 ? 0xffd23a : 0xff4a4a, 1).fillRoundedRect(cb.x, cb.y, Math.max(1, cb.w * rate), 16, 6);
+      this.drawBar(cb.bar, cb.x, cb.y, cb.w, 18, hp, ghost, max);
       cb.text.setText(`HP ${hp} / ${max}`);
     }
+  }
+
+  /** HPを from から to へ動かす(減るときは、減った分が白く残ってから追いつく) */
+  private animateHp(side: Side, from: number, to: number): void {
+    const fx = this.hpFx[side];
+    this.tweens.killTweensOf(fx);
+    if (!fx.on) {
+      fx.disp = from;
+      fx.ghost = from;
+    }
+    fx.on = true;
+    if (to > fx.ghost) fx.ghost = to;
+    this.tweens.add({ targets: fx, disp: to, duration: 320, ease: 'Cubic.easeOut', onUpdate: () => this.drawHp(side) });
+    this.tweens.add({ targets: fx, ghost: to, delay: 500, duration: 450, ease: 'Cubic.easeIn', onUpdate: () => this.drawHp(side), onComplete: () => { fx.on = false; this.drawHp(side); } });
+  }
+
+  /** HPの動きを止めて、今の値にそろえる(カードが入れかわったときなど) */
+  private syncHp(side: Side): void {
+    const fx = this.hpFx[side];
+    this.tweens.killTweensOf(fx);
+    fx.on = false;
+  }
+
+  /**
+   * ダメージの数字(企画者 2026-10-27: 分かりにくい)。カードのまん中に大きく、はねて出て、しばらく残る。
+   * note: 数字の下に出す説明(「防御で半分」など)
+   */
+  private damagePopup(side: Side, text: string, color: string, note?: string): void {
+    const p = cardPos(side);
+    // まん中は防御の札があるので、少し上に
+    const c = this.add.container(p.x, p.y - cardH() * 0.28).setDepth(55);
+    const num = this.text(0, 0, text, 96, color).setStroke('#16101c', 14);
+    c.add(num);
+    if (note) c.add(this.text(0, 66, note, 30, '#ffffff').setBackgroundColor('#16101ccc').setPadding(12, 4, 12, 6));
+    c.setScale(2.2).setAlpha(0);
+    this.tweens.add({ targets: c, scale: 1, alpha: 1, duration: 200, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: c, y: c.y - 40, alpha: 0, delay: 950, duration: 400, ease: 'Cubic.easeIn', onComplete: () => c.destroy() });
   }
 
   private popup(x: number, y: number, s: string, color: string): void {
