@@ -144,7 +144,7 @@
 | お世話画面のアイコン・肉・手 | `design/home/` | `public/assets/home/` |
 | 家具 | `design/furniture/` | `public/assets/furniture/` |
 | ミニゲーム | `design/minigame/` | `public/assets/minigame/` |
-| MYTHCLASH | `design/mythclash/`（タイトル・パック・タワー・階の画面の絵、`make_*.py`） | `public/assets/mythclash/` |
+| MYTHCLASH | `design/mythclash/`（タイトル・パック・タワー（2026-10-27 新しい絵）・階の画面の絵、`make_*.py`） | `public/assets/mythclash/` |
 | 曲 | — | `public/assets/bgm/`（home・main・card・dash・slugger） |
 
 - 絵を作る・切り抜く道具：`design/**/make_*.py`、`design/minigame/cutout.py`、`tools/*.py`
