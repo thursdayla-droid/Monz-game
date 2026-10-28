@@ -3,6 +3,7 @@
 - 出力先のファイルがすでにあれば、その中の古いゲームを差しかえる(なければ下の HTML のひな形から作る)
 - iPhone で開けるように 12MB くらいまでに収める(15MB をこえると開けなかった 2026-10-21)。圧縮は確認用ページだけ(ゲーム本体の素材はそのまま)
 - 新しい素材のフォルダを足したら、下の paths にも足す
+- MYTHCLASH の絵(public/assets/mythclash/ の全部)は埋め込まず、出力先の横の assets/mythclash/ に置く(Artifact の files で一緒に出す。2026-10-28)
 """
 import base64, glob, io, json, os, sys
 from PIL import Image
@@ -18,24 +19,13 @@ pub = root + '/public/'
 paths = ['assets/title/title.png', 'assets/bunk/reference/bunk_hires_cutout.png', 'assets/bunk/reference/bunk_down_cutout.png']
 for d in ['parts', 'down', 'faces']:
     paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + f'assets/bunk/{d}/*.png'))
-paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/birth/*.webp') + glob.glob(pub + 'assets/home/*.webp') + glob.glob(pub + 'assets/home/icons/*.webp') + glob.glob(pub + 'assets/home/rooms/*.webp') + glob.glob(pub + 'assets/furniture/*.webp') + glob.glob(pub + 'assets/bunk/poses/*.webp') + glob.glob(pub + 'assets/minigame/*.webp') + glob.glob(pub + 'assets/mythclash/*.webp') + glob.glob(pub + 'assets/mythclash/opponents/*.webp') + glob.glob(pub + 'assets/mythclash/cards/*.webp'))
+paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/birth/*.webp') + glob.glob(pub + 'assets/home/*.webp') + glob.glob(pub + 'assets/home/icons/*.webp') + glob.glob(pub + 'assets/home/rooms/*.webp') + glob.glob(pub + 'assets/furniture/*.webp') + glob.glob(pub + 'assets/bunk/poses/*.webp') + glob.glob(pub + 'assets/minigame/*.webp'))
 assets = {}
 for p in paths:
     if p.endswith('.webp'):
         # 確認用ページの上限のため、大きい背景だけ少し圧縮しなおす(ゲーム本体はそのまま)
         data = open(pub + p, 'rb').read()
-        if p.startswith('assets/mythclash/cards/'):
-            # 企画者のカードの絵(最大100枚)は、確認用ページでは 300×417 に小さくする(大きく見たときに少しぼける。ゲーム本体はそのまま)
-            bb = io.BytesIO()
-            Image.open(pub + p).resize((300, 417), Image.LANCZOS).save(bb, 'WEBP', quality=60, method=6)
-            data = bb.getvalue()
-        elif p.startswith('assets/mythclash/opponents/'):
-            # 対戦相手の顔(33人分)は、確認用ページでは 160×160 に小さくする(画面では丸く小さく出すので見た目はほぼ同じ)
-            bb = io.BytesIO()
-            Image.open(pub + p).resize((160, 160), Image.LANCZOS).save(bb, 'WEBP', quality=62, method=6)
-            data = bb.getvalue()
-        # 2026-10-27: 対戦相手の顔の分をあけるため、少し小さい絵(60KBより大きい)も圧縮しなおす
-        elif len(data) > 60_000:
+        if len(data) > 60_000:
             bb = io.BytesIO()
             Image.open(pub + p).save(bb, 'WEBP', quality=55, method=6)
             data = bb.getvalue()
@@ -72,4 +62,14 @@ start = html.index('<script>window.__MONZ_ASSETS') if '__MONZ_ASSETS' in html el
 html = html[:start] + '<script>window.__MONZ_ASSETS = ' + json.dumps(assets) + ';\nwindow.__MONZ_JSON = ' + json.dumps(jsons) + ';</script>\n' + \
     '<script type="module">\ndocument.getElementById(\'boot\')?.remove();\n' + js + '\n</script>\n'
 open(out, 'w').write(html)
-print(round(len(html) / 1e6, 2), 'MB', len(assets), 'images')
+# MYTHCLASH の絵(カードはこれから100枚以上ふえる・対戦相手の顔・タワーなど)はページに入れず、ページの横に別のファイルとして置く
+# (企画者 2026-10-28: 確認用ページの大きさが増え続けないように)。ゲームは assets/mythclash/... を読みにいく(埋め込みが無いと、その場所を読む)ので、
+# 同じ場所に置いて Artifact の files で出す。ゲーム本体の絵をそのまま写す(圧縮しない)
+import shutil
+out_dir = os.path.dirname(os.path.abspath(out))
+card_files = sorted(f for f in glob.glob(pub + 'assets/mythclash/**/*.webp', recursive=True))
+for f in card_files:
+    dst = os.path.join(out_dir, os.path.relpath(f, pub))
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    shutil.copyfile(f, dst)
+print(round(len(html) / 1e6, 2), 'MB', len(assets), 'images', '+', len(card_files), 'MYTHCLASH files (assets/mythclash/)')

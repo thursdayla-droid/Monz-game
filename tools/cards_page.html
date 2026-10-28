@@ -1,0 +1,203 @@
+<title>MYTHCLASH カード一覧</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@700;800&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap">
+<style>
+/* 確認用のカード一覧。MYTHCLASH の暗い赤と金(ゲームの見た目に合わせた、暗い一つの見た目)。10枚ずつ、見ているページの絵だけ読む */
+:root {
+  color-scheme: dark;
+  --bg: #120a0e;
+  --panel: #1d1218;
+  --line: #3a2630;
+  --fg: #f3e9e2;
+  --muted: #b39fa6;
+  --gold: #e3b45a;
+  --gold-dim: #8a6a33;
+  --font-display: "Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --font-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+  --r-N: #c9ced6; --r-R: #8fc0ff; --r-SR: #d3a2ff; --r-UR: #ffe48a; --r-SEC: #ff8a6a; --r-LR: #ffb347;
+}
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 20px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 16px; }
+header { display: grid; gap: 4px; }
+h1 { font-family: var(--font-display); font-weight: 800; font-size: 1.6rem; margin: 0; letter-spacing: 0.04em; color: var(--gold); text-wrap: balance; }
+.sub { color: var(--muted); font-size: 0.85rem; margin: 0; font-variant-numeric: tabular-nums; }
+.tools { display: grid; gap: 10px; }
+.search { display: flex; gap: 8px; }
+.search input { flex: 1; min-width: 0; font: inherit; font-size: 1rem; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.search input:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+.search button, .chip, .pager button { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+.search button { border-radius: 10px; padding: 8px 14px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip[aria-pressed="true"] { border-color: var(--gold); color: var(--bg); background: var(--gold); }
+.chip:focus-visible, .pager button:focus-visible, .card:focus-visible, .search button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.pager { display: flex; flex-wrap: wrap; gap: 6px; }
+.pager button { font-variant-numeric: tabular-nums; font-size: 0.85rem; }
+.pager button[aria-current="page"] { background: var(--gold); color: var(--bg); border-color: var(--gold); font-weight: 700; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.card { display: grid; gap: 6px; padding: 0; text-align: left; background: none; border: 0; color: inherit; cursor: pointer; font: inherit; min-width: 0; }
+.face { aspect-ratio: 600 / 833; max-width: 100%; border-radius: 10px; overflow: hidden; background: var(--panel); border: 1px solid var(--line); display: grid; }
+.face img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.noart { display: grid; align-content: center; justify-items: center; gap: 6px; padding: 10px; text-align: center; }
+.noart .el { font-family: var(--font-display); font-size: 2.4rem; color: var(--muted); }
+.noart small { color: var(--muted); font-size: 0.72rem; }
+.meta { display: grid; gap: 2px; min-width: 0; }
+.meta .line1 { display: flex; gap: 6px; align-items: baseline; font-variant-numeric: tabular-nums; font-size: 0.78rem; color: var(--muted); }
+.rar { font-weight: 700; letter-spacing: 0.04em; }
+.meta .name { font-weight: 700; font-size: 0.95rem; overflow-wrap: anywhere; }
+.empty { color: var(--muted); padding: 24px 0; }
+.zoom { position: fixed; inset: 0; background: rgba(8, 4, 6, 0.92); display: grid; place-items: center; padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); z-index: 20; overflow-y: auto; }
+.zoom-inner { display: grid; gap: 12px; width: min(440px, 100%); }
+.zoom .face { width: 100%; }
+.zoom dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 0.9rem; }
+.zoom dt { color: var(--muted); }
+.zoom dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.zoom .close { justify-self: center; font: inherit; color: var(--bg); background: var(--gold); border: 0; border-radius: 999px; padding: 8px 22px; font-weight: 700; cursor: pointer; }
+@media (prefers-reduced-motion: no-preference) { .card .face { transition: transform 0.15s; } .card:hover .face { transform: translateY(-2px); } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>MYTHCLASH カード一覧</h1>
+    <p class="sub" id="summary"></p>
+  </header>
+  <div class="tools">
+    <form class="search" id="searchForm" role="search">
+      <input id="q" type="search" placeholder="番号・名前・レアで検索（例：26、ゼウス、UR）" autocomplete="off" aria-label="カードを検索">
+      <button type="submit">検索</button>
+    </form>
+    <div class="chips" id="rarities" aria-label="レアでしぼる"></div>
+    <nav class="pager" id="pager" aria-label="ページ"></nav>
+  </div>
+  <main class="grid" id="grid"></main>
+</div>
+<div class="zoom" id="zoom" hidden></div>
+
+<script>
+// カードのデータは build_cards_page.py が下に入れる(ゲーム本体のデータを読むだけ)
+const CARDS = /*CARDS_JSON*/[];
+const PER_PAGE = 10;
+const RARITIES = ['N', 'R', 'SR', 'UR', 'SEC', 'LR'];
+const pad = (n) => String(n).padStart(3, '0');
+const state = { q: '', rarity: null, page: 0 };
+
+function matches(c) {
+  if (state.rarity && c.rarity !== state.rarity) return false;
+  const q = state.q.trim().toLowerCase().replace(/^no\.?\s*/, '');
+  if (!q) return true;
+  if (/^\d+$/.test(q)) return c.no === Number(q) || pad(c.no).includes(q);
+  if (RARITIES.map((r) => r.toLowerCase()).includes(q)) return c.rarity.toLowerCase() === q;
+  return c.name.toLowerCase().includes(q) || c.theme.includes(state.q.trim()) || c.element === state.q.trim();
+}
+
+function rangeLabel(list, i) {
+  const a = list[i * PER_PAGE], b = list[Math.min(list.length, (i + 1) * PER_PAGE) - 1];
+  return `${pad(a.no)}–${pad(b.no)}`;
+}
+
+function face(c, big) {
+  const f = document.createElement('div');
+  f.className = 'face';
+  if (c.art) {
+    const img = document.createElement('img');
+    // 見ているページの分だけ読む。一覧は軽い小さい絵、大きく見るときは大きい絵
+    img.src = big ? `cards/${pad(c.no)}.webp` : `cards/thumb/${pad(c.no)}.webp`;
+    img.alt = `No.${pad(c.no)} ${c.name}`;
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    f.append(img);
+  } else {
+    const d = document.createElement('div');
+    d.className = 'noart';
+    d.innerHTML = `<span class="el"></span><small>絵はまだ</small>`;
+    d.querySelector('.el').textContent = c.element;
+    f.append(d);
+  }
+  return f;
+}
+
+function render() {
+  const list = CARDS.filter(matches);
+  const pages = Math.max(1, Math.ceil(list.length / PER_PAGE));
+  state.page = Math.min(state.page, pages - 1);
+  const arts = CARDS.filter((c) => c.art).length;
+  document.getElementById('summary').textContent = `全${CARDS.length}枚・絵あり${arts}枚${list.length !== CARDS.length ? `・該当${list.length}枚` : ''}`;
+  const pager = document.getElementById('pager');
+  pager.replaceChildren();
+  if (list.length) for (let i = 0; i < pages; i++) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = rangeLabel(list, i);
+    if (i === state.page) b.setAttribute('aria-current', 'page');
+    b.onclick = () => { state.page = i; setHash(); render(); window.scrollTo({ top: 0 }); };
+    pager.append(b);
+  }
+  const grid = document.getElementById('grid');
+  grid.replaceChildren();
+  if (!list.length) {
+    const p = document.createElement('p');
+    p.className = 'empty';
+    p.textContent = '見つかりませんでした。番号（例：26）、名前の一部、レア（N・R・SR・UR・SEC・LR）で探せます。';
+    grid.append(p);
+    return;
+  }
+  for (const c of list.slice(state.page * PER_PAGE, (state.page + 1) * PER_PAGE)) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'card';
+    b.append(face(c, false));
+    const m = document.createElement('div');
+    m.className = 'meta';
+    m.innerHTML = `<div class="line1"><span>No.${pad(c.no)}</span><span class="rar" style="color:var(--r-${c.rarity})">${c.rarity}</span></div><div class="name"></div>`;
+    m.querySelector('.name').textContent = c.name;
+    b.append(m);
+    b.onclick = () => openZoom(c);
+    grid.append(b);
+  }
+}
+
+function openZoom(c) {
+  const z = document.getElementById('zoom');
+  const inner = document.createElement('div');
+  inner.className = 'zoom-inner';
+  inner.append(face(c, true));
+  const dl = document.createElement('dl');
+  const rows = [
+    ['No.', `${pad(c.no)}`], ['名前', c.name], ['レア', c.rarity], ['テーマ', c.theme], ['属性', c.element],
+    ['HP・攻・防・魔・速', `${c.hp}・${c.atk}・${c.def}・${c.mag}・${c.spd}`],
+    ['魔法', `${c.magic.name}（${c.magic.element}）`], ['魔法の効果', c.magic.text],
+    ['特性', c.ability ? c.ability.name : 'なし'], ...(c.ability ? [['特性の効果', c.ability.text]] : []),
+  ];
+  for (const [k, v] of rows) { const dt = document.createElement('dt'); dt.textContent = k; const dd = document.createElement('dd'); dd.textContent = v; dl.append(dt, dd); }
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'close';
+  close.textContent = '閉じる';
+  close.onclick = () => (z.hidden = true);
+  inner.append(dl, close);
+  z.replaceChildren(inner);
+  z.hidden = false;
+  z.onclick = (e) => { if (e.target === z) z.hidden = true; };
+  close.focus();
+}
+
+function setHash() { try { history.replaceState(null, '', state.page ? `#page-${state.page + 1}` : location.pathname); } catch {} }
+
+const chips = document.getElementById('rarities');
+for (const r of [null, ...RARITIES]) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'chip';
+  b.textContent = r ?? 'すべて';
+  b.setAttribute('aria-pressed', String(state.rarity === r));
+  b.onclick = () => { state.rarity = r; state.page = 0; for (const x of chips.children) x.setAttribute('aria-pressed', String(x === b)); render(); };
+  chips.append(b);
+}
+document.getElementById('searchForm').addEventListener('submit', (e) => { e.preventDefault(); state.q = document.getElementById('q').value; state.page = 0; render(); });
+document.getElementById('q').addEventListener('input', (e) => { state.q = e.target.value; state.page = 0; render(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.getElementById('zoom').hidden = true; });
+const m = /^#page-(\d+)$/.exec(location.hash);
+if (m) state.page = Number(m[1]) - 1;
+render();
+</script>
