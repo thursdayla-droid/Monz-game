@@ -64,7 +64,7 @@ const DEFENSE_LOOK: Record<string, { color: number; bg: string; icon: string }> 
 };
 const ACTION_LABELS: Record<string, string> = { normal: '通常攻撃', special: '必殺技', magic: '魔法', guard: '防御', counter: 'カウンター', magicGuard: '魔法防御' };
 const STATUS_LABELS: Record<string, string> = { sleep: '睡眠', freeze: '凍結', poison: '毒', burn: '火傷', weaken: '攻撃ダウン', boost: '強化', shield: 'バリア' };
-const cardKey = (id: number, hideMagic: boolean) => `mc:card:${id}${hideMagic ? ':h' : ''}`;
+const cardKey = (id: number, hideMagic: boolean, hideAbility = false) => `mc:card:${id}${hideMagic ? ':h' : ''}${hideAbility ? ':a' : ''}`;
 
 /**
  * MYTHCLASH のバトル画面(企画者のイメージ図 2026-10-26 をもとに)。相手はCPU。
@@ -281,7 +281,7 @@ export class MythBattleScene extends Phaser.Scene {
           ui.add(back);
           return;
         }
-        const img = this.add.image(x, y - 6, this.cardTexture(c.id, side === CPU && !c.magicElement)).setScale(THUMB_S);
+        const img = this.add.image(x, y - 6, this.cardTexture(c.id, side === CPU && !c.magicElement, side === CPU && !c.abilityKnown)).setScale(THUMB_S);
         if (c.down) img.setTint(0x444444);
         ui.add(img);
         const rate = c.hp / c.maxHp;
@@ -321,7 +321,7 @@ export class MythBattleScene extends Phaser.Scene {
       const cw = MYTH_CARD_W * cs;
       const glow = this.add.rectangle(x, y, cw + 24, ch + 24, col, 0.35).setStrokeStyle(5, col, 1);
       this.tweens.add({ targets: glow, alpha: 0.55, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      const img = this.add.image(x, y, this.cardTexture(act.id, side === CPU && !act.magicElement)).setScale(cs * (isAtk ? 1.04 : 0.97));
+      const img = this.add.image(x, y, this.cardTexture(act.id, side === CPU && !act.magicElement, side === CPU && !act.abilityKnown)).setScale(cs * (isAtk ? 1.04 : 0.97));
       this.cardImg[side] = img;
       // 攻撃側・防御側の札は、カードの右に
       const sx = x + cw / 2 + 22;
@@ -383,7 +383,12 @@ export class MythBattleScene extends Phaser.Scene {
         line(`属性：${def.magic.element}`, 16, ELEMENT_COLORS[def.magic.element]);
         line(describeMagicEffect(def), 15, '#d8c8e8');
       } else line('？？？', 16, '#8a7a90');
-      if (ab && ab.def.kind !== 'none' && ab.name) {
+      // 相手の特性は、発動するまで「？？？」(特性があるかどうかも見せない。企画者 2026-10-28)
+      if (side === CPU && !c.abilityKnown) {
+        y += 8;
+        line('特性', 15, '#b8a8c8');
+        line('？？？', 16, '#8a7a90');
+      } else if (ab && ab.def.kind !== 'none' && ab.name) {
         y += 8;
         line('特性', 15, '#b8a8c8');
         line(ab.name, 18, '#ffd23a');
@@ -628,7 +633,7 @@ export class MythBattleScene extends Phaser.Scene {
           // 必殺技: カットイン → 体当たり → 大きな当たり(カウンターされたら、当たりはカウンターの演出で)
           const countered = later.some((x) => x.type === 'counter' && x.success);
           audio.se('mcCutin');
-          const cut = specialCutin(this, this.cardTexture(e.id, e.side === CPU && !this.s.teams[CPU].cards[this.s.teams[CPU].active].magicRevealed), name(e.id), e.side === ME);
+          const cut = specialCutin(this, this.cardTexture(e.id, e.side === CPU && !this.s.teams[CPU].cards[this.s.teams[CPU].active].magicRevealed, e.side === CPU && !this.s.teams[CPU].cards[this.s.teams[CPU].active].abilityRevealed), name(e.id), e.side === ME);
           this.time.delayedCall(cut - 150, () => {
             lunge();
             audio.se('mcSpecial');
@@ -879,7 +884,7 @@ export class MythBattleScene extends Phaser.Scene {
     // 出来事を見せている間は、まだ見せていないHPを出さないように、場のカードは見えているHPにする
     const hp = this.busy && index === this.s.teams[side].active ? this.shownHp[side] : c.hp;
     const marks = [c.down && '戦闘不能', c.skip && STATUS_LABELS[c.skip], c.dot && STATUS_LABELS[c.dot], st.shield > 0 && `バリア${st.shield}`].filter(Boolean);
-    showCardZoom(this, this.cardTexture(c.id, side === CPU && !c.magicElement), [`HP ${hp} / ${c.maxHp}`, ...(marks.length ? [marks.join('・')] : []), ...abilityLines(card(c.id)!)]);
+    showCardZoom(this, this.cardTexture(c.id, side === CPU && !c.magicElement, side === CPU && !c.abilityKnown), [`HP ${hp} / ${c.maxHp}`, ...(marks.length ? [marks.join('・')] : []), ...(side === CPU && !c.abilityKnown ? ['特性：？？？'] : abilityLines(card(c.id)!))]);
   }
 
   /** HPの色: 半分より多い=緑、半分以下=黄、4分の1以下=赤(上のバーも札の下のバーも同じ) */
@@ -1120,8 +1125,9 @@ export class MythBattleScene extends Phaser.Scene {
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start(scene, data));
   }
 
-  private cardTexture(id: number, hideMagic: boolean): string {
-    return canvasTextureOnce(this, cardKey(id, hideMagic), MYTH_CARD_W, MYTH_CARD_H, (ctx) => drawMythCard(ctx, card(id)!, { hideMagicElement: hideMagic }));
+  /** カードの絵。相手のカードは、魔法を使うまで魔法を、特性が発動するまで特性をかくす */
+  private cardTexture(id: number, hideMagic: boolean, hideAbility = false): string {
+    return canvasTextureOnce(this, cardKey(id, hideMagic, hideAbility), MYTH_CARD_W, MYTH_CARD_H, (ctx) => drawMythCard(ctx, card(id)!, { hideMagicElement: hideMagic, hideAbility }));
   }
 
   private text(x: number, y: number, s: string, size: number, color: string, ox = 0.5): Phaser.GameObjects.Text {

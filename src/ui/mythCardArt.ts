@@ -48,7 +48,7 @@ export function useCardArt(scene: Phaser.Scene): void {
   for (const id of CARD_ART_IDS) {
     if (cardArt.has(id) || !scene.textures.exists(cardArtKey(id))) continue;
     cardArt.set(id, scene.textures.get(cardArtKey(id)).getSourceImage() as HTMLImageElement);
-    for (const k of [`mc:card:${id}`, `mc:card:${id}:h`]) if (scene.textures.exists(k)) scene.textures.remove(k);
+    for (const k of [`mc:card:${id}`, `mc:card:${id}:h`, `mc:card:${id}:a`, `mc:card:${id}:h:a`]) if (scene.textures.exists(k)) scene.textures.remove(k);
   }
 }
 
@@ -59,7 +59,7 @@ export function cardZoomTexture(scene: Phaser.Scene, key: string): string {
 }
 
 /** 企画者の絵のカード(相手がまだ魔法を使っていないときは、絵の魔法の名前・属性・説明を「？？？」でおおう) */
-function drawArtCard(ctx: CanvasRenderingContext2D, art: CanvasImageSource, hideMagicElement: boolean): void {
+function drawArtCard(ctx: CanvasRenderingContext2D, art: CanvasImageSource, hideMagicElement: boolean, hideAbility = false): void {
   const w = MYTH_CARD_W;
   const h = MYTH_CARD_H;
   ctx.save();
@@ -87,12 +87,30 @@ function drawArtCard(ctx: CanvasRenderingContext2D, art: CanvasImageSource, hide
     ctx.fillStyle = '#b8a8c8';
     ctx.fillText('？？？', x0 + bw / 2, y0 + bh / 2 + 1);
   }
+  if (hideAbility) {
+    // 特性の行も、発動するまでかくす(企画者 2026-10-28)。「特性」の文字ごと(1064×1478 の絵で x 52〜1012・y 1290〜1384)
+    const x0 = (52 / 1064) * w;
+    const y0 = (1290 / 1478) * h;
+    const bw = (960 / 1064) * w;
+    const bh = (94 / 1478) * h;
+    roundRectPath(ctx, x0, y0, bw, bh, 5);
+    ctx.fillStyle = '#140c14';
+    ctx.fill();
+    ctx.strokeStyle = '#5a4a60';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center';
+    ctx.font = `900 18px ${UI_FONT}`;
+    ctx.fillStyle = '#b8a8c8';
+    ctx.fillText('？？？', x0 + bw / 2, y0 + bh / 2 + 1);
+  }
 }
 
-export function drawMythCard(ctx: CanvasRenderingContext2D, c: CardDefinition, opts: { hideMagicElement?: boolean } = {}): void {
+export function drawMythCard(ctx: CanvasRenderingContext2D, c: CardDefinition, opts: { hideMagicElement?: boolean; hideAbility?: boolean } = {}): void {
   const picture = cardArt.get(c.id);
   if (picture) {
-    drawArtCard(ctx, picture, !!opts.hideMagicElement);
+    drawArtCard(ctx, picture, !!opts.hideMagicElement, !!opts.hideAbility);
     return;
   }
   const w = MYTH_CARD_W;
@@ -172,6 +190,7 @@ export function drawMythCard(ctx: CanvasRenderingContext2D, c: CardDefinition, o
   if (opts.hideMagicElement) line(342, '魔法', '？？？', '#b8a8c8');
   else line(342, '魔法', `${c.magic.name}（${c.magic.element}）`, ELEMENT_COLORS[c.magic.element]);
   const ab = abilityOf(c.abilityCode);
-  line(372, '特性', ab?.name ?? '—', '#ffd23a');
+  if (opts.hideAbility) line(372, '特性', '？？？', '#b8a8c8');
+  else line(372, '特性', ab?.name ?? '—', '#ffd23a');
   ctx.textAlign = 'center';
 }

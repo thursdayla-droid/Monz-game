@@ -4,6 +4,7 @@
  * - 相手の、まだ一度も場に出ていないカードは「？？？」(名前・絵・属性・レアリティなども出さない)
  * - 一度出た相手のカードは、控えにもどっても公開のまま
  * - 相手の魔法属性は、そのカードが初めて魔法を使うまで出さない
+ * - 相手の特性は、発動するまで出さない(企画者 2026-10-28。特性が「ある」ことも見せない)
  * 画面・ログ・対戦のやりとり・観戦・リプレイは、かならずこの関数を通した情報だけを使う(状態そのものを渡さない)
  */
 import type { BattleEvent, BattleState, CardBattleState, Side } from './engine';
@@ -16,6 +17,8 @@ export interface VisibleCard {
   element: string;
   /** 魔法属性(相手のカードは、魔法を使うまで null) */
   magicElement: string | null;
+  /** 特性が見えるか(自分のカードはいつも。相手のカードは、特性が発動するまで false。企画者 2026-10-28) */
+  abilityKnown: boolean;
   hp: number;
   maxHp: number;
   down: boolean;
@@ -46,6 +49,7 @@ function show(c: CardBattleState, active: boolean, ownTeam: boolean): VisibleCar
     rarity: c.def.rarity,
     element: c.def.element,
     magicElement: ownTeam || c.magicRevealed ? c.def.magic.element : null,
+    abilityKnown: ownTeam || c.abilityRevealed,
     hp: c.hp,
     maxHp: c.def.maxHp,
     down: c.down,

@@ -134,3 +134,29 @@ describe('MYTHCLASH tower: beaten opponents', () => {
     expect(fixCollection({ owned: {}, towerBeaten: ['t2-2', 'x', 5, 't11-1', 't2-2'] }).towerBeaten).toEqual(['t2-2']);
   });
 });
+
+describe('MYTHCLASH: opponent abilities stay hidden until they trigger', () => {
+  it('abilityKnown is false for the opponent until an ability event, always true for own cards', async () => {
+    const { viewFor } = await import('../src/core/mythclash/view');
+    const rng = mulberry32(5);
+    let revealedSeen = false;
+    for (let g = 0; g < 60 && !revealedSeen; g++) {
+      // No.001(狩人の一矢)と No.026(雷帝の威光)は最初の攻撃で発動する特性
+      const { state } = createBattle([2, 4, 5], [1, 26, 3], g);
+      expect(viewFor(state, 0).opponent.every((c) => c.hidden || !c.abilityKnown)).toBe(true);
+      expect(viewFor(state, 1).me.every((c) => c.abilityKnown)).toBe(true);
+      const ch = cpuChooser(state, ['normal', 'normal']);
+      while (state.winner === null && state.round < 200) {
+        const ev = resolveRound(state, [cpuAction(state, 0, 'normal', rng), cpuAction(state, 1, 'normal', rng)], ch);
+        const v = viewFor(state, 0);
+        for (const c of v.opponent) {
+          if (c.hidden) continue;
+          const fired = state.teams[1].cards.find((x) => x.id === c.id)!.abilityRevealed;
+          expect(c.abilityKnown).toBe(fired);
+        }
+        if (ev.some((e) => e.type === 'ability' && e.side === 1)) revealedSeen = true;
+      }
+    }
+    expect(revealedSeen).toBe(true);
+  });
+});

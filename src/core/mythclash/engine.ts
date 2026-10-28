@@ -41,6 +41,8 @@ export interface CardBattleState {
   entered: boolean;
   /** 魔法を使って、魔法属性が相手に公開された */
   magicRevealed: boolean;
+  /** 特性が発動して、相手に公開された(企画者 2026-10-28: 相手の特性は発動するまで見せない) */
+  abilityRevealed: boolean;
   /** 次の行動ができない(睡眠・凍結) */
   skip: 'sleep' | 'freeze' | null;
   /** 睡眠・凍結で、あと何回行動できないか(企画者 2026-10-27: 2回) */
@@ -114,7 +116,7 @@ const other = (s: Side): Side => (s === 0 ? 1 : 0);
 function newCardState(id: number): CardBattleState {
   const def = cardDef(id);
   if (!def) throw new Error(`MYTHCLASH: カード No.${id} がない`);
-  return { id, def, ability: abilityOf(def.abilityCode), hp: def.maxHp, down: false, entered: false, magicRevealed: false, skip: null, skipLeft: 0, dot: null, specialLock: false, abilityUsed: false, afterSpecial: false, shield: 0, weakenNormal: 0, weakenMagic: 0, boostNormal: 0, boostMagic: 0 };
+  return { id, def, ability: abilityOf(def.abilityCode), hp: def.maxHp, down: false, entered: false, magicRevealed: false, abilityRevealed: false, skip: null, skipLeft: 0, dot: null, specialLock: false, abilityUsed: false, afterSpecial: false, shield: 0, weakenNormal: 0, weakenMagic: 0, boostNormal: 0, boostMagic: 0 };
 }
 
 /** デッキが正しいか(ちがうカードIDが3枚。企画者決定) */
@@ -136,6 +138,7 @@ export function createBattle(deckA: readonly number[], deckB: readonly number[],
   enter(state, 0, events);
   enter(state, 1, events);
   events.push({ type: 'phase', round: 1, half: 1, attacker: state.attacker });
+  markAbilities(state, events);
   return { state, events };
 }
 
@@ -465,6 +468,7 @@ export function replaceDowned(s: BattleState, side: Side, index: number): Battle
     s.attacker = fasterSide(s);
     events.push({ type: 'phase', round: s.round, half: 1, attacker: s.attacker });
   }
+  markAbilities(s, events);
   return events;
 }
 
@@ -536,5 +540,15 @@ export function resolveRound(s: BattleState, actions: [BattleAction, BattleActio
     s.attacker = other(s.attacker);
     events.push({ type: 'phase', round: s.round, half: 2, attacker: s.attacker });
   }
+  markAbilities(s, events);
   return events;
+}
+
+/** 発動した特性を「公開ずみ」にする(出来事の ability を見て) */
+function markAbilities(s: BattleState, events: BattleEvent[]): void {
+  for (const e of events) {
+    if (e.type !== 'ability') continue;
+    const c = s.teams[e.side].cards.find((x) => x.id === e.id);
+    if (c) c.abilityRevealed = true;
+  }
 }
