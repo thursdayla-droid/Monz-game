@@ -270,7 +270,11 @@ export function saveLife(data: LifeData, store = defaultStore()): boolean {
   }
 }
 
-export type LifeEvent = { type: 'coins'; coins: number; delta: number } | { type: 'levelUp'; level: number; coins: number; gain: StatBlock };
+export type LifeEvent =
+  | { type: 'coins'; coins: number; delta: number }
+  | { type: 'levelUp'; level: number; coins: number; gain: StatBlock }
+  /** 経験値が増えた(お世話画面のゲージをすぐ動かすため。企画者 2026-10-28) */
+  | { type: 'exp'; exp: number; level: number };
 
 /** ミニゲームなどからの報酬。runId は1回のプレイごとの番号(同じ番号の報酬は2回もらえない) */
 export interface Reward {
@@ -649,6 +653,7 @@ export class LifeRecord {
       ups.push(level);
     }
     this.update({}, { level, exp, statPoints, auto, expDay: today, expToday: care ? used + got : used, expPetToday: kind === 'pet' ? usedPet + got : usedPet });
+    if (got > 0) this.emit({ type: 'exp', exp, level });
     for (const [i, lv] of ups.entries()) {
       const coins = levelUpCoins(lv);
       this.emit({ type: 'levelUp', level: lv, coins, gain: gains[i] });

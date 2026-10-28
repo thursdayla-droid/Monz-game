@@ -231,3 +231,19 @@ describe('mood word', () => {
     expect(moodWord(n)).toBe('のんびり');
   });
 });
+
+describe('the EXP gauge moves right away', () => {
+  it('feeding and petting send an exp event at once (お世話画面のゲージがすぐ動く。企画者 2026-10-28)', async () => {
+    const { newLife } = await import('../src/core/lifeSave');
+    const rec = new LifeRecord({ ...newLife(1), monz: [{ ...newLife(1).monz[0], needs: { ...newNeeds(), full: 0, touch: 0 } }] } as never, memoryStore());
+    const seen: string[] = [];
+    rec.on((e) => seen.push(e.type));
+    const before = rec.monz.exp;
+    rec.feed();
+    expect(seen).toContain('exp');
+    expect(rec.monz.exp).toBeGreaterThan(before);
+    seen.length = 0;
+    rec.pet(true);
+    expect(seen).toContain('exp');
+  });
+});

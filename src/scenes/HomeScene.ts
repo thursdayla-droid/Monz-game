@@ -368,6 +368,8 @@ export class HomeScene extends Phaser.Scene {
         this.levelUp(e.level, e.gain);
         return;
       }
+      // 経験値が増えただけのとき: ゲージは上で描き直した(なでる・ごはんと同時に動く。企画者 2026-10-28)
+      if (e.type === 'exp') return;
       const { coins, delta } = e;
       this.tweens.add({
         targets: shown,
