@@ -3,7 +3,7 @@
 - 出力先のファイルがすでにあれば、その中の古いゲームを差しかえる(なければ下の HTML のひな形から作る)
 - iPhone で開けるように 12MB くらいまでに収める(15MB をこえると開けなかった 2026-10-21)。圧縮は確認用ページだけ(ゲーム本体の素材はそのまま)
 - 新しい素材のフォルダを足したら、下の paths にも足す
-- MYTHCLASH の絵(public/assets/mythclash/ の全部)は埋め込まず、出力先の横の assets/mythclash/ に置く(Artifact の files で一緒に出す。2026-10-28)
+- MYTHCLASH の絵(public/assets/mythclash/ の全部)は埋め込まない。Artifact の絵の置き場(/_blob/...)にあげて、その場所を使う(tools/preview_blobs.py。2026-10-28)
 """
 import base64, glob, io, json, os, sys
 from PIL import Image
@@ -56,6 +56,18 @@ for p in sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/bgm/*.m
     subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-i', pub + p, '-c:a', 'libmp3lame', '-ac', '1', '-ar', '32000' if se else '22050', '-b:a', '48k' if se else '20k', tmp], check=True)
     assets[p] = 'data:audio/mpeg;base64,' + base64.b64encode(open(tmp, 'rb').read()).decode()
     os.remove(tmp)
+# MYTHCLASH の絵は、Artifact の絵の置き場(/_blob/...)にあげた場所を使う(iPhone のアプリでは横に置いたファイルが読めなかった 2026-10-28)。
+# あげていない・変わった絵は、下で一覧に出す(あげて tools/preview_blobs.py で覚えさせてから作りなおす)
+sys.path.insert(0, os.path.join(root, 'tools'))
+import preview_blobs
+need_upload = []
+for f in sorted(glob.glob(pub + 'assets/mythclash/**/*.webp', recursive=True)):
+    rel = os.path.relpath(f, pub)
+    url = preview_blobs.lookup('game', pub, rel)
+    if url:
+        assets[rel] = url
+    else:
+        need_upload.append('public/' + rel)
 jsons = {p: json.load(open(pub + p)) for p in ['assets/bunk/parts/parts.json', 'assets/bunk/down/parts.json', 'assets/bunk/faces/faces.json']}
 html = open(out).read()
 start = html.index('<script>window.__MONZ_ASSETS') if '__MONZ_ASSETS' in html else html.index('<script type="module">')
@@ -73,3 +85,7 @@ for f in card_files:
     os.makedirs(os.path.dirname(dst), exist_ok=True)
     shutil.copyfile(f, dst)
 print(round(len(html) / 1e6, 2), 'MB', len(assets), 'images', '+', len(card_files), 'MYTHCLASH files (assets/mythclash/)')
+if need_upload:
+    print('あげる絵(Artifact の asset。あげたら tools/preview_blobs.py game public ...):')
+    for f in need_upload:
+        print(' ', f)

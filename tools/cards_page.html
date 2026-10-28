@@ -77,6 +77,8 @@ h1 { font-family: var(--font-display); font-weight: 800; font-size: 1.6rem; marg
 <script>
 // カードのデータは build_cards_page.py が下に入れる(ゲーム本体のデータを読むだけ)
 const CARDS = /*CARDS_JSON*/[];
+// 絵の場所: Artifact の絵の置き場(/_blob/...)にあげた絵はそこから(iPhone のアプリでは横に置いたファイルが読めなかった 2026-10-28)
+const BLOBS = /*BLOBS_JSON*/{};
 const PER_PAGE = 10;
 const RARITIES = ['N', 'R', 'SR', 'UR', 'SEC', 'LR'];
 const pad = (n) => String(n).padStart(3, '0');
@@ -102,7 +104,8 @@ function face(c, big) {
   if (c.art) {
     const img = document.createElement('img');
     // 見ているページの分だけ読む。一覧は軽い小さい絵、大きく見るときは大きい絵
-    img.src = big ? `cards/${pad(c.no)}.webp` : `cards/thumb/${pad(c.no)}.webp`;
+    const path = big ? `cards/${pad(c.no)}.webp` : `cards/thumb/${pad(c.no)}.webp`;
+    img.src = BLOBS[path] ?? path;
     img.alt = `No.${pad(c.no)} ${c.name}`;
     img.loading = 'lazy';
     img.decoding = 'async';

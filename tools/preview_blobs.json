@@ -1,0 +1,342 @@
+{
+ "cards": {
+  "cards/001.webp": {
+   "sha256": "9726ef53c239a13eb99743e571aa28c61eac82664a40714ba140b8ff7459ca24",
+   "url": "/_blob/8f1a7d6c069efe37ca515764535a9e2b"
+  },
+  "cards/002.webp": {
+   "sha256": "5046039561e78964e9ddddc9bdaef28c3787fc77a4507288c81e6b65f6052e8a",
+   "url": "/_blob/18e50e826646fdce65a2a1412a16ca09"
+  },
+  "cards/003.webp": {
+   "sha256": "e5f13828ec486404897e33955fd085a6a96dcb21f6c4bc6c67a5d4bc9c988d30",
+   "url": "/_blob/68e39038bd17593fca41be0a8aa88e99"
+  },
+  "cards/004.webp": {
+   "sha256": "c45941805981e6aaa74b3fd6f4b2acd2887ceefa64631c3e74b6d7871eab8bd4",
+   "url": "/_blob/07f66a1724ed1cb8053141d4deed1d88"
+  },
+  "cards/005.webp": {
+   "sha256": "b74fccd74d542a5f0b8eb539c5743e549f1295d85e2c1a88bf59497f44079a00",
+   "url": "/_blob/1599f43a6244e1614127ef13c5d42968"
+  },
+  "cards/006.webp": {
+   "sha256": "c6fa07f853b15504e71f98a90529eb7f8592189fcbf6d2063bc43be020ae58e8",
+   "url": "/_blob/a1c7eb9829bf3eba7ebc8a708cf4218f"
+  },
+  "cards/007.webp": {
+   "sha256": "f58d78c76d9a2a81e8bee4820f85be160969dde5c0746c3746d14c13f10a6de3",
+   "url": "/_blob/edb2796e834f2d0542dec4b7d34b817d"
+  },
+  "cards/008.webp": {
+   "sha256": "37bdcecd812b6be9c9c52bf370534f55daecf4148f782e0028e86ac03e78e906",
+   "url": "/_blob/fc10083076125558edb22f1a1ae9c3bf"
+  },
+  "cards/009.webp": {
+   "sha256": "c3dc673f5cebd6a867adc16c2e96cc9b8bc10398377a2396c5d6935ed3d174f6",
+   "url": "/_blob/6e91f307b4ea13ddeb81df7b775c0e6c"
+  },
+  "cards/010.webp": {
+   "sha256": "0d8ca3d51e4ad1d995437e0f56ee3e867c13a4a03cb100ae359c028a48032133",
+   "url": "/_blob/6851e7b2a9bb091131ad583320330053"
+  },
+  "cards/011.webp": {
+   "sha256": "761528f000353582b409c4fd6faf6bae23dfd5c52eec058b401a919f6b019527",
+   "url": "/_blob/289363845caa7754f5dd1e462c3df3dd"
+  },
+  "cards/012.webp": {
+   "sha256": "663926f065cf51159e8ac809f5c7cbcb8aa90dbec6d58491fbe65b9975adb91c",
+   "url": "/_blob/36f5d05f484cf869febc6e6c96c9513d"
+  },
+  "cards/026.webp": {
+   "sha256": "cbddd8d235942af198d06b68c8048469c2a57e9ac906319d73a4b8dc0b2a2241",
+   "url": "/_blob/afa341e85664a1f6becea7ebcce1fae9"
+  },
+  "cards/101.webp": {
+   "sha256": "1d392e8f7de7f210d6a4c21754efd5d37343b8e7322fb3a9fdf3e28ff48e643e",
+   "url": "/_blob/071fae0882bd5d59be767e5ef50372b2"
+  },
+  "cards/thumb/001.webp": {
+   "sha256": "957e24cd550a799b2447c58e6e3744f9d675ae5015c776f156828d362c6cf75a",
+   "url": "/_blob/c291ed977c4a4e7315536eed8ddcb4fb"
+  },
+  "cards/thumb/002.webp": {
+   "sha256": "e700ad8621e1e466b0393d89d3d94dc45fe34658fcd704842c21730ddda8fb38",
+   "url": "/_blob/6d6b2c56c642f96d9b92d9fb37087305"
+  },
+  "cards/thumb/003.webp": {
+   "sha256": "62a8b4f0fc647f3ede918729c1a6a1caf14cc8231ca23bca6e54c17fed9a7d18",
+   "url": "/_blob/86c46a95d1d95d2aa9575756604b8752"
+  },
+  "cards/thumb/004.webp": {
+   "sha256": "252029b78ee11b63d8c221f183430e1d3da387922e4552bf6823140f3ace7323",
+   "url": "/_blob/8b9b66e1adaaf08f17510123902f2ee9"
+  },
+  "cards/thumb/005.webp": {
+   "sha256": "11394ffde8329a87a44ebbe4f78cb13f3b5b79d3dc93a9232554006899526f15",
+   "url": "/_blob/373e48259e2373a5723ea6226eda3d9b"
+  },
+  "cards/thumb/006.webp": {
+   "sha256": "577d78d1a72df13d4cc521f45a6cacfad906179d9e23de64714905ad64714c5c",
+   "url": "/_blob/a0d2fb7d2abd62947ac8b2d4533817ec"
+  },
+  "cards/thumb/007.webp": {
+   "sha256": "01be0e8c81c02f7a186405d5c51f262fa2944848125df656737eacd40e3ae89c",
+   "url": "/_blob/083738700cb147f812cf65c67de78d21"
+  },
+  "cards/thumb/008.webp": {
+   "sha256": "ffe4252c7f2c75dc2890a781d744333c7bd053a4c1c11a99cb568c8e7192f89d",
+   "url": "/_blob/5b2dcd21fcb5353dff51ea90ddb44883"
+  },
+  "cards/thumb/009.webp": {
+   "sha256": "3fcb90f370aaff59de107b6173fd8ec45d864f5422ba5decd3315140c44f825f",
+   "url": "/_blob/d821216280a177ec868dd4238a650e38"
+  },
+  "cards/thumb/010.webp": {
+   "sha256": "10cb3773404e51016b3d4e9f1f6a9df2029266bf8c6d50fa3afdeca8f08cd46b",
+   "url": "/_blob/d6ddff3070773c4d1bb0927ecb14763e"
+  },
+  "cards/thumb/011.webp": {
+   "sha256": "98c1fa39c87ecd243124b504d094797dc7bbc202770d8a3874244a851e87f049",
+   "url": "/_blob/f82f68df7384517ece7e8c359b4e0f9d"
+  },
+  "cards/thumb/012.webp": {
+   "sha256": "6e3c17f47a57c15c18a6aa7ca2254d43f24301abbc771cecd78ab1695fb45055",
+   "url": "/_blob/4b7dd648fc6d7a8ac42c8b8968d155f8"
+  },
+  "cards/thumb/026.webp": {
+   "sha256": "97f3536e73f229c7a123d60ee2c0eafa36354291f988d0d149fcc988055b242d",
+   "url": "/_blob/595fc0ec663ea034574571de5a806cb6"
+  },
+  "cards/thumb/101.webp": {
+   "sha256": "203f8d070e7222c92d0e0e52e884797521f2b669a2f96d440e45f12f9975db2a",
+   "url": "/_blob/164aa45e88a3eec3def651a57462ed59"
+  }
+ },
+ "game": {
+  "assets/mythclash/card_back.webp": {
+   "sha256": "e3bff5c7c3a5fbfa3faf2bfd3d29eb2152f764b644cc9807f6379d166182280e",
+   "url": "/_blob/ce46fc504f56806b7bb4501a6738d4a0"
+  },
+  "assets/mythclash/cards/001.webp": {
+   "sha256": "9726ef53c239a13eb99743e571aa28c61eac82664a40714ba140b8ff7459ca24",
+   "url": "/_blob/77ad059160045dabdb80d0e09f335e4c"
+  },
+  "assets/mythclash/cards/002.webp": {
+   "sha256": "5046039561e78964e9ddddc9bdaef28c3787fc77a4507288c81e6b65f6052e8a",
+   "url": "/_blob/8e6b68106d93a93651d61b588ab192f9"
+  },
+  "assets/mythclash/cards/003.webp": {
+   "sha256": "e5f13828ec486404897e33955fd085a6a96dcb21f6c4bc6c67a5d4bc9c988d30",
+   "url": "/_blob/c61f254d30e6605d93f717aa4cafdb59"
+  },
+  "assets/mythclash/cards/004.webp": {
+   "sha256": "c45941805981e6aaa74b3fd6f4b2acd2887ceefa64631c3e74b6d7871eab8bd4",
+   "url": "/_blob/f83f2a77c18d21bcbccef2d7d587313d"
+  },
+  "assets/mythclash/cards/005.webp": {
+   "sha256": "b74fccd74d542a5f0b8eb539c5743e549f1295d85e2c1a88bf59497f44079a00",
+   "url": "/_blob/20f30e2470b13e2a884cfd10b2a62720"
+  },
+  "assets/mythclash/cards/006.webp": {
+   "sha256": "c6fa07f853b15504e71f98a90529eb7f8592189fcbf6d2063bc43be020ae58e8",
+   "url": "/_blob/e4a06146e8736096e4450ec5ea598acf"
+  },
+  "assets/mythclash/cards/007.webp": {
+   "sha256": "f58d78c76d9a2a81e8bee4820f85be160969dde5c0746c3746d14c13f10a6de3",
+   "url": "/_blob/1030dee44ca3437d8007982651e1464a"
+  },
+  "assets/mythclash/cards/008.webp": {
+   "sha256": "37bdcecd812b6be9c9c52bf370534f55daecf4148f782e0028e86ac03e78e906",
+   "url": "/_blob/0bd5def680c5ef8b9288fd1243b73e61"
+  },
+  "assets/mythclash/cards/009.webp": {
+   "sha256": "c3dc673f5cebd6a867adc16c2e96cc9b8bc10398377a2396c5d6935ed3d174f6",
+   "url": "/_blob/9e5bc926529f9a1b799065b4de1c3774"
+  },
+  "assets/mythclash/cards/010.webp": {
+   "sha256": "0d8ca3d51e4ad1d995437e0f56ee3e867c13a4a03cb100ae359c028a48032133",
+   "url": "/_blob/1cb122c2a5d70f3b45e16277734089e3"
+  },
+  "assets/mythclash/cards/011.webp": {
+   "sha256": "761528f000353582b409c4fd6faf6bae23dfd5c52eec058b401a919f6b019527",
+   "url": "/_blob/76db94aa302e5a3b9ec41a90c7440718"
+  },
+  "assets/mythclash/cards/012.webp": {
+   "sha256": "663926f065cf51159e8ac809f5c7cbcb8aa90dbec6d58491fbe65b9975adb91c",
+   "url": "/_blob/6e4e0e7ecfd8f2d8caa1a525e2386fd0"
+  },
+  "assets/mythclash/cards/026.webp": {
+   "sha256": "cbddd8d235942af198d06b68c8048469c2a57e9ac906319d73a4b8dc0b2a2241",
+   "url": "/_blob/bae736632a9e0b9b6b060e4bdfa0d283"
+  },
+  "assets/mythclash/cards/101.webp": {
+   "sha256": "1d392e8f7de7f210d6a4c21754efd5d37343b8e7322fb3a9fdf3e28ff48e643e",
+   "url": "/_blob/600c6d51b73ac2748c3db770808ad9ce"
+  },
+  "assets/mythclash/coin_back.webp": {
+   "sha256": "a60a0340eaaa1612263a05e009204b410edaa5c8b8dc5a5fa1635cf490518b2a",
+   "url": "/_blob/11f5403ad8493f8fb77bf87ea437aef9"
+  },
+  "assets/mythclash/coin_front.webp": {
+   "sha256": "307e35b89548bb02029fbd27f80232dbbd94dd3ea8c0559cfb63f624820ad516",
+   "url": "/_blob/cf490939505539dd64f3571764800fcb"
+  },
+  "assets/mythclash/floor.webp": {
+   "sha256": "2a20792261f34a376ad4292218629404e4ff84e8c3e85bc9fc91427369aee320",
+   "url": "/_blob/696287dbdec061de2149ea013b27de2b"
+  },
+  "assets/mythclash/floor_parts.webp": {
+   "sha256": "e277be513c0f76779ec5de6524daf41d78ca2a7ec36328000919849dff3bf332",
+   "url": "/_blob/6fe3519b539600a38a5d5b3353dd5a6f"
+  },
+  "assets/mythclash/opponents/b-normal.webp": {
+   "sha256": "bfaff75624b6b74ba9cef90d037ff73f20764a75684937337fa7c47f566a5755",
+   "url": "/_blob/f3e5beb3a070fc1e99094e29c0950707"
+  },
+  "assets/mythclash/opponents/b-strong.webp": {
+   "sha256": "ac333a90c34e3e08a06d6df4a7932a1ff88e4f5179aac7a258d7aaffbaeb228c",
+   "url": "/_blob/1630ff0c51ff8e2c7539d96b3e5b7b9e"
+  },
+  "assets/mythclash/opponents/b-weak.webp": {
+   "sha256": "ca1f574364eaa52cc23f7da87b1f7436531ef95acaad340cf04b7d85fc9f15c6",
+   "url": "/_blob/70a7c81b508f14b7d76274a384489448"
+  },
+  "assets/mythclash/opponents/t1-1.webp": {
+   "sha256": "513faf18e6f9a2a6788eb01d0d500fd2dc804e98137f4e46c1ccdf04387db23e",
+   "url": "/_blob/fbe6843bd905d09f35096312625f15b1"
+  },
+  "assets/mythclash/opponents/t1-2.webp": {
+   "sha256": "16d02f9af35b93bfb9ac08973cda6d5398a789567fbb259d6717c47232a391e1",
+   "url": "/_blob/39e666af99f58b1b62bf8b9936030ca8"
+  },
+  "assets/mythclash/opponents/t1-3.webp": {
+   "sha256": "f6c2deaf5983b18a506b8d1ca619069ae262dbe094e623f7d1a1136398352b20",
+   "url": "/_blob/09f96f8af88045438f0371c8b3bbd31b"
+  },
+  "assets/mythclash/opponents/t10-1.webp": {
+   "sha256": "dd77dda66491fe901ff4728e2be78357533ed9cee1f034d15cc1e7a9efaa54d7",
+   "url": "/_blob/ff14613441526e03e647e743f140d1f1"
+  },
+  "assets/mythclash/opponents/t10-2.webp": {
+   "sha256": "806005c888425fb6294631933ff366bdc34c72867b0d5b05f3c53ea07bd44c58",
+   "url": "/_blob/9c4028607dabbb2604b5cfaf7365fc3b"
+  },
+  "assets/mythclash/opponents/t10-3.webp": {
+   "sha256": "76467f8510ab03ece0c48201f9277ce1aa210746e4ed1a840805b8ff28ce1cf4",
+   "url": "/_blob/933aa15e8e13ad2b1d55bf08135ce179"
+  },
+  "assets/mythclash/opponents/t2-1.webp": {
+   "sha256": "920d1a22d1b7f051d2edba6936ad0a95b01a8ca99d4484cfda89023d234424f9",
+   "url": "/_blob/4fd5e9b0c02c7ae0537fc881748fae0c"
+  },
+  "assets/mythclash/opponents/t2-2.webp": {
+   "sha256": "5ef5f542f3f161935d84f0d1f140ff9b4cc8fc125342d0606b5c9790ab5cac2c",
+   "url": "/_blob/ff6fbe4c9301878aa83503cc808812fe"
+  },
+  "assets/mythclash/opponents/t2-3.webp": {
+   "sha256": "177f5ac5182795dd181ade337af4c9d52622f4fac329a178137b8400b2e68427",
+   "url": "/_blob/31605a0687ed41038ee425c10c9b6acd"
+  },
+  "assets/mythclash/opponents/t3-1.webp": {
+   "sha256": "e13d40f4c04f25e05389bd542523f5f46dec8117bc6d3d3ba35d30e44fd43488",
+   "url": "/_blob/a625ea260109e9457f84e5c2daa4e4f8"
+  },
+  "assets/mythclash/opponents/t3-2.webp": {
+   "sha256": "515350816d3631d4f709fd0a3dd42f0040ed9d0f67e2acb04f8a0b4a203460be",
+   "url": "/_blob/ff7cc70e0efd70ca5d302b98faea9d9c"
+  },
+  "assets/mythclash/opponents/t3-3.webp": {
+   "sha256": "b37f152613a1289b0016515b9030770fea0454a84f2481e7c0fdfddf17cdbae8",
+   "url": "/_blob/ddedcb98328e2c355b427b316ce5c4c1"
+  },
+  "assets/mythclash/opponents/t4-1.webp": {
+   "sha256": "555b7b294aad6be508a5bb9075d80487441d3b804c7beb3be7eb0af8f9b75c34",
+   "url": "/_blob/e0c59b73f29c73098f84fe5b850a4148"
+  },
+  "assets/mythclash/opponents/t4-2.webp": {
+   "sha256": "5620e8e31843397e2f65ca03587b3529c73d52c955e16dfd16f7da00809ae128",
+   "url": "/_blob/b11e10ac389fe212d974d08b19d2eb5a"
+  },
+  "assets/mythclash/opponents/t4-3.webp": {
+   "sha256": "c79bf8e8fe0cf911e8389a7155ea8a2c0a3fa298772cec348b3710157fc0bdf9",
+   "url": "/_blob/447105f304a617deaf435aa5145aed5c"
+  },
+  "assets/mythclash/opponents/t5-1.webp": {
+   "sha256": "72739c997a4df29aafeca4b15bba42896544038f1c0193b3fe026a9629080ec0",
+   "url": "/_blob/082aea4feb097866872ab0cfa459cd07"
+  },
+  "assets/mythclash/opponents/t5-2.webp": {
+   "sha256": "16177c75a412c000d303abd29351636a61e208faf50455c66e3ed5af1509eeb1",
+   "url": "/_blob/565200b37e291d0a7153bcf2299c90df"
+  },
+  "assets/mythclash/opponents/t5-3.webp": {
+   "sha256": "501ec0a1b3388a498ac1c6105f2326c32fb2c63d0b272c8e5877f567ae8fee24",
+   "url": "/_blob/917da66169727aef2cb0ccebc7745739"
+  },
+  "assets/mythclash/opponents/t6-1.webp": {
+   "sha256": "b9cdc11f1af1391533d2f5d6a36d9131ec30660576741ed9a80adc7f33207b04",
+   "url": "/_blob/7593c486716656ae4d5d19b23f1b7c8b"
+  },
+  "assets/mythclash/opponents/t6-2.webp": {
+   "sha256": "e0f72d8153915c7469afc171ad202c81bd0b8e14ec6cb2c9cb121328d03d6733",
+   "url": "/_blob/8235fd84bc27ad9d561872f51cd08123"
+  },
+  "assets/mythclash/opponents/t6-3.webp": {
+   "sha256": "dc0aedc12db77adddc8b83804988c088528f1ef8228f62ae4a287a9ba6d0b5bc",
+   "url": "/_blob/6688dba689d06b8100cb751e2afea446"
+  },
+  "assets/mythclash/opponents/t7-1.webp": {
+   "sha256": "4397904aa3d32b1c18a2ae558c6402dbf1b71aa2a1aa1211937e7aae56c81070",
+   "url": "/_blob/b5db518ce3f3786788de82ed975d16ad"
+  },
+  "assets/mythclash/opponents/t7-2.webp": {
+   "sha256": "80871e4767a9cf9562c51f332e6c752af4b87044de9e5ac76348927b46ae96a5",
+   "url": "/_blob/f6ef4b0fe47d0f796f75476e655e84cf"
+  },
+  "assets/mythclash/opponents/t7-3.webp": {
+   "sha256": "406564fed02a877458627e7c033514ab378e9f70b8571530ebe9c804af29a004",
+   "url": "/_blob/176ae991ac8a5248ada028d328f67f4a"
+  },
+  "assets/mythclash/opponents/t8-1.webp": {
+   "sha256": "388c61550d15daefd58ceb1abaa458964fa0a9d4ce0c0b105e75762d81d747b7",
+   "url": "/_blob/38344af6344efbabee9d8ab24865bcd2"
+  },
+  "assets/mythclash/opponents/t8-2.webp": {
+   "sha256": "83d75104a62723f72ca1f3d0d87fa021d992ed4184066bedfc0e68aaa6c740f5",
+   "url": "/_blob/cb249629f2245a3344d3fd359be679a3"
+  },
+  "assets/mythclash/opponents/t8-3.webp": {
+   "sha256": "3abb73583b659dd165025e52649769389ae89557e5419a2541c15c08b0377bf0",
+   "url": "/_blob/237398dfe0f3450e0778d89f763d76ec"
+  },
+  "assets/mythclash/opponents/t9-1.webp": {
+   "sha256": "af5842f42901b8abc1585b62597745dd5fcfd1c11650f9c6c9c71ee25608d659",
+   "url": "/_blob/4ba3c982f3a5a52d92e9422304cb5592"
+  },
+  "assets/mythclash/opponents/t9-2.webp": {
+   "sha256": "60296bde14395a209ba99305e4efde19b1d754d0c61a025326e59392a61b6419",
+   "url": "/_blob/90d49ec6e057151a8c489a88099764c4"
+  },
+  "assets/mythclash/opponents/t9-3.webp": {
+   "sha256": "05032175acee735b6437e08b52a2bbfb6b867b4df06d812c004ad2a5e9b012b0",
+   "url": "/_blob/2afd3c530614a2cc0ca86c98ad3c75e6"
+  },
+  "assets/mythclash/pack.webp": {
+   "sha256": "bfdf6d24e139f4fc69c3b0918d5bb32c9ea0bb9814891abc274d767f85304e55",
+   "url": "/_blob/e216523794baddf6cdcfc4dfb52d87db"
+  },
+  "assets/mythclash/title.webp": {
+   "sha256": "ea57fed0bcfb6daef862c12a4daed8d8266bc5f12482e5248e1d16a043941e76",
+   "url": "/_blob/b8d5c9e3cee805702b12b0821dfbf01e"
+  },
+  "assets/mythclash/tower.webp": {
+   "sha256": "b6946e83c037319e20062cc4571fc4fa5d5c3b7d0ab084f41af701ebddcfbf15",
+   "url": "/_blob/db9be251b66970934c32cf6fe7c4a6cc"
+  },
+  "assets/mythclash/tower_parts.webp": {
+   "sha256": "ed2df15044576d284b863991cb66b2e1014e5110cac7a275a06da8212703d985",
+   "url": "/_blob/637161a242f06901eaec6c68762fd868"
+  }
+ }
+}

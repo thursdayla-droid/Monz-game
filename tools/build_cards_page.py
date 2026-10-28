@@ -38,6 +38,25 @@ for c in cards:
 html = open(os.path.join(root, 'tools/cards_page.html'), encoding='utf-8').read()
 data = json.dumps(cards, ensure_ascii=False).replace('</', '<\\/')
 html = html.replace('/*CARDS_JSON*/[]', data)
+# Artifact の絵の置き場(/_blob/...)にあげた絵の場所(tools/preview_blobs.py。2026-10-28)。あげていない・変わった絵は一覧に出す
+sys.path.insert(0, os.path.join(root, 'tools'))
+import preview_blobs
+blobs = {}
+need_upload = []
+for c in cards:
+    if not c['art']:
+        continue
+    for rel in (f"cards/{c['no']:03d}.webp", f"cards/thumb/{c['no']:03d}.webp"):
+        url = preview_blobs.lookup('cards', out, rel)
+        if url:
+            blobs[rel] = url
+        else:
+            need_upload.append(rel)
+html = html.replace('/*BLOBS_JSON*/{}', json.dumps(blobs))
 open(os.path.join(out, 'index.html'), 'w', encoding='utf-8').write(html)
 n = sum(1 for c in cards if c['art'])
 print(f'{len(cards)} cards, {n} with art, page {round(len(html) / 1e3)} KB')
+if need_upload:
+    print('あげる絵(Artifact の asset。あげたら tools/preview_blobs.py cards <出力フォルダ> ...):')
+    for f in need_upload:
+        print(' ', f)
