@@ -447,6 +447,16 @@ export class LifeRecord {
     return this.update({ mythclash: { ...col, towerBeaten: [...(col.towerBeaten ?? []), opponentId] } });
   }
 
+  /**
+   * 特別なカードを手に入れる(BLOOD TOWER 10階のボスを倒したとき: No.101 Mr.CLASH。企画者 2026-10-28)。
+   * 1枚だけ(もう持っていたら何もしないで false)。パックの数は増やさない
+   */
+  mythGetSpecialCard(id: number): boolean {
+    const col = this.mythclash;
+    if ((col.owned[id] ?? 0) > 0) return false;
+    return this.update({ mythclash: { ...col, owned: { ...col.owned, [id]: 1 } } });
+  }
+
   /** MYTHCLASH のバトルモードで勝った(企画者 2026-10-27: 負けは0なので呼ばない)。同じ runId では2回もらえない(null) */
   mythBattleWin(level: CpuLevel, runId: string, now = Date.now()): { coins: number; exp: number } | null {
     const { coins, exp } = BATTLE_MODE[level];

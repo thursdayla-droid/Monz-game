@@ -4,9 +4,9 @@ import { showCardZoom } from '../ui/cardZoom';
 import { preloadPacks } from '../render/packs';
 import { audio } from '../audio/engine';
 import { loadLife } from '../core/lifeSave';
-import { card, cardNo, CARDS, sortCardIds } from '../core/mythclash/cards';
+import { card, cardNo, CARDS, isSpecialCard, SPECIAL_CARDS, sortCardIds } from '../core/mythclash/cards';
 import { addSortChips, cardSortChoice } from '../ui/sortChips';
-import { battleUnlocked, kindsToUnlock, newCollection, ownedCount, ownedKinds, type MythCollection } from '../core/mythclash/packs';
+import { battleUnlocked, kindsToUnlock, newCollection, ownedCount, type MythCollection } from '../core/mythclash/packs';
 import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W, useCardArt } from '../ui/mythCardArt';
 import { canvasTextureOnce, roundRectPath, UI_FONT } from '../ui/paint';
 
@@ -36,7 +36,7 @@ export class BinderScene extends Phaser.Scene {
   private pageLabel?: Phaser.GameObjects.Text;
   private busy = false;
   /** ページに並べる順番(カードNo) */
-  private order: number[] = [];
+  private order: (number | undefined)[] = [];
 
   constructor() {
     super('Binder');
@@ -50,7 +50,7 @@ export class BinderScene extends Phaser.Scene {
   }
 
   private get pages(): number {
-    return Math.ceil(CARDS.length / PER_PAGE);
+    return Math.ceil(this.order.length / PER_PAGE);
   }
 
   preload(): void {
@@ -72,7 +72,8 @@ export class BinderScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     back.on('pointerdown', () => this.leave());
     this.add.text(W / 2 + 70, 54, 'カードバインダー', { fontFamily: UI_FONT, fontSize: '40px', fontStyle: '900', color: '#ffd23a', stroke: '#16101c', strokeThickness: 8 }).setOrigin(0.5);
-    const kinds = ownedKinds(this.col);
+    // 数えるのはパックのカード(100種類)だけ。特別なカード(Mr.CLASH)は別のページ
+    const kinds = CARDS.filter((c) => ownedCount(this.col, c.id) > 0).length;
     this.add.text(W / 2, 130, `所持種類数：${kinds}/${CARDS.length}`, { fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: '#ffffff' }).setOrigin(0.5);
     const unlock = battleUnlocked(this.col) ? 'バトル解放ずみ！' : `異なるカードをあと${kindsToUnlock(this.col)}種類集めるとバトル解放！`;
     this.add.text(W / 2, 182, unlock, { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '900', color: battleUnlocked(this.col) ? '#7dffa0' : '#ffb070' }).setOrigin(0.5);
@@ -106,7 +107,16 @@ export class BinderScene extends Phaser.Scene {
     const all = CARDS.map((c) => c.id);
     const have = all.filter((id) => ownedCount(this.col, id) > 0);
     const not = all.filter((id) => ownedCount(this.col, id) === 0);
-    this.order = k === 'no' ? all : [...sortCardIds(have, k), ...not];
+    const order: (number | undefined)[] = k === 'no' ? all : [...sortCardIds(have, k), ...not];
+    // 特別なカードは、手に入れたら そのカードだけの1ページを最後に足す(企画者 2026-10-28)。まん中のポケットに入れる
+    for (const sp of SPECIAL_CARDS) {
+      if (ownedCount(this.col, sp.id) === 0) continue;
+      while (order.length % PER_PAGE) order.push(undefined);
+      const page = Array<number | undefined>(PER_PAGE).fill(undefined);
+      page[Math.floor(PER_PAGE / 2)] = sp.id;
+      order.push(...page);
+    }
+    this.order = order;
     this.sortLayer?.removeAll(true);
     addSortChips(this, this.sortLayer!, W / 2, 226, k, (n) => this.applySort(n));
     this.page = 0;
@@ -129,9 +139,17 @@ export class BinderScene extends Phaser.Scene {
     const x0 = (W - COLS * POCKET.w - (COLS - 1) * POCKET.gap) / 2 + 8;
     for (let i = 0; i < PER_PAGE; i++) {
       const id = this.order[page * PER_PAGE + i];
-      if (id === undefined) break;
+      if (id === undefined) continue;
       const x = x0 + (i % COLS) * (POCKET.w + POCKET.gap);
       const y = POCKET.top + Math.floor(i / COLS) * (POCKET.h + POCKET.gap);
+      if (isSpecialCard(id)) {
+        // 特別なカードのページ: 金色の光と「特別なカード」(企画者 2026-10-28)
+        const glow = this.add.rectangle(x + POCKET.w / 2, y + POCKET.h / 2, POCKET.w + 30, POCKET.h + 30, 0xffb040, 0.35).setBlendMode(Phaser.BlendModes.ADD);
+        this.tweens.add({ targets: glow, alpha: 0.08, scale: 1.08, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+        layer.add(glow);
+        layer.add(this.add.text(W / 2, y - 70, '✦ 特別なカード ✦', { fontFamily: UI_FONT, fontSize: '40px', fontStyle: '900', color: '#ffd23a', stroke: '#3a0a04', strokeThickness: 8 }).setOrigin(0.5));
+        layer.add(this.add.text(W / 2, y + POCKET.h + 50, 'BLOOD TOWER 10階のボスを倒した証', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '900', color: '#ffb070' }).setOrigin(0.5));
+      }
       layer.add(this.pocket(id, x, y));
     }
     this.pageLayer = layer;

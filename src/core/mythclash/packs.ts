@@ -6,7 +6,7 @@
  * - バトル解放: ちがうカードを3種類以上(確定)
  * 買う処理は LifeRecord.buyPacks(コインと持っているカードを1回の保存でいっしょに変える)。お世話画面のショップと MYTHCLASH の画面の両方から使う
  */
-import { CARDS, RARITIES, type Rarity } from './cards';
+import { CARDS, RARITIES, SPECIAL_CARDS, type Rarity } from './cards';
 import { TOWER_FLOORS } from './modes';
 import type { Rng } from '../rng';
 
@@ -16,18 +16,18 @@ export const PACK_COUNTS = [1, 10] as const;
 export type PackCount = (typeof PACK_COUNTS)[number];
 
 /** レアの出る確率。SEC だけ確定、ほかは【仮】 */
-export const PACK_RATES: Record<Rarity, number> = { N: 0.6, R: 0.28, SR: 0.09, UR: 0.028, SEC: 0.002 };
+export const PACK_RATES: Record<Exclude<Rarity, 'LR'>, number> = { N: 0.6, R: 0.28, SR: 0.09, UR: 0.028, SEC: 0.002 };
 
 /** バトルが遊べるようになる、ちがうカードの数 */
 export const BATTLE_UNLOCK_KINDS = 3;
 
-const BY_RARITY: Record<Rarity, number[]> = Object.fromEntries(RARITIES.map((r) => [r, CARDS.filter((c) => c.rarity === r).map((c) => c.id)])) as Record<Rarity, number[]>;
+const BY_RARITY: Record<Exclude<Rarity, 'LR'>, number[]> = Object.fromEntries(RARITIES.map((r) => [r, CARDS.filter((c) => c.rarity === r).map((c) => c.id)])) as Record<Exclude<Rarity, 'LR'>, number[]>;
 
 /** 1パック開ける(カードNoを返す) */
 export function drawPackCard(rng: Rng): number {
   const roll = rng();
   let acc = 0;
-  let rarity: Rarity = 'N';
+  let rarity: Exclude<Rarity, 'LR'> = 'N';
   for (const r of RARITIES) {
     acc += PACK_RATES[r];
     if (roll < acc) {
@@ -62,7 +62,7 @@ export const newCollection = (): MythCollection => ({ owned: {}, packs: 0 });
 export function fixCollection(raw: unknown): MythCollection {
   const d = (raw && typeof raw === 'object' ? raw : {}) as Partial<MythCollection>;
   const owned: Record<string, number> = {};
-  const known = new Set(CARDS.map((c) => String(c.id)));
+  const known = new Set([...CARDS, ...SPECIAL_CARDS].map((c) => String(c.id)));
   for (const [k, v] of Object.entries(d.owned && typeof d.owned === 'object' ? d.owned : {})) {
     const n = Math.floor(Number(v));
     if (known.has(k) && Number.isFinite(n) && n > 0) owned[k] = n;

@@ -8,8 +8,9 @@ import { RAW_CARDS } from './cardData';
 
 export const ELEMENTS = ['炎', '水', '雷', '自然', '光', '闇', '無'] as const;
 export type Element = (typeof ELEMENTS)[number];
+/** パックから出るレア。LR は特別なカード(パックから出ない。企画者 2026-10-28) */
 export const RARITIES = ['N', 'R', 'SR', 'UR', 'SEC'] as const;
-export type Rarity = (typeof RARITIES)[number];
+export type Rarity = (typeof RARITIES)[number] | 'LR';
 
 /** カード表の1行(列をそのまま) */
 export interface RawCard {
@@ -77,7 +78,31 @@ export const CARDS: readonly CardDefinition[] = RAW_CARDS.map((r) => {
   };
 });
 
-const BY_ID = new Map(CARDS.map((c) => [c.id, c]));
+/**
+ * 特別なカード(パック・CPUのランダムなデッキには出ない。CARDS には入れない)。
+ * No.101 Mr.CLASH: BLOOD TOWER 10階のボス ジンシーを倒すと手に入る(企画者 2026-10-28)。
+ * 【仮】魔法の補正値は 0、テーマは「特別」(企画者の指定がないため)
+ */
+export const SPECIAL_CARDS: readonly CardDefinition[] = [
+  {
+    id: 101,
+    name: 'Mr.CLASH',
+    theme: '特別',
+    rarity: 'LR',
+    element: '炎',
+    maxHp: 200,
+    atk: 10,
+    def: 8,
+    mag: 10,
+    spd: 9,
+    magic: { name: '王の咆哮', element: '炎', modifier: 0, effectCode: 'atk30' },
+    abilityCode: 'king_lock',
+  },
+];
+export const MR_CLASH = 101;
+export const isSpecialCard = (id: number): boolean => SPECIAL_CARDS.some((c) => c.id === id);
+
+const BY_ID = new Map([...CARDS, ...SPECIAL_CARDS].map((c) => [c.id, c]));
 export const card = (id: number): CardDefinition | undefined => BY_ID.get(id);
 
 /** カードNoの表示(No.001) */

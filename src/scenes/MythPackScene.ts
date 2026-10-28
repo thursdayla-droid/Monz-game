@@ -243,7 +243,7 @@ export class MythPackScene extends Phaser.Scene {
     const counter = this.add.text(this.W / 2, img.y - img.displayHeight / 2 - 40 * u, `${this.index + 1} / ${this.d.cards.length}`, { fontFamily: UI_FONT, fontSize: `${Math.round(28 * u)}px`, fontStyle: '900', color: '#ffffff' }).setOrigin(0.5).setDepth(9);
     this.shown.push(counter);
     const last = this.index === this.d.cards.length - 1;
-    const hold = { N: 750, R: 850, SR: 1100, UR: 1400, SEC: 2400 }[rarity];
+    const hold = { N: 750, R: 850, SR: 1100, UR: 1400, SEC: 2400, LR: 2400 }[rarity];
     if (last && this.d.cards.length === 1) {
       this.time.delayedCall(500, () => this.showGrid());
       return;

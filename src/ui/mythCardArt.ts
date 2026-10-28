@@ -13,6 +13,7 @@ export const RARITY_COLORS: Record<Rarity, { frame: string; light: string }> = {
   SR: { frame: '#9b3ee0', light: '#d9a8ff' },
   UR: { frame: '#e0a82e', light: '#fff0a8' },
   SEC: { frame: '#c0182a', light: '#ffd23a' },
+  LR: { frame: '#ff4a1a', light: '#ffe08a' },
 };
 
 export const ELEMENT_COLORS: Record<Element, string> = {
@@ -35,7 +36,7 @@ export const ELEMENT_COLORS: Record<Element, string> = {
  * 企画者のカードの絵(カード全体。企画者決定 2026-10-27: 文字まで入った絵をそのまま使う)。絵があるカードの番号。
  * 絵は design/mythclash/make_cards.py で作る(public/assets/mythclash/cards/NNN.webp・600×833)。届いたら番号を足す
  */
-export const CARD_ART_IDS: readonly number[] = [1, 2, 3, 4, 26];
+export const CARD_ART_IDS: readonly number[] = [1, 2, 3, 4, 26, 101];
 export const cardArtKey = (id: number) => `myth:cardart:${id}`;
 export const cardArtFile = (id: number) => `assets/mythclash/cards/${String(id).padStart(3, '0')}.webp`;
 const cardArt = new Map<number, CanvasImageSource>();
@@ -59,7 +60,37 @@ export function cardZoomTexture(scene: Phaser.Scene, key: string): string {
 }
 
 /** 企画者の絵のカード(相手がまだ魔法を使っていないときは、絵の魔法の名前・属性・説明を「？？？」でおおう) */
-function drawArtCard(ctx: CanvasRenderingContext2D, art: CanvasImageSource, hideMagicElement: boolean, hideAbility = false): void {
+/**
+ * 魔法・特性の欄の場所(1064×1478 の絵の座標 x0, y0, x1, y1)。相手のカードでかくすときに使う。
+ * ふつうのカードは同じ並び。並びのちがうカード(No.101 Mr.CLASH)だけ書く
+ */
+const ART_ROWS: Record<number, { magic: [number, number, number, number]; ability: [number, number, number, number] }> = {
+  101: { magic: [72, 1056, 996, 1194], ability: [72, 1198, 996, 1334] },
+};
+const DEFAULT_ROWS = { magic: [52, 1132, 1012, 1284], ability: [52, 1290, 1012, 1384] } as const;
+
+/** 絵の座標の四角をおおって「？？？」 */
+function coverRow(ctx: CanvasRenderingContext2D, [ax0, ay0, ax1, ay1]: readonly [number, number, number, number]): void {
+  const w = MYTH_CARD_W;
+  const h = MYTH_CARD_H;
+  const x0 = (ax0 / 1064) * w;
+  const y0 = (ay0 / 1478) * h;
+  const bw = ((ax1 - ax0) / 1064) * w;
+  const bh = ((ay1 - ay0) / 1478) * h;
+  roundRectPath(ctx, x0, y0, bw, bh, 5);
+  ctx.fillStyle = '#140c14';
+  ctx.fill();
+  ctx.strokeStyle = '#5a4a60';
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  ctx.font = `900 18px ${UI_FONT}`;
+  ctx.fillStyle = '#b8a8c8';
+  ctx.fillText('？？？', x0 + bw / 2, y0 + bh / 2 + 1);
+}
+
+function drawArtCard(ctx: CanvasRenderingContext2D, id: number, art: CanvasImageSource, hideMagicElement: boolean, hideAbility = false): void {
   const w = MYTH_CARD_W;
   const h = MYTH_CARD_H;
   ctx.save();
@@ -67,50 +98,16 @@ function drawArtCard(ctx: CanvasRenderingContext2D, art: CanvasImageSource, hide
   ctx.clip();
   ctx.drawImage(art, 0, 0, w, h);
   ctx.restore();
-  if (hideMagicElement) {
-    // 魔法の名前・属性・効果の説明を、使うまでかくす(企画者 2026-10-27「対戦中は魔法の種類が相手に見えちゃうから使うまで隠して」)。
-    // カードによって 説明の行のあり・なしで並びがちがうので、「魔法」の文字もふくめて 魔法のわく全体(1064×1478 の絵で x 52〜1012・y 1132〜1284)をおおって「？？？」だけ出す
-    // (企画者 2026-10-27「魔法の文字も半分消えたりしてるから、魔法の文字も隠しちゃっていい」)
-    const x0 = (52 / 1064) * w;
-    const y0 = (1132 / 1478) * h;
-    const bw = (960 / 1064) * w;
-    const bh = (152 / 1478) * h;
-    roundRectPath(ctx, x0, y0, bw, bh, 5);
-    ctx.fillStyle = '#140c14';
-    ctx.fill();
-    ctx.strokeStyle = '#5a4a60';
-    ctx.lineWidth = 1.2;
-    ctx.stroke();
-    ctx.textBaseline = 'middle';
-    ctx.textAlign = 'center';
-    ctx.font = `900 18px ${UI_FONT}`;
-    ctx.fillStyle = '#b8a8c8';
-    ctx.fillText('？？？', x0 + bw / 2, y0 + bh / 2 + 1);
-  }
-  if (hideAbility) {
-    // 特性の行も、発動するまでかくす(企画者 2026-10-28)。「特性」の文字ごと(1064×1478 の絵で x 52〜1012・y 1290〜1384)
-    const x0 = (52 / 1064) * w;
-    const y0 = (1290 / 1478) * h;
-    const bw = (960 / 1064) * w;
-    const bh = (94 / 1478) * h;
-    roundRectPath(ctx, x0, y0, bw, bh, 5);
-    ctx.fillStyle = '#140c14';
-    ctx.fill();
-    ctx.strokeStyle = '#5a4a60';
-    ctx.lineWidth = 1.2;
-    ctx.stroke();
-    ctx.textBaseline = 'middle';
-    ctx.textAlign = 'center';
-    ctx.font = `900 18px ${UI_FONT}`;
-    ctx.fillStyle = '#b8a8c8';
-    ctx.fillText('？？？', x0 + bw / 2, y0 + bh / 2 + 1);
-  }
+  const rows = ART_ROWS[id] ?? DEFAULT_ROWS;
+  // 魔法の名前・属性・説明は使うまで、特性は発動するまで「？？？」でおおう(企画者 2026-10-27・10-28)。「魔法」「特性」の文字ごと
+  if (hideMagicElement) coverRow(ctx, rows.magic);
+  if (hideAbility) coverRow(ctx, rows.ability);
 }
 
 export function drawMythCard(ctx: CanvasRenderingContext2D, c: CardDefinition, opts: { hideMagicElement?: boolean; hideAbility?: boolean } = {}): void {
   const picture = cardArt.get(c.id);
   if (picture) {
-    drawArtCard(ctx, picture, !!opts.hideMagicElement, !!opts.hideAbility);
+    drawArtCard(ctx, c.id, picture, !!opts.hideMagicElement, !!opts.hideAbility);
     return;
   }
   const w = MYTH_CARD_W;

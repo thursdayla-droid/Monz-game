@@ -67,6 +67,8 @@ export function describeAbility(ab: Ability): string {
       return d.minHpRate > 0 ? `HPが${pct(d.minHpRate)}以上なら、倒れるダメージをHP1で耐える（1回）` : '倒れるダメージをHP1で耐える（1回）';
     case 'sleepReroll':
       return '睡眠が外れたら、もう1回だけ判定する';
+    case 'lockSwitch':
+      return '場に出ている限り、相手は交代できない';
     case 'none':
       return '';
   }

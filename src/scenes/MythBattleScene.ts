@@ -8,7 +8,7 @@ import { MYTH_CARD_BACK } from '../ui/packBuy';
 import { opponentFor } from '../core/mythclash/opponents';
 import { opponentFaceTexture } from '../ui/opponentFace';
 import { abilityOf } from '../core/mythclash/abilities';
-import { card, RARITIES, type Element } from '../core/mythclash/cards';
+import { card, cardPower, MR_CLASH, type Element } from '../core/mythclash/cards';
 import type { SeName } from '../audio/sfx';
 import { coinTossFx, counterFx, impactFx, magicFx, slashFx, specialCutin } from '../ui/mythFx';
 import { activeCard, createBattle, legalActions, replaceDowned, resolveRound, surrender, type BattleAction, type BattleEvent, type BattleState, type Side } from '../core/mythclash/engine';
@@ -180,7 +180,7 @@ export class MythBattleScene extends Phaser.Scene {
     if (col.deck && deckOwned(col, col.deck)) return [...col.deck];
     // デッキ編成を通らずに開いたとき(確認用)だけ。ふつうは来ない
     if (!battleUnlocked(col)) return randomDeck(rng);
-    const rank = (id: number) => RARITIES.indexOf(card(id)!.rarity);
+    const rank = (id: number) => cardPower(card(id)!);
     return Object.keys(col.owned)
       .map(Number)
       .sort((a, b) => rank(b) - rank(a) || a - b)
@@ -1085,6 +1085,8 @@ export class MythBattleScene extends Phaser.Scene {
         buttons.push(['つぎへ', () => this.leave('MythFloor', { match: { ...m, battle: m.battle + 1 } })], ['やめる', toTower]);
       } else if (win) {
         const r = new LifeRecord(loadLife()).mythTowerClear(m.floor, m.runId);
+        // 10階のボス(ジンシー)を倒したら、特別なカード Mr.CLASH(企画者 2026-10-28)。1枚だけ
+        if (m.floor === TOWER_FLOORS && new LifeRecord(loadLife()).mythGetSpecialCard(MR_CLASH)) this.time.delayedCall(900, () => this.showSpecialCard());
         lines.push([`${m.floor}階 クリア！${r?.first ? '（はじめて！）' : ''}`, '#ffd23a']);
         if (r) lines.push([`コイン +${r.coins.toLocaleString()}　経験値 +${r.exp}`, '#ffffff']);
         if (m.floor < TOWER_FLOORS) buttons.push(['次の階へ', () => this.leave('MythFloor', { match: { mode: 'tower', floor: m.floor + 1, battle: 0, runId: newTowerRun(m.floor + 1) } })]);
@@ -1117,6 +1119,13 @@ export class MythBattleScene extends Phaser.Scene {
       b.once('pointerdown', fn);
       box.add(b);
     });
+  }
+
+  /** 特別なカードを手に入れたときの演出(大きく見せる) */
+  private showSpecialCard(): void {
+    audio.se('cheer');
+    const c = card(MR_CLASH)!;
+    showCardZoom(this, this.cardTexture(MR_CLASH, false), ['特別なカードをゲット！', c.name, ...abilityLines(c)]);
   }
 
   private leave(scene = 'MythTitle', data?: object): void {

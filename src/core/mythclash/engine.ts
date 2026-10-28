@@ -157,6 +157,8 @@ function enter(s: BattleState, side: Side, events: BattleEvent[]): void {
   c.entered = true;
   events.push({ type: 'enter', side, id: c.id });
   const ab = c.ability;
+  // 王者の証: 場に出るたびに知らせる(相手が交代できなくなる)
+  if (ab && ab.def.kind === 'lockSwitch') events.push({ type: 'ability', side, id: c.id, code: ab.code });
   if (first && ab && ab.def.kind === 'entryShield' && !c.abilityUsed) {
     c.abilityUsed = true;
     c.shield = Math.max(c.shield, ab.def.amount);
@@ -182,9 +184,15 @@ export function legalActions(s: BattleState, side: Side): BattleAction[] {
   }
   // 眠っている・凍っているときは「何もしない」(行動が1回消える)を先頭に。交代はできる(企画者 2026-10-26)
   if (asleep) out.push({ type: 'defend', kind: 'guard' });
-  // 交代はターンの最初(前半)だけ(企画者 2026-10-26)
-  if (s.half === 1 && (!asleep || s.rules.canSwitchWhileAsleep)) t.cards.forEach((o, i) => { if (i !== t.active && !o.down) out.push({ type: 'switch', to: i }); });
+  // 交代はターンの最初(前半)だけ(企画者 2026-10-26)。相手の場に「王者の証」のカードがいる間はできない(企画者 2026-10-28)
+  if (s.half === 1 && (!asleep || s.rules.canSwitchWhileAsleep) && !switchLocked(s, side)) t.cards.forEach((o, i) => { if (i !== t.active && !o.down) out.push({ type: 'switch', to: i }); });
   return out;
+}
+
+/** 相手の場のカードの「王者の証」で、交代できないか */
+export function switchLocked(s: BattleState, side: Side): boolean {
+  const op = activeCard(s, other(side));
+  return !op.down && op.ability?.def.kind === 'lockSwitch';
 }
 
 const sameAction = (a: BattleAction, b: BattleAction) => JSON.stringify(a) === JSON.stringify(b);

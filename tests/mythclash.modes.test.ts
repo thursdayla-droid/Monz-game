@@ -160,3 +160,33 @@ describe('MYTHCLASH: opponent abilities stay hidden until they trigger', () => {
     expect(revealedSeen).toBe(true);
   });
 });
+
+describe('MYTHCLASH No.101 Mr.CLASH (special card)', () => {
+  it('is never in packs or random CPU decks, and is a known card', async () => {
+    const { drawPackCard } = await import('../src/core/mythclash/packs');
+    const { CARDS, MR_CLASH, isSpecialCard } = await import('../src/core/mythclash/cards');
+    const rng = mulberry32(9);
+    for (let i = 0; i < 50000; i++) expect(drawPackCard(rng)).not.toBe(MR_CLASH);
+    for (let i = 0; i < 3000; i++) expect(randomDeck(rng)).not.toContain(MR_CLASH);
+    expect(CARDS.some((c) => c.id === MR_CLASH)).toBe(false);
+    expect(isSpecialCard(MR_CLASH)).toBe(true);
+    expect(card(MR_CLASH)).toMatchObject({ name: 'Mr.CLASH', rarity: 'LR', maxHp: 200, atk: 10, def: 8, mag: 10, spd: 9 });
+    expect(fixCollection({ owned: { 101: 1 } }).owned).toEqual({ 101: 1 });
+  });
+
+  it('王者の証: while it is on the field, the opponent cannot switch (it is announced on entry)', () => {
+    const { state, events } = createBattle([101, 1, 2], [3, 4, 5], 1);
+    expect(events.some((e) => e.type === 'ability' && e.side === 0 && e.code === 'king_lock')).toBe(true);
+    expect(state.half).toBe(1);
+    expect(legalActions(state, 1).some((a) => a.type === 'switch')).toBe(false);
+    expect(legalActions(state, 0).some((a) => a.type === 'switch')).toBe(true);
+  });
+
+  it('is given once (when the 10F boss is beaten)', () => {
+    const rec = new LifeRecord({ ...newLife(1), coins: 0 }, memoryStore());
+    expect(rec.mythGetSpecialCard(101)).toBe(true);
+    expect(rec.mythGetSpecialCard(101)).toBe(false);
+    expect(rec.mythclash.owned[101]).toBe(1);
+    expect(rec.mythclash.packs).toBe(0);
+  });
+});
