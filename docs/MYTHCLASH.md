@@ -154,6 +154,7 @@
 ### コイントスのコインの表と裏（2026-10-27）【確定】
 - 企画者の絵（赤と金の三つ又の紋章）→ `design/mythclash/coin_front.png`。まわりのチェック柄を消して切り抜く（`make_coin.py` → `public/assets/mythclash/coin_front.webp`）。
 - コイントスで「表」の面にこの絵を使う。
+- 2026-10-28：表を企画者の新しい絵（王冠のライオン）に差しかえた。前の絵（三つ又）は `design/mythclash/unused/`。
 - 裏も企画者の絵（赤と金の十字の星。もとから背景がとうめい）→ `design/mythclash/coin_back.png` → `coin_back.webp`。表も裏も企画者の絵になった。
 
 ### カードの絵（2026-10-27）【確定】
