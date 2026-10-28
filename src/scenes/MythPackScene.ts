@@ -5,7 +5,7 @@ import { loadLife } from '../core/lifeSave';
 import { card, CARDS, type Rarity } from '../core/mythclash/cards';
 import { newCollection, ownedKinds } from '../core/mythclash/packs';
 import { preloadPacks } from '../render/packs';
-import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W, RARITY_COLORS, useCardArt } from '../ui/mythCardArt';
+import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W, queueCardArt, RARITY_COLORS, useCardArt } from '../ui/mythCardArt';
 import { MYTH_PACK_IMAGE, type PackOpenData, MYTH_CARD_BACK } from '../ui/packBuy';
 import { canvasTextureOnce, roundRectPath, UI_FONT } from '../ui/paint';
 import { showCardZoom } from '../ui/cardZoom';
@@ -62,6 +62,8 @@ export class MythPackScene extends Phaser.Scene {
 
   preload(): void {
     preloadPacks(this, ['mythclash']);
+    // カードの絵は出たカードの分だけ(2026-10-28)
+    queueCardArt(this, this.d.cards);
   }
 
   create(): void {

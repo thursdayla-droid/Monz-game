@@ -7,7 +7,7 @@ import { loadLife } from '../core/lifeSave';
 import { card, cardNo, CARDS, isSpecialCard, SPECIAL_CARDS, sortCardIds } from '../core/mythclash/cards';
 import { addSortChips, cardSortChoice } from '../ui/sortChips';
 import { battleUnlocked, kindsToUnlock, newCollection, ownedCount, type MythCollection } from '../core/mythclash/packs';
-import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W, useCardArt } from '../ui/mythCardArt';
+import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W, needCardArt, useCardArt } from '../ui/mythCardArt';
 import { canvasTextureOnce, roundRectPath, UI_FONT } from '../ui/paint';
 
 const W = 720;
@@ -46,6 +46,7 @@ export class BinderScene extends Phaser.Scene {
     this.back = data?.back ?? 'Home';
     this.page = 0;
     this.busy = false;
+    this.outgoing = undefined;
     this.scale.setGameSize(W, H);
   }
 
@@ -120,14 +121,29 @@ export class BinderScene extends Phaser.Scene {
     this.sortLayer?.removeAll(true);
     addSortChips(this, this.sortLayer!, W / 2, 226, k, (n) => this.applySort(n));
     this.page = 0;
-    this.drawPage(0, 0);
+    this.showPage(0, 0);
   }
 
   private turn(d: number): void {
     if (this.busy) return;
     const next = (this.page + d + this.pages) % this.pages;
     audio.se('tap');
-    this.drawPage(d, next);
+    this.showPage(d, next);
+  }
+
+  private pageReq = 0;
+  private outgoing?: Phaser.GameObjects.Container;
+
+  /** そのページのカードの絵を読んでから描く(絵は見るページの分だけ読む。2026-10-28)。読んでいる間にめくられたら、最後のページだけ描く */
+  private showPage(dir: number, page: number): void {
+    const req = ++this.pageReq;
+    const ids = this.order.slice(page * PER_PAGE, (page + 1) * PER_PAGE).filter((id): id is number => id !== undefined && ownedCount(this.col, id) > 0);
+    this.busy = true;
+    needCardArt(this, ids, () => {
+      if (req !== this.pageReq) return;
+      this.busy = false;
+      this.drawPage(dir, page);
+    });
   }
 
   /** ページを描く(dir: めくる向き。0 ならそのまま) */
@@ -153,9 +169,13 @@ export class BinderScene extends Phaser.Scene {
       layer.add(this.pocket(id, x, y));
     }
     this.pageLayer = layer;
+    // 速くめくったとき、まだ出ていく途中のページは消す(画面にあるページを2枚までにして、カードの絵をメモリから外せるように)
+    this.outgoing?.destroy();
+    this.outgoing = undefined;
     if (old && dir) {
       // めくる: 前のページは出ていき、新しいページが入ってくる
       layer.x = dir * W;
+      this.outgoing = old;
       this.tweens.add({ targets: old, x: -dir * W, duration: 240, ease: 'Cubic.easeIn', onComplete: () => old.destroy() });
       this.tweens.add({ targets: layer, x: 0, duration: 240, ease: 'Cubic.easeOut' });
     } else old?.destroy();

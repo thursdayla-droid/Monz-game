@@ -7,7 +7,7 @@ import { card, sortCardIds } from '../core/mythclash/cards';
 import { addSortChips, cardSortChoice } from '../ui/sortChips';
 import { battleUnlocked, deckOwned, kindsToUnlock, ownedCount } from '../core/mythclash/packs';
 import { showCardZoom } from '../ui/cardZoom';
-import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W, useCardArt } from '../ui/mythCardArt';
+import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W, needCardArt, useCardArt } from '../ui/mythCardArt';
 import { canvasTextureOnce, UI_FONT } from '../ui/paint';
 import { fillSize } from '../ui/viewport';
 import type { MythMatch } from '../core/mythclash/modes';
@@ -86,7 +86,18 @@ export class MythDeckScene extends Phaser.Scene {
     return canvasTextureOnce(this, cardKey(id), MYTH_CARD_W, MYTH_CARD_H, (ctx) => drawMythCard(ctx, card(id)!));
   }
 
+  private drawReq = 0;
+
+  /** 出すカード(デッキの3枚と、見ているページ)の絵を読んでから描く(絵は使う分だけ読む。2026-10-28)。読んでいる間にまた呼ばれたら、最後の1回だけ描く */
   private draw(): void {
+    const req = ++this.drawReq;
+    const pages = Math.max(1, Math.ceil(this.owned.length / PER_PAGE));
+    this.page = Math.min(this.page, pages - 1);
+    const ids = [...this.deck, ...this.owned.slice(this.page * PER_PAGE, (this.page + 1) * PER_PAGE)];
+    needCardArt(this, ids, () => req === this.drawReq && this.drawNow());
+  }
+
+  private drawNow(): void {
     this.layer?.destroy();
     const L = this.add.container(0, 0);
     this.layer = L;

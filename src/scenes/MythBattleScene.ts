@@ -16,7 +16,7 @@ import { battleUnlocked, deckOwned, newCollection } from '../core/mythclash/pack
 import { aiAction, randomDeck } from '../core/mythclash/sim';
 import { eventsFor, viewFor, type BattleView } from '../core/mythclash/view';
 import { describeAbility, describeMagicEffect, abilityLines } from '../core/mythclash/describe';
-import { ELEMENT_COLORS, useCardArt } from '../ui/mythCardArt';
+import { ELEMENT_COLORS, queueCardArt, useCardArt } from '../ui/mythCardArt';
 import { mulberry32, newSeed, type Rng } from '../core/rng';
 import { preloadPacks } from '../render/packs';
 import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W } from '../ui/mythCardArt';
@@ -125,8 +125,20 @@ export class MythBattleScene extends Phaser.Scene {
     this.cardHpBar = {};
   }
 
+  /** このバトルの種と、両方のデッキ(カードの絵を先に読むため preload で決める) */
+  private seed = 0;
+  private decks: [number[], number[]] = [[], []];
+
   preload(): void {
     preloadPacks(this, ['mythclash']);
+    this.seed = newSeed();
+    const deckRng = mulberry32(this.seed);
+    const mine = this.pickMyDeck(deckRng);
+    const m = this.match;
+    const theirs = m?.mode === 'tower' ? [...towerBattle(m.floor, m.battle).deck] : randomDeck(deckRng, m?.mode === 'battle' ? BATTLE_MODE[m.level].rarities : undefined);
+    this.decks = [mine, theirs];
+    // カードの絵は、このバトルの6枚だけ(2026-10-28)
+    queueCardArt(this, [...mine, ...theirs]);
   }
 
   /** 画面の形に合わせて縦の長さを決める(横は720のまま。縦が1280より短くはしない) */
@@ -152,12 +164,10 @@ export class MythBattleScene extends Phaser.Scene {
     watchViewport(this, () => this.onViewport());
     audio.preloadSe(['mcSlash', 'mcSpecial', 'mcGuardOk', 'mcPoison', 'mcHeal', 'mcThunder', 'mcNature', 'mcFire', 'mcLight', 'mcDark', 'mcDrain', 'mcMagicGuardOk', 'mcBuff', 'mcWater', 'mcCounter', 'mcCutin', 'mcBurn', 'mcMagic', 'mcSelect']);
     this.drawBackground();
-    const seed = newSeed();
+    const seed = this.seed;
     this.rng = mulberry32(seed ^ 0x5bd1e995);
-    const deckRng = mulberry32(seed);
-    const mine = this.pickMyDeck(deckRng);
+    const [mine, theirs] = this.decks;
     const m = this.match;
-    const theirs = m?.mode === 'tower' ? [...towerBattle(m.floor, m.battle).deck] : randomDeck(deckRng, m?.mode === 'battle' ? BATTLE_MODE[m.level].rarities : undefined);
     this.level = m?.mode === 'tower' ? towerBattle(m.floor, m.battle).cpu : m?.mode === 'battle' ? m.level : 'normal';
     this.battleRun = `myth:battle:${seed.toString(36)}:${Date.now().toString(36)}`;
     const { state } = createBattle(mine, theirs, seed);

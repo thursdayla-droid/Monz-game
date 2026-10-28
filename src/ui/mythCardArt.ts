@@ -1,6 +1,7 @@
 import type * as Phaser from 'phaser';
 import { abilityOf } from '../core/mythclash/abilities';
 import { cardNo, type CardDefinition, type Element, type Rarity } from '../core/mythclash/cards';
+import { assetUrl } from '../assetUrl';
 import { roundRectPath, UI_FONT } from './paint';
 
 /** MYTHCLASH のカードの大きさ(絵の座標。表示するときに縮める) */
@@ -49,8 +50,70 @@ export function useCardArt(scene: Phaser.Scene): void {
   for (const id of CARD_ART_IDS) {
     if (cardArt.has(id) || !scene.textures.exists(cardArtKey(id))) continue;
     cardArt.set(id, scene.textures.get(cardArtKey(id)).getSourceImage() as HTMLImageElement);
-    for (const k of [`mc:card:${id}`, `mc:card:${id}:h`, `mc:card:${id}:a`, `mc:card:${id}:h:a`]) if (scene.textures.exists(k)) scene.textures.remove(k);
+    removeDrawnCards(scene, id);
   }
+}
+
+/** その絵で描いたカード(バトルでかくした形も) */
+function removeDrawnCards(scene: Phaser.Scene, id: number): void {
+  for (const k of [`mc:card:${id}`, `mc:card:${id}:h`, `mc:card:${id}:a`, `mc:card:${id}:h:a`]) if (scene.textures.exists(k)) scene.textures.remove(k);
+}
+
+/**
+ * カードの絵は、その画面で使う分だけ読む(企画者 2026-10-28: カードが100枚になっても iPhone で落ちないように)。
+ * 読んだ絵は最近使った KEEP_ART 枚までは残す(バインダー2ページ分より多く)。それより古くて今使わない絵と、その絵で描いたカードはメモリから外す
+ */
+const KEEP_ART = 24;
+const recentArt: number[] = [];
+
+function forgetOldArt(scene: Phaser.Scene, want: Set<number>): void {
+  for (const id of want) {
+    const i = recentArt.indexOf(id);
+    if (i >= 0) recentArt.splice(i, 1);
+    recentArt.push(id);
+  }
+  while (recentArt.length > KEEP_ART) {
+    const i = recentArt.findIndex((id) => !want.has(id));
+    if (i < 0) break;
+    const [id] = recentArt.splice(i, 1);
+    cardArt.delete(id);
+    if (scene.textures.exists(cardArtKey(id))) scene.textures.remove(cardArtKey(id));
+    removeDrawnCards(scene, id);
+  }
+}
+
+/** ids のカードの絵を読みこみの予定に入れる(scene の preload から呼ぶ。create で useCardArt)。入れた数を返す */
+export function queueCardArt(scene: Phaser.Scene, ids: Iterable<number>): number {
+  const want = new Set([...ids].filter((id) => CARD_ART_IDS.includes(id)));
+  forgetOldArt(scene, want);
+  let queued = 0;
+  for (const id of want) {
+    if (scene.textures.exists(cardArtKey(id))) continue;
+    scene.load.image(cardArtKey(id), assetUrl(cardArtFile(id)));
+    queued++;
+  }
+  return queued;
+}
+
+/** 画面を開いたあとで ids のカードの絵を読む(バインダー・デッキ編成のページをめくったとき)。そろったら done(読みおわる前に画面を出たら呼ばない) */
+export function needCardArt(scene: Phaser.Scene, ids: Iterable<number>, done: () => void): void {
+  const list = [...ids];
+  if (list.every((id) => !CARD_ART_IDS.includes(id) || scene.textures.exists(cardArtKey(id)))) {
+    queueCardArt(scene, list);
+    useCardArt(scene);
+    done();
+    return;
+  }
+  // 次のフレームで読む(画面を開いた直後の create の中だと、Phaser が読みこみの予定を消してしまうため)
+  scene.time.delayedCall(0, () => {
+    queueCardArt(scene, list);
+    scene.load.once('complete', () => {
+      if (!scene.sys.isActive()) return;
+      useCardArt(scene);
+      done();
+    });
+    scene.load.start();
+  });
 }
 
 /** 大きく見るときの絵(企画者の絵があれば、くっきりした大きい絵) */

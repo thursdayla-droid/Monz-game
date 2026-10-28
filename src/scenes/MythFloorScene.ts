@@ -9,7 +9,7 @@ import { opponentFaceTexture } from '../ui/opponentFace';
 import { deckOwned, newCollection } from '../core/mythclash/packs';
 import { preloadPacks } from '../render/packs';
 import { showCardZoom } from '../ui/cardZoom';
-import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W, useCardArt } from '../ui/mythCardArt';
+import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W, queueCardArt, useCardArt } from '../ui/mythCardArt';
 import { canvasTextureOnce, UI_FONT } from '../ui/paint';
 import { fillSize, watchViewport } from '../ui/viewport';
 
@@ -92,6 +92,10 @@ export class MythFloorScene extends Phaser.Scene {
 
   preload(): void {
     preloadPacks(this, ['mythclash']);
+    // カードの絵は、この画面に出すカード(自分のデッキと、倒したことのある相手のカード)だけ(2026-10-28)
+    const col = loadLife().mythclash ?? newCollection();
+    const op = towerOpponent(this.match.floor, this.match.battle);
+    queueCardArt(this, [...(col.deck ?? []), ...(col.towerBeaten?.includes(op.id) ? towerBattle(this.match.floor, this.match.battle).deck : [])]);
   }
 
   /** 絵の座標 → 画面の座標 */

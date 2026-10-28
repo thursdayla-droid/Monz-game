@@ -6,7 +6,6 @@ import { BUNK_POSE_IMAGES, bunkPoseKey, HAND_FILE, HAND_KEY, HOME_ICONS, homeIco
 import { TITLE_FILE, TITLE_IMAGE } from '../scenes/TitleScene';
 import { MYTH_TITLE_FILE, MYTH_TITLE_IMAGE } from '../scenes/MythTitleScene';
 import { MYTH_COIN_BACK, MYTH_COIN_BACK_FILE, MYTH_COIN_FRONT, MYTH_COIN_FRONT_FILE } from '../ui/mythFx';
-import { CARD_ART_IDS, cardArtFile, cardArtKey } from '../ui/mythCardArt';
 import { OPPONENT_ART, opponentArtFile, opponentArtKey } from '../ui/opponentFace';
 import { MYTH_FLOOR_FILE, MYTH_FLOOR_IMAGE, MYTH_FLOOR_ORB, MYTH_FLOOR_ORB_FILE } from '../scenes/MythFloorScene';
 import { MYTH_TOWER_FILE, MYTH_TOWER_IMAGE, MYTH_TOWER_PARTS, MYTH_TOWER_PARTS_FILE } from '../scenes/MythTowerScene';
@@ -49,7 +48,7 @@ function packFiles(name: Exclude<PackName, 'bunk'>): PackFile[] {
         { key: MYTH_CARD_BACK, url: MYTH_CARD_BACK_FILE },
         { key: MYTH_COIN_FRONT, url: MYTH_COIN_FRONT_FILE },
         { key: MYTH_COIN_BACK, url: MYTH_COIN_BACK_FILE },
-        ...CARD_ART_IDS.map((id) => ({ key: cardArtKey(id), url: cardArtFile(id) })),
+        // カードの絵はここで全部は読まない。画面ごとに使う分だけ(mythCardArt の queueCardArt・needCardArt。企画者 2026-10-28)
         { key: MYTH_TOWER_IMAGE, url: MYTH_TOWER_FILE },
         { key: MYTH_TOWER_PARTS, url: MYTH_TOWER_PARTS_FILE },
         { key: MYTH_FLOOR_IMAGE, url: MYTH_FLOOR_FILE },
@@ -128,8 +127,13 @@ export function preloadPacks(scene: Phaser.Scene, names: PackName[]): void {
   if (queuePacks(scene, names) === 0) return;
   const { width, height } = scene.scale;
   const label = scene.add.text(width / 2, height / 2, 'よみこみ中…', { fontSize: '32px', color: '#ffffff' }).setOrigin(0.5);
-  scene.load.on('progress', (v: number) => label.setText(`よみこみ中… ${Math.round(v * 100)}%`));
-  scene.load.once('complete', () => label.destroy());
+  const onProgress = (v: number) => label.setText(`よみこみ中… ${Math.round(v * 100)}%`);
+  scene.load.on('progress', onProgress);
+  // 終わったら外す(あとで同じ画面でまた読むとき、消した文字をさわらないように)
+  scene.load.once('complete', () => {
+    scene.load.off('progress', onProgress);
+    label.destroy();
+  });
 }
 
 /** 次の画面で使う素材を、今の画面を見ている間に先に読んでおく(scene の create から呼ぶ) */
