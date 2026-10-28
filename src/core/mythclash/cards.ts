@@ -81,7 +81,7 @@ export const CARDS: readonly CardDefinition[] = RAW_CARDS.map((r) => {
 /**
  * 特別なカード(パック・CPUのランダムなデッキには出ない。CARDS には入れない)。
  * No.101 Mr.CLASH: BLOOD TOWER 10階のボス ジンシーを倒すと手に入る(企画者 2026-10-28)。
- * 【仮】魔法の補正値は 0、テーマは「特別」(企画者の指定がないため)
+ * 魔法の補正値は +5、テーマは「特別」(企画者 2026-10-28)
  */
 export const SPECIAL_CARDS: readonly CardDefinition[] = [
   {
@@ -95,7 +95,7 @@ export const SPECIAL_CARDS: readonly CardDefinition[] = [
     def: 8,
     mag: 10,
     spd: 9,
-    magic: { name: '王の咆哮', element: '炎', modifier: 0, effectCode: 'atk30' },
+    magic: { name: '王の咆哮', element: '炎', modifier: 5, effectCode: 'atk30' },
     abilityCode: 'king_lock',
   },
 ];
