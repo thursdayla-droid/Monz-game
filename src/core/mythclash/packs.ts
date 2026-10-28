@@ -52,6 +52,8 @@ export interface MythCollection {
   deck?: number[];
   /** ストーリーモード(タワー)で、クリアしたいちばん上の階(企画者 2026-10-27)。古いデータには無い(0階と同じ) */
   towerCleared?: number;
+  /** BLOOD TOWER で倒したことのある相手(t<階>-<戦い>)。階の画面で その相手のカードを見せる(企画者 2026-10-28)。古いデータには無い */
+  towerBeaten?: string[];
 }
 
 export const newCollection = (): MythCollection => ({ owned: {}, packs: 0 });
@@ -69,7 +71,8 @@ export function fixCollection(raw: unknown): MythCollection {
   const deck = Array.isArray(d.deck) ? d.deck.map(Number) : [];
   const deckOk = deck.length === 3 && new Set(deck).size === 3 && deck.every((id) => owned[id] > 0);
   const tower = Math.min(TOWER_FLOORS, Math.floor(Number(d.towerCleared)));
-  return { owned, packs: Number.isFinite(packs) && packs > 0 ? packs : 0, ...(deckOk ? { deck } : {}), ...(tower > 0 ? { towerCleared: tower } : {}) };
+  const beaten = Array.isArray(d.towerBeaten) ? [...new Set(d.towerBeaten.filter((x): x is string => typeof x === 'string' && /^t([1-9]|10)-[1-3]$/.test(x)))] : [];
+  return { owned, packs: Number.isFinite(packs) && packs > 0 ? packs : 0, ...(deckOk ? { deck } : {}), ...(tower > 0 ? { towerCleared: tower } : {}), ...(beaten.length ? { towerBeaten: beaten } : {}) };
 }
 
 export function addCards(col: MythCollection, ids: readonly number[]): MythCollection {

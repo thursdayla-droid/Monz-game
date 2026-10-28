@@ -1073,6 +1073,8 @@ export class MythBattleScene extends Phaser.Scene {
     if (m?.mode === 'tower') {
       const toTower = () => this.leave('MythTower');
       const boss = towerBattle(m.floor, m.battle).boss;
+      // 倒した相手を覚える(階の画面で、その相手のカードを見せる。企画者 2026-10-28)
+      if (win) new LifeRecord(loadLife()).mythTowerBeat(opponentFor(m).id);
       if (win && !boss) {
         lines.push([`${m.floor}階 ${m.battle + 1}戦目 突破！ HPは全部もどるよ`, '#7dffa0']);
         buttons.push(['つぎへ', () => this.leave('MythFloor', { match: { ...m, battle: m.battle + 1 } })], ['やめる', toTower]);

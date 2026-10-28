@@ -440,6 +440,13 @@ export class LifeRecord {
     return { first, ...r };
   }
 
+  /** BLOOD TOWER の相手を倒した(企画者 2026-10-28: 倒した相手は、階の画面で使うカードを見せる)。id は t<階>-<戦い> */
+  mythTowerBeat(opponentId: string): boolean {
+    const col = this.mythclash;
+    if (col.towerBeaten?.includes(opponentId)) return true;
+    return this.update({ mythclash: { ...col, towerBeaten: [...(col.towerBeaten ?? []), opponentId] } });
+  }
+
   /** MYTHCLASH のバトルモードで勝った(企画者 2026-10-27: 負けは0なので呼ばない)。同じ runId では2回もらえない(null) */
   mythBattleWin(level: CpuLevel, runId: string, now = Date.now()): { coins: number; exp: number } | null {
     const { coins, exp } = BATTLE_MODE[level];

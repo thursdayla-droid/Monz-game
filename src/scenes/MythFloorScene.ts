@@ -3,7 +3,7 @@ import { abilityLines } from '../core/mythclash/describe';
 import { audio } from '../audio/engine';
 import { loadLife } from '../core/lifeSave';
 import { card } from '../core/mythclash/cards';
-import { BATTLES_PER_FLOOR, type MythMatch } from '../core/mythclash/modes';
+import { BATTLES_PER_FLOOR, towerBattle, type MythMatch } from '../core/mythclash/modes';
 import { towerOpponent } from '../core/mythclash/opponents';
 import { opponentFaceTexture } from '../ui/opponentFace';
 import { deckOwned, newCollection } from '../core/mythclash/packs';
@@ -41,6 +41,12 @@ const ZONES = {
   team: [625, 1525, 885, 1610],
   tower: [640, 45, 870, 115],
 } as const;
+/** 敵チームの3つの枠の中(絵の座標) */
+const ENEMY_SLOTS = [
+  [128, 505, 338, 770],
+  [368, 505, 578, 770],
+  [605, 505, 818, 770],
+] as const;
 /** 「敵チーム」の帯(絵の座標。まん中・顔の位置) */
 const BANNER = { x: 470, y: 453, face: 300 };
 /** 相手のひとことを出しておく時間(企画者 2026-10-27「少し長めに。読みきれない」2.6秒→4.5秒) */
@@ -116,6 +122,7 @@ export class MythFloorScene extends Phaser.Scene {
     this.drawProgress();
     this.drawTeam();
     this.drawOpponent();
+    this.drawEnemyCards();
 
     const zone = (z: readonly [number, number, number, number], fn: () => void) => {
       const [x0, y0, x1, y1] = z;
@@ -203,6 +210,29 @@ export class MythFloorScene extends Phaser.Scene {
       this.tweens.killTweensOf(bubble);
       bubble.setAlpha(1);
       this.tweens.add({ targets: bubble, alpha: 0, delay: SPEECH_MS, duration: 400 });
+    });
+  }
+
+  /**
+   * 敵チームのカード。一度でも倒した相手なら、使ってくるカードを見せる(企画者 2026-10-28「倒したやつにしよう」)。
+   * まだ倒していない相手は、絵のとおり影と「？」のまま。さわると大きく見られる
+   */
+  private drawEnemyCards(): void {
+    const { k } = this;
+    const op = towerOpponent(this.match.floor, this.match.battle);
+    const col = loadLife().mythclash ?? newCollection();
+    if (!col.towerBeaten?.includes(op.id)) return;
+    const deck = towerBattle(this.match.floor, this.match.battle).deck;
+    ENEMY_SLOTS.forEach(([x0, y0, x1, y1], i) => {
+      const id = deck[i];
+      const cx = this.px((x0 + x1) / 2);
+      const cy = this.py((y0 + y1) / 2);
+      // 影と「？」をおおう
+      this.add.rectangle(cx, cy, (x1 - x0) * k, (y1 - y0) * k, 0x120608, 1);
+      const tex = canvasTextureOnce(this, cardKey(id), MYTH_CARD_W, MYTH_CARD_H, (ctx) => drawMythCard(ctx, card(id)!));
+      const s = Math.min(((x1 - x0) * k) / MYTH_CARD_W, ((y1 - y0) * k) / MYTH_CARD_H) * 0.96;
+      const img = this.add.image(cx, cy, tex).setScale(s).setInteractive({ useHandCursor: true });
+      img.on('pointerdown', () => !this.dialog && showCardZoom(this, tex, [card(id)!.name, ...abilityLines(card(id)!)]));
     });
   }
 

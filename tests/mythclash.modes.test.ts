@@ -121,3 +121,16 @@ describe('MYTHCLASH opponents', () => {
     expect(opponentFor({ mode: 'battle', level: 'weak' }).id).toBe('b-weak');
   });
 });
+
+describe('MYTHCLASH tower: beaten opponents', () => {
+  it('remembers beaten opponents (once each); old saves and bad values load fine', () => {
+    const store = memoryStore();
+    const rec = new LifeRecord({ ...newLife(1), coins: 0 }, store);
+    expect(rec.mythTowerBeat('t1-1')).toBe(true);
+    rec.mythTowerBeat('t1-1');
+    rec.mythTowerBeat('t10-3');
+    expect(loadLife(store).mythclash!.towerBeaten).toEqual(['t1-1', 't10-3']);
+    expect(fixCollection({ owned: {} }).towerBeaten).toBeUndefined();
+    expect(fixCollection({ owned: {}, towerBeaten: ['t2-2', 'x', 5, 't11-1', 't2-2'] }).towerBeaten).toEqual(['t2-2']);
+  });
+});
