@@ -2,7 +2,9 @@ import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { preloadPacks } from '../render/packs';
 import { UI_FONT } from '../ui/paint';
-import { loadLife } from '../core/lifeSave';
+import { LifeRecord, loadLife } from '../core/lifeSave';
+import { mythPreviewOnly } from '../assetUrl';
+import { CARD_ART_IDS } from '../ui/mythCardArt';
 import { MYTH_PACK_IMAGE, openPackBuy } from '../ui/packBuy';
 import { fillSize, watchViewport } from '../ui/viewport';
 
@@ -92,9 +94,31 @@ export class MythTitleScene extends Phaser.Scene {
       audio.se('back');
       this.go('BattleMenu');
     });
+    // MYTHCLASH だけの確認用ページ(2026-10-29): ほかの画面は入っていないので、もどるは出さない。かわりに確認用のボタン
+    if (mythPreviewOnly()) {
+      back.setVisible(false).disableInteractive();
+      this.buildTestButtons();
+    }
     this.buildPackButton();
     this.cameras.main.fadeIn(300, 0, 0, 0);
     audio.playBgm('mythclash');
+  }
+
+  /** 【テスト用】MYTHCLASH の確認用ページだけ: コインを増やす・絵のあるカードを1枚ずつもらう(公開前に外す) */
+  private buildTestButtons(): void {
+    const button = (y: number, label: string, onTap: () => void) =>
+      this.add
+        .text(16, y, label, { fontFamily: UI_FONT, fontSize: '24px', color: '#ffffff', backgroundColor: '#16101caa', padding: { x: 12, y: 8 } })
+        .setInteractive({ useHandCursor: true })
+        .on('pointerdown', () => {
+          onTap();
+          this.scene.restart();
+        });
+    button(20, '+10000コイン', () => new LifeRecord(loadLife()).add(10000));
+    button(70, '絵のあるカードを全部もらう', () => {
+      const rec = new LifeRecord(loadLife());
+      for (const id of CARD_ART_IDS) rec.mythGetSpecialCard(id);
+    });
   }
 
   private go(scene: string, data?: object): void {

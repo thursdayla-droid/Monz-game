@@ -188,5 +188,9 @@
 - 企画者に見せる：`rm -rf dist && npm run build && python3 -I tools/build_preview.py <出力.html>` で確認用ページを作り、Artifact で公開（https://claude.ai/artifact/9qauCQZ9xmdERAFrzwkeLh を同じ場所で更新）。ページが重くなったら絵を軽くしてよい（見た目の大きさは変えない。企画者 2026-10-22: 前に15MBで開かなかったのは勘ちがいだったかも）
   - 2026-10-28：MYTHCLASH の絵を別ファイルにした（`files`、そのあと Artifact の絵の置き場 `/_blob/`）が、iPhone の Claude アプリではどちらも絵が出なかった。企画者「戻そう」で、MYTHCLASH の絵もページに埋め込む形に戻した（カード 300×417・顔 160×160。ページを15MBより小さくするため、30KBより大きい絵は少し強く圧縮）。今は約14.6MB。カードが増えるとページが大きくなるので、15MBに近づいたら企画者に相談する
   - カード一覧のページ（`tools/build_cards_page.py`）も同じ理由で iPhone で絵が出ないため、今は更新しない（企画者「分けたのやめよう」）
+  - 2026-10-29（企画者「ミスクラッシュの確認用は分けて良い」）：確認用ページを2つに分けた。カードが100枚以上になっても15MBに収まるように
+    - ゲーム：`python3 -I tools/build_preview.py <出力先.html>`（約14.0MB）。MYTHCLASH のカードの絵だけ入れない（カードはプログラムの絵）。https://claude.ai/artifact/9qauCQZ9xmdERAFrzwkeLh
+    - MYTHCLASH：`python3 -I tools/build_preview.py <出力先.html> --myth`（約5.4MB・カード20枚）。MYTHCLASH の絵・曲・効果音だけ。「TAP TO START」→ MYTHCLASH のタイトル。もどるの代わりに【テスト用】ボタン（+10000コイン・絵のあるカードを全部もらう）。保存はゲームのページとは別。https://claude.ai/artifact/2RpHDeUoZMYJBa7ZWKm2gh
+    - カードを足したら MYTHCLASH のページを更新する（ゲームのページは、ほかが変わったときだけ）
 - カード一覧（確認用。企画者 2026-10-28。**今は使わない**＝上のとおり iPhone で絵が出なかった）：`python3 -I tools/build_cards_page.py <出力フォルダ>` → `index.html`（カードの文字のデータだけ・約35KB）と `cards/NNN.webp`・`cards/thumb/NNN.webp`。Artifact https://claude.ai/artifact/DDYFhbpxPaEZV8H3ZxX8hR を `root`＝出力フォルダ、`files`＝cards/ の全部で更新。10枚ずつのページ切りかえ（001–010…）、番号・名前・レアの検索、見ているページの小さい絵だけ読み、さわったカードの大きい絵を読む。ゲーム本体のデータ（`tools/card_index.ts` で読むだけ）と絵は変えない
 - 決まったことは `docs/VISION.md`（全体）か `docs/ROOM_PLAN.md`（部屋・家具）に日付つきで足す。このファイルの表も合わせて直す

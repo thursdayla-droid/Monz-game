@@ -84,7 +84,8 @@ function forgetOldArt(scene: Phaser.Scene, want: Set<number>): void {
 
 /** ids のカードの絵を読みこみの予定に入れる(scene の preload から呼ぶ。create で useCardArt)。入れた数を返す */
 export function queueCardArt(scene: Phaser.Scene, ids: Iterable<number>): number {
-  const want = new Set([...ids].filter((id) => CARD_ART_IDS.includes(id)));
+  // ゲームの確認用ページにはカードの絵を入れていないので、読みにいかない(プログラムの絵のカードになる)
+  const want = new Set(window.__MONZ_NO_CARD_ART ? [] : [...ids].filter((id) => CARD_ART_IDS.includes(id)));
   forgetOldArt(scene, want);
   let queued = 0;
   for (const id of want) {
@@ -98,7 +99,7 @@ export function queueCardArt(scene: Phaser.Scene, ids: Iterable<number>): number
 /** 画面を開いたあとで ids のカードの絵を読む(バインダー・デッキ編成のページをめくったとき)。そろったら done(読みおわる前に画面を出たら呼ばない) */
 export function needCardArt(scene: Phaser.Scene, ids: Iterable<number>, done: () => void): void {
   const list = [...ids];
-  if (list.every((id) => !CARD_ART_IDS.includes(id) || scene.textures.exists(cardArtKey(id)))) {
+  if (window.__MONZ_NO_CARD_ART || list.every((id) => !CARD_ART_IDS.includes(id) || scene.textures.exists(cardArtKey(id)))) {
     queueCardArt(scene, list);
     useCardArt(scene);
     done();

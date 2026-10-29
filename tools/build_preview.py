@@ -3,22 +3,34 @@
 - 出力先のファイルがすでにあれば、その中の古いゲームを差しかえる(なければ下の HTML のひな形から作る)
 - iPhone で開けるように 15MB より小さくする(15MB をこえると開けなかった 2026-10-21)。圧縮は確認用ページだけ(ゲーム本体の素材はそのまま)
 - 新しい素材のフォルダを足したら、下の paths にも足す
+- 確認用ページは2つ(企画者 2026-10-29「ミスクラッシュの確認用は分けて良い」。カードが100枚以上になっても15MBに収まるように):
+  ・ゲームの確認用ページ: python3 -I tools/build_preview.py <出力先.html>
+    MYTHCLASH のカードの絵だけ入れない(カードはプログラムの絵になる)。ほかは全部
+  ・MYTHCLASH の確認用ページ: python3 -I tools/build_preview.py <出力先.html> --myth
+    MYTHCLASH の絵・曲・効果音だけ。MYTHCLASH のタイトルから始まる(もどるの代わりに確認用のボタン)
 """
 import base64, glob, io, json, os, sys
 from PIL import Image
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 out = sys.argv[1]
+MYTH = '--myth' in sys.argv[2:]
 if not os.path.exists(out):
-    open(out, 'w').write('<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>MONZ</title>'
+    open(out, 'w').write('<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>' + ('MYTHCLASH 確認用' if MYTH else 'MONZ') + '</title>'
                          '<style>html,body{margin:0;height:100%;background:#1b1024;overflow:hidden}#game{width:100%;height:100%}</style></head>'
                          '<body><div id="boot" style="color:#fff;font:20px sans-serif;text-align:center;padding-top:40vh">よみこみ中…</div><div id="game"></div>\n<script type="module"></script></body></html>')
 js = open(glob.glob(root + '/dist/assets/index-*.js')[0]).read()
 assert '</script' not in js
 pub = root + '/public/'
-paths = ['assets/title/title.png', 'assets/bunk/reference/bunk_hires_cutout.png', 'assets/bunk/reference/bunk_down_cutout.png']
-for d in ['parts', 'down', 'faces']:
-    paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + f'assets/bunk/{d}/*.png'))
-paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/birth/*.webp') + glob.glob(pub + 'assets/home/*.webp') + glob.glob(pub + 'assets/home/icons/*.webp') + glob.glob(pub + 'assets/home/rooms/*.webp') + glob.glob(pub + 'assets/furniture/*.webp') + glob.glob(pub + 'assets/bunk/poses/*.webp') + glob.glob(pub + 'assets/minigame/*.webp') + glob.glob(pub + 'assets/mythclash/*.webp') + glob.glob(pub + 'assets/mythclash/opponents/*.webp') + glob.glob(pub + 'assets/mythclash/cards/*.webp'))
+myth_paths = sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/mythclash/*.webp') + glob.glob(pub + 'assets/mythclash/opponents/*.webp'))
+card_paths = sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/mythclash/cards/*.webp'))
+if MYTH:
+    paths = myth_paths + card_paths
+else:
+    paths = ['assets/title/title.png', 'assets/bunk/reference/bunk_hires_cutout.png', 'assets/bunk/reference/bunk_down_cutout.png']
+    for d in ['parts', 'down', 'faces']:
+        paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + f'assets/bunk/{d}/*.png'))
+    paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/birth/*.webp') + glob.glob(pub + 'assets/home/*.webp') + glob.glob(pub + 'assets/home/icons/*.webp') + glob.glob(pub + 'assets/home/rooms/*.webp') + glob.glob(pub + 'assets/furniture/*.webp') + glob.glob(pub + 'assets/bunk/poses/*.webp') + glob.glob(pub + 'assets/minigame/*.webp'))
+    paths += myth_paths
 assets = {}
 for p in paths:
     if p.endswith('.webp'):
@@ -27,18 +39,19 @@ for p in paths:
         if p.startswith('assets/mythclash/cards/'):
             # 企画者のカードの絵(最大100枚)は、確認用ページでは 300×417 に小さくする(大きく見たときに少しぼける。ゲーム本体はそのまま)
             bb = io.BytesIO()
-            Image.open(pub + p).resize((300, 417), Image.LANCZOS).save(bb, 'WEBP', quality=52, method=6)
+            Image.open(pub + p).resize((300, 417), Image.LANCZOS).save(bb, 'WEBP', quality=72, method=6)
             data = bb.getvalue()
         elif p.startswith('assets/mythclash/opponents/'):
             # 対戦相手の顔(33人分)は、確認用ページでは 160×160 に小さくする(画面では丸く小さく出すので見た目はほぼ同じ)
             bb = io.BytesIO()
-            Image.open(pub + p).resize((160, 160), Image.LANCZOS).save(bb, 'WEBP', quality=52, method=6)
+            Image.open(pub + p).resize((160, 160), Image.LANCZOS).save(bb, 'WEBP', quality=62 if MYTH else 52, method=6)
             data = bb.getvalue()
         # 2026-10-27: 対戦相手の顔の分をあけるため、少し小さい絵も圧縮しなおす。
         # 2026-10-28: MYTHCLASH の絵をまたページに入れた(別ファイルは iPhone のアプリで読めなかった。企画者「戻そう」)ので、30KBより大きい絵を quality 42 に(カード・顔は 52、タイトルの絵は 72)
-        elif len(data) > 30_000:
+        # 2026-10-29: MYTHCLASH の確認用ページは分けたので、MYTHCLASH の絵は 60KBより大きいものを quality 55 に(前のとおり)
+        elif len(data) > (60_000 if MYTH else 30_000):
             bb = io.BytesIO()
-            Image.open(pub + p).save(bb, 'WEBP', quality=42, method=6)
+            Image.open(pub + p).save(bb, 'WEBP', quality=55 if MYTH else 42, method=6)
             data = bb.getvalue()
         assets[p] = 'data:image/webp;base64,' + base64.b64encode(data).decode()
         continue
@@ -57,7 +70,8 @@ for p in paths:
 # まだ画面で使っていない曲は、確認用ページに入れない(ページの大きさの上限 16MB のため)。使う画面ができたら外す
 BGM_NOT_YET: set[str] = set()
 for p in sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/bgm/*.mp3') + glob.glob(pub + 'assets/se/**/*.mp3', recursive=True)):
-    if p in BGM_NOT_YET:
+    # MYTHCLASH の確認用ページには、MYTHCLASH の曲と効果音だけ
+    if p in BGM_NOT_YET or (MYTH and 'mythclash' not in p):
         continue
     # 確認用ページの大きさの上限(16MB)のため、曲は軽く(モノラル20kbps・2026-10-26 に28k→24k→20kと下げた。22kHzでは実際は16kbpsになる)して埋め込む。ゲーム本体は元の音質のまま
     import subprocess, tempfile
@@ -70,7 +84,9 @@ for p in sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/bgm/*.m
 jsons = {p: json.load(open(pub + p)) for p in ['assets/bunk/parts/parts.json', 'assets/bunk/down/parts.json', 'assets/bunk/faces/faces.json']}
 html = open(out).read()
 start = html.index('<script>window.__MONZ_ASSETS') if '__MONZ_ASSETS' in html else html.index('<script type="module">')
-html = html[:start] + '<script>window.__MONZ_ASSETS = ' + json.dumps(assets) + ';\nwindow.__MONZ_JSON = ' + json.dumps(jsons) + ';</script>\n' + \
+# MYTHCLASH の確認用ページは MYTHCLASH のタイトルから。ゲームの確認用ページはカードの絵を読みにいかない(入れていないので)
+flags = "window.__MONZ_START = 'MythTitle';" if MYTH else 'window.__MONZ_NO_CARD_ART = true;'
+html = html[:start] + '<script>window.__MONZ_ASSETS = ' + json.dumps(assets) + ';\nwindow.__MONZ_JSON = ' + json.dumps(jsons) + ';\n' + flags + '</script>\n' + \
     '<script type="module">\ndocument.getElementById(\'boot\')?.remove();\n' + js + '\n</script>\n'
 open(out, 'w').write(html)
 print(round(len(html) / 1e6, 2), 'MB', len(assets), 'images')
