@@ -37,7 +37,7 @@ export const ELEMENT_COLORS: Record<Element, string> = {
  * 企画者のカードの絵(カード全体。企画者決定 2026-10-27: 文字まで入った絵をそのまま使う)。絵があるカードの番号。
  * 絵は design/mythclash/make_cards.py で作る(public/assets/mythclash/cards/NNN.webp・600×833)。届いたら番号を足す
  */
-export const CARD_ART_IDS: readonly number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 101];
+export const CARD_ART_IDS: readonly number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 101];
 export const cardArtKey = (id: number) => `myth:cardart:${id}`;
 export const cardArtFile = (id: number) => `assets/mythclash/cards/${String(id).padStart(3, '0')}.webp`;
 const cardArt = new Map<number, CanvasImageSource>();
