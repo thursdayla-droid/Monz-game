@@ -35,15 +35,23 @@ FIXES = {
     # 毒は50%の確率(コイントス)で付くので、説明に「(50%)」を足す(企画者「足して」2026-10-27。これからのカードも同じ)。新しい絵の「毒を付与」の右に
     3: [(1040, 1220, 1041, 1221, '(50%)', 248, 1232, 37, 'lm', 1)],
     # 魔法の名前の「焔」が、右下が「臼」の形(焰)で描かれていた → 「旧」の形の「焔」で書き直す(企画者「魔法の漢字が違うから直して」2026-10-29)
-    33: [(262, 1120, 530, 1186, '焔牙の戦意', 272, 1151, 52, 'lm', 2)],
+    33: [(262, 1122, 530, 1178, '焔牙の戦意', 272, 1151, 52, 'lm', 2)],
     # No.101 Mr.CLASH(特別なカード): 30%の弱化も50%の確率で効くので「(50%)」を足す
     101: [(1040, 1220, 1041, 1221, '(50%)', 684, 1161, 36, 'lm', 0)],
+}
+
+# 絵の一部を、別のカードの絵からそのまま写す: カードNo → [(写す元のカードNo, x0, y0, x1, y1)](同じ場所に写す)
+PATCHES = {
+    # 魔法の属性マークが赤いしずくになっていた → 同じわくの No.031(炎)の炎のマークを写す(企画者「魔法のしずくも炎のマークにして」2026-10-29)
+    33: [(31, 806, 1120, 896, 1183)],
 }
 
 os.makedirs(OUT, exist_ok=True)
 for path in sorted(glob.glob(os.path.join(SRC, '*.png'))):
     no = int(os.path.splitext(os.path.basename(path))[0])
     img = np.array(Image.open(path).convert('RGB'))
+    for src, x0, y0, x1, y1 in PATCHES.get(no, []):
+        img[y0:y1, x0:x1] = np.array(Image.open(os.path.join(SRC, f'{src:03d}.png')).convert('RGB'))[y0:y1, x0:x1]
     for x0, y0, x1, y1, text, tx, ty, size, anchor, weight in FIXES.get(no, []):
         mask = np.zeros(img.shape[:2], np.uint8)
         reg = img[y0:y1, x0:x1]
