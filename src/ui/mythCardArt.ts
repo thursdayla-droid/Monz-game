@@ -37,7 +37,7 @@ export const ELEMENT_COLORS: Record<Element, string> = {
  * 企画者のカードの絵(カード全体。企画者決定 2026-10-27: 文字まで入った絵をそのまま使う)。絵があるカードの番号。
  * 絵は design/mythclash/make_cards.py で作る(public/assets/mythclash/cards/NNN.webp・600×833)。届いたら番号を足す
  */
-export const CARD_ART_IDS: readonly number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 101];
+export const CARD_ART_IDS: readonly number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 101];
 export const cardArtKey = (id: number) => `myth:cardart:${id}`;
 export const cardArtFile = (id: number) => `assets/mythclash/cards/${String(id).padStart(3, '0')}.webp`;
 const cardArt = new Map<number, CanvasImageSource>();
@@ -130,6 +130,8 @@ export function cardZoomTexture(scene: Phaser.Scene, key: string): string {
  */
 const ART_ROWS: Record<number, { magic: [number, number, number, number]; ability: [number, number, number, number] }> = {
   101: { magic: [72, 1056, 996, 1194], ability: [72, 1198, 996, 1334] },
+  // No.056 血の女王(SEC): SECのわくは欄が少し上(2026-10-30)
+  56: { magic: [68, 1092, 990, 1212], ability: [68, 1224, 990, 1362] },
 };
 const DEFAULT_ROWS = { magic: [52, 1132, 1012, 1284], ability: [52, 1290, 1012, 1384] } as const;
 
