@@ -373,7 +373,7 @@ class FighterView {
 }
 
 /** 色違いの絵(パーツの絵の色をぬりかえた物)を作る。陰影は元の絵のまま */
-function altTexture(scene: Phaser.Scene, key: string): string {
+export function altTexture(scene: Phaser.Scene, key: string): string {
   const alt = `battle:alt:${key}`;
   if (scene.textures.exists(alt)) return alt;
   const src = scene.textures.get(key).getSourceImage() as HTMLImageElement;
