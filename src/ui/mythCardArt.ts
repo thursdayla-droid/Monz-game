@@ -132,10 +132,9 @@ const ART_ROWS: Record<number, { magic: [number, number, number, number]; abilit
   101: { magic: [72, 1056, 996, 1194], ability: [72, 1198, 996, 1334] },
   // No.056 血の女王(SEC): SECのわくは欄が少し上(2026-10-30)
   56: { magic: [68, 1092, 990, 1212], ability: [68, 1224, 990, 1362] },
-  // No.057 逆刻の懐中時計: このわくも欄が少し上(2026-10-30)
-  57: { magic: [62, 1094, 1000, 1228], ability: [62, 1234, 1000, 1372] },
 };
-const DEFAULT_ROWS = { magic: [52, 1132, 1012, 1284], ability: [52, 1290, 1012, 1384] } as const;
+// 2026-10-30: 前の場所(魔法 y1132〜・特性 y1290〜)では、多くのカードで魔法の名前の上のほうがのぞいていた。届いた全カードで確かめて、少し上から広くおおう
+const DEFAULT_ROWS = { magic: [56, 1092, 1008, 1232], ability: [56, 1232, 1008, 1378] } as const;
 
 /** 絵の座標の四角をおおって「？？？」 */
 function coverRow(ctx: CanvasRenderingContext2D, [ax0, ay0, ax1, ay1]: readonly [number, number, number, number]): void {
