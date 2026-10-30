@@ -67,6 +67,8 @@ const KEEP_ART = 24;
 const recentArt: number[] = [];
 
 function forgetOldArt(scene: Phaser.Scene, want: Set<number>): void {
+  // 前の読みこみの途中で外された絵が、あとから読み終わっていたら、いちばん古い絵として数えなおす(メモリから外せるように)
+  for (const id of CARD_ART_IDS) if (!recentArt.includes(id) && scene.textures.exists(cardArtKey(id))) recentArt.unshift(id);
   for (const id of want) {
     const i = recentArt.indexOf(id);
     if (i >= 0) recentArt.splice(i, 1);
@@ -110,6 +112,8 @@ export function needCardArt(scene: Phaser.Scene, ids: Iterable<number>, done: ()
     queueCardArt(scene, list);
     scene.load.once('complete', () => {
       if (!scene.sys.isActive()) return;
+      // 読んでいる間に別の読みこみが重なっていたら、多すぎる絵をここで外す
+      forgetOldArt(scene, new Set(list));
       useCardArt(scene);
       done();
     });

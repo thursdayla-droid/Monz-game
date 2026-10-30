@@ -47,6 +47,9 @@ export class BinderScene extends Phaser.Scene {
     this.page = 0;
     this.busy = false;
     this.outgoing = undefined;
+    this.target = 0;
+    this.shownIds = [];
+    this.pageReq = 0;
     this.scale.setGameSize(W, H);
   }
 
@@ -126,24 +129,34 @@ export class BinderScene extends Phaser.Scene {
 
   private turn(d: number): void {
     if (this.busy) return;
-    const next = (this.page + d + this.pages) % this.pages;
+    // 絵を読んでいる間もめくれるように、めくった先(target)から数える(企画者 2026-10-30「連続で押すとフリーズする」)
+    const next = (this.target + d + this.pages) % this.pages;
     audio.se('tap');
     this.showPage(d, next);
   }
 
   private pageReq = 0;
+  /** めくった先のページ(絵を読み終わる前でも、ページの番号はすぐ変える) */
+  private target = 0;
+  /** 今画面に出ているページのカード(読みこみ中に、その絵をメモリから外さないように) */
+  private shownIds: number[] = [];
   private outgoing?: Phaser.GameObjects.Container;
 
   /** そのページのカードの絵を読んでから描く(絵は見るページの分だけ読む。2026-10-28)。読んでいる間にめくられたら、最後のページだけ描く */
   private showPage(dir: number, page: number): void {
     const req = ++this.pageReq;
+    this.target = page;
+    this.pageLabel?.setText(`${page + 1} / ${this.pages}`);
     const ids = this.order.slice(page * PER_PAGE, (page + 1) * PER_PAGE).filter((id): id is number => id !== undefined && ownedCount(this.col, id) > 0);
-    this.busy = true;
-    needCardArt(this, ids, () => {
-      if (req !== this.pageReq) return;
-      this.busy = false;
-      this.drawPage(dir, page);
-    });
+    const load = () =>
+      needCardArt(this, [...ids, ...this.shownIds], () => {
+        if (req !== this.pageReq) return;
+        this.shownIds = ids;
+        this.drawPage(dir, page);
+      });
+    // 続けてめくっているときは、通りすぎるページの絵は読まない(少し待って、まだそのページなら読む)
+    if (dir === 0) load();
+    else this.time.delayedCall(180, () => req === this.pageReq && load());
   }
 
   /** ページを描く(dir: めくる向き。0 ならそのまま) */
