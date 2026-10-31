@@ -62,5 +62,13 @@ export const BATTLE_MODE: Record<CpuLevel, { rarities: Rarity[]; coins: number; 
   strong: { rarities: ['SR', 'UR'], coins: 400, exp: 20 },
 };
 
+/**
+ * バトルモードの報酬。CPUの強さごとに、はじめて勝ったときは全部、2回目からは2割(タワーと同じ。企画者 2026-10-31「2回目の勝利であげすぎ」)
+ */
+export function battleReward(level: CpuLevel, first: boolean): { coins: number; exp: number } {
+  const r = first ? 1 : TOWER_REWARD.replayRate;
+  return { coins: Math.round(BATTLE_MODE[level].coins * r), exp: Math.round(BATTLE_MODE[level].exp * r) };
+}
+
 /** バトル画面に渡す、どのモードの戦いか */
 export type MythMatch = { mode: 'battle'; level: CpuLevel } | { mode: 'tower'; floor: number; battle: number; runId: string };

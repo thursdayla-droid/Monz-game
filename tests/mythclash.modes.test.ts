@@ -72,8 +72,14 @@ describe('MYTHCLASH battle mode and CPU levels', () => {
   it('wins pay 100 / 200 / 400 coins', () => {
     expect(CPU_LEVELS.map((l) => BATTLE_MODE[l].coins)).toEqual([100, 200, 400]);
     const rec = new LifeRecord({ ...newLife(1), coins: 0 }, memoryStore());
-    expect(rec.mythBattleWin('strong', 'b1')).toEqual({ coins: 400, exp: 20 });
+    expect(rec.mythBattleWin('strong', 'b1')).toEqual({ first: true, coins: 400, exp: 20 });
     expect(rec.mythBattleWin('strong', 'b1')).toBeNull();
+    // 2回目からは2割(企画者 2026-10-31)。強さごとに別
+    expect(rec.mythBattleWin('strong', 'b2')).toEqual({ first: false, coins: 80, exp: 4 });
+    expect(rec.mythBattleWin('weak', 'b3')).toEqual({ first: true, coins: 100, exp: 5 });
+    expect(rec.mythBattleWin('weak', 'b4')).toEqual({ first: false, coins: 20, exp: 1 });
+    expect(fixCollection({ owned: {}, battleWon: ['strong', 'x', 'strong'] }).battleWon).toEqual(['strong']);
+    expect(fixCollection({ owned: {} }).battleWon).toBeUndefined();
   });
 
   it('every CPU level only picks legal actions and games finish', () => {

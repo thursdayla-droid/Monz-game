@@ -54,6 +54,8 @@ export interface MythCollection {
   towerCleared?: number;
   /** BLOOD TOWER で倒したことのある相手(t<階>-<戦い>)。階の画面で その相手のカードを見せる(企画者 2026-10-28)。古いデータには無い */
   towerBeaten?: string[];
+  /** バトルモードで一度でも勝ったCPUの強さ(2回目からの報酬は2割。企画者 2026-10-31)。古いデータには無い */
+  battleWon?: ('weak' | 'normal' | 'strong')[];
 }
 
 export const newCollection = (): MythCollection => ({ owned: {}, packs: 0 });
@@ -72,7 +74,8 @@ export function fixCollection(raw: unknown): MythCollection {
   const deckOk = deck.length === 3 && new Set(deck).size === 3 && deck.every((id) => owned[id] > 0);
   const tower = Math.min(TOWER_FLOORS, Math.floor(Number(d.towerCleared)));
   const beaten = Array.isArray(d.towerBeaten) ? [...new Set(d.towerBeaten.filter((x): x is string => typeof x === 'string' && /^t([1-9]|10)-[1-3]$/.test(x)))] : [];
-  return { owned, packs: Number.isFinite(packs) && packs > 0 ? packs : 0, ...(deckOk ? { deck } : {}), ...(tower > 0 ? { towerCleared: tower } : {}), ...(beaten.length ? { towerBeaten: beaten } : {}) };
+  const won = Array.isArray(d.battleWon) ? [...new Set(d.battleWon.filter((x): x is 'weak' | 'normal' | 'strong' => x === 'weak' || x === 'normal' || x === 'strong'))] : [];
+  return { owned, packs: Number.isFinite(packs) && packs > 0 ? packs : 0, ...(deckOk ? { deck } : {}), ...(tower > 0 ? { towerCleared: tower } : {}), ...(beaten.length ? { towerBeaten: beaten } : {}), ...(won.length ? { battleWon: won } : {}) };
 }
 
 export function addCards(col: MythCollection, ids: readonly number[]): MythCollection {

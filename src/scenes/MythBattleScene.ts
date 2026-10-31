@@ -1120,6 +1120,7 @@ export class MythBattleScene extends Phaser.Scene {
     } else {
       if (win && m?.mode === 'battle') {
         const r = new LifeRecord(loadLife()).mythBattleWin(m.level, this.battleRun);
+        if (r?.first) lines.push([`CPU ${CPU_LABELS[m.level]} に はじめて勝った！`, '#ffd23a']);
         if (r) lines.push([`コイン +${r.coins.toLocaleString()}　経験値 +${r.exp}`, '#ffffff']);
       }
       buttons.push(['もう一度', () => this.scene.restart({ deck, match: m })], ['もどる', () => (m ? this.leave('MythMode', { view: 'cpu' }) : this.leave())]);
