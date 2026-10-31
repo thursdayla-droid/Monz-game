@@ -375,8 +375,8 @@ export class MythBattleScene extends Phaser.Scene {
       const ab = abilityOf(def.abilityCode);
       const known = side === ME || !!c.magicElement;
       const p = cardPos(side);
-      const x0 = 12;
-      const w = W / 2 - (MYTH_CARD_W * cardScale()) / 2 - 24;
+      const x0 = 6;
+      const w = W / 2 - (MYTH_CARD_W * cardScale()) / 2 - 14;
       const top = p.y - cardH() / 2 + 6;
       const box = this.add.container(0, 0);
       const g = this.add.graphics();
@@ -387,22 +387,22 @@ export class MythBattleScene extends Phaser.Scene {
         box.add(t);
         y += t.height + 4;
       };
-      line('魔法', 15, '#b8a8c8');
+      // 企画者 2026-10-31「左側の魔法と特性が見えにくい」: 字を大きく、行をまとめた(魔法の名前と属性を1行に)
+      line('魔法', 19, '#b8a8c8');
       if (known) {
-        line(`${def.magic.name}`, 18, '#ffffff');
-        line(`属性：${def.magic.element}`, 16, ELEMENT_COLORS[def.magic.element]);
-        line(describeMagicEffect(def), 15, '#d8c8e8');
-      } else line('？？？', 16, '#8a7a90');
+        line(`${def.magic.name}（${def.magic.element}）`, 23, ELEMENT_COLORS[def.magic.element]);
+        line(describeMagicEffect(def), 20, '#ffffff');
+      } else line('？？？', 22, '#8a7a90');
       // 相手の特性は、発動するまで「？？？」(特性があるかどうかも見せない。企画者 2026-10-28)
       if (side === CPU && !c.abilityKnown) {
-        y += 8;
-        line('特性', 15, '#b8a8c8');
-        line('？？？', 16, '#8a7a90');
+        y += 6;
+        line('特性', 19, '#b8a8c8');
+        line('？？？', 22, '#8a7a90');
       } else if (ab && ab.def.kind !== 'none' && ab.name) {
-        y += 8;
-        line('特性', 15, '#b8a8c8');
-        line(ab.name, 18, '#ffd23a');
-        line(describeAbility(ab), 15, '#d8c8e8');
+        y += 6;
+        line('特性', 19, '#b8a8c8');
+        line(ab.name, 23, '#ffd23a');
+        line(describeAbility(ab), 20, '#ffffff');
       }
       const h = y - top + 8;
       g.fillStyle(0x0a0408, 0.82).fillRoundedRect(x0, top, w, h, 12);
