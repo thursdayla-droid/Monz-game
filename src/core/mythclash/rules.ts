@@ -32,6 +32,9 @@ export interface BattleRules {
   reflectUsesAttackerDef: boolean;
   /** 魔法防御が、相手の自己回復・自己強化・バリアまで止めるか【未決定】 */
   magicGuardBlocksSelfEffects: boolean;
+  /** クリティカル【確定 2026-10-31 企画者】確率 1/24・与えるダメージ 1.4倍(通常攻撃・必殺・魔法。毒・火傷には出ない) */
+  critChance: number;
+  critMultiplier: number;
   /** 最後の1枚どうしが同時に戦闘不能になったとき【確定 2026-10-26: 引き分け】 */
   bothLastDown: 'draw' | 'attackerWins' | 'defenderWins';
 }
@@ -53,6 +56,8 @@ export const DEFAULT_RULES: BattleRules = {
   reflectUsesAttackerDef: true,
   magicGuardBlocksSelfEffects: false,
   bothLastDown: 'draw',
+  critChance: 1 / 24,
+  critMultiplier: 1.4,
 };
 
 /** 有利な相手(攻撃する属性 → 有利になる相手の属性)【確定】炎→自然→雷→水→炎、光と闇は互いに有利、無は等倍 */

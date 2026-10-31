@@ -15,7 +15,7 @@ const C: BattleAction = { type: 'defend', kind: 'counter' };
 const MD: BattleAction = { type: 'defend', kind: 'magicGuard' };
 const SW = (to: number): BattleAction => ({ type: 'switch', to });
 /** 乱数なし(±0%)にして、ダメージを式どおりに確かめる */
-const FLAT: BattleRules = { ...DEFAULT_RULES, randomSpread: 0 };
+const FLAT: BattleRules = { ...DEFAULT_RULES, randomSpread: 0, critChance: 0 };
 
 /** a の1枚目が攻撃側で始まる試合 */
 function battle(a: number[], b: number[], rules: BattleRules = FLAT, seed = 1): BattleState {
@@ -530,5 +530,25 @@ describe('MYTHCLASH abilities (official 2026-10-26)', () => {
       if (ev.some((e) => e.type === 'ability' && e.code === 'sleep_reroll')) retried++;
     }
     expect(retried).toBeGreaterThan(5);
+  });
+});
+
+describe('MYTHCLASH critical hit (planner 2026-10-31)', () => {
+  it('happens about 1 in 24 attacks and deals 1.4x damage', () => {
+    const always: BattleRules = { ...FLAT, critChance: 1 };
+    const deal = (rules: BattleRules) => {
+      const { state } = createBattle([1, 2, 4], [5, 6, 7], 1, rules);
+      const atk = state.attacker;
+      const ev = resolveRound(state, atk === 0 ? [{ type: 'attack', kind: 'magic' }, { type: 'defend', kind: 'guard' }] : [{ type: 'defend', kind: 'guard' }, { type: 'attack', kind: 'magic' }]);
+      return { ev, dmg: ev.find((e) => e.type === 'damage' && e.source === 'magic') as { amount: number } };
+    };
+    const n = deal(FLAT);
+    const c = deal(always);
+    expect(n.ev.some((e) => e.type === 'crit')).toBe(false);
+    expect(c.ev.some((e) => e.type === 'crit')).toBe(true);
+    expect(c.dmg.amount).toBeGreaterThanOrEqual(Math.floor(n.dmg.amount * 1.4) - 1);
+    expect(c.dmg.amount).toBeLessThanOrEqual(Math.ceil(n.dmg.amount * 1.4) + 1);
+    expect(DEFAULT_RULES.critChance).toBeCloseTo(1 / 24);
+    expect(DEFAULT_RULES.critMultiplier).toBe(1.4);
   });
 });

@@ -705,6 +705,16 @@ export class MythBattleScene extends Phaser.Scene {
         this.cameras.main.shake(120, e.amount >= 30 ? 0.008 : 0.004);
         return 1000;
       }
+      case 'crit': {
+        // クリティカル(企画者 2026-10-31): 金色の文字と光、画面のゆれ
+        this.say(`クリティカル！`, '#ffd23a');
+        const t = this.text(W / 2, midY(), 'CRITICAL!!', 64, '#ffd23a').setStroke('#c0182a', 10).setDepth(300).setScale(0.3);
+        this.tweens.add({ targets: t, scale: 1, duration: 220, ease: 'Back.easeOut' });
+        this.tweens.add({ targets: t, alpha: 0, y: midY() - 40, delay: 650, duration: 300, onComplete: () => t.destroy() });
+        this.cameras.main.flash(160, 255, 230, 120);
+        audio.se('crackBig');
+        return 700;
+      }
       case 'coinToss': {
         const label: Record<string, string> = { sleep: '睡眠', freeze: '凍結', poison: '毒', burn: '火傷', weaken: '攻撃ダウン' };
         const what = label[e.effect] ?? '追加効果';

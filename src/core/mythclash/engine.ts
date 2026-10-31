@@ -96,6 +96,8 @@ export type BattleEvent =
   | { type: 'attack'; side: Side; id: number; kind: AttackKind }
   | { type: 'defend'; side: Side; id: number; kind: DefenseKind }
   | { type: 'damage'; side: Side; id: number; amount: number; absorbed: number; source: AttackKind | 'reflect' | 'dot' }
+  /** クリティカル(この攻撃のダメージが1.4倍。企画者 2026-10-31)。side は攻撃した側 */
+  | { type: 'crit'; side: Side; id: number }
   | { type: 'counter'; side: Side; id: number; success: boolean }
   | { type: 'status'; side: Side; id: number; status: 'sleep' | 'freeze' | 'poison' | 'burn' | 'weaken' | 'boost' | 'shield'; applied: boolean }
   | { type: 'heal'; side: Side; id: number; amount: number; source: 'magic' | 'drain' | 'ability' }
@@ -308,7 +310,10 @@ function resolveAttack(s: BattleState, side: Side, kind: AttackKind, defense: De
   // 乱数は1回だけ引く(カウンターではね返すときも同じ値)
   const roll = 1 + (s.rng() * 2 - 1) * rules.randomSpread;
   const stats = { atk: att.def.atk, mag: att.def.mag, magicModifier: att.def.magic.modifier };
-  let dmg = baseDamage(kind, stats, { def: tgt.def.def, mag: tgt.def.mag }, rules) * elem * roll;
+  // クリティカル: 1/24 で与えるダメージ 1.4倍(企画者 2026-10-31)。カウンターではね返されるときは、はね返すダメージも1.4倍
+  const crit = s.rng() < rules.critChance ? rules.critMultiplier : 1;
+  if (crit > 1) events.push({ type: 'crit', side, id: att.id });
+  let dmg = baseDamage(kind, stats, { def: tgt.def.def, mag: tgt.def.mag }, rules) * elem * roll * crit;
   if (kind === 'normal' && defense === 'guard') dmg *= 0.5;
   if (kind === 'magic' && defense === 'magicGuard') dmg *= 0.5;
   const deal = dealMultiplier(att, tgt, kind, side, events);
@@ -321,7 +326,7 @@ function resolveAttack(s: BattleState, side: Side, kind: AttackKind, defense: De
     const ok = kind === 'special';
     events.push({ type: 'counter', side: tSide, id: tgt.id, success: ok });
     if (ok) {
-      let back = rules.reflectUsesAttackerDef ? baseDamage('special', stats, { def: att.def.def, mag: att.def.mag }, rules) * elem * roll : dmg;
+      let back = rules.reflectUsesAttackerDef ? baseDamage('special', stats, { def: att.def.def, mag: att.def.mag }, rules) * elem * roll * crit : dmg;
       back *= deal;
       const ab = tgt.ability;
       if (ab && ab.def.kind === 'reflectUp') {
