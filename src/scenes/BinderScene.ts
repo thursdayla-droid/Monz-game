@@ -232,11 +232,30 @@ export class BinderScene extends Phaser.Scene {
     return c;
   }
 
-  /** カードを大きく見る(さわると閉じる)。特性の説明も出す(企画者 2026-10-27) */
+  /**
+   * カードを大きく見る。特性の説明も出す(企画者 2026-10-27)。
+   * 左右になぞると、持っているカードを並び順に次々見られる。閉じたら、最後に見たカードのページを開く(企画者 2026-10-31)
+   */
   private zoom(id: number, n: number): void {
     if (this.busy) return;
     this.busy = true;
-    showCardZoom(this, cardKey(id), [card(id)!.name, ...abilityLines(card(id)!), `持っている：${n}枚`], () => (this.busy = false));
+    const owned = this.order.filter((x): x is number => x !== undefined && ownedCount(this.col, x) > 0);
+    const lines = (cid: number) => [card(cid)!.name, ...abilityLines(card(cid)!), `持っている：${ownedCount(this.col, cid)}枚`];
+    showCardZoom(this, cardKey(id), [card(id)!.name, ...abilityLines(card(id)!), `持っている：${n}枚`], () => (this.busy = false), {
+      count: owned.length,
+      index: Math.max(0, owned.indexOf(id)),
+      // となりのカードの絵を読んでから出す(今のページの絵はメモリから外さないように一緒にわたす)
+      make: (i, ready) =>
+        needCardArt(this, [owned[i], ...this.shownIds], () => {
+          const def = card(owned[i])!;
+          canvasTextureOnce(this, cardKey(owned[i]), MYTH_CARD_W, MYTH_CARD_H, (ctx) => drawMythCard(ctx, def));
+          ready(cardKey(owned[i]), lines(owned[i]));
+        }),
+      onClose: (i) => {
+        const page = Math.floor(this.order.indexOf(owned[i]) / PER_PAGE);
+        if (page >= 0 && page !== this.page) this.showPage(page > this.page ? 1 : -1, page);
+      },
+    });
   }
 
   private leave(): void {
