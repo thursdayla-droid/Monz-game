@@ -40,11 +40,14 @@ FIXES = {
     69: [(266, 1124, 570, 1176, '焔牙の鈍化術', 274, 1151, 46, 'lm', 1)],
     # 魔法の名前の「焔」が、右下が「臼」の形(焰)で描かれていた → 「旧」の形の「焔」で書き直す(企画者「魔法の漢字が違うから直して」2026-10-29)
     33: [(262, 1122, 530, 1178, '焔牙の戦意', 272, 1151, 52, 'lm', 2)],
+    # No.091: 魔法の名前に「・091」が残っていた → 企画者が決めた名前「深海の障壁」に書き直す(2026-10-31)
+    91: [(266, 1112, 650, 1166, '深海の障壁', 274, 1139, 46, 'lm', 1)],
     # No.101 Mr.CLASH(特別なカード): 30%の弱化も50%の確率で効くので「(50%)」を足す
     101: [(1040, 1220, 1041, 1221, '(50%)', 684, 1161, 36, 'lm', 0)],
 }
 
 # 絵の一部を、別のカードの絵からそのまま写す: カードNo → [(写す元のカードNo, x0, y0, x1, y1)](同じ場所に写す)
+# 場所をずらして写すときは (写す元, x0, y0, x1, y1, 写す先のx, 写す先のy)
 PATCHES = {
     # 魔法の属性マークが赤いしずくになっていた → 同じわくの No.031(炎)の炎のマークを写す(企画者「魔法のしずくも炎のマークにして」2026-10-29)
     33: [(31, 806, 1120, 896, 1183)],
@@ -52,14 +55,17 @@ PATCHES = {
     42: [(46, 806, 1120, 896, 1183)],
     # No.054 も雷のマークが羽の形 → 同じように No.046 の稲妻を写す(企画者が No.042 で決めた直し方 2026-10-30)
     54: [(46, 806, 1120, 896, 1183)],
+    # No.091: 水のマークが青い炎の形だった → No.060 のしずくのしるしを、No.091 のしるしの所に写す(2026-10-31)
+    91: [(60, 820, 1116, 876, 1172, 825, 1112)],
 }
 
 os.makedirs(OUT, exist_ok=True)
 for path in sorted(glob.glob(os.path.join(SRC, '*.png'))):
     no = int(os.path.splitext(os.path.basename(path))[0])
     img = np.array(Image.open(path).convert('RGB'))
-    for src, x0, y0, x1, y1 in PATCHES.get(no, []):
-        img[y0:y1, x0:x1] = np.array(Image.open(os.path.join(SRC, f'{src:03d}.png')).convert('RGB'))[y0:y1, x0:x1]
+    for src, x0, y0, x1, y1, *to in PATCHES.get(no, []):
+        dx, dy = to if to else (x0, y0)
+        img[dy:dy + y1 - y0, dx:dx + x1 - x0] = np.array(Image.open(os.path.join(SRC, f'{src:03d}.png')).convert('RGB'))[y0:y1, x0:x1]
     for x0, y0, x1, y1, text, tx, ty, size, anchor, weight in FIXES.get(no, []):
         mask = np.zeros(img.shape[:2], np.uint8)
         reg = img[y0:y1, x0:x1]
