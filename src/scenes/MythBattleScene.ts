@@ -376,7 +376,8 @@ export class MythBattleScene extends Phaser.Scene {
       const known = side === ME || !!c.magicElement;
       const p = cardPos(side);
       const x0 = 6;
-      const w = W / 2 - (MYTH_CARD_W * cardScale()) / 2 - 14;
+      // カードを置く枠(光る四角。カードより12広く、線の太さ5)に重ならないように、すき間8をあける(企画者 2026-10-31)
+      const w = W / 2 - (MYTH_CARD_W * cardScale()) / 2 - 12 - 3 - 8 - x0;
       const top = p.y - cardH() / 2 + 6;
       const box = this.add.container(0, 0);
       const g = this.add.graphics();
