@@ -43,7 +43,9 @@ export function showCardZoom(scene: Phaser.Scene, texture: string, lines: string
         .text(W / 2, 0, l, { fontFamily: UI_FONT, fontSize: `${i === 0 ? size + 2 : size}px`, fontStyle: '900', color: l.startsWith('特性') ? '#ffd23a' : '#ffffff', align: 'center', wordWrap: { width: W * 0.88, useAdvancedWrap: true } })
         .setOrigin(0.5, 0),
     );
-    const textH = texts.reduce((a, t) => a + t.height + 8, 0) + 50;
+    // 左右になぞれるときは、文の行数でカードの大きさ・位置が変わらないように、いつも同じ高さをあけておく(企画者 2026-10-31「スライドするとカードの高さが違う」)
+    const lineH = Math.round(size * 1.3) + 8;
+    const textH = Math.max(texts.reduce((a, t) => a + t.height + 8, 0), nav && nav.count > 1 ? lineH * 5 : 0) + 50;
     // 企画者のカードの絵があれば、くっきりした大きい絵で見せる(2026-10-27)
     const key = cardZoomTexture(scene, tex);
     const frame = scene.textures.getFrame(key);
