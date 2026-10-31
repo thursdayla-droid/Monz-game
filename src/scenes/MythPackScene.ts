@@ -5,7 +5,7 @@ import { loadLife } from '../core/lifeSave';
 import { card, CARDS, type Rarity } from '../core/mythclash/cards';
 import { newCollection, ownedKinds } from '../core/mythclash/packs';
 import { preloadPacks } from '../render/packs';
-import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W, queueCardArt, RARITY_COLORS, useCardArt } from '../ui/mythCardArt';
+import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W, queueCardArt, useCardArt } from '../ui/mythCardArt';
 import { MYTH_PACK_IMAGE, type PackOpenData, MYTH_CARD_BACK } from '../ui/packBuy';
 import { canvasTextureOnce, roundRectPath, UI_FONT } from '../ui/paint';
 import { showCardZoom } from '../ui/cardZoom';
@@ -21,6 +21,25 @@ const cardKey = (id: number) => `mc:card:${id}`;
 const BACK_KEY = 'mc:card:back2';
 
 type Phase = 'cut' | 'cutting' | 'reveal' | 'grid' | 'leaving';
+
+/**
+ * レアごとの演出の強さ(企画者 2026-10-31「音と演出しょぼい」で強くした)。0: N / 1: R / 2: SR / 3: UR / 4: SEC
+ * 色: 光の色。charge: うら返る前に光をためる時間(ms)。hold: うら返ったあと見せる時間(ms)
+ */
+const TIER: Record<Rarity, number> = { N: 0, R: 1, SR: 2, UR: 3, SEC: 4, LR: 4 };
+const FX = [
+  { color: 0xffffff, charge: 0, hold: 800 },
+  { color: 0x6fb4ff, charge: 0, hold: 950 },
+  { color: 0xdfe8ff, charge: 650, hold: 1500 },
+  { color: 0xffd23a, charge: 1000, hold: 2000 },
+  { color: 0xff4a6a, charge: 1500, hold: 2800 },
+];
+/** 虹色(SECの光) */
+const RAINBOW = [0xff4a6a, 0xffb02e, 0xffe94a, 0x5ae87a, 0x4ac8ff, 0xb46cff];
+const RAYS_KEY = 'mc:pack:rays';
+const SPARK_KEY = 'mc:pack:spark';
+/** やわらかい丸い光(パック・カードのうしろの光) */
+const GLOW_KEY = 'mc:pack:glow';
 
 /**
  * MYTHCLASH のパックを開ける画面(企画者決定 2026-10-26)。カードはもう買って保存してある(ここでは見せるだけ)。
@@ -79,6 +98,43 @@ export class MythPackScene extends Phaser.Scene {
       if (this.textures.exists(MYTH_CARD_BACK)) ctx.drawImage(this.textures.get(MYTH_CARD_BACK).getSourceImage() as HTMLImageElement, 0, 0, MYTH_CARD_W, MYTH_CARD_H);
       else drawBack(ctx);
     });
+    // 光の筋(カードのうしろで回る)と、きらきら(光のつぶ)の絵
+    canvasTextureOnce(this, RAYS_KEY, 512, 512, (ctx) => {
+      ctx.translate(256, 256);
+      for (let i = 0; i < 16; i++) {
+        ctx.rotate((Math.PI * 2) / 16);
+        const g = ctx.createLinearGradient(0, 0, 0, -256);
+        g.addColorStop(0, 'rgba(255,255,255,0.9)');
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(-22, -256);
+        ctx.lineTo(22, -256);
+        ctx.closePath();
+        ctx.fill();
+      }
+    });
+    canvasTextureOnce(this, GLOW_KEY, 128, 128, (ctx) => {
+      const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+      g.addColorStop(0, 'rgba(255,255,255,1)');
+      g.addColorStop(0.45, 'rgba(255,255,255,0.45)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 128, 128);
+    });
+    canvasTextureOnce(this, SPARK_KEY, 64, 64, (ctx) => {
+      const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+      g.addColorStop(0, 'rgba(255,255,255,1)');
+      g.addColorStop(0.25, 'rgba(255,255,255,0.8)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 64, 64);
+      // 十字のきらめき
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.fillRect(30, 2, 4, 60);
+      ctx.fillRect(2, 30, 60, 4);
+    });
     audio.playBgm('mythclashPack');
     this.cameras.main.fadeIn(250, 0, 0, 0);
     this.showPack();
@@ -113,6 +169,14 @@ export class MythPackScene extends Phaser.Scene {
     const body = this.add.image(cx, cy, MYTH_PACK_IMAGE).setScale(s).setDepth(3);
     body.setCrop(0, cutY, tex.width, tex.height - cutY);
     this.body = body;
+    // 中のいちばん良いカードが SR 以上なら、パックのうしろが その色で光る(予感)。ふわふわゆれる
+    const best = Math.max(...this.d.cards.map((id) => TIER[card(id)!.rarity]));
+    if (best >= 2) {
+      const glow = this.add.image(cx, cy, GLOW_KEY).setDisplaySize(tex.width * s * 2.1, ph * 1.4).setTint(FX[best].color).setAlpha(0.35).setDepth(2).setBlendMode(Phaser.BlendModes.ADD);
+      this.tweens.add({ targets: glow, alpha: 0.7, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      stack.push(glow);
+    }
+    this.tweens.add({ targets: [top, body], angle: { from: -1.2, to: 1.2 }, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     const lineY = cy - ph / 2 + cutY * s;
     const x0 = cx - (tex.width * s) / 2;
     const x1 = cx + (tex.width * s) / 2;
@@ -132,7 +196,9 @@ export class MythPackScene extends Phaser.Scene {
       this.input.off('pointerdown');
       this.input.off('pointermove');
       this.input.off('pointerup');
-      this.tweens.killTweensOf([guide, finger]);
+      this.tweens.killTweensOf([guide, finger, top, body]);
+      top.setAngle(0);
+      body.setAngle(0);
       guide.destroy();
       finger.destroy();
       hint.destroy();
@@ -153,7 +219,7 @@ export class MythPackScene extends Phaser.Scene {
   /** 光る線が左から右へ走り、上の切れはしが飛んでいく */
   private cutAnimation(top: Phaser.GameObjects.Image, body: Phaser.GameObjects.Image, x0: number, x1: number, y: number): void {
     const u = this.unit;
-    audio.se('swing');
+    audio.se('whoosh');
     const line = this.add.graphics().setDepth(7);
     const p = { t: 0 };
     this.tweens.add({
@@ -169,8 +235,14 @@ export class MythPackScene extends Phaser.Scene {
         line.fillStyle(0xffffff, 1).fillCircle(x, y, 9 * u);
       },
       onComplete: () => {
-        audio.se('crack');
-        this.cameras.main.shake(120, 0.004);
+        audio.se('crackBig');
+        this.cameras.main.shake(180, 0.008);
+        this.cameras.main.flash(160, 255, 255, 255);
+        // 切った線にそって火花が飛びちる。切り口から光があふれる
+        for (let i = 0; i < 18; i++) this.spark(x0 + ((x1 - x0) * i) / 17, y, 0xfff2a8, 60 * u, 0.5 * u, false);
+        const best = Math.max(...this.d.cards.map((id) => TIER[card(id)!.rarity]));
+        const beam = this.add.image((x0 + x1) / 2, y, GLOW_KEY).setDisplaySize((x1 - x0) * 1.3, 120 * u).setTint(FX[best].color).setBlendMode(Phaser.BlendModes.ADD).setDepth(6);
+        this.tweens.add({ targets: beam, displayHeight: 360 * u, alpha: 0, duration: 700, ease: 'Cubic.easeOut', onComplete: () => beam.destroy() });
         this.tweens.add({ targets: line, alpha: 0, duration: 260, onComplete: () => line.destroy() });
         this.tweens.add({ targets: top, x: top.x + 220 * u, y: top.y - 260 * u, angle: 28, alpha: 0, duration: 520, ease: 'Cubic.easeOut' });
         // 本体を少し下へ。カードは本体の口(切った所)から出てきて、下の方はパックに入ったまま(企画者 2026-10-26)
@@ -220,39 +292,40 @@ export class MythPackScene extends Phaser.Scene {
       y: this.cardY,
       duration: 650,
       ease: 'Cubic.easeOut',
-      onComplete: () => {
+      onComplete: () => this.charge(img, c.rarity, () =>
         this.tweens.add({
           targets: img,
           scaleX: 0,
           duration: 120,
           onComplete: () => {
             img.setTexture(cardKey(id));
-            audio.se('plop');
+            this.flipBurst(img, c.rarity);
             this.tweens.add({ targets: img, scaleX: s, duration: 140 });
             // うら返ったら、全部読めるところまで少し引き出す(下のはしはパックの口のまま)
             this.tweens.add({ targets: img, y: this.cardY - MYTH_CARD_H * s * (CARD_TUCK - 0.02), duration: 220, delay: 100, ease: 'Cubic.easeOut', onComplete: () => this.afterFlip(img, c.rarity, isNew) });
           },
-        });
-      },
+        }),
+      ),
     });
   }
 
   private afterFlip(img: Phaser.GameObjects.Image, rarity: Rarity, isNew: boolean): void {
     if (this.phase !== 'reveal') return;
     const u = this.unit;
-    this.rarityEffect(img, rarity);
     if (isNew) this.shown.push(this.newBadge(img.x + img.displayWidth / 2 - 30 * u, img.y - img.displayHeight / 2 + 10 * u, u * 1.2));
     const counter = this.add.text(this.W / 2, img.y - img.displayHeight / 2 - 40 * u, `${this.index + 1} / ${this.d.cards.length}`, { fontFamily: UI_FONT, fontSize: `${Math.round(28 * u)}px`, fontStyle: '900', color: '#ffffff' }).setOrigin(0.5).setDepth(9);
     this.shown.push(counter);
     const last = this.index === this.d.cards.length - 1;
-    const hold = { N: 750, R: 850, SR: 1100, UR: 1400, SEC: 2400, LR: 2400 }[rarity];
+    const hold = FX[TIER[rarity]].hold;
     if (last && this.d.cards.length === 1) {
-      this.time.delayedCall(500, () => this.showGrid());
+      // 1パックのときも、レアの演出を最後まで見せてから結果へ
+      this.time.delayedCall(Math.max(500, hold), () => this.showGrid());
       return;
     }
     this.seqTimer = this.time.delayedCall(hold, () => {
       if (this.phase !== 'reveal') return;
       this.index++;
+      this.events.emit('mythpack:next');
       if (last) {
         this.showGrid();
         return;
@@ -264,27 +337,121 @@ export class MythPackScene extends Phaser.Scene {
     });
   }
 
-  /** レアごとの演出。SR以上は光る。SECは secEffect */
-  private rarityEffect(img: Phaser.GameObjects.Image, rarity: Rarity): void {
-    if (rarity === 'N' || rarity === 'R') return;
-    const col = Phaser.Display.Color.HexStringToColor(RARITY_COLORS[rarity].light).color;
-    const ring = this.add.circle(img.x, img.y, 40, col, 0.6).setDepth(1);
+  /** 光のつぶを1つ飛ばす(dist: 飛ぶきょり、size: 大きさ、fall: 下に落ちる紙吹雪) */
+  private spark(x: number, y: number, color: number, dist: number, size: number, fall: boolean): void {
+    const a = Math.random() * Math.PI * 2;
+    const d = dist * (0.5 + Math.random() * 0.7);
+    const p = this.add.image(x, y, SPARK_KEY).setTint(color).setScale(size * (0.5 + Math.random() * 0.8)).setBlendMode(Phaser.BlendModes.ADD).setDepth(8);
+    this.shown.push(p);
+    this.tweens.add({
+      targets: p,
+      x: x + Math.cos(a) * d,
+      y: y + Math.sin(a) * d + (fall ? dist * 1.2 : 0),
+      angle: Math.random() * 360,
+      scale: 0,
+      duration: 600 + Math.random() * (fall ? 1200 : 500),
+      ease: 'Cubic.easeOut',
+      onComplete: () => p.destroy(),
+    });
+  }
+
+  /**
+   * うら返る前に光をためる(SR以上)。カードがふるえて、うらから光がもれ、音が高まる。
+   * レアが高いほど長く強い
+   */
+  private charge(img: Phaser.GameObjects.Image, rarity: Rarity, then: () => void): void {
+    const t = TIER[rarity];
+    const fx = FX[t];
+    if (!fx.charge || this.phase !== 'reveal') {
+      then();
+      return;
+    }
+    const u = this.unit;
+    audio.se(t >= 4 ? 'mcSpecial' : t >= 3 ? 'mcCutin' : 'mcLight');
+    const glow = this.add.image(img.x, img.y, GLOW_KEY).setDisplaySize(img.displayWidth * 1.6, img.displayHeight * 1.4).setTint(fx.color).setAlpha(0).setBlendMode(Phaser.BlendModes.ADD).setDepth(1);
+    this.shown.push(glow);
+    this.tweens.add({ targets: glow, alpha: 1, duration: fx.charge, ease: 'Quad.easeIn' });
+    this.tweens.add({ targets: img, x: { from: img.x - 4 * u, to: img.x + 4 * u }, duration: 50, yoyo: true, repeat: Math.floor(fx.charge / 100), onComplete: () => img.setX(this.W / 2) });
+    // まわりの光のつぶが、カードに吸いこまれていく
+    const pulls = 6 + t * 4;
+    for (let i = 0; i < pulls; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = 260 * u;
+      const col = t >= 4 ? RAINBOW[i % RAINBOW.length] : fx.color;
+      const p = this.add.image(img.x + Math.cos(a) * r, img.y + Math.sin(a) * r, SPARK_KEY).setTint(col).setScale(0.6 * u).setBlendMode(Phaser.BlendModes.ADD).setDepth(8).setAlpha(0);
+      this.shown.push(p);
+      this.tweens.add({ targets: p, x: img.x, y: img.y, alpha: { from: 1, to: 0.2 }, scale: 0.2 * u, delay: (fx.charge * i) / pulls / 1.4, duration: fx.charge * 0.55, ease: 'Quad.easeIn', onComplete: () => p.destroy() });
+    }
+    if (t >= 3) this.cameras.main.shake(fx.charge, 0.002 + t * 0.001);
+    this.time.delayedCall(fx.charge, () => {
+      this.tweens.add({ targets: glow, alpha: 0, duration: 300, onComplete: () => glow.destroy() });
+      if (this.phase === 'reveal') then();
+    });
+  }
+
+  /** うら返った瞬間: レアに合わせた音・光・つぶ */
+  private flipBurst(img: Phaser.GameObjects.Image, rarity: Rarity): void {
+    const t = TIER[rarity];
+    const fx = FX[t];
+    const u = this.unit;
+    if (t === 0) {
+      audio.se('plop');
+      return;
+    }
+    audio.se(t >= 2 ? 'crackBig' : 'sting');
+    // 広がる光の輪
+    const ring = this.add.circle(img.x, img.y, 40 * u, fx.color, 0.7).setDepth(1).setBlendMode(Phaser.BlendModes.ADD);
     this.shown.push(ring);
-    this.tweens.add({ targets: ring, scale: 8, alpha: 0, duration: 700, ease: 'Cubic.easeOut' });
-    audio.se('sting');
-    if (rarity === 'SEC') this.secEffect(img);
+    this.tweens.add({ targets: ring, scale: 6 + t * 2, alpha: 0, duration: 600 + t * 120, ease: 'Cubic.easeOut', onComplete: () => ring.destroy() });
+    const n = [0, 10, 26, 44, 70][t];
+    for (let i = 0; i < n; i++) this.spark(img.x, img.y, t >= 4 ? RAINBOW[i % RAINBOW.length] : fx.color, (180 + t * 60) * u, (0.5 + t * 0.12) * u, t >= 3 && i % 2 === 0);
+    if (t < 2) return;
+    this.cameras.main.flash(200 + t * 80, 255, 255, 255);
+    // カードのうしろで回る光の筋
+    const rays = this.add.image(img.x, img.y, RAYS_KEY).setDisplaySize(img.displayHeight * (1.8 + t * 0.3), img.displayHeight * (1.8 + t * 0.3)).setTint(fx.color).setAlpha(0).setBlendMode(Phaser.BlendModes.ADD).setDepth(1);
+    this.shown.push(rays);
+    this.tweens.add({ targets: rays, alpha: t >= 3 ? 0.85 : 0.6, duration: 250 });
+    this.tweens.add({ targets: rays, angle: 360, duration: 9000 - t * 1200, repeat: -1 });
+    if (t >= 4) {
+      let k = 0;
+      this.time.addEvent({ delay: 120, repeat: Math.floor(fx.hold / 120), callback: () => rays.active && rays.setTint(RAINBOW[k++ % RAINBOW.length]) });
+    }
+    // カードのまわりで ずっと きらきら
+    const twinkle = this.time.addEvent({
+      delay: t >= 4 ? 60 : t >= 3 ? 90 : 150,
+      repeat: Math.floor(fx.hold / (t >= 4 ? 60 : t >= 3 ? 90 : 150)),
+      callback: () => {
+        if (this.phase !== 'reveal' || !img.active) return;
+        const x = img.x + (Math.random() - 0.5) * img.displayWidth * 1.2;
+        const y = img.y + (Math.random() - 0.5) * img.displayHeight * 1.1;
+        const p = this.add.image(x, y, SPARK_KEY).setTint(t >= 4 ? RAINBOW[Math.floor(Math.random() * RAINBOW.length)] : fx.color).setScale(0).setBlendMode(Phaser.BlendModes.ADD).setDepth(9);
+        this.shown.push(p);
+        this.tweens.add({ targets: p, scale: 0.5 * u, duration: 220, yoyo: true, onComplete: () => p.destroy() });
+      },
+    });
+    this.events.once('mythpack:next', () => twinkle.remove());
+    if (t >= 3) {
+      this.cameras.main.shake(300, 0.006 + (t - 3) * 0.004);
+      audio.se('cheer');
+      // 紙吹雪が上からふる
+      for (let i = 0; i < 40; i++) {
+        const p = this.add.rectangle(Math.random() * this.W, -20, 10 * u, 18 * u, t >= 4 ? RAINBOW[i % RAINBOW.length] : [0xffd23a, 0xfff2a8, 0xffffff][i % 3]).setDepth(12).setAngle(Math.random() * 360);
+        this.shown.push(p);
+        this.tweens.add({ targets: p, y: this.H + 40, x: p.x + (Math.random() - 0.5) * 200 * u, angle: p.angle + 540, delay: Math.random() * 600, duration: 1600 + Math.random() * 900, ease: 'Sine.easeIn', onComplete: () => p.destroy() });
+      }
+    }
+    if (t >= 4) this.secEffect(img);
   }
 
   /** 【仮】SECが出たときの特別な演出(あとで差しかえられるように、ここにまとめる) */
   private secEffect(img: Phaser.GameObjects.Image): void {
-    audio.se('cheer');
-    this.cameras.main.flash(500, 255, 240, 200);
-    this.cameras.main.shake(400, 0.008);
+    this.cameras.main.flash(600, 255, 240, 200);
     const u = this.unit;
-    const t = this.add.text(this.W / 2, img.y - img.displayHeight * 0.2, 'SECRET!!', { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: `${Math.round(64 * u)}px`, color: '#ffd23a', stroke: '#c0182a', strokeThickness: 12 }).setOrigin(0.5).setDepth(10).setScale(0.2);
+    const t = this.add.text(this.W / 2, img.y - img.displayHeight * 0.2, 'SECRET!!', { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: `${Math.round(72 * u)}px`, color: '#ffd23a', stroke: '#c0182a', strokeThickness: 12 }).setOrigin(0.5).setDepth(13).setScale(0.2);
     this.shown.push(t);
     this.tweens.add({ targets: t, scale: 1, duration: 420, ease: 'Back.easeOut' });
-    this.tweens.add({ targets: img, angle: { from: -3, to: 3 }, duration: 90, yoyo: true, repeat: 5 });
+    this.tweens.add({ targets: t, scale: 1.1, duration: 400, delay: 420, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.tweens.add({ targets: img, angle: { from: -3, to: 3 }, duration: 90, yoyo: true, repeat: 5, onComplete: () => img.setAngle(0) });
   }
 
   private newBadge(x: number, y: number, k: number): Phaser.GameObjects.Text {
@@ -309,6 +476,8 @@ export class MythPackScene extends Phaser.Scene {
     this.seqTimer?.remove();
     this.input.off('pointerdown');
     this.tweens.killAll();
+    this.time.removeAllEvents();
+    this.events.emit('mythpack:next');
     this.shown.forEach((o) => o.destroy());
     this.shown = [];
     const { W, H } = this;
