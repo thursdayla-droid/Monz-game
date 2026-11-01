@@ -18,6 +18,14 @@ export const MYTH_MODE_IMAGE = 'myth:mode';
 export const MYTH_MODE_FILE = 'assets/mythclash/mode.webp';
 const MODE_ART = { w: 941, h: 1672 };
 /** 押せる看板(絵の座標 [x0, y0, x1, y1]) */
+/** 企画者の強さえらびの絵(2026-11-01。design/mythclash/cpu_select.png・941x1672) */
+export const MYTH_CPU_IMAGE = 'myth:cpu';
+export const MYTH_CPU_FILE = 'assets/mythclash/cpu.webp';
+const CPU_ZONES: Record<CpuLevel, readonly [number, number, number, number]> = {
+  weak: [35, 440, 910, 702],
+  normal: [35, 735, 910, 1002],
+  strong: [30, 1040, 915, 1342],
+};
 const MODE_ZONES = {
   tower: [30, 398, 915, 800],
   battle: [25, 828, 915, 1248],
@@ -33,7 +41,7 @@ const CPU_COLORS: Record<CpuLevel, string> = { weak: '#3aa860', normal: '#2a6ad8
  * - ストーリーモードの階えらびは MythTowerScene(企画者の絵)
  * - cpu: バトルモードの CPU の強さ(弱い・普通・強い)
  * えらんだら デッキ編成 → バトル。カードが3種類ないときは「あと○種類」だけ(はじめのカードのプレゼントはしない。企画者)
- * モードえらびの画面は企画者の絵(2026-11-01。絵が読めないときは前のプログラムで描いた板)。CPU の強さの画面は【仮】プログラムで描いたもの
+ * モードえらびの画面は企画者の絵(2026-11-01。絵が読めないときは前のプログラムで描いた板)。CPU の強さの画面も企画者の絵(2026-11-01)
  */
 export class MythModeScene extends Phaser.Scene {
   private view: MythModeView = 'mode';
@@ -88,10 +96,13 @@ export class MythModeScene extends Phaser.Scene {
       else this.switchView('mode');
     });
     const title = this.view === 'cpu' ? 'バトルモード' : 'モードをえらぶ';
-    const art = this.view === 'mode' && this.textures.exists(MYTH_MODE_IMAGE);
-    // 企画者の絵には「MODE SELECT」の文字があるので、見出しは出さない
+    const art = this.textures.exists(this.view === 'mode' ? MYTH_MODE_IMAGE : MYTH_CPU_IMAGE);
+    // 企画者の絵には「MODE SELECT」「BATTLE MODE」の文字があるので、見出しは出さない
     L.add(art ? [back] : [back, this.text(W / 2 + 60, 46, title, 40, '#ffd23a').setStroke('#16101c', 8)]);
-    if (this.view === 'cpu') this.drawCpu(L);
+    if (this.view === 'cpu') {
+      if (art) this.drawCpuArt(L);
+      else this.drawCpu(L);
+    }
     else if (art) this.drawModesArt(L);
     else this.drawModes(L);
   }
@@ -159,6 +170,34 @@ export class MythModeScene extends Phaser.Scene {
     }
     // お知らせは、絵の下の空いている所に出す
     if (!ok) L.add(this.text(W / 2, oy + 1430 * k, `異なるカードをあと${kindsToUnlock(col)}種類集めると\nバトル解放！`, 32, '#ffb070').setStroke('#16101c', 6));
+  }
+
+  /** 強さえらび(企画者の絵 2026-11-01)。まだ解放していない強さは、看板を暗くして解放のしかたを重ねる */
+  private drawCpuArt(L: Phaser.GameObjects.Container): void {
+    const H = this.H;
+    const k = Math.max(W / MODE_ART.w, H / MODE_ART.h);
+    const ox = (W - MODE_ART.w * k) / 2;
+    const oy = (H - MODE_ART.h * k) / 2;
+    L.addAt(this.add.image(ox, oy, MYTH_CPU_IMAGE).setOrigin(0, 0).setScale(k), 0);
+    const won = (loadLife().mythclash ?? newCollection()).battleWon ?? [];
+    for (const lv of CPU_LEVELS) {
+      const [x0, y0, x1, y1] = CPU_ZONES[lv];
+      const open = battleLevelOpen(lv, won);
+      const z = this.add.rectangle(ox + x0 * k, oy + y0 * k, (x1 - x0) * k, (y1 - y0) * k, open ? 0xffffff : 0x0a0408, open ? 0 : 0.8).setOrigin(0, 0);
+      L.add(z);
+      if (!open) {
+        const from = BATTLE_UNLOCK_FROM[lv];
+        L.add(this.text(ox + ((x0 + x1) / 2) * k, oy + ((y0 + y1) / 2) * k, `🔒 「${from ? CPU_LABELS[from] : ''}」に勝つと解放`, 32, '#ffffff').setBackgroundColor('#16101ce6').setPadding(22, 12, 22, 14));
+        continue;
+      }
+      z.setInteractive({ useHandCursor: true });
+      z.on('pointerdown', () => {
+        z.setFillStyle(0xffffff, 0.25);
+        this.tweens.add({ targets: z, fillAlpha: 0, duration: 220 });
+        const match: MythMatch = { mode: 'battle', level: lv };
+        this.go('MythDeck', { mode: 'battle', match });
+      });
+    }
   }
 
   private drawCpu(L: Phaser.GameObjects.Container): void {

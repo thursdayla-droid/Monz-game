@@ -14,7 +14,7 @@ import { SELECT_CARD_ART, SELECT_IMAGE } from '../scenes/MinigameSelectScene';
 import { CARD_IMAGES } from '../ui/cardArt';
 import { SLUG_BATTER_ART, slugBatterKey, SLUG_PITCHER_ART, slugPitcherKey, SLUGGER_BG_FILE, SLUGGER_BG_KEY, SLUGGER_LOGO_FILE, SLUGGER_LOGO_KEY } from '../scenes/SluggerScene';
 import { DASH_BG_FILE, DASH_BG_KEY, DASH_LOGO_FILE, DASH_LOGO_KEY, DASH_JUMP_FILE, DASH_JUMP_KEY, DASH_RUN_FILE, DASH_RUN_KEY, DASH_PLAT_FILE, DASH_PLAT_KEY, DASH_SPIKE_FILE, DASH_SPIKE_KEY } from '../scenes/DashScene';
-import { MYTH_MODE_FILE, MYTH_MODE_IMAGE } from '../scenes/MythModeScene';
+import { MYTH_CPU_FILE, MYTH_CPU_IMAGE, MYTH_MODE_FILE, MYTH_MODE_IMAGE } from '../scenes/MythModeScene';
 import { BATTLE_MENU_FILE, BATTLE_MENU_IMAGE } from '../scenes/BattleMenuScene';
 import { loadBunk } from './bunkView';
 import { HOME_PLACES } from '../core/home';
@@ -48,6 +48,7 @@ function packFiles(name: Exclude<PackName, 'bunk'>): PackFile[] {
       return [
         { key: MYTH_TITLE_IMAGE, url: MYTH_TITLE_FILE },
         { key: MYTH_MODE_IMAGE, url: MYTH_MODE_FILE },
+        { key: MYTH_CPU_IMAGE, url: MYTH_CPU_FILE },
         { key: MYTH_PACK_IMAGE, url: MYTH_PACK_FILE },
         { key: MYTH_CARD_BACK, url: MYTH_CARD_BACK_FILE },
         { key: MYTH_COIN_FRONT, url: MYTH_COIN_FRONT_FILE },

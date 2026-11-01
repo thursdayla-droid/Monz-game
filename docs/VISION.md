@@ -218,3 +218,4 @@
 - 2026-11-01：MYTHCLASH のカードの絵が100枚全部そろった（No.001〜100 と特別なカード No.101）
 - 2026-11-01：バトルメニュー（バトルセレクト画面）を企画者の絵にした（`design/battle_menu/battle_menu.png`）。看板の所を押すと「バトル」「MYTHCLASH」へ
 - 2026-11-01：MYTHCLASH のモード選択（BLOOD TOWER・バトル）を企画者の絵にした（`design/mythclash/mode_select.png`）。カードが3種類そろうまでは看板を暗くして、下にお知らせ
+- 2026-11-01：MYTHCLASH のバトルの強さえらび（弱い・普通・強い）も企画者の絵にした（`design/mythclash/cpu_select.png`）。まだ解放していない強さは看板を暗くして「🔒「○○」に勝つと解放」を重ねる
