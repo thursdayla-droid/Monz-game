@@ -32,6 +32,11 @@ PLATES = {
 }
 
 img = np.array(Image.open(os.path.join(HERE, 'tower.png')).convert('RGB'))
+# 絵の「ストーリーモード」の文字を「BLOOD TOWER」に(企画者 2026-11-01)
+import sys
+sys.path.insert(0, HERE)
+import retitle
+img = retitle.tower(img)
 Image.fromarray(img).save(os.path.join(OUT, 'tower.webp'), 'WEBP', quality=80, method=6)
 
 # 鍵マーク: 前の絵(unused/)の5階の鍵。明るさを そのまま不透明度にする

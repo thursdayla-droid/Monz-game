@@ -16,6 +16,11 @@ ROOT = os.path.dirname(os.path.dirname(HERE))
 OUT = os.path.join(ROOT, 'public/assets/mythclash')
 
 img = np.array(Image.open(os.path.join(HERE, 'floor.png')).convert('RGB'))
+# 絵の「ストーリーモード」の文字を「BLOOD TOWER」に(企画者 2026-11-01)
+import sys
+sys.path.insert(0, HERE)
+import retitle
+img = retitle.floor(img)
 # 「敵チーム」の文字を消す(相手の名前「○○のチーム」を ゲームの中で書く。企画者 2026-10-27: 戦う前に どんな相手かわかるように)
 x0, y0, x1, y1 = 400, 432, 546, 478
 mask = np.zeros(img.shape[:2], np.uint8)
