@@ -1,7 +1,7 @@
 種族,形態,名前,体の形,属性,得意,メモ
 BUNK,1,BUNK,丸い体,無,パワー,力強く体ごとぶつかる【仮】
 BUNK,2,BUNKER,丸い体,無,パワー,BUNK が Lv.30 で進化した姿（企画者の絵 design/bunk/evolution/bunker_form2.png）。読み：バンカー
-BUNK,3,（未定）,丸い体,無,パワー,力強く体ごとぶつかる【仮】
+BUNK,3,BUNKLORD,丸い体,無,パワー,BUNKER が Lv.60 で進化した姿（企画者の絵 design/bunk/evolution/bunklord_form3.png。元の絵は背景に市松模様が描きこまれていたので、背景だけ透明にした）。読み：バンクロード
 MOFU,1,MOFU,（未定）,（未定）,（未定）,
 MOFU,2,（未定）,（未定）,（未定）,（未定）,
 MOFU,3,（未定）,（未定）,（未定）,（未定）,

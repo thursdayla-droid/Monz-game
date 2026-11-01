@@ -6,7 +6,7 @@ import type { RosterRow } from './roster';
 export const ROSTER_ROWS: RosterRow[] = [
   {"species": "bunk", "form": 1, "name": "BUNK", "body": "丸い体", "element": "無", "favorite": "パワー", "memo": "力強く体ごとぶつかる【仮】"},
   {"species": "bunk", "form": 2, "name": "BUNKER", "body": "丸い体", "element": "無", "favorite": "パワー", "memo": "BUNK が Lv.30 で進化した姿（企画者の絵 design/bunk/evolution/bunker_form2.png）。読み：バンカー"},
-  {"species": "bunk", "form": 3, "name": "（未定）", "body": "丸い体", "element": "無", "favorite": "パワー", "memo": "力強く体ごとぶつかる【仮】"},
+  {"species": "bunk", "form": 3, "name": "BUNKLORD", "body": "丸い体", "element": "無", "favorite": "パワー", "memo": "BUNKER が Lv.60 で進化した姿（企画者の絵 design/bunk/evolution/bunklord_form3.png。元の絵は背景に市松模様が描きこまれていたので、背景だけ透明にした）。読み：バンクロード"},
   {"species": "mofu", "form": 1, "name": "MOFU", "body": "（未定）", "element": "（未定）", "favorite": "（未定）", "memo": ""},
   {"species": "mofu", "form": 2, "name": "（未定）", "body": "（未定）", "element": "（未定）", "favorite": "（未定）", "memo": ""},
   {"species": "mofu", "form": 3, "name": "（未定）", "body": "（未定）", "element": "（未定）", "favorite": "（未定）", "memo": ""},
