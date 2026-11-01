@@ -76,7 +76,7 @@ for p in paths:
 BGM_NOT_YET: set[str] = set()
 for p in sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/bgm/*.mp3') + glob.glob(pub + 'assets/se/**/*.mp3', recursive=True)):
     # MYTHCLASH の確認用ページには、MYTHCLASH の曲と効果音だけ
-    if p in BGM_NOT_YET or (MYTH and 'mythclash' not in p) or (B3D and 'dash' not in p):
+    if p in BGM_NOT_YET or (MYTH and 'mythclash' not in p) or (B3D and 'dash' not in p and not p.startswith('assets/se/')):
         continue
     # 確認用ページの大きさの上限(16MB)のため、曲は軽く(モノラル20kbps・2026-10-26 に28k→24k→20kと下げた。22kHzでは実際は16kbpsになる)して埋め込む。ゲーム本体は元の音質のまま
     import subprocess, tempfile
