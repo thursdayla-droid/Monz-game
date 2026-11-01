@@ -3,7 +3,7 @@ import { LifeRecord, loadLife, newLife } from '../src/core/lifeSave';
 import { card } from '../src/core/mythclash/cards';
 import { cpuAction, cpuChooser, CPU_LEVELS, type CpuLevel } from '../src/core/mythclash/cpu';
 import { createBattle, legalActions, resolveRound } from '../src/core/mythclash/engine';
-import { BATTLE_MODE, TOWER, TOWER_FLOORS, towerOpenFloors, towerReward } from '../src/core/mythclash/modes';
+import { BATTLE_MODE, battleLevelOpen, TOWER, TOWER_FLOORS, towerOpenFloors, towerReward } from '../src/core/mythclash/modes';
 import { fixCollection } from '../src/core/mythclash/packs';
 import { randomDeck } from '../src/core/mythclash/sim';
 import { mulberry32 } from '../src/core/rng';
@@ -69,6 +69,12 @@ describe('MYTHCLASH tower', () => {
 });
 
 describe('MYTHCLASH battle mode and CPU levels', () => {
+  it('weak is open from the start; normal opens after beating weak, strong after normal', () => {
+    expect(CPU_LEVELS.map((l) => battleLevelOpen(l, []))).toEqual([true, false, false]);
+    expect(CPU_LEVELS.map((l) => battleLevelOpen(l, ['weak']))).toEqual([true, true, false]);
+    expect(CPU_LEVELS.map((l) => battleLevelOpen(l, ['weak', 'normal']))).toEqual([true, true, true]);
+  });
+
   it('wins pay 100 / 200 / 400 coins', () => {
     expect(CPU_LEVELS.map((l) => BATTLE_MODE[l].coins)).toEqual([100, 200, 400]);
     const rec = new LifeRecord({ ...newLife(1), coins: 0 }, memoryStore());

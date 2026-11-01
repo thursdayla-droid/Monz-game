@@ -1,8 +1,8 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { LifeRecord, loadLife } from '../core/lifeSave';
-import { cpuAction, cpuReplacement, CPU_LABELS, type CpuLevel } from '../core/mythclash/cpu';
-import { BATTLE_MODE, BATTLES_PER_FLOOR, TOWER_FLOORS, towerBattle, type MythMatch } from '../core/mythclash/modes';
+import { cpuAction, cpuReplacement, CPU_LABELS, CPU_LEVELS, type CpuLevel } from '../core/mythclash/cpu';
+import { BATTLE_MODE, BATTLE_UNLOCK_FROM, BATTLES_PER_FLOOR, TOWER_FLOORS, towerBattle, type MythMatch } from '../core/mythclash/modes';
 import { newTowerRun } from './MythTowerScene';
 import { MYTH_CARD_BACK } from '../ui/packBuy';
 import { opponentFor } from '../core/mythclash/opponents';
@@ -1127,6 +1127,9 @@ export class MythBattleScene extends Phaser.Scene {
       if (win && m?.mode === 'battle') {
         const r = new LifeRecord(loadLife()).mythBattleWin(m.level, this.battleRun);
         if (r?.first) lines.push([`CPU ${CPU_LABELS[m.level]} に はじめて勝った！`, '#ffd23a']);
+        // 次の強さが解放(企画者 2026-11-01)
+        const next = r?.first ? CPU_LEVELS.find((lv) => BATTLE_UNLOCK_FROM[lv] === m.level) : undefined;
+        if (next) lines.push([`「${CPU_LABELS[next]}」が 解放された！`, '#7dffa0']);
         if (r) lines.push([`コイン +${r.coins.toLocaleString()}　経験値 +${r.exp}`, '#ffffff']);
       }
       buttons.push(['もう一度', () => this.scene.restart({ deck, match: m })], ['もどる', () => (m ? this.leave('MythMode', { view: 'cpu' }) : this.leave())]);

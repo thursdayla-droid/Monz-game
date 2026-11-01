@@ -2,7 +2,7 @@ import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { loadLife } from '../core/lifeSave';
 import { CPU_LABELS, CPU_LEVELS, type CpuLevel } from '../core/mythclash/cpu';
-import { BATTLE_MODE, type MythMatch } from '../core/mythclash/modes';
+import { BATTLE_MODE, BATTLE_UNLOCK_FROM, battleLevelOpen, type MythMatch } from '../core/mythclash/modes';
 import { battleUnlocked, kindsToUnlock, newCollection } from '../core/mythclash/packs';
 import { preloadPacks } from '../render/packs';
 import { UI_FONT } from '../ui/paint';
@@ -125,11 +125,16 @@ export class MythModeScene extends Phaser.Scene {
     const H = this.H;
     const top = H / 2 - 260;
     L.add(this.text(W / 2, top - 130, 'CPUの強さを えらんでね', 30, '#ffffff'));
+    // 弱いに勝つと普通、普通に勝つと強いが解放(企画者 2026-11-01)。まだのものは暗くして、解放のしかたを出す
+    const won = (loadLife().mythclash ?? newCollection()).battleWon ?? [];
     CPU_LEVELS.forEach((lv, i) => {
-      this.panel(L, top + i * 230, 190, CPU_COLORS[lv], `${CPU_STARS[lv]} ${CPU_LABELS[lv]}`, `相手は ${BATTLE_MODE[lv].rarities.join('・')} のカード`, () => {
+      const open = battleLevelOpen(lv, won);
+      const from = BATTLE_UNLOCK_FROM[lv];
+      const sub = open ? `相手は ${BATTLE_MODE[lv].rarities.join('・')} のカード` : `🔒 「${from ? CPU_LABELS[from] : ''}」に勝つと解放`;
+      this.panel(L, top + i * 230, 190, open ? CPU_COLORS[lv] : '#3a3040', `${CPU_STARS[lv]} ${CPU_LABELS[lv]}`, sub, open ? () => {
         const match: MythMatch = { mode: 'battle', level: lv };
         this.go('MythDeck', { mode: 'battle', match });
-      });
+      } : null);
     });
   }
 

@@ -70,5 +70,15 @@ export function battleReward(level: CpuLevel, first: boolean): { coins: number; 
   return { coins: Math.round(BATTLE_MODE[level].coins * r), exp: Math.round(BATTLE_MODE[level].exp * r) };
 }
 
+/**
+ * バトルモードの強さの解放(企画者 2026-11-01): 弱いは はじめから。弱いに勝つと普通、普通に勝つと強い。
+ * won: 勝ったことのある強さ(保存の battleWon)。解放のもと(1つ下の強さ)を返す(はじめからなら null)
+ */
+export const BATTLE_UNLOCK_FROM: Record<CpuLevel, CpuLevel | null> = { weak: null, normal: 'weak', strong: 'normal' };
+export function battleLevelOpen(level: CpuLevel, won: readonly string[] = []): boolean {
+  const from = BATTLE_UNLOCK_FROM[level];
+  return from === null || won.includes(from);
+}
+
 /** バトル画面に渡す、どのモードの戦いか */
 export type MythMatch = { mode: 'battle'; level: CpuLevel } | { mode: 'tower'; floor: number; battle: number; runId: string };
