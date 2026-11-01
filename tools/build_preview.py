@@ -14,8 +14,10 @@ from PIL import Image
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 out = sys.argv[1]
 MYTH = '--myth' in sys.argv[2:]
+# 3Dオートバトルの確認用ページ(2026-11-01)。絵は入れない(仮の人形なので)。曲はバトルの1曲だけ
+B3D = '--b3d' in sys.argv[2:]
 if not os.path.exists(out):
-    open(out, 'w').write('<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>' + ('MYTHCLASH 確認用' if MYTH else 'MONZ') + '</title>'
+    open(out, 'w').write('<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>' + ('3Dバトル 確認用' if B3D else 'MYTHCLASH 確認用' if MYTH else 'MONZ') + '</title>'
                          '<style>html,body{margin:0;height:100%;background:#1b1024;overflow:hidden}#game{width:100%;height:100%}</style></head>'
                          '<body><div id="boot" style="color:#fff;font:20px sans-serif;text-align:center;padding-top:40vh">よみこみ中…</div><div id="game"></div>\n<script type="module"></script></body></html>')
 js = open(glob.glob(root + '/dist/assets/index-*.js')[0]).read()
@@ -23,7 +25,9 @@ assert '</script' not in js
 pub = root + '/public/'
 myth_paths = sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/mythclash/*.webp') + glob.glob(pub + 'assets/mythclash/opponents/*.webp'))
 card_paths = sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/mythclash/cards/*.webp'))
-if MYTH:
+if B3D:
+    paths = []
+elif MYTH:
     paths = myth_paths + card_paths
 else:
     paths = ['assets/title/title.png', 'assets/bunk/reference/bunk_hires_cutout.png', 'assets/bunk/reference/bunk_down_cutout.png']
@@ -48,10 +52,11 @@ for p in paths:
             data = bb.getvalue()
         # 2026-10-27: 対戦相手の顔の分をあけるため、少し小さい絵も圧縮しなおす。
         # 2026-10-28: MYTHCLASH の絵をまたページに入れた(別ファイルは iPhone のアプリで読めなかった。企画者「戻そう」)ので、30KBより大きい絵を quality 42 に(カード・顔は 52、タイトルの絵は 72)
+        # 2026-11-01: 3Dバトルの道具(Three.js)でプログラムが大きくなったので、ゲームの確認用ページは quality 38 に(15MB 未満にするため)
         # 2026-10-29: MYTHCLASH の確認用ページは分けたので、MYTHCLASH の絵は 60KBより大きいものを quality 55 に(前のとおり)
         elif len(data) > (60_000 if MYTH else 30_000):
             bb = io.BytesIO()
-            Image.open(pub + p).save(bb, 'WEBP', quality=55 if MYTH else 42, method=6)
+            Image.open(pub + p).save(bb, 'WEBP', quality=55 if MYTH else 38, method=6)
             data = bb.getvalue()
         assets[p] = 'data:image/webp;base64,' + base64.b64encode(data).decode()
         continue
@@ -71,7 +76,7 @@ for p in paths:
 BGM_NOT_YET: set[str] = set()
 for p in sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/bgm/*.mp3') + glob.glob(pub + 'assets/se/**/*.mp3', recursive=True)):
     # MYTHCLASH の確認用ページには、MYTHCLASH の曲と効果音だけ
-    if p in BGM_NOT_YET or (MYTH and 'mythclash' not in p):
+    if p in BGM_NOT_YET or (MYTH and 'mythclash' not in p) or (B3D and 'dash' not in p):
         continue
     # 確認用ページの大きさの上限(16MB)のため、曲は軽く(モノラル20kbps・2026-10-26 に28k→24k→20kと下げた。22kHzでは実際は16kbpsになる)して埋め込む。ゲーム本体は元の音質のまま
     import subprocess, tempfile
@@ -85,7 +90,7 @@ jsons = {p: json.load(open(pub + p)) for p in ['assets/bunk/parts/parts.json', '
 html = open(out).read()
 start = html.index('<script>window.__MONZ_ASSETS') if '__MONZ_ASSETS' in html else html.index('<script type="module">')
 # MYTHCLASH の確認用ページは MYTHCLASH のタイトルから。ゲームの確認用ページはカードの絵を読みにいかない(入れていないので)
-flags = "window.__MONZ_START = 'MythTitle';" if MYTH else 'window.__MONZ_NO_CARD_ART = true;'
+flags = "window.__MONZ_START = 'Battle3D'; window.__MONZ_NO_CARD_ART = true;" if B3D else "window.__MONZ_START = 'MythTitle';" if MYTH else 'window.__MONZ_NO_CARD_ART = true;'
 html = html[:start] + '<script>window.__MONZ_ASSETS = ' + json.dumps(assets) + ';\nwindow.__MONZ_JSON = ' + json.dumps(jsons) + ';\n' + flags + '</script>\n' + \
     '<script type="module">\ndocument.getElementById(\'boot\')?.remove();\n' + js + '\n</script>\n'
 open(out, 'w').write(html)

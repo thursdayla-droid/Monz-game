@@ -178,7 +178,7 @@ class AutoFighterView {
 }
 
 /** 今お世話しているMONZ(プレイヤーの相棒)を、バトルに出す形にする */
-function partnerEntrant(): { entrant: AutoEntrant; level: number } {
+export function partnerEntrant(): { entrant: AutoEntrant; level: number } {
   const life = loadLife();
   const m = life.monz.find((x) => x.uid === life.activeMonz) ?? life.monz[0];
   const stats = currentStats(m);
@@ -189,7 +189,7 @@ function partnerEntrant(): { entrant: AutoEntrant; level: number } {
 /**
  * 【仮】相手: 色違いのBUNK(旧バトルと同じ。企画者の素材を使う)。相棒と同じレベルで、育て方はランダム
  */
-function rivalEntrant(level: number, seed: number): AutoEntrant {
+export function rivalEntrant(level: number, seed: number): AutoEntrant {
   const rng = mulberry32(seed ^ 0x9e3779b9);
   let stats: StatBlock = addStats(speciesStats('bunk').base, autoGrowthAt('bunk', `rival:${seed}`, level));
   // 自由ポイント(1レベル1つ)を、ランダムにかたよらせて振る(相手ごとに戦い方が変わるように)

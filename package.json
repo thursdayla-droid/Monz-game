@@ -12,7 +12,9 @@
     "size": "npm run build && node tools/size-report.mjs"
   },
   "dependencies": {
-    "phaser": "4.2.1"
+    "@types/three": "0.180.0",
+    "phaser": "4.2.1",
+    "three": "0.180.0"
   },
   "devDependencies": {
     "typescript": "5.9.3",
