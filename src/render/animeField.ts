@@ -310,7 +310,16 @@ export class AnimeField {
         const bin = atob(url.slice(url.indexOf(',') + 1));
         const buf = new Uint8Array(bin.length);
         for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
-        loader.parse(buf.buffer, '', done, fail);
+        // 絵は <img> で読む(2026-11-01 iPhone のアプリでは、絵を fetch で読む方法が止められ、BUNK が白くなった)。
+        // 読み方は、読みこみ係を作る時に createImageBitmap があるかで決まるので、その間だけ隠す
+        const w = window as unknown as { createImageBitmap?: unknown };
+        const cib = w.createImageBitmap;
+        w.createImageBitmap = undefined;
+        try {
+          loader.parse(buf.buffer, '', done, fail);
+        } finally {
+          w.createImageBitmap = cib;
+        }
       } else loader.load(url, done, undefined, fail);
     } catch (e) {
       fail(e);
