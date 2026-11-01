@@ -1,7 +1,8 @@
 /**
  * 3Dバトル「アニメのモンスターバトル風」(企画者 2026-11-01)の計算。Phaser・Three.js に依存しない。
  * - 広い野外のコートで、2体のモンスターが 間合いをとって動き回り、技を撃ち合う
- * - 技: 突進(rush)・弾を撃つ(shot)・ためて撃つビーム(beam)・飛び上がって地面をたたく衝撃波(quake)
+ * - 技: 企画者の技の表(techTable.ts)の「型」で動く。突進・回転・弾・連射・ビーム・衝撃波・落下・連続攻撃・守り
+ * - 装備した技(最大4つ。Ver.44)だけを使う。追加効果は ふらつき・まひ(ほかは【未実装】)
  * - プレイヤーは「技の名前」で指示する(企画者 2026-11-01)。指示がないときも、MONZ は自分で動き・よけ・ときどき技を出す【仮】
  * - 弾どうしがぶつかると爆発して消える。ビームは弾を消す
  * 数字は animeConfig.ts。乱数は種から決まる(同じ種・同じ指示なら同じ試合)。
@@ -10,7 +11,8 @@ import { mulberry32, type Rng } from '../rng';
 import type { StatBlock } from '../stats';
 import type { Instinct } from '../autobattle/config';
 import type { Proficiency } from './config';
-import { ANIME as C, TECHS, TECH_IDS, type TechId } from './animeConfig';
+import { ANIME as C, TECH_IDS, type TechId } from './animeConfig';
+import { EFFECT_CHANCE, getTech, type Effect } from './techTable';
 
 export type Side = 0 | 1;
 export type Command = TechId | 'dodge';
@@ -21,11 +23,13 @@ export interface AnimeEntrant {
   stats: StatBlock;
   instinct: Instinct;
   proficiency: Proficiency;
+  /** 装備している技(最大4つ。Ver.44)。ないときは前の試作の4つ */
+  techs?: TechId[];
 }
 
 export type AnimeAct =
   | { k: 'free' }
-  | { k: 'tech'; id: TechId; t: number; dir: number; fired: boolean; hit: boolean; tx: number; tz: number }
+  | { k: 'tech'; id: TechId; t: number; dir: number; fired: boolean; hit: boolean; tx: number; tz: number; windup: number; n: number; next: number }
   | { k: 'dodge'; t: number; dx: number; dz: number; jump: boolean }
   | { k: 'hurt'; t: number; until: number }
   | { k: 'air'; t: number }
@@ -40,6 +44,14 @@ export interface AnimeMon {
   stats: StatBlock;
   instinct: Instinct;
   prof: Proficiency;
+  /** 装備している技 */
+  techs: TechId[];
+  /** ふらつき・まひ の終わり */
+  dizzyUntil: number;
+  paraUntil: number;
+  /** 守りのドームの終わりと大きさ */
+  barrierUntil: number;
+  barrierR: number;
   x: number;
   z: number;
   y: number;
@@ -48,7 +60,7 @@ export interface AnimeMon {
   hp: number;
   maxHp: number;
   act: AnimeAct;
-  cooldown: Record<Command, number>;
+  cooldown: Record<string, number>;
   command: { cmd: Command; until: number } | null;
   plan: 'approach' | 'retreat' | 'circleL' | 'circleR' | 'hold';
   planT: number;
@@ -101,7 +113,7 @@ export interface Quake {
 export type AnimeEvent =
   | { kind: 'call'; side: Side; tech: TechId; byCommand: boolean }
   | { kind: 'fire'; side: Side; tech: TechId }
-  | { kind: 'hit'; side: Side; target: Side; tech: TechId; damage: number; x: number; y: number; z: number; big: boolean }
+  | { kind: 'hit'; side: Side; target: Side; tech: TechId; damage: number; x: number; y: number; z: number; big: boolean; crit?: boolean }
   | { kind: 'explode'; x: number; y: number; z: number; tech: TechId; big: boolean }
   | { kind: 'clash'; x: number; y: number; z: number }
   | { kind: 'dodge'; side: Side; jump: boolean }
@@ -109,6 +121,11 @@ export type AnimeEvent =
   | { kind: 'quake'; side: Side; x: number; z: number }
   | { kind: 'land'; side: Side; hard: boolean }
   | { kind: 'command'; side: Side; cmd: Command; state: 'queued' | 'done' | 'expired' }
+  | { kind: 'status'; side: Side; effect: Effect }
+  | { kind: 'blocked'; side: Side; x: number; y: number; z: number }
+  | { kind: 'mark'; side: Side; x: number; z: number; r: number; until: number }
+  | { kind: 'impact'; side: Side; tech: TechId; x: number; z: number; r: number }
+  | { kind: 'comboHit'; side: Side; n: number }
   | { kind: 'ko'; side: Side }
   | { kind: 'victory'; side: Side }
   | { kind: 'timeUp' };
@@ -144,6 +161,11 @@ function newMon(e: AnimeEntrant, side: Side): AnimeMon {
     stats: e.stats,
     instinct: e.instinct,
     prof: e.proficiency,
+    techs: e.techs ?? [...TECH_IDS],
+    dizzyUntil: 0,
+    paraUntil: 0,
+    barrierUntil: 0,
+    barrierR: 0,
     x: side === 0 ? -6 : 6,
     z: side === 0 ? 2 : -2,
     y: 0,
@@ -152,7 +174,7 @@ function newMon(e: AnimeEntrant, side: Side): AnimeMon {
     hp: maxHp,
     maxHp,
     act: { k: 'free' },
-    cooldown: { dash: 0, fire: 0, beam: 0, quake: 0, dodge: 0 },
+    cooldown: Object.fromEntries([...(e.techs ?? TECH_IDS), 'dodge'].map((k) => [k, 0])),
     command: null,
     plan: 'hold',
     planT: 0,
@@ -180,14 +202,14 @@ export function newAnimeBattle(a: AnimeEntrant, c: AnimeEntrant, seed: number): 
 export function commandState(b: AnimeBattle, side: Side, cmd: Command): 'ready' | 'queued' | 'cooldown' {
   const f = b.f[side];
   if (f.command?.cmd === cmd) return 'queued';
-  return f.cooldown[cmd] > b.t ? 'cooldown' : 'ready';
+  return (f.cooldown[cmd] ?? 0) > b.t ? 'cooldown' : 'ready';
 }
 
 /** 技の名前(または「よけろ」)で指示する。動けないときは待つ(1.5秒で消える)。1件だけ(新しい指示で置きかえ) */
 export function giveCommand(b: AnimeBattle, side: Side, cmd: Command): boolean {
   const f = b.f[side];
   if (b.winner !== null || f.act.k === 'ko') return false;
-  if (f.cooldown[cmd] > b.t) return false;
+  if ((f.cooldown[cmd] ?? Infinity) > b.t) return false;
   f.command = { cmd, until: b.t + C.command.wait };
   b.events.push({ kind: 'command', side, cmd, state: 'queued' });
   return true;
@@ -197,10 +219,13 @@ export function giveCommand(b: AnimeBattle, side: Side, cmd: Command): boolean {
 
 function startTech(b: AnimeBattle, f: AnimeMon, id: TechId, byCommand: boolean): void {
   const o = other(b, f);
-  const tech = TECHS[id];
+  const tech = getTech(id);
   // ねらい(習熟度が低いと少しずれる)
-  const dir = angleTo(f, o) + wobble(b.rng) * lerp(C.skill.aim, lv(f, 'attack'));
-  f.act = { k: 'tech', id, t: 0, dir, fired: false, hit: false, tx: o.x, tz: o.z };
+  const dir = angleTo(f, o) + wobble(b.rng) * lerp(C.skill.aim, lv(f, 'attack')) * (1 - Math.min(0.6, f.stats.tech / C.stat.techAim));
+  // まひ中は ためが長い
+  // スピードが高いと、ためが短い。まひ中は長い
+  const windup = tech.windup * (1 - Math.min(C.stat.speedWindupMax, f.stats.speed / C.stat.speedWindupDiv)) * (b.t < f.paraUntil ? C.status.paraWindup : 1);
+  f.act = { k: 'tech', id, t: 0, dir, fired: false, hit: false, tx: o.x, tz: o.z, windup, n: 0, next: 0 };
   f.face = dir;
   f.cooldown[id] = b.t + tech.cooldown;
   b.events.push({ kind: 'call', side: f.side, tech: id, byCommand });
@@ -225,72 +250,170 @@ function startDodge(b: AnimeBattle, f: AnimeMon, jump: boolean): void {
 
 /** 技のため・発射 */
 function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech' }>, dt: number): void {
-  const tech = TECHS[a.id];
+  const tech = getTech(a.id);
   const o = other(b, f);
   a.t += dt;
-  if (!a.fired && a.t >= tech.windup) {
+  const run = a.t - a.windup;
+  const shoot = (dir: number) => {
+    b.seq++;
+    b.shots.push({ id: b.seq, owner: f.side, tech: a.id, x: f.x + Math.cos(dir) * 0.9, y: 0.8, z: f.z + Math.sin(dir) * 0.9, vx: Math.cos(dir) * tech.speed, vz: Math.sin(dir) * tech.speed, r: tech.size, t: 0, alive: true });
+  };
+  if (!a.fired && a.t >= a.windup) {
     a.fired = true;
     b.events.push({ kind: 'fire', side: f.side, tech: a.id });
-    if (tech.kind === 'shot') {
-      b.seq++;
-      b.shots.push({ id: b.seq, owner: f.side, tech: a.id, x: f.x + Math.cos(a.dir) * 0.9, y: 0.8, z: f.z + Math.sin(a.dir) * 0.9, vx: Math.cos(a.dir) * tech.speed, vz: Math.sin(a.dir) * tech.speed, r: tech.size, t: 0, alive: true });
-    } else if (tech.kind === 'beam') {
-      b.beams.push({ owner: f.side, tech: a.id, x: f.x, z: f.z, dir: a.dir, t: 0, hit: false });
-    } else if (tech.kind === 'quake') {
-      // 飛び上がって、相手のいた所の近くへ落ちる
-      f.vy = 10;
+    if (tech.kind === 'shot') shoot(a.dir);
+    else if (tech.kind === 'barrage') {
+      shoot(a.dir);
+      a.n = 1;
+      a.next = a.t + C.barrage.gap;
+    } else if (tech.kind === 'beam') b.beams.push({ owner: f.side, tech: a.id, x: f.x, z: f.z, dir: a.dir, t: 0, hit: false });
+    else if (tech.kind === 'quake') {
+      // その場で踏みつける(小さく跳ねて、着地で衝撃波)
+      f.vy = C.quake.hop;
       f.y = 0.001;
+    } else if (tech.kind === 'drop') {
+      // 高く跳んで、相手のいた所へ落ちる(落ちる所に印)
+      const air = (2 * C.drop.jump) / C.gravity;
+      const tx = clamp(o.x, -C.field.halfX, C.field.halfX);
+      const tz = clamp(o.z, -C.field.halfZ, C.field.halfZ);
+      a.tx = tx;
+      a.tz = tz;
+      f.vy = C.drop.jump;
+      f.y = 0.001;
+      f.vx = (tx - f.x) / air;
+      f.vz = (tz - f.z) / air;
+      b.events.push({ kind: 'mark', side: f.side, x: tx, z: tz, r: tech.size, until: b.t + air });
+    } else if (tech.kind === 'barrier') {
+      f.barrierUntil = b.t + tech.duration;
+      f.barrierR = tech.size;
     }
   }
-  if (a.fired && tech.kind === 'rush') {
-    // 突進: まっすぐ走る(とちゅうで曲がらない)
-    const run = a.t - tech.windup;
-    if (run * tech.speed < tech.range && !a.hit) {
-      f.x += Math.cos(a.dir) * tech.speed * dt;
-      f.z += Math.sin(a.dir) * tech.speed * dt;
-      if (dist(f, o) < C.body.minGap + 0.2 && Math.abs(o.y - f.y) < 1.2) {
-        a.hit = true;
-        hit(b, f, o, a.id, (f.x + o.x) / 2, 0.8, (f.z + o.z) / 2, a.dir);
+  if (!a.fired) return;
+  switch (tech.kind) {
+    case 'rush': {
+      // 突進: まっすぐ走る(とちゅうで曲がらない)
+      if (run * tech.speed < tech.range && !a.hit) {
+        f.x += Math.cos(a.dir) * tech.speed * dt;
+        f.z += Math.sin(a.dir) * tech.speed * dt;
+        if (dist(f, o) < C.body.minGap + 0.2 && Math.abs(o.y - f.y) < 1.2) {
+          a.hit = true;
+          hit(b, f, o, a.id, (f.x + o.x) / 2, 0.8, (f.z + o.z) / 2, a.dir);
+        }
+        return;
       }
-      return;
-    }
-    if (!a.hit) a.hit = true; // 走り終わり
-  }
-  if (a.fired && tech.kind === 'quake') {
-    // 空中で前へ。着地したら衝撃波
-    if (f.y > 0) {
-      const d = Math.min(1, dist(f, { x: a.tx, z: a.tz }) / 4);
-      f.x += Math.cos(a.dir) * 5 * d * dt;
-      f.z += Math.sin(a.dir) * 5 * d * dt;
-      return;
-    }
-    if (!a.hit) {
       a.hit = true;
-      b.quakes.push({ owner: f.side, tech: a.id, x: f.x, z: f.z, r: 0.3, hit: false });
-      b.events.push({ kind: 'quake', side: f.side, x: f.x, z: f.z });
+      break;
     }
+    case 'spin': {
+      // 回転: 転がって、少しずつ相手のほうへ曲がる
+      if (run < tech.duration && !a.hit) {
+        a.dir += clamp(angDiff(angleTo(f, o), a.dir), -C.spin.turn * dt, C.spin.turn * dt);
+        f.face = a.dir;
+        f.x += Math.cos(a.dir) * tech.speed * dt;
+        f.z += Math.sin(a.dir) * tech.speed * dt;
+        if (dist(f, o) < C.body.minGap + 0.3 && Math.abs(o.y - f.y) < 1.2) {
+          a.hit = true;
+          hit(b, f, o, a.id, (f.x + o.x) / 2, 0.6, (f.z + o.z) / 2, a.dir);
+        }
+        return;
+      }
+      a.hit = true;
+      break;
+    }
+    case 'combo': {
+      // 連続攻撃: 近づいて、何回も打つ
+      if (a.n === 0) {
+        const near = dist(f, o) < C.combo.reach;
+        if (!near && run * tech.speed < tech.range) {
+          a.dir = angleTo(f, o);
+          f.face = a.dir;
+          f.x += Math.cos(a.dir) * tech.speed * dt;
+          f.z += Math.sin(a.dir) * tech.speed * dt;
+          return;
+        }
+        if (!near) {
+          a.hit = true;
+          a.n = tech.hits;
+          break;
+        }
+        a.next = a.t;
+      }
+      if (a.n < tech.hits) {
+        if (a.t >= a.next) {
+          a.n++;
+          a.next = a.t + tech.duration;
+          f.face = angleTo(f, o);
+          if (dist(f, o) < C.combo.reach + 0.6 && Math.abs(o.y - f.y) < 1.2) {
+            b.events.push({ kind: 'comboHit', side: f.side, n: a.n });
+            hit(b, f, o, a.id, (f.x + o.x) / 2, 0.8, (f.z + o.z) / 2, f.face, { last: a.n >= tech.hits, part: 1 / tech.hits });
+          } else a.n = tech.hits; // 相手がはなれたら終わり
+        }
+        return;
+      }
+      a.hit = true;
+      break;
+    }
+    case 'barrage':
+      if (a.n < C.barrage.count && a.t >= a.next) {
+        a.n++;
+        a.next = a.t + C.barrage.gap;
+        shoot(angleTo(f, o) + wobble(b.rng) * 0.08);
+      }
+      break;
+    case 'quake':
+    case 'drop':
+      if (f.y > 0) return;
+      if (!a.hit) {
+        a.hit = true;
+        if (tech.kind === 'quake') {
+          b.quakes.push({ owner: f.side, tech: a.id, x: f.x, z: f.z, r: 0.3, hit: false });
+          b.events.push({ kind: 'quake', side: f.side, x: f.x, z: f.z });
+        } else {
+          f.vx = f.vz = 0;
+          b.events.push({ kind: 'impact', side: f.side, tech: a.id, x: f.x, z: f.z, r: tech.size });
+          if (dist(f, o) < tech.size + C.body.radius && o.y < 0.6) hit(b, f, o, a.id, o.x, 0.5, o.z, angleTo(f, o));
+          else b.events.push({ kind: 'evaded', side: o.side });
+        }
+      }
+      break;
+    default:
+      break;
   }
-  const total = tech.windup + (tech.kind === 'beam' ? tech.duration : 0) + tech.recovery + (tech.kind === 'rush' ? tech.range / tech.speed : 0);
-  if (a.t >= total && f.y <= 0) f.act = { k: 'free' };
+  const extra = tech.kind === 'beam' || tech.kind === 'barrier' ? tech.duration : tech.kind === 'barrage' ? C.barrage.gap * C.barrage.count : 0;
+  const move = tech.kind === 'rush' ? tech.range / tech.speed : 0;
+  if (a.hit || tech.kind === 'shot' || tech.kind === 'barrage' || tech.kind === 'beam' || tech.kind === 'barrier') {
+    if (a.t >= a.windup + extra + tech.recovery + (a.hit ? 0 : move) && f.y <= 0) f.act = { k: 'free' };
+    else if (tech.kind === 'rush' && a.hit && run >= tech.recovery && f.y <= 0 && a.t >= a.windup + tech.recovery) f.act = { k: 'free' };
+  }
 }
 
 /** 当たり → ダメージ・吹っ飛び */
-function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y: number, z: number, dir: number): boolean {
+function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y: number, z: number, dir: number, opt: { last?: boolean; part?: number } = {}): boolean {
   if (o.act.k === 'ko' || o.act.k === 'victory') return false;
   if (b.t < o.safeUntil || o.act.k === 'down') return false;
+  // 守りのドームの中 → 止める
+  if (b.t < o.barrierUntil) {
+    b.events.push({ kind: 'blocked', side: o.side, x, y, z });
+    return false;
+  }
   if (o.act.k === 'dodge' && o.act.t < C.dodge.invincible) {
     b.events.push({ kind: 'evaded', side: o.side });
     return false;
   }
-  const tech = TECHS[id];
-  const dmg = Math.max(1, Math.round(tech.power * (1 + f.stats.power / C.stat.powerDiv) * (C.stat.toughDiv / (C.stat.toughDiv + o.stats.tough)) * (0.9 + b.rng() * 0.2)));
+  const tech = getTech(id);
+  const part = opt.part ?? 1;
+  // テクニックが高いと、クリティカル(1.4倍)が出やすい
+  const crit = b.rng() < Math.min(0.3, f.stats.tech / C.stat.techCritDiv);
+  const dmg = Math.max(1, Math.round((crit ? C.stat.critMul : 1) * tech.power * part * (part < 1 ? C.combo.bonus : 1) * (1 + f.stats.power / C.stat.powerDiv) * (C.stat.toughDiv / (C.stat.toughDiv + o.stats.tough)) * (0.9 + b.rng() * 0.2)));
   o.hp = Math.max(0, o.hp - dmg);
-  o.kvx += Math.cos(dir) * tech.knock * C.hurt.friction * 0.35;
-  o.kvz += Math.sin(dir) * tech.knock * C.hurt.friction * 0.35;
+  const finish = opt.last ?? true;
+  const knock = tech.knock * (finish ? 1 : 0.25);
+  o.kvx += Math.cos(dir) * knock * C.hurt.friction * 0.35;
+  o.kvz += Math.sin(dir) * knock * C.hurt.friction * 0.35;
   o.command = null;
   o.face = angleTo(o, f);
-  const big = tech.launch > 0;
-  b.events.push({ kind: 'hit', side: f.side, target: o.side, tech: id, damage: dmg, x, y, z, big });
+  const big = tech.launch > 0 && finish;
+  b.events.push({ kind: 'hit', side: f.side, target: o.side, tech: id, damage: dmg, x, y, z, big, crit });
   if (o.hp <= 0) {
     o.act = { k: 'ko', t: 0 };
     o.vy = Math.max(o.vy, 6);
@@ -302,11 +425,17 @@ function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y:
     }
     return true;
   }
+  // 追加効果(ふらつき・まひ。ほかは【未実装】)
+  if (finish && tech.effect !== 'なし' && b.rng() < EFFECT_CHANCE[tech.strength] + Math.min(0.25, f.stats.tech / C.stat.techEffectDiv)) {
+    if (tech.effect === 'ふらつき') o.dizzyUntil = b.t + C.status.dizzy;
+    if (tech.effect === 'まひ') o.paraUntil = b.t + C.status.para;
+    b.events.push({ kind: 'status', side: o.side, effect: tech.effect });
+  }
   if (big) {
     o.vy = tech.launch;
     o.y = Math.max(o.y, 0.001);
     o.act = { k: 'air', t: 0 };
-  } else o.act = { k: 'hurt', t: 0, until: C.hurt.stun };
+  } else o.act = { k: 'hurt', t: 0, until: finish ? C.hurt.stun : C.combo.stun };
   return true;
 }
 
@@ -320,6 +449,11 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
     s.x += s.vx * dt;
     s.z += s.vz * dt;
     const tgt = b.f[s.owner === 0 ? 1 : 0];
+    if (b.t < tgt.barrierUntil && dist(s, tgt) < tgt.barrierR + s.r) {
+      s.alive = false;
+      b.events.push({ kind: 'blocked', side: tgt.side, x: s.x, y: s.y, z: s.z });
+      continue;
+    }
     if (dist(s, tgt) < s.r + C.body.radius && Math.abs(tgt.y + 0.7 - s.y) < 1.2) {
       const did = hit(b, b.f[s.owner], tgt, s.tech, s.x, s.y, s.z, Math.atan2(s.vz, s.vx));
       if (did) {
@@ -340,7 +474,7 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
   // ビーム
   for (const beam of b.beams) {
     beam.t += dt;
-    const tech = TECHS[beam.tech];
+    const tech = getTech(beam.tech);
     const owner = b.f[beam.owner];
     beam.x = owner.x;
     beam.z = owner.z;
@@ -367,10 +501,10 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
       }
     }
   }
-  b.beams = b.beams.filter((x) => x.t < TECHS[x.tech].duration);
+  b.beams = b.beams.filter((x) => x.t < getTech(x.tech).duration);
   // 衝撃波(輪が広がる。ジャンプ中ならよけられる)
   for (const q of b.quakes) {
-    const tech = TECHS[q.tech];
+    const tech = getTech(q.tech);
     const prev = q.r;
     q.r += tech.speed * dt;
     const tgt = b.f[q.owner === 0 ? 1 : 0];
@@ -381,7 +515,7 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
       q.hit = true;
     }
   }
-  b.quakes = b.quakes.filter((q) => q.r < TECHS[q.tech].range);
+  b.quakes = b.quakes.filter((q) => q.r < getTech(q.tech).range);
   b.shots = b.shots.filter((s) => s.alive);
 }
 
@@ -402,26 +536,40 @@ function watchDanger(b: AnimeBattle, f: AnimeMon): void {
     if (along > 0 && along / sp < 0.45 && sideOff < s.r + C.body.radius + 0.3) danger = 'side';
   }
   // ビームのため(相手がこちらを向いてためている)
-  if (o.act.k === 'tech' && TECHS[o.act.id].kind === 'beam' && !o.act.fired && o.act.t > TECHS.beam.windup - 0.4) danger = 'side';
-  if (o.act.k === 'tech' && TECHS[o.act.id].kind === 'rush' && o.act.fired && !o.act.hit && dist(f, o) < 3.5) danger = 'side';
+  if (o.act.k === 'tech') {
+    const k = getTech(o.act.id).kind;
+    if (k === 'beam' && !o.act.fired && o.act.t > o.act.windup - 0.4) danger = 'side';
+    if ((k === 'rush' || k === 'spin' || k === 'combo') && o.act.fired && !o.act.hit && dist(f, o) < 3.5) danger = 'side';
+    // 落ちてくる所の中にいる
+    if (k === 'drop' && o.act.fired && !o.act.hit && dist(f, { x: o.act.tx, z: o.act.tz }) < getTech(o.act.id).size + C.body.radius) danger = 'side';
+  }
   for (const q of b.quakes) if (q.owner !== f.side && !q.hit && dist(q, f) - q.r < 1.4 && dist(q, f) - q.r > 0.3) danger = 'jump';
   if (!danger) return;
+  // 守りの技があれば、ドームで止める(習熟度 Defense・防衛本能)
+  const guard = f.techs.find((id) => getTech(id).kind === 'barrier' && (f.cooldown[id] ?? 0) <= b.t);
+  if (guard && b.t >= f.dizzyUntil && danger === 'side' && b.rng() < lerp(C.skill.dodge, lv(f, 'defense')) * (0.4 + f.instinct.defense * 0.8)) {
+    startTech(b, f, guard, false);
+    return;
+  }
   // 1回の危険につき1回だけ判断(よけないと決めたら、少しのあいだ判断しない)
-  if (b.rng() < lerp(C.skill.dodge, lv(f, 'evasion')) * (0.6 + f.instinct.survival * 0.6)) startDodge(b, f, danger === 'jump');
+  if (b.rng() < lerp(C.skill.dodge, lv(f, 'evasion')) * (0.6 + f.instinct.survival * 0.6) + Math.min(0.2, f.stats.speed / C.stat.speedDodgeDiv)) startDodge(b, f, danger === 'jump');
   else f.cooldown.dodge = b.t + 0.5;
 }
 
 function chooseTech(b: AnimeBattle, f: AnimeMon): TechId | null {
   const o = other(b, f);
   const d = dist(f, o);
-  const ready = TECH_IDS.filter((id) => f.cooldown[id] <= b.t);
+  // 装備した技のうち、使えるもの(守りは危ない時だけ)
+  const ready = f.techs.filter((id) => (f.cooldown[id] ?? 0) <= b.t && getTech(id).kind !== 'barrier');
   if (!ready.length) return null;
   const w = ready.map((id) => {
-    const k = TECHS[id].kind;
-    if (k === 'rush') return d < 9 ? 1 + f.instinct.attack : 0.2;
-    if (k === 'quake') return d < 5.5 ? 1.2 + f.instinct.fight : 0.1;
-    if (k === 'beam') return 0.8 + f.instinct.fight;
-    return 1;
+    const t = getTech(id);
+    let x = 1;
+    if (t.kind === 'rush' || t.kind === 'spin' || t.kind === 'combo') x = d < 9 ? 1 + f.instinct.attack : 0.2;
+    else if (t.kind === 'quake') x = d < t.range * 0.9 ? 1.2 + f.instinct.fight : 0.05;
+    else if (t.kind === 'drop') x = d < t.range ? 1 + f.instinct.fight : 0.1;
+    else if (t.kind === 'beam') x = 0.8 + f.instinct.fight;
+    return x * (t.strength === '大技' ? 1.6 : 1);
   });
   let r = b.rng() * w.reduce((s, x) => s + x, 0);
   for (let i = 0; i < ready.length; i++) {
@@ -436,6 +584,12 @@ function think(b: AnimeBattle, f: AnimeMon): void {
   const d = dist(f, o);
   // 自分で技を出す(相手はよく出す。自分の MONZ は指示が中心で、ときどき)【仮】
   const p = f.side === 0 ? C.selfUse.partner : C.selfUse.rival;
+  if (b.t < f.dizzyUntil) {
+    // ふらつき: 技を出せず、ふらふら歩く
+    f.plan = (['circleL', 'circleR', 'retreat', 'hold'] as const)[Math.floor(b.rng() * 4)];
+    f.planT = 0;
+    return;
+  }
   if (b.rng() < p * (0.6 + f.instinct.attack * 0.8) * (o.act.k === 'hurt' || o.act.k === 'down' ? 2 : 1)) {
     const id = chooseTech(b, f);
     if (id) return startTech(b, f, id, false);
@@ -483,7 +637,7 @@ function walk(b: AnimeBattle, f: AnimeMon, dt: number): void {
   const len = Math.hypot(vx, vz);
   // 速さに強弱をつける(いつも同じ速さだと機械みたいなので)
   const sway = 0.75 + 0.35 * Math.sin(b.t * 2.3 + f.side * 1.7) + 0.15 * Math.sin(b.t * 5.1 + f.side);
-  const sp = (C.stat.walkBase + f.stats.speed * C.stat.walkPerSpeed) * sway * (b.t < f.burstUntil ? C.move.burst : 1);
+  const sp = (C.stat.walkBase + f.stats.speed * C.stat.walkPerSpeed) * sway * (b.t < f.paraUntil ? C.status.paraSpeed : 1) * (b.t < f.dizzyUntil ? 0.6 : 1) * (b.t < f.burstUntil ? C.move.burst : 1);
   const wx = len > 0.01 ? (vx / len) * sp : 0;
   const wz = len > 0.01 ? (vz / len) * sp : 0;
   // 勢い: 少しずつ速さを合わせる
@@ -508,7 +662,7 @@ function updateMon(b: AnimeBattle, f: AnimeMon, dt: number): void {
     if (f.y <= 0) {
       f.y = 0;
       f.vy = 0;
-      const hard = a.k === 'air' || a.k === 'ko' || (a.k === 'tech' && TECHS[a.id].kind === 'quake');
+      const hard = a.k === 'air' || a.k === 'ko' || (a.k === 'tech' && (getTech(a.id).kind === 'quake' || getTech(a.id).kind === 'drop'));
       b.events.push({ kind: 'land', side: f.side, hard });
       if (a.k === 'air') f.act = { k: 'down', t: 0, until: C.hurt.down };
     }
@@ -562,15 +716,21 @@ function updateMon(b: AnimeBattle, f: AnimeMon, dt: number): void {
     const k = Math.exp(-dt * C.move.stop);
     f.vx *= k;
     f.vz *= k;
-    if (f.act.k !== 'tech' || TECHS[f.act.id].kind !== 'rush') {
+    const ka = f.act.k === 'tech' ? getTech(f.act.id).kind : null;
+    if (ka === 'drop' && f.y > 0) {
+      // 落下技: 決まった所へ飛んでいく(勢いを落とさない)
+      f.vx /= k;
+      f.vz /= k;
+    }
+    if (ka !== 'rush' && ka !== 'spin' && ka !== 'combo') {
       f.x += f.vx * dt;
       f.z += f.vz * dt;
     }
     f.speed = f.y > 0 ? Math.hypot(f.vx, f.vz) : 0;
     return;
   }
-  // 指示(技の名前)を実行
-  if (f.command) {
+  // 指示(技の名前)を実行。ふらついている間は待つ(待ちすぎると消える)
+  if (f.command && !(b.t < f.dizzyUntil && f.command.cmd !== 'dodge')) {
     const c = f.command.cmd;
     f.command = null;
     if (c === 'dodge') {

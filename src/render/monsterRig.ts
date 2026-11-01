@@ -4,7 +4,7 @@
  * 既存の作品のキャラクターに似せない。向き: 体の前 = +x、上 = +y。
  */
 import * as THREE from 'three';
-import { TECHS } from '../core/battle3d/animeConfig';
+import { getTech } from '../core/battle3d/techTable';
 import type { AnimeMon } from '../core/battle3d/anime';
 
 const OUTLINE = new THREE.MeshBasicMaterial({ color: 0x1a1020, side: THREE.BackSide });
@@ -154,8 +154,8 @@ export class MonsterRig {
     const fwd = f.vx * Math.cos(f.face) + f.vz * Math.sin(f.face);
     const side = -f.vx * Math.sin(f.face) + f.vz * Math.cos(f.face);
     if (a.k === 'tech') {
-      const tech = TECHS[a.id];
-      const w = Math.min(1, a.t / tech.windup);
+      const tech = getTech(a.id);
+      const w = Math.min(1, a.t / a.windup);
       if (!a.fired) {
         // ため: 体をちぢめて、うしろへ引く(ビームは ふるえる)
         sy = 1 - w * 0.22;
@@ -164,7 +164,7 @@ export class MonsterRig {
         arm = w * 1.2;
         if (tech.kind === 'beam') b.position.x = Math.sin(now * 70) * 0.025 * w;
       } else {
-        const k = a.t - tech.windup;
+        const k = a.t - a.windup;
         if (tech.kind === 'shot' || tech.kind === 'beam') {
           // 撃つ: ぐっと前へのびて、反動でうしろへ
           const p = Math.max(0, 1 - k / 0.18);
@@ -178,16 +178,45 @@ export class MonsterRig {
           sy = 0.85;
           legSwing = Math.sin(now * 34) * 1.0;
         } else if (tech.kind === 'quake') {
+          // 踏みつけ: 小さく跳ねて、ドスンとつぶれる
           if (f.y > 0) {
-            rotX = k * 14;
-            direct = true;
-            sy = 1.15;
+            sy = 1.18;
             sx = 0.9;
           } else {
-            sy = 0.65;
-            sx = 1.3;
+            sy = 0.62;
+            sx = 1.32;
           }
           arm = 1.2;
+        } else if (tech.kind === 'drop') {
+          // 落下: 高く跳んで回り、落ちてつぶれる
+          if (f.y > 0) {
+            rotZ = -k * 9;
+            direct = true;
+          } else {
+            sy = 0.6;
+            sx = 1.35;
+          }
+        } else if (tech.kind === 'spin') {
+          // 回転: 丸くなって転がる
+          if (!a.hit) {
+            rotZ = -k * 22;
+            direct = true;
+            sy = 0.85;
+            sx = 0.95;
+          }
+        } else if (tech.kind === 'combo') {
+          // 連続攻撃: 小きざみに跳ねて、何回もぶつかる
+          lift = Math.abs(Math.sin(k * 22)) * 0.35;
+          rotZ = -0.4 + Math.sin(k * 22) * 0.35;
+          sx = 1.1;
+          sy = 0.92;
+          legSwing = Math.sin(k * 30) * 0.9;
+        } else if (tech.kind === 'barrier') {
+          // 守り: 体を丸める
+          sy = 0.82;
+          sx = 1.12;
+          arm = 1.4;
+          rotZ = 0.1;
         }
       }
     } else if (a.k === 'dodge') {
@@ -251,7 +280,7 @@ export class MonsterRig {
     }
     b.rotation.set(rx, rotY, rz);
     b.position.y = this.spring('lift', lift, dt, 400, 18);
-    if (a.k !== 'tech' || TECHS[a.id].kind !== 'beam') b.position.x = 0;
+    if (a.k !== 'tech' || getTech(a.id).kind !== 'beam') b.position.x = 0;
     this.armL.rotation.set(0, 0, arm * 0.9 + Math.sin(now * 9) * 0.05);
     this.armR.rotation.set(0, 0, arm * 0.9 - Math.sin(now * 9) * 0.05);
     this.legL.rotation.set(0, 0, legSwing);

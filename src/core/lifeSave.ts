@@ -14,6 +14,8 @@ import type { CpuLevel } from './mythclash/cpu';
 import { battleReward, TOWER_FLOORS, towerReward } from './mythclash/modes';
 import { addCards, deckOwned, fixCollection, newCollection, openPacks, PACK_PRICE, type MythCollection } from './mythclash/packs';
 import type { Rng } from './rng';
+import { growTechs, hasTechTable, type TechState } from './battle3d/techLearn';
+import { instinctFor } from './autobattle/engine';
 import { addStats, autoGrowthAt, currentStats, FREE_POINTS_PER_LEVEL, levelUpRng, LOVE_RULES, rollAutoGrowth, STAT_KEYS, STAT_MAX, zeroStats, type StatBlock, type StatKey } from './stats';
 
 export const LIFE_KEY = 'monz:life';
@@ -51,6 +53,8 @@ export interface MonzData {
   /** お腹・眠さ・機嫌(画面には数字を出さない) */
   needs: Needs;
   bornAt: number;
+  /** 3Dバトルの技(覚えた技・装備している技。Ver.44 2026-11-01)。古いデータにはないので、読むときにレベルから入れる */
+  techs?: TechState;
 }
 
 /**
@@ -147,6 +151,19 @@ const defaultStore = (): KeyValueStore | null => {
 
 const num = (v: unknown, fallback: number, min = 0) => (Number.isFinite(Number(v)) ? Math.max(min, Number(v)) : fallback);
 
+/**
+ * 技の記録をそろえる(Ver.44)。ない・こわれているときは、今のレベルとステータスから入れる(古いデータもそのまま読める)。
+ * 技の表がまだない種族は undefined(バトルでは前の試作の技を使う)
+ */
+function fixTechs(m: MonzData): TechState | undefined {
+  if (!hasTechTable(m.species)) return undefined;
+  const stats = currentStats(m);
+  const ok = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === 'string');
+  const t = m.techs;
+  if (t && ok(t.learned) && ok(t.equipped) && t.learned.length) return { learned: t.learned, equipped: t.equipped.filter((n) => t.learned.includes(n)) };
+  return growTechs(m.species, m.level, stats, undefined, instinctFor(m.species, stats)).state;
+}
+
 /** 保存されていたデータを、今の形にそろえる(古い版の引き継ぎ・足りない項目の補い・おかしな値の直し)。直せなければ null */
 export function migrateLife(raw: unknown, now = Date.now()): LifeData | null {
   if (!raw || typeof raw !== 'object') return null;
@@ -191,7 +208,8 @@ export function migrateLife(raw: unknown, now = Date.now()): LifeData | null {
         careCount: { ...fresh.careCount, ...m.careCount },
         needs: { ...newNeeds(), ...m.needs },
       };
-    });
+    })
+    .map((m) => ({ ...m, techs: fixTechs(m as MonzData) }));
   if (!monz.length) return null;
   const inv = (d.inventory ?? {}) as Partial<Inventory>;
   return {
@@ -272,7 +290,7 @@ export function saveLife(data: LifeData, store = defaultStore()): boolean {
 
 export type LifeEvent =
   | { type: 'coins'; coins: number; delta: number }
-  | { type: 'levelUp'; level: number; coins: number; gain: StatBlock }
+  | { type: 'levelUp'; level: number; coins: number; gain: StatBlock; learned?: string[] }
   /** 経験値が増えた(お世話画面のゲージをすぐ動かすため。企画者 2026-10-28) */
   | { type: 'exp'; exp: number; level: number };
 
@@ -646,9 +664,11 @@ export class LifeRecord {
     const room = care ? NEEDS_RULES.dailyExpCap - used : Infinity;
     const got = Math.max(0, Math.min(amount, room));
     let { level, exp, statPoints, auto } = m;
+    let techs = m.techs;
     exp += got;
     const ups: number[] = [];
     const gains: StatBlock[] = [];
+    const learnedAt: string[][] = [];
     while (exp >= expToNext(level)) {
       exp -= expToNext(level);
       level++;
@@ -658,12 +678,19 @@ export class LifeRecord {
       gains.push(gain);
       statPoints += FREE_POINTS_PER_LEVEL;
       ups.push(level);
+      // 成長イベント: 技を覚える・装備を見直す(Ver.44)。育て方はこの時のステータスで見る
+      if (hasTechTable(m.species)) {
+        const stats = currentStats({ ...m, auto });
+        const g = growTechs(m.species, level, stats, techs, instinctFor(m.species, stats));
+        techs = g.state;
+        learnedAt.push(g.newly);
+      } else learnedAt.push([]);
     }
-    this.update({}, { level, exp, statPoints, auto, expDay: today, expToday: care ? used + got : used, expPetToday: kind === 'pet' ? usedPet + got : usedPet });
+    this.update({}, { level, exp, statPoints, auto, techs, expDay: today, expToday: care ? used + got : used, expPetToday: kind === 'pet' ? usedPet + got : usedPet });
     if (got > 0) this.emit({ type: 'exp', exp, level });
     for (const [i, lv] of ups.entries()) {
       const coins = levelUpCoins(lv);
-      this.emit({ type: 'levelUp', level: lv, coins, gain: gains[i] });
+      this.emit({ type: 'levelUp', level: lv, coins, gain: gains[i], learned: learnedAt[i] });
       this.add(coins);
     }
   }

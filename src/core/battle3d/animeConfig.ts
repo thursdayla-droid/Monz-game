@@ -14,7 +14,9 @@ export const ANIME = {
   body: { radius: 0.7, minGap: 1.5 },
   timeLimit: 90,
   gravity: 24,
-  stat: { hpBase: 120, perHp: 1, powerDiv: 60, toughDiv: 60, walkBase: 4.2, walkPerSpeed: 0.015, turnRate: 10 },
+  stat: { hpBase: 120, perHp: 1, powerDiv: 100, toughDiv: 100, walkBase: 4.2, walkPerSpeed: 0.015, turnRate: 10,
+    /** 【仮】スピード: ためが短い・よけやすい。テクニック: ねらいが正確・クリティカル(1.4倍)・追加効果が付きやすい(2026-11-01 技の表のバランスのため) */
+    speedWindupDiv: 300, speedWindupMax: 0.25, speedDodgeDiv: 300, techAim: 100, techCritDiv: 200, techEffectDiv: 200, critMul: 1.4 },
   /** AIが考える間隔・移動の方針を続ける時間 */
   thinkEvery: 0.25,
   moveHold: 0.4,
@@ -33,11 +35,20 @@ export const ANIME = {
   /** 演出(5ヒット目は無いので、大技とKOだけ) */
   fx: { ko: { zoom: 1.08, slow: 0.8 } },
   victoryDelay: 1.4,
+  /** 型ごとの動き(2026-11-01 技の表から)【仮】 */
+  quake: { hop: 6 },
+  drop: { jump: 13 },
+  spin: { turn: 2.2 },
+  combo: { reach: 2.0, stun: 0.3, bonus: 1.15 },
+  barrage: { count: 3, gap: 0.15 },
+  /** 追加効果: ふらつき(技を出せず ふらふら)・まひ(遅くなり、ためが長い)【仮】 */
+  status: { dizzy: 1.8, para: 3, paraSpeed: 0.55, paraWindup: 1.4 },
   /** AI習熟度(よけるのがうまくなる) Lv.1 → Lv.5 */
   skill: { dodge: [0.25, 0.8], aim: [0.35, 0.05] },
 };
 
-export type TechKind = 'rush' | 'shot' | 'beam' | 'quake';
+/** 技の種類(表の「型」から決まる。techTable.ts)。2026-11-01 回転・連射・落下・連続攻撃・守り を追加 */
+export type TechKind = 'rush' | 'shot' | 'beam' | 'quake' | 'spin' | 'barrage' | 'drop' | 'combo' | 'barrier';
 export type Element = '炎' | '水' | '自然' | '雷' | '光' | '闇' | '無';
 
 export interface Tech {
@@ -61,7 +72,7 @@ export interface Tech {
 }
 
 /**
- * 【仮】技4つ。名前は企画者のイメージ図(2026-10-23)の「ダッシュアタック」「グラウンドブレイク」と、仮の名前2つ。
+ * 前の試作の技4つ(見本・テスト用)。ゲームの技は企画者の技の表(techTable.ts)から作る。名前は企画者のイメージ図(2026-10-23)の「ダッシュアタック」「グラウンドブレイク」と、仮の名前2つ。
  * 色違いのライバルも同じ技(仮)。
  */
 export const TECHS = {
@@ -71,5 +82,6 @@ export const TECHS = {
   quake: { name: 'グラウンドブレイク', element: '自然', kind: 'quake', power: 16, cooldown: 6, windup: 0.5, recovery: 0.45, speed: 9, range: 6, size: 0.6, duration: 0, launch: 7, knock: 3 },
 } satisfies Record<string, Tech>;
 
-export type TechId = keyof typeof TECHS;
-export const TECH_IDS = Object.keys(TECHS) as TechId[];
+/** 技の id = 技の名前(表の技)。前の試作の4つは dash・fire・beam・quake */
+export type TechId = string;
+export const TECH_IDS = Object.keys(TECHS);

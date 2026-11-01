@@ -6,11 +6,14 @@
  * - カメラ: 自分のMONZのななめ後ろから、相手を見る(アニメ・ゲームのモンスターバトルの見せ方)【仮】
  */
 import * as THREE from 'three';
-import { ANIME, TECHS, type Element, type TechId } from '../core/battle3d/animeConfig';
+import { ANIME, type Element, type TechId } from '../core/battle3d/animeConfig';
 import type { AnimeBattle } from '../core/battle3d/anime';
+import { getTech } from '../core/battle3d/techTable';
 import { MonsterRig } from './monsterRig';
 
 export const ELEMENT_HEX: Record<Element, number> = { 炎: 0xff6a2a, 水: 0x3aa8ff, 自然: 0x6ad04a, 雷: 0xffd23a, 光: 0xfff2a0, 闇: 0xa05aff, 無: 0xe0e0f0 };
+/** 力の光の色(無属性は白だと見えにくいので、あたたかい色) */
+const auraColor = (e: Element) => (e === '無' ? 0xffb04a : ELEMENT_HEX[e]);
 
 interface Burst {
   obj: THREE.Object3D;
@@ -146,6 +149,9 @@ export class AnimeField {
   private beamObjs: THREE.Group[] = [];
   private quakeObjs: THREE.Mesh[] = [];
   private charge: THREE.Sprite[] = [];
+  private domes: THREE.Group[] = [];
+  private stars: THREE.Group[] = [];
+  private markers: { obj: THREE.Group; r: number; until: number }[] = [];
   private camPos = new THREE.Vector3(-12, 5, 6);
   private camLook = new THREE.Vector3();
   private shakeAmp = 0;
@@ -239,6 +245,25 @@ export class AnimeField {
       this.rigs.push(r);
     }
     for (let i = 0; i < 2; i++) {
+      // 守りのドーム(半透明の球と、光る網)
+      const dome = new THREE.Group();
+      dome.add(new THREE.Mesh(new THREE.IcosahedronGeometry(1, 2), new THREE.MeshBasicMaterial({ color: 0xbfe8ff, wireframe: true, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending })));
+      dome.add(new THREE.Mesh(new THREE.SphereGeometry(0.98, 24, 16), new THREE.MeshBasicMaterial({ color: 0x8ad0ff, transparent: true, opacity: 0.22, depthWrite: false })));
+      dome.visible = false;
+      this.scene.add(dome);
+      this.domes.push(dome);
+      // ふらつきの星
+      const st = new THREE.Group();
+      for (let k = 0; k < 3; k++) {
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.star, color: 0xffe040, transparent: true, depthWrite: false }));
+        const a = (k / 3) * Math.PI * 2;
+        sp.position.set(Math.cos(a) * 0.45, 0, Math.sin(a) * 0.45);
+        sp.scale.setScalar(0.35);
+        st.add(sp);
+      }
+      st.visible = false;
+      this.scene.add(st);
+      this.stars.push(st);
       const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.glow, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
       s.visible = false;
       this.scene.add(s);
@@ -264,7 +289,7 @@ export class AnimeField {
 
   /** 爆発(技の色) */
   explode(x: number, y: number, z: number, tech: TechId | null, big: boolean): void {
-    const col = tech ? ELEMENT_HEX[TECHS[tech].element] : 0xffffff;
+    const col = tech ? ELEMENT_HEX[getTech(tech).element] : 0xffffff;
     const s = this.sprite(0xffffff, true, this.star);
     s.position.set(x, y, z);
     this.add(s, big ? 0.35 : 0.22, big ? 4 : 2.5, big ? 1.4 : 0.9);
@@ -320,6 +345,31 @@ export class AnimeField {
     this.shake(0.4);
   }
 
+  /** 落下技: 落ちてくる所に赤い印 */
+  mark(x: number, z: number, r: number, until: number): void {
+    const g = new THREE.Group();
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.88, 1, 40), new THREE.MeshBasicMaterial({ color: 0xff3a3a, transparent: true, opacity: 0.85, depthWrite: false }));
+    const fill = new THREE.Mesh(new THREE.CircleGeometry(1, 40), new THREE.MeshBasicMaterial({ color: 0xff3a3a, transparent: true, opacity: 0.18, depthWrite: false }));
+    for (const m of [ring, fill]) {
+      m.rotation.x = -Math.PI / 2;
+      g.add(m);
+    }
+    g.position.set(x, 0.05, z);
+    this.scene.add(g);
+    this.markers.push({ obj: g, r, until });
+  }
+
+  /** 落下技・大技の着地: 岩・輪・大きなゆれ */
+  impact(x: number, z: number, r: number, big: boolean): void {
+    this.rocks(x, z);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 48), new THREE.MeshBasicMaterial({ color: 0xffe8a0, transparent: true, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.set(x, 0.08, z);
+    this.add(ring, 0.4, 1.2, r);
+    this.explode(x, 0.4, z, null, big);
+    this.shake(big ? 0.6 : 0.4);
+  }
+
   flash(side: number): void {
     this.rigs[side].flash = 0.12;
   }
@@ -335,29 +385,74 @@ export class AnimeField {
       // 技のため: 口に光が集まる
       const ch = this.charge[i];
       const a = f.act;
-      if (a.k === 'tech' && !a.fired && TECHS[a.id].kind !== 'rush') {
-        const tech = TECHS[a.id];
-        const k = Math.min(1, a.t / tech.windup);
-        rig.mouth.getWorldPosition(ch.position);
+      if (a.k === 'tech' && !a.fired) {
+        const tech = getTech(a.id);
+        const k = Math.min(1, a.t / a.windup);
+        // 撃つ技は口に光が集まる。体で行く技は、体に力の光をまとう
+        const mouth = tech.kind === 'shot' || tech.kind === 'barrage' || tech.kind === 'beam';
+        if (mouth) rig.mouth.getWorldPosition(ch.position);
+        else ch.position.set(f.x, f.y + 0.8, f.z);
         ch.visible = true;
-        ch.material.color.setHex(ELEMENT_HEX[tech.element]);
-        ch.scale.setScalar((tech.kind === 'beam' ? 1.6 : 0.9) * k * (1 + Math.sin(performance.now() / 30) * 0.12));
+        ch.material.color.setHex(auraColor(tech.element));
+        ch.scale.setScalar((tech.kind === 'beam' ? 1.6 : mouth ? 0.9 : 2.4) * k * (tech.strength === '大技' ? 1.6 : 1) * (1 + Math.sin(performance.now() / 30) * 0.12));
         // まわりから光の粒が集まる
         if (Math.random() < dt * 30) {
-          const p = this.sprite(ELEMENT_HEX[tech.element]);
+          const p = this.sprite(auraColor(tech.element));
           const ang = Math.random() * Math.PI * 2;
           const r = 1.2;
           p.position.set(ch.position.x + Math.cos(ang) * r, ch.position.y + (Math.random() - 0.5) * r, ch.position.z + Math.sin(ang) * r);
           this.add(p, 0.25, -0.9, 0.25, { vx: -Math.cos(ang) * r * 4, vz: -Math.sin(ang) * r * 4, vy: 0 });
         }
       } else ch.visible = false;
-      // 突進: 体に光と土けむり
-      if (a.k === 'tech' && a.fired && TECHS[a.id].kind === 'rush' && !a.hit && Math.random() < dt * 40) {
-        const p = this.sprite(0xffffff);
-        p.position.set(f.x, 0.8, f.z);
-        this.add(p, 0.25, 0.5, 1.2);
-        this.dust(f.x, f.z, false);
+      // 体で行く技(突進・回転・連続攻撃): 体に光の尾と土けむり
+      if (a.k === 'tech' && a.fired && !a.hit && dt > 0) {
+        const kind = getTech(a.id).kind;
+        const col = auraColor(getTech(a.id).element);
+        if ((kind === 'rush' || kind === 'spin' || kind === 'combo') && Math.random() < dt * 45) {
+          const p = this.sprite(col);
+          p.position.set(f.x, f.y + 0.7, f.z);
+          this.add(p, 0.3, 0.4, kind === 'spin' ? 1.5 : 1.2);
+          if (Math.random() < 0.5) this.dust(f.x, f.z, false);
+        }
+        if (kind === 'drop' && f.y > 0 && Math.random() < dt * 30) {
+          const p = this.sprite(col);
+          p.position.set(f.x, f.y + 0.7, f.z);
+          this.add(p, 0.3, 0.3, 1.4);
+        }
       }
+      // 守りのドーム
+      const dome = this.domes[i];
+      dome.visible = b.t < f.barrierUntil;
+      if (dome.visible) {
+        dome.position.set(f.x, f.y + 0.6, f.z);
+        const left = f.barrierUntil - b.t;
+        dome.scale.setScalar(f.barrierR * (left < 0.2 ? Math.max(0.05, left / 0.2) : 1));
+        (dome.children[0] as THREE.Mesh).rotation.y += dt * 0.8;
+      }
+      // ふらつき(頭の上を星が回る)・まひ(ぴりぴり)
+      const stars = this.stars[i];
+      stars.visible = b.t < f.dizzyUntil && f.act.k !== 'ko';
+      if (stars.visible) {
+        stars.position.set(f.x, f.y + 1.75, f.z);
+        stars.rotation.y += dt * 5;
+      }
+      if (b.t < f.paraUntil && f.act.k !== 'ko' && Math.random() < dt * 14) {
+        const p = this.sprite(0xffe040, true, this.star);
+        p.position.set(f.x + (Math.random() - 0.5) * 1.2, f.y + 0.4 + Math.random() * 1.2, f.z + (Math.random() - 0.5) * 1.2);
+        this.add(p, 0.12, 0.5, 0.35);
+      }
+    });
+    // 落ちてくる所の印
+    this.markers = this.markers.filter((m) => {
+      const live = b.t < m.until + 0.05;
+      m.obj.visible = live;
+      if (!live) {
+        this.scene.remove(m.obj);
+        return false;
+      }
+      const pulse = 1 + Math.sin(performance.now() / 70) * 0.06;
+      m.obj.scale.setScalar(m.r * pulse);
+      return true;
     });
     this.drawShots(b, dt);
     this.drawBeams(b);
@@ -394,7 +489,7 @@ export class AnimeField {
     for (const s of b.shots) {
       alive.add(s.id);
       let g = this.shotObjs.get(s.id);
-      const col = ELEMENT_HEX[TECHS[s.tech].element];
+      const col = ELEMENT_HEX[getTech(s.tech).element];
       if (!g) {
         g = new THREE.Group();
         const outer = this.sprite(col);
@@ -435,7 +530,7 @@ export class AnimeField {
       const beam = b.beams[i];
       g.visible = !!beam;
       if (!beam) return;
-      const tech = TECHS[beam.tech];
+      const tech = getTech(beam.tech);
       const col = ELEMENT_HEX[tech.element];
       const owner = this.rigs[beam.owner];
       const start = new THREE.Vector3();
@@ -470,7 +565,7 @@ export class AnimeField {
       if (!q) return;
       m.position.set(q.x, 0.08, q.z);
       m.scale.setScalar(Math.max(0.1, q.r));
-      (m.material as THREE.MeshBasicMaterial).opacity = 0.9 * (1 - q.r / TECHS[q.tech].range);
+      (m.material as THREE.MeshBasicMaterial).opacity = 0.9 * (1 - q.r / getTech(q.tech).range);
       if (Math.random() < 0.5) this.dust(q.x + Math.cos(Math.random() * 7) * q.r, q.z + Math.sin(Math.random() * 7) * q.r, false);
     });
   }

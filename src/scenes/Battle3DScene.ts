@@ -1,8 +1,13 @@
 import * as Phaser from 'phaser';
+import { getTech } from '../core/battle3d/techTable';
 import { audio } from '../audio/engine';
 import type { StatBlock } from '../core/stats';
 import type { Proficiency } from '../core/battle3d/config';
-import { ANIME, TECHS, TECH_IDS, type TechId } from '../core/battle3d/animeConfig';
+import { ANIME, type TechId } from '../core/battle3d/animeConfig';
+import { growTechs, SLOT_LEVELS, slotsAt } from '../core/battle3d/techLearn';
+import { loadLife } from '../core/lifeSave';
+import { addStats, autoGrowthAt, speciesStats, type StatKey } from '../core/stats';
+import { instinctFor } from '../core/autobattle/engine';
 import { animeFinished, commandState, giveCommand, newAnimeBattle, stepAnime, type AnimeBattle, type AnimeEntrant, type AnimeEvent, type Command } from '../core/battle3d/anime';
 import { AnimeField, ELEMENT_HEX } from '../render/animeField';
 import { UI_FONT } from '../ui/paint';
@@ -10,6 +15,10 @@ import { partnerEntrant, rivalEntrant } from './AutoBattleScene';
 
 /** 【仮】AI習熟度。まだ育てる仕組み・保存がないので、自分も相手も Lv.2 */
 const START_PROFICIENCY: Proficiency = { attack: 2, defense: 2, evasion: 2, counter: 2, spacing: 2 };
+/** 確認用ページだけ: レベルと育て方を切りかえて、技枠と覚える技を見る(ゲーム本体には出さない) */
+let devPick: { level: number; style: StatKey } | null = null;
+const isPreview = () => (window as { __MONZ_START?: string }).__MONZ_START === 'Battle3D';
+const STYLE_LABEL: Record<string, string> = { power: 'パワー', tough: 'タフネス', speed: 'スピード', tech: 'テクニック' };
 const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
 
 const CSS = `
@@ -36,6 +45,13 @@ const CSS = `
 .b3d .cmds button:active{transform:translateY(3px);box-shadow:0 1px 0 #16101c}
 .b3d .cmds button.queued{outline:3px solid #ffd23a;animation:b3p .35s infinite alternate}
 .b3d .cmds button.cool{filter:grayscale(.8) brightness(.8)}
+.b3d .cmds button.lock,.b3d .cmds button.empty{background:#3a3040;color:#bfb4c8;box-shadow:0 4px 0 #16101c}
+.b3d .dev{position:absolute;left:calc(env(safe-area-inset-left) + 10px);top:calc(env(safe-area-inset-top) + 66px);font-size:12px;font-weight:900}
+.b3d .dev button{font:900 12px ${UI_FONT};border:2px solid #16101c;border-radius:8px;background:#fff;color:#16101c;padding:3px 7px;margin:2px}
+.b3d .dev button.on{background:#ffd23a}
+.b3d .devPanel{display:none;background:#16101ce8;border-radius:10px;padding:6px 8px;margin-top:4px;max-width:360px}
+.b3d .dev.open .devPanel{display:block}
+.b3d .devPanel small{display:block;color:#ffd23a;margin-top:4px;font-size:11px}
 .b3d .cmds .mid{display:flex;justify-content:center}
 .b3d .cmds .dodge{width:min(96px,100%);height:46px;background:#16101c;color:#fff;border-color:#fff}
 @keyframes b3p{to{outline-color:#fff}}
@@ -75,6 +91,8 @@ export class Battle3DScene extends Phaser.Scene {
   private zoomT = 0;
   private hitStop = 0;
   private ended = false;
+  /** 自分の MONZ のレベル(技枠の数) */
+  private level = 1;
   private started = false;
   private onResize = () => this.resize();
 
@@ -88,9 +106,22 @@ export class Battle3DScene extends Phaser.Scene {
     this.slowT = this.zoomT = this.hitStop = 0;
     const seed = (Date.now() ^ (Math.random() * 1e9)) >>> 0;
     const partner = partnerEntrant();
-    const me: AnimeEntrant = { ...partner.entrant, proficiency: { ...START_PROFICIENCY } };
-    const rival = rivalEntrant(partner.level, seed);
-    const foe: AnimeEntrant = { ...rival, stats: rival.stats as StatBlock, proficiency: { ...START_PROFICIENCY } };
+    let level = partner.level;
+    let me: AnimeEntrant = { ...partner.entrant, proficiency: { ...START_PROFICIENCY } };
+    // 装備している技(Ver.44)。保存データの技(レベルアップで覚えた技)を使う
+    const life = loadLife();
+    const mon = life.monz.find((m) => m.uid === life.activeMonz) ?? life.monz[0];
+    me.techs = mon.techs?.equipped ?? growTechs(me.species, level, me.stats, undefined, me.instinct).state.equipped;
+    if (devPick && isPreview()) {
+      // 確認用: 選んだレベル・育て方の BUNK(自由ポイントを全部その能力に)
+      level = devPick.level;
+      const stats = addStats(addStats(speciesStats('bunk').base, autoGrowthAt('bunk', 'dev', level)), { hp: 0, power: 0, tough: 0, speed: 0, tech: 0, [devPick.style]: level - 1 } as StatBlock);
+      const inst = instinctFor('bunk', stats);
+      me = { ...me, stats, instinct: inst, techs: growTechs('bunk', level, stats, undefined, inst).state.equipped };
+    }
+    this.level = level;
+    const rival = rivalEntrant(level, seed);
+    const foe: AnimeEntrant = { ...rival, stats: rival.stats as StatBlock, proficiency: { ...START_PROFICIENCY }, techs: growTechs(rival.species, level, rival.stats as StatBlock, undefined, rival.instinct).state.equipped };
     this.battle = newAnimeBattle(me, foe, seed);
     this.buildDom();
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.cleanup());
@@ -108,14 +139,23 @@ export class Battle3DScene extends Phaser.Scene {
     const [p, q] = this.battle.f;
     const card = (f: typeof p, cls: string) => `<div class="card ${cls}"><div class="name"><span>${esc(f.name)}</span><small>${f === p ? 'あなた' : 'あいて'}</small></div><div class="bar"><i style="width:100%"></i></div><div class="num">${f.hp}/${f.maxHp}</div></div>`;
     const techBtn = (id: TechId) => {
-      const t = TECHS[id];
+      const t = getTech(id);
       return `<button data-c="${id}"><span class="el" style="background:${hex(ELEMENT_HEX[t.element])};${t.element === '無' ? 'color:#16101c' : ''}">${t.element}</span><span class="lb">${t.name}</span><span class="cd" style="height:0"></span></button>`;
+    };
+    // 技のボタン枠は4つ(Ver.44)。まだ開いていない枠は鍵(【調整案】Lv.10・Lv.20)
+    const slots = slotsAt(this.level);
+    const slot = (i: number) => {
+      const id = p.techs[i];
+      if (id && i < slots) return techBtn(id);
+      if (i < slots) return `<button class="empty" disabled><span class="lb">―</span></button>`;
+      return `<button class="lock" disabled><span class="lb">🔒 Lv.${SLOT_LEVELS[i]}</span></button>`;
     };
     root.insertAdjacentHTML(
       'beforeend',
       `<div class="top"><button class="back">◀</button>${card(p, '')}<div class="timer">90</div>${card(q, 'r')}</div>
        <div class="call"></div><div class="pop"></div><div class="big"></div>
-       <div class="cmds">${techBtn(TECH_IDS[0])}${techBtn(TECH_IDS[1])}<div class="mid"><button class="dodge" data-c="dodge"><span class="lb">よけろ！</span><span class="cd" style="height:0"></span></button></div>${techBtn(TECH_IDS[2])}${techBtn(TECH_IDS[3])}</div>
+       <div class="cmds">${slot(0)}${slot(1)}<div class="mid"><button class="dodge" data-c="dodge"><span class="lb">よけろ！</span><span class="cd" style="height:0"></span></button></div>${slot(2)}${slot(3)}</div>
+       ${isPreview() ? `<div class="dev"><button class="devOpen">確認用</button><div class="devPanel"><div>レベル ${[1, 10, 20, 25, 30, 60].map((l) => `<button data-lv="${l}" class="${devPick?.level === l ? 'on' : ''}">${l}</button>`).join('')}</div><div>育て方 ${Object.keys(STYLE_LABEL).map((k) => `<button data-st="${k}" class="${devPick?.style === k ? 'on' : ''}">${STYLE_LABEL[k]}</button>`).join('')}</div><small>今の技: ${p.techs.map(esc).join('・')}</small></div></div>` : ''}
        <div class="result"><h1></h1><button class="again">もう一度</button><button class="leave">もどる</button></div>
        <div class="turn"><div>スマホを 横にしてね<small>横にすると バトルが始まります</small></div></div>`,
     );
@@ -124,7 +164,7 @@ export class Battle3DScene extends Phaser.Scene {
     const $ = (s: string) => root.querySelector(s) as HTMLElement;
     const all = (s: string) => [...root.querySelectorAll(s)] as HTMLElement[];
     const btn = {} as Battle3DScene['ui']['btn'];
-    for (const el of all('.cmds button') as HTMLButtonElement[]) {
+    for (const el of all('.cmds button[data-c]') as HTMLButtonElement[]) {
       const c = el.dataset.c as Command;
       btn[c] = { el, cd: el.querySelector('.cd') as HTMLElement };
       el.addEventListener('pointerdown', (ev) => {
@@ -147,6 +187,17 @@ export class Battle3DScene extends Phaser.Scene {
       turn: $('.turn'),
     };
     $('.back').addEventListener('click', () => this.leave());
+    // 確認用: レベル・育て方を切りかえて、やり直す
+    if (isPreview()) {
+      $('.devOpen').addEventListener('click', () => $('.dev').classList.toggle('open'));
+      for (const el of all('.devPanel button')) {
+        el.addEventListener('click', () => {
+          devPick = { level: Number(el.dataset.lv ?? devPick?.level ?? 1), style: (el.dataset.st ?? devPick?.style ?? 'power') as StatKey };
+          audio.se('tap');
+          this.scene.restart();
+        });
+      }
+    }
     $('.leave').addEventListener('click', () => this.leave());
     $('.again').addEventListener('click', () => {
       audio.se('tap');
@@ -203,7 +254,7 @@ export class Battle3DScene extends Phaser.Scene {
     switch (e.kind) {
       case 'call': {
         // 技の名前をさけぶ(アニメ風)。自分の指示 → 「BUNK、○○だ！」
-        const t = TECHS[e.tech];
+        const t = getTech(e.tech);
         const f = b.f[e.side];
         const text = e.side === 0 ? (e.byCommand ? `${f.name}、${t.name}だ！` : `${f.name}の ${t.name}！`) : `あいての ${t.name}！`;
         this.call(text, hex(ELEMENT_HEX[t.element]), e.side === 0 ? '#3a9cff' : '#ff4a4a');
@@ -211,13 +262,20 @@ export class Battle3DScene extends Phaser.Scene {
         break;
       }
       case 'fire': {
-        const k = TECHS[e.tech].kind;
+        const k = getTech(e.tech).kind;
         if (k === 'beam') {
           audio.se('mcMagic');
           F.shake(0.25);
-        } else if (k === 'shot') audio.se('mcSlash', { pitch: 1.2 });
-        else if (k === 'rush') audio.se('whoosh', { pitch: 0.8 });
+        } else if (k === 'shot' || k === 'barrage') audio.se('mcSlash', { pitch: 1.2 });
+        else if (k === 'rush' || k === 'spin' || k === 'combo') audio.se('whoosh', { pitch: 0.8 });
+        else if (k === 'barrier') audio.se('mcMagic', { pitch: 1.3 });
         else audio.se('hop', { pitch: 0.8 });
+        // 大技は、技の名前を大きく出して、カメラが少し寄る
+        if (getTech(e.tech).strength === '大技') {
+          this.big(getTech(e.tech).name);
+          this.zoomT = 0.6;
+          F.shake(0.3);
+        }
         break;
       }
       case 'hit':
@@ -225,7 +283,7 @@ export class Battle3DScene extends Phaser.Scene {
         audio.se(e.big ? 'punchHeavy' : 'punch', { pitch: 0.9 + Math.random() * 0.2 });
         this.hitStop = Math.max(this.hitStop, e.big ? 0.1 : 0.05);
         if (!e.big) F.explode(e.x, e.y, e.z, e.tech, false);
-        this.pop(`-${e.damage}`, e.target === 0 ? '#ff8a8a' : '#ffd23a');
+        this.pop(e.crit ? `クリティカル！ -${e.damage}` : `-${e.damage}`, e.target === 0 ? '#ff8a8a' : '#ffd23a');
         break;
       case 'explode':
         F.explode(e.x, e.y, e.z, e.tech, e.big);
@@ -239,6 +297,21 @@ export class Battle3DScene extends Phaser.Scene {
       case 'quake':
         F.rocks(e.x, e.z);
         audio.se('slam');
+        break;
+      case 'mark':
+        F.mark(e.x, e.z, e.r, e.until);
+        break;
+      case 'impact':
+        F.impact(e.x, e.z, e.r, getTech(e.tech).strength === '大技');
+        audio.se('slam');
+        break;
+      case 'blocked':
+        F.explode(e.x, e.y, e.z, null, false);
+        audio.se('guard');
+        this.pop('ふせいだ！', e.side === 0 ? '#7ad0ff' : '#ffb070');
+        break;
+      case 'status':
+        this.pop(e.effect === 'ふらつき' ? 'ふらふら！' : e.effect === 'まひ' ? 'しびれた！' : e.effect, '#ffe040');
         break;
       case 'dodge':
         audio.se('whoosh', { pitch: 1.5 });
@@ -328,12 +401,13 @@ export class Battle3DScene extends Phaser.Scene {
     });
     this.ui.timer.textContent = String(Math.max(0, Math.ceil(ANIME.timeLimit - b.t)));
     const me = b.f[0];
-    for (const c of [...TECH_IDS, 'dodge'] as Command[]) {
+    for (const c of [...me.techs, 'dodge'] as Command[]) {
       const s = commandState(b, 0, c);
       const btn = this.ui.btn[c];
+      if (!btn) continue;
       btn.el.classList.toggle('queued', s === 'queued');
       btn.el.classList.toggle('cool', s === 'cooldown');
-      const total = c === 'dodge' ? ANIME.dodge.cooldown : TECHS[c].cooldown;
+      const total = c === 'dodge' ? ANIME.dodge.cooldown : getTech(c).cooldown;
       btn.cd.style.height = `${s === 'cooldown' ? (Math.max(0, me.cooldown[c] - b.t) / total) * 100 : 0}%`;
     }
   }

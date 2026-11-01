@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { instinctFor } from '../src/core/autobattle/engine';
 import { ANIME, TECHS } from '../src/core/battle3d/animeConfig';
+import { getTech } from '../src/core/battle3d/techTable';
 import { animeFinished, commandState, giveCommand, newAnimeBattle, stepAnime, type AnimeBattle, type AnimeEntrant, type AnimeEvent } from '../src/core/battle3d/anime';
 import type { StatBlock } from '../src/core/stats';
 
@@ -62,7 +63,7 @@ describe('3D battle (anime monster battle style)', () => {
       const b = newAnimeBattle(ent(), ent(), s);
       let k = 0;
       run(b, 120, (e) => {
-        if (e.kind === 'hit') kinds.add(TECHS[e.tech].kind);
+        if (e.kind === 'hit') kinds.add(getTech(e.tech).kind);
         if (e.kind === 'clash') kinds.add('clash');
         if (e.kind === 'evaded') kinds.add('evaded');
         if (k++ % 200 === 0) giveCommand(b, 0, (['fire', 'beam', 'quake', 'dash'] as const)[(k / 200) % 4 | 0]);

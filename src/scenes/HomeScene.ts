@@ -365,7 +365,7 @@ export class HomeScene extends Phaser.Scene {
       drawBar();
       lv.setText(`Lv. ${record.level}`);
       if (e.type === 'levelUp') {
-        this.levelUp(e.level, e.gain);
+        this.levelUp(e.level, e.gain, e.learned);
         return;
       }
       // 経験値が増えただけのとき: ゲージは上で描き直した(なでる・ごはんと同時に動く。企画者 2026-10-28)
@@ -483,13 +483,15 @@ export class HomeScene extends Phaser.Scene {
   }
 
   /** レベルアップの演出 */
-  private levelUp(level: number, gain: StatBlock): void {
+  private levelUp(level: number, gain: StatBlock, learned: string[] = []): void {
     audio.se('sting');
     const gains = STAT_KEYS.filter((k) => gain[k] > 0)
       .map((k) => `${STAT_LABELS[k]} +${gain[k]}`)
       .join('  ');
     const t = this.text(W / 2, 470, `LEVEL UP!\nLv. ${level}`, 64, '#ffd23a').setDepth(DEPTH.popup).setScale(0.3);
-    const sub = this.text(W / 2, 590, `${gains}\nポイント +1`, 24, '#ffffff').setDepth(DEPTH.popup).setAlpha(0);
+    // 3Dバトルの技を覚えたとき(Ver.44 2026-11-01)
+    const techs = learned.map((n) => `\n「${n}」を おぼえた！`).join('');
+    const sub = this.text(W / 2, 590, `${gains}\nポイント +1${techs}`, 24, '#ffffff').setDepth(DEPTH.popup).setAlpha(0);
     this.tweens.add({ targets: sub, alpha: 1, delay: 300, duration: 300 });
     this.tweens.add({ targets: sub, alpha: 0, delay: 2600, duration: 500, onComplete: () => sub.destroy() });
     this.tweens.add({ targets: t, scale: 1, duration: 420, ease: 'Back.easeOut' });
