@@ -4,6 +4,8 @@
  * 既存の作品のキャラクターに似せない。向き: 体の前 = +x、上 = +y。
  */
 import * as THREE from 'three';
+import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { BunkBones } from './bunkBones';
 import { getTech } from '../core/battle3d/techTable';
 import type { AnimeMon } from '../core/battle3d/anime';
 
@@ -38,6 +40,8 @@ export class MonsterRig {
   readonly mats: (THREE.MeshToonMaterial | THREE.MeshStandardMaterial)[] = [];
   /** 企画者の3Dモデルを使っている(仮のモンスターの形はかくす) */
   private model: THREE.Object3D | null = null;
+  /** 骨で動かす(骨入りのモデルのとき) */
+  private bones: BunkBones | null = null;
   /** 技を撃つ口の場所(光をためる所) */
   readonly mouth = new THREE.Object3D();
   private armL: THREE.Group;
@@ -145,10 +149,11 @@ export class MonsterRig {
   /**
    * 企画者の3Dモデル(BUNK。Tripo・2026-11-01)に差しかえる。仮のモンスターの形はかくす。
    * hue: 色違い(色相を回す角度・ラジアン)。0 = そのまま。
-   * 【仮】骨がないので、手足は別々に動かない(体全体を跳ねさせる・つぶす・かたむける)
+   * 骨入りのモデル(2026-11-01)は、待機・移動を骨で動かす(bunkBones.ts)。骨がないモデルは体全体だけで動かす
    */
   useModel(src: THREE.Object3D, height: number, hue = 0): void {
-    const model = src.clone(true);
+    // 骨入りのモデルは、骨ごと写す(ふつうの写し方だと骨とのつながりが切れる)
+    const model = SkeletonUtils.clone(src);
     const box = new THREE.Box3().setFromObject(model);
     const size = box.getSize(new THREE.Vector3());
     const k = height / Math.max(0.001, size.y);
@@ -160,6 +165,8 @@ export class MonsterRig {
       const m = o as THREE.Mesh;
       if (!m.isMesh) return;
       m.castShadow = true;
+      // 骨で動くと、元の大きさの箱からはみ出すことがあるので、画面の外の判定で消さない
+      if ((m as THREE.SkinnedMesh).isSkinnedMesh) m.frustumCulled = false;
       const mat = (m.material as THREE.MeshStandardMaterial).clone();
       mat.metalness = Math.min(mat.metalness, 0.2);
       if (hue) shiftHue(mat, hue);
@@ -168,6 +175,8 @@ export class MonsterRig {
     });
     this.body.add(model);
     this.model = model;
+    const bones = new BunkBones(model);
+    this.bones = bones.ok ? bones : null;
     // 口(技を撃つ所)を、モデルの顔の前に
     this.mouth.position.set(size.x * k * 0.55, height * 0.42, 0);
   }
@@ -323,6 +332,17 @@ export class MonsterRig {
         sx = 0.92;
         legSwing = 0.6;
       }
+    }
+    // 骨で動かす(待機・移動だけ。ほかの動きは骨を休ませ、体全体で動かす)
+    if (this.bones) {
+      const mode = a.k === 'free' && f.y <= 0 ? (f.speed > 0.3 ? 'move' : 'idle') : 'other';
+      this.bones.update(mode, this.hop, f.speed, now, dt, f.side * 1.3);
+    }
+    // 企画者のモデルは、形をゆがめないことを最優先(つぶす・のばすを小さくする)
+    if (this.model) {
+      const q = this.bones ? 0.3 : 0.6;
+      sx = 1 + (sx - 1) * q;
+      sy = 1 + (sy - 1) * q;
     }
     // ばねで動かす(ぷるんと生き物らしく)。回転が大きい時はそのまま
     b.scale.set(this.spring('sx', sx, dt), this.spring('sy', sy, dt), this.spr.sx[0]);
