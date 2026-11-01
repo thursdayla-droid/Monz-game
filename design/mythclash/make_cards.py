@@ -55,11 +55,22 @@ PATCHES = {
     42: [(46, 806, 1120, 896, 1183)],
     # No.054 も雷のマークが羽の形 → 同じように No.046 の稲妻を写す(企画者が No.042 で決めた直し方 2026-10-30)
     54: [(46, 806, 1120, 896, 1183)],
+    # No.041: 自然のマークが羽のような形 → 同じ形のわくの No.052 の葉っぱを写す(企画者「マークは修正して」2026-11-01)
+    41: [(52, 806, 1120, 896, 1183)],
     # No.091: 水のマークが青い炎の形だった → No.060 のしずくのしるしを、No.091 のしるしの所に写す(2026-10-31)
     91: [(60, 820, 1116, 876, 1172, 825, 1112)],
     # No.098: 雷のマークが羽のような形 → 同じ灰色のわくの No.062 の雷のしるし(わくごと)を写す(2026-11-01)
     98: [(62, 783, 1106, 1000, 1190, 778, 1099)],
 }
+
+# カードの属性(わくの色をそろえるため。ゲームのカード表 cardData.ts から読む)
+import re
+import sys
+sys.path.insert(0, HERE)
+import frame_color
+_DATA = open(os.path.join(ROOT, 'src/core/mythclash/cardData.ts'), encoding='utf-8').read()
+ELEMENT = {int(m.group(1)): m.group(2) for m in re.finditer(r'"no": (\d+), .*?"rarity": "(?:N|R|SR|UR|SEC)", "element": "([^"]+)"', _DATA)}
+RARITY = {int(m.group(1)): m.group(2) for m in re.finditer(r'"no": (\d+), .*?"rarity": "([A-Z]+)"', _DATA)}
 
 os.makedirs(OUT, exist_ok=True)
 for path in sorted(glob.glob(os.path.join(SRC, '*.png'))):
@@ -81,5 +92,8 @@ for path in sorted(glob.glob(os.path.join(SRC, '*.png'))):
         d.text((tx + 3, ty + 4), text, font=font, fill=(0, 0, 0), anchor=anchor, stroke_width=weight + 1, stroke_fill=(0, 0, 0))
         d.text((tx, ty), text, font=font, fill=(250, 248, 240), anchor=anchor, stroke_width=weight, stroke_fill=(250, 248, 240))
         img = np.array(im)
+    # N・R のわくの色を、カードの属性の色にそろえる(企画者 2026-11-01)
+    if RARITY.get(no) in ('N', 'R') and no in ELEMENT:
+        img = frame_color.recolor(img, ELEMENT[no])
     Image.fromarray(img).resize(SIZE, Image.LANCZOS).save(os.path.join(OUT, f'{no:03d}.webp'), 'WEBP', quality=84, method=6)
     print(no)
