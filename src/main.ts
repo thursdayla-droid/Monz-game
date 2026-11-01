@@ -15,6 +15,7 @@ import { BattleMenuScene } from './scenes/BattleMenuScene';
 import { MythPackScene } from './scenes/MythPackScene';
 import { BinderScene } from './scenes/BinderScene';
 import { MythBattleScene } from './scenes/MythBattleScene';
+import { MythGuideScene } from './scenes/MythGuideScene';
 import { MythDeckScene } from './scenes/MythDeckScene';
 import { MythModeScene } from './scenes/MythModeScene';
 import { MythTowerScene } from './scenes/MythTowerScene';
@@ -41,7 +42,7 @@ const game = new Phaser.Game({
   },
   // 1回の描画で使うテクスチャを1枚に限定する。複数枚にすると一部の環境でパーツが欠けて描かれたため。
   render: { antialias: true, maxTextures: 1 },
-  scene: [BootScene, SplashScene, TitleScene, QuestionScene, BirthScene, RoomSelectScene, HomeScene, ShopScene, MinigameSelectScene, CardTitleScene, CardPlayScene, DashScene, SluggerScene, BattleMenuScene, AutoBattleScene, BattleScene, MythTitleScene, MythPackScene, BinderScene, MythBattleScene, MythDeckScene, MythModeScene, MythTowerScene, MythFloorScene, CompareScene, BunkPartsScene],
+  scene: [BootScene, SplashScene, TitleScene, QuestionScene, BirthScene, RoomSelectScene, HomeScene, ShopScene, MinigameSelectScene, CardTitleScene, CardPlayScene, DashScene, SluggerScene, BattleMenuScene, AutoBattleScene, BattleScene, MythTitleScene, MythPackScene, BinderScene, MythBattleScene, MythDeckScene, MythModeScene, MythTowerScene, MythFloorScene, MythGuideScene, CompareScene, BunkPartsScene],
 });
 
 // 開発中だけ、確認用にゲームを外から触れるようにする

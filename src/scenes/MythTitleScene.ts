@@ -6,6 +6,7 @@ import { LifeRecord, loadLife } from '../core/lifeSave';
 import { mythPreviewOnly } from '../assetUrl';
 import { CARD_ART_IDS } from '../ui/mythCardArt';
 import { MYTH_PACK_IMAGE, openPackBuy } from '../ui/packBuy';
+import { openMythSettings } from '../ui/mythSettings';
 import { fillSize, watchViewport } from '../ui/viewport';
 
 /**
@@ -83,6 +84,8 @@ export class MythTitleScene extends Phaser.Scene {
         // バトルを始める → モードえらび(ストーリー・バトル。企画者 2026-10-27)→ デッキ編成 → バトル。チーム編成 → 同じ画面でデッキを組んで覚える
         else if (id === 'battle') this.go('MythMode');
         else if (id === 'team') this.go('MythDeck', { mode: 'edit' });
+        // ゲームガイド(企画者 2026-11-01)
+        else if (id === 'guide') this.go('MythGuide');
         else this.toast(`${LABELS[id]}は準備中です`);
       });
     }
@@ -93,6 +96,15 @@ export class MythTitleScene extends Phaser.Scene {
     back.on('pointerdown', () => {
       audio.se('back');
       this.go('BattleMenu');
+    });
+    // 設定(企画者 2026-11-01)。絵にないので、右上の空いている所に出す。お知らせ・ランキングは作らない(企画者)
+    const settings = this.add
+      .text(this.W - 28, 28, '⚙ 設定', { fontFamily: UI_FONT, fontSize: '40px', fontStyle: '900', color: '#ffffff', backgroundColor: '#16101ccc', padding: { x: 22, y: 12 } })
+      .setOrigin(1, 0)
+      .setInteractive({ useHandCursor: true });
+    settings.on('pointerdown', () => {
+      audio.se('tap');
+      openMythSettings(this);
     });
     // MYTHCLASH だけの確認用ページ(2026-10-29): ほかの画面は入っていないので、もどるは出さない。かわりに確認用のボタン
     if (mythPreviewOnly()) {

@@ -17,6 +17,7 @@ import { aiAction, randomDeck } from '../core/mythclash/sim';
 import { eventsFor, viewFor, type BattleView } from '../core/mythclash/view';
 import { describeAbility, describeMagicEffect, abilityLines } from '../core/mythclash/describe';
 import { ELEMENT_COLORS, queueCardArt, useCardArt } from '../ui/mythCardArt';
+import { battleSpeed } from '../ui/mythSettings';
 import { mulberry32, newSeed, type Rng } from '../core/rng';
 import { preloadPacks } from '../render/packs';
 import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W } from '../ui/mythCardArt';
@@ -160,6 +161,10 @@ export class MythBattleScene extends Phaser.Scene {
   create(): void {
     // 企画者のカードの絵を使えるようにする(2026-10-27)
     useCardArt(this);
+    // 設定のバトルの速さ(企画者 2026-11-01)。演出・待ち時間をまとめて速くする(1ターン30秒の残り時間は そのまま)
+    const sp = battleSpeed();
+    this.time.timeScale = sp;
+    this.tweens.timeScale = sp;
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(PORTRAIT.w, PORTRAIT.h));
     watchViewport(this, () => this.onViewport());
     audio.preloadSe(['mcSlash', 'mcSpecial', 'mcGuardOk', 'mcPoison', 'mcHeal', 'mcThunder', 'mcNature', 'mcFire', 'mcLight', 'mcDark', 'mcDrain', 'mcMagicGuardOk', 'mcBuff', 'mcWater', 'mcCounter', 'mcCutin', 'mcBurn', 'mcMagic', 'mcSelect']);
@@ -489,7 +494,8 @@ export class MythBattleScene extends Phaser.Scene {
     this.timeLeft = TURN_SECONDS;
     this.showTimer();
     this.timerEvent = this.time.addEvent({
-      delay: 1000,
+      // バトルの速さを上げても、考える時間(1秒)は本当の1秒のまま
+      delay: 1000 * this.time.timeScale,
       repeat: TURN_SECONDS - 1,
       callback: () => {
         this.timeLeft--;
