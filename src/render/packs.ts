@@ -14,6 +14,7 @@ import { SELECT_CARD_ART, SELECT_IMAGE } from '../scenes/MinigameSelectScene';
 import { CARD_IMAGES } from '../ui/cardArt';
 import { SLUG_BATTER_ART, slugBatterKey, SLUG_PITCHER_ART, slugPitcherKey, SLUGGER_BG_FILE, SLUGGER_BG_KEY, SLUGGER_LOGO_FILE, SLUGGER_LOGO_KEY } from '../scenes/SluggerScene';
 import { DASH_BG_FILE, DASH_BG_KEY, DASH_LOGO_FILE, DASH_LOGO_KEY, DASH_JUMP_FILE, DASH_JUMP_KEY, DASH_RUN_FILE, DASH_RUN_KEY, DASH_PLAT_FILE, DASH_PLAT_KEY, DASH_SPIKE_FILE, DASH_SPIKE_KEY } from '../scenes/DashScene';
+import { BATTLE_MENU_FILE, BATTLE_MENU_IMAGE } from '../scenes/BattleMenuScene';
 import { loadBunk } from './bunkView';
 import { HOME_PLACES } from '../core/home';
 
@@ -31,8 +32,9 @@ import { HOME_PLACES } from '../core/home';
  * - dash: DASH MONZ(背景・足場・トゲ・走るモンズ・ロゴ)
  * - slugger: MONZ SLUGGER(球場の背景・バッター5ポーズ・ピッチャー3ポーズ・ロゴ)
  * - mythclash: MYTHCLASH(タイトルの絵・パックの絵・タワーの絵)
+ * - battlemenu: バトルセレクト画面の絵(企画者 2026-11-01)
  */
-export type PackName = 'title' | 'bunk' | 'birth' | 'home' | 'rooms' | 'compare' | 'minigame' | 'card' | 'dash' | 'slugger' | 'mythclash';
+export type PackName = 'title' | 'bunk' | 'birth' | 'home' | 'rooms' | 'compare' | 'minigame' | 'card' | 'dash' | 'slugger' | 'mythclash' | 'battlemenu';
 
 interface PackFile {
   key: string;
@@ -55,6 +57,8 @@ function packFiles(name: Exclude<PackName, 'bunk'>): PackFile[] {
         { key: MYTH_FLOOR_ORB, url: MYTH_FLOOR_ORB_FILE },
         ...OPPONENT_ART.map((id) => ({ key: opponentArtKey(id), url: opponentArtFile(id) })),
       ];
+    case 'battlemenu':
+      return [{ key: BATTLE_MENU_IMAGE, url: BATTLE_MENU_FILE }];
     case 'title':
       return [{ key: TITLE_IMAGE, url: TITLE_FILE }];
     case 'birth':

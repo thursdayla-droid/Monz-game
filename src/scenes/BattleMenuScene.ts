@@ -11,6 +11,16 @@ const W = 720;
 const H = 1280;
 const CARD = { w: 640, h: 400 };
 
+/** 企画者のバトルセレクト画面の絵(2026-11-01。design/battle_menu/battle_menu.png・941x1672)。文字・看板は絵に入っている */
+export const BATTLE_MENU_IMAGE = 'battlemenu:bg';
+export const BATTLE_MENU_FILE = 'assets/home/battle_menu.webp';
+const ART = { w: 941, h: 1672 };
+/** 押せる看板(絵の座標 [x0, y0, x1, y1]) */
+const ART_ZONES: Record<(typeof ENTRIES)[number]['id'], readonly [number, number, number, number]> = {
+  action: [38, 418, 915, 868],
+  mythclash: [40, 903, 915, 1398],
+};
+
 /** 看板2枚: 操作するバトル と MYTHCLASH。pic: 看板に使う絵とその切り抜き範囲(元の絵の座標) */
 const ENTRIES = [
   // 企画者の指示書(2026-10-30): 旧アクションバトル(Battle)は使わない。MONZが自分で戦うオートバトルに置きかえ。旧バトルのコードは残してある
@@ -20,7 +30,7 @@ const ENTRIES = [
 
 /**
  * バトルメニュー(お世話画面の「バトル」から開く)。アクションバトルと MYTHCLASH を選ぶ(企画者決定 2026-10-26)。
- * 【仮】画面の絵は企画者の絵が届くまでのプログラムで描いたもの。アクションバトルの名前も【仮】
+ * 画面は企画者の絵(2026-11-01)。絵が読めなかったときだけ、前のプログラムで描いた看板を出す
  */
 export class BattleMenuScene extends Phaser.Scene {
   private leaving = false;
@@ -30,21 +40,45 @@ export class BattleMenuScene extends Phaser.Scene {
   }
 
   preload(): void {
-    preloadPacks(this, ['dash', 'mythclash']);
+    preloadPacks(this, ['battlemenu', 'dash', 'mythclash']);
   }
 
   create(): void {
     this.leaving = false;
+    if (this.textures.exists(BATTLE_MENU_IMAGE)) this.createArt();
+    else this.createDrawn();
+    const back = this.add
+      .text(24, 28, '◀ もどる', { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '900', color: '#ffffff', backgroundColor: '#16101ccc', padding: { x: 16, y: 8 } })
+      .setInteractive({ useHandCursor: true });
+    back.on('pointerdown', () => this.go('Home', true));
+    this.cameras.main.fadeIn(250, 0, 0, 0);
+    audio.playBgm('home');
+  }
+
+  /** 企画者の絵を画面いっぱいに出し、看板の所を押せるようにする */
+  private createArt(): void {
+    const k = Math.max(W / ART.w, H / ART.h);
+    const ox = (W - ART.w * k) / 2;
+    const oy = (H - ART.h * k) / 2;
+    this.add.image(ox, oy, BATTLE_MENU_IMAGE).setOrigin(0, 0).setScale(k);
+    for (const e of ENTRIES) {
+      const [x0, y0, x1, y1] = ART_ZONES[e.id];
+      const z = this.add.rectangle(ox + x0 * k, oy + y0 * k, (x1 - x0) * k, (y1 - y0) * k, 0xffffff, 0).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+      z.on('pointerdown', () => {
+        z.setFillStyle(0xffffff, 0.25);
+        this.tweens.add({ targets: z, fillAlpha: 0, duration: 220 });
+        this.go(e.scene, false);
+      });
+    }
+  }
+
+  /** 前の画面(プログラムで描いた看板)。絵が読めなかったときだけ使う */
+  private createDrawn(): void {
     canvasTextureOnce(this, 'bm:wall', W, H, (ctx) => drawArcadeWall(ctx, W, H));
     this.add.image(0, 0, 'bm:wall').setOrigin(0, 0);
     canvasTextureOnce(this, 'bm:logo', 680, 200, (ctx) => drawGraffitiText(ctx, 680, 200, 'BATTLE', '#ff3a4a', 150, -0.06));
     const logo = this.add.image(W / 2, 210, 'bm:logo').setScale(0.3);
     this.tweens.add({ targets: logo, scale: 1, duration: 420, ease: 'Back.easeOut' });
-
-    const back = this.add
-      .text(24, 28, '◀ もどる', { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '900', color: '#ffffff', backgroundColor: '#16101ccc', padding: { x: 16, y: 8 } })
-      .setInteractive({ useHandCursor: true });
-    back.on('pointerdown', () => this.go('Home', true));
 
     ENTRIES.forEach((e, i) => {
       const key = `bm:card:${e.id}`;
@@ -57,8 +91,6 @@ export class BattleMenuScene extends Phaser.Scene {
         this.go(e.scene, false);
       });
     });
-    this.cameras.main.fadeIn(250, 0, 0, 0);
-    audio.playBgm('home');
   }
 
   private drawEntry(ctx: CanvasRenderingContext2D, e: (typeof ENTRIES)[number]): void {
