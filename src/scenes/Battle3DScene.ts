@@ -56,7 +56,7 @@ const CSS = `
  .b3d .orders .gap{display:block}
  .b3d .orders button{height:60px;font-size:16px}
  .b3d .state{bottom:calc(env(safe-area-inset-bottom) + 76px)}
- .b3d .note{top:calc(env(safe-area-inset-top) + 64px)}
+ .b3d .note{display:none!important}
  .b3d .combo{top:30%}
 }
 .b3d .note{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top) + 74px);text-align:center;font-size:11px;color:#fff9;pointer-events:none}
@@ -219,6 +219,12 @@ export class Battle3DScene extends Phaser.Scene {
       case 'hit':
         A.spark(e.x, e.y, e.z, e.combo >= 3 ? 'big' : 'hit', 0.8 + e.combo * 0.15);
         A.flash(e.target);
+        // 【仮】当たった瞬間に少し止まって、画面がゆれる(手ごたえ。企画者 2026-11-01「もっと格闘ゲームぽく」)
+        {
+          const pw = B3.moves[e.move].power;
+          this.hitStop = Math.max(this.hitStop, 0.035 + pw * 0.0035);
+          A.shake(0.03 + pw * 0.006);
+        }
         audio.se(e.move === 'smash' || e.move === 'counter' ? 'punchHeavy' : 'punch', { pitch: 0.9 + e.combo * 0.06 });
         if (e.combo >= 2) {
           const c = this.ui.combo[e.side];
@@ -237,12 +243,15 @@ export class Battle3DScene extends Phaser.Scene {
           A.ring(t.x, t.z, 0xffb000);
         }
         navigator.vibrate?.(B3.fx.fifth.vibrate);
+        A.shake(0.18);
         audio.se('crackBig');
         break;
       case 'block': {
         const perfect = e.grade === 'perfect' || e.grade === 'good';
         A.spark(e.x, e.y, e.z, e.grade === 'perfect' ? 'perfect' : 'guard', e.grade === 'perfect' ? 1.6 : 1);
         audio.se('guard', { pitch: e.grade === 'perfect' ? 1.4 : 1 });
+        A.shake(0.02);
+        if (e.grade === 'perfect') this.hitStop = Math.max(this.hitStop, 0.08);
         if (perfect) {
           const t = this.battle.f[e.target];
           A.ring(t.x, t.z, e.grade === 'perfect' ? 0x7affee : 0x5aa8ff);
@@ -257,6 +266,18 @@ export class Battle3DScene extends Phaser.Scene {
         audio.se('whoosh', { pitch: 1.5 });
         if (e.side === 0) this.pop('よけた！', '#7dffa0');
         break;
+      case 'step':
+        audio.se('whoosh', { pitch: e.back ? 1.6 : 1.4 });
+        break;
+      case 'land': {
+        const f = this.battle.f[e.side];
+        A.dust(f.x, f.z, e.hard);
+        if (e.hard) {
+          audio.se('land');
+          A.shake(0.06);
+        }
+        break;
+      }
       case 'jump':
         audio.se('hop', { pitch: 1.2 });
         break;
@@ -271,6 +292,7 @@ export class Battle3DScene extends Phaser.Scene {
         this.slowT = B3.fx.ko.slow;
         this.zoom(B3.fx.ko.zoom, B3.fx.ko.slow);
         this.big('K.O.!');
+        A.shake(0.25);
         audio.se('koBlast');
         navigator.vibrate?.(120);
         break;

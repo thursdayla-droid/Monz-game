@@ -30,6 +30,8 @@ export type B3Act =
   | { k: 'attack'; move: MoveName; t: number; id: number; dir: number; hit: boolean; done: boolean; extra: number }
   | { k: 'guard'; t: number; until: number; pre: boolean }
   | { k: 'evade'; t: number; dx: number; dz: number }
+  /** 踏みこみ・バックステップ(格闘ゲームの動き。2026-11-01 企画者「もっと格闘ゲームぽく」) */
+  | { k: 'step'; t: number; dx: number; dz: number; dur: number; dist: number; back: boolean }
   | { k: 'stun'; t: number; until: number }
   | { k: 'air'; t: number }
   | { k: 'down'; t: number; until: number }
@@ -84,6 +86,11 @@ export interface B3Fighter {
   seenAttack: number;
   /** 今のフレームで歩いた速さ(見た目用) */
   speed: number;
+  /** 吹っ飛びの速さ(床の上をすべる) */
+  kvx: number;
+  kvz: number;
+  /** 最後に受けた攻撃(見た目のやられ方用) */
+  lastHit: MoveName | null;
 }
 
 export type GuardGrade = 'perfect' | 'good' | 'pre' | 'guard';
@@ -97,6 +104,8 @@ export type B3Event =
   | { kind: 'dodged'; side: Side }
   | { kind: 'counter'; side: Side }
   | { kind: 'jump'; side: Side }
+  | { kind: 'step'; side: Side; back: boolean }
+  | { kind: 'land'; side: Side; hard: boolean }
   | { kind: 'exhausted'; side: Side }
   | { kind: 'order'; side: Side; order: OrderName; state: 'reserved' | 'replaced' | 'expired' | 'executed' }
   | { kind: 'ko'; side: Side }
@@ -172,6 +181,9 @@ function newFighter(e: B3Entrant, side: Side): B3Fighter {
     react: null,
     seenAttack: 0,
     speed: 0,
+    kvx: 0,
+    kvz: 0,
+    lastHit: null,
   };
 }
 
@@ -269,6 +281,15 @@ function startAttack(b: B3Battle, f: B3Fighter, m: MoveName): void {
   b.events.push({ kind: 'windup', side: f.side, move: m });
 }
 
+function startStep(b: B3Battle, f: B3Fighter, back: boolean): void {
+  const o = other(b, f);
+  const a = angleTo(f, o) + (back ? Math.PI : 0) + wobble(b.rng) * 0.25;
+  const st = back ? B3.spacing.backdash : B3.spacing.dash;
+  f.act = { k: 'step', t: 0, dx: Math.cos(a), dz: Math.sin(a), dur: st.time, dist: st.dist, back };
+  useStamina(b, f, st.stamina);
+  b.events.push({ kind: 'step', side: f.side, back });
+}
+
 function startGuard(f: B3Fighter, until: number, pre = false): void {
   f.act = { k: 'guard', t: 0, until, pre };
 }
@@ -298,7 +319,7 @@ function opponentOpen(o: B3Fighter): boolean {
 /** 今の距離で出せる技をえらぶ(なければ null) */
 function bestAttack(b: B3Battle, f: B3Fighter, d: number, eager: boolean, big = false): MoveName | null {
   const o = other(b, f);
-  const pool: MoveName[] = ['jab', 'straight', ...f.skills];
+  const pool: MoveName[] = ['jab', 'straight', 'kick', ...f.skills];
   const weights: number[] = [];
   const bad = lerp(B3.skill.badRange, lv(f, 'attack'));
   for (const m of pool) {
@@ -307,7 +328,7 @@ function bestAttack(b: B3Battle, f: B3Fighter, d: number, eager: boolean, big = 
     const reach = effectiveReach(m);
     const ok = d <= reach - 0.1 || (b.rng() < bad && d <= reach + 0.9);
     if (ok && (f.stamina >= mv.stamina || f.exhausted)) {
-      w = m === 'jab' ? 0.55 : m === 'straight' ? 0.45 : m === 'smash' ? 0.3 * (0.5 + f.instinct.fight) : m === 'upper' ? 0.32 * (0.5 + f.instinct.counter) : 0.3;
+      w = m === 'jab' ? 0.55 : m === 'straight' ? 0.45 : m === 'kick' ? 0.4 : m === 'smash' ? 0.3 * (0.5 + f.instinct.fight) : m === 'upper' ? 0.32 * (0.5 + f.instinct.counter) : 0.3;
       if (f.exhausted && mv.stamina > 8) w *= 0.3;
       if (big && mv.power >= 9) w *= 3;
       if (opponentOpen(o) && mv.power >= 9) w *= 1 + lv(f, 'attack') * 2;
@@ -377,7 +398,7 @@ function think(b: B3Battle, f: B3Fighter): void {
     if (m) return startAttack(b, f, m);
   }
   // 攻撃するか
-  const pAtk = (0.25 + 0.35 * f.instinct.attack) * (boosted ? 2 : 1) * (f.exhausted ? 0.4 : 1);
+  const pAtk = (0.38 + 0.4 * f.instinct.attack) * (boosted ? 2 : 1) * (f.exhausted ? 0.4 : 1);
   if (b.rng() < pAtk) {
     const m = bestAttack(b, f, d, boosted);
     if (m) return startAttack(b, f, m);
@@ -390,9 +411,15 @@ function think(b: B3Battle, f: B3Fighter): void {
     b.events.push({ kind: 'jump', side: f.side });
     return;
   }
+  // 踏みこみ・バックステップ(間合いの出入り)
+  const ideal0 = B3.spacing.ideal - f.instinct.attack * 0.3;
+  if (f.stamina > 20 && b.rng() < B3.spacing.stepChance * (0.5 + lv(f, 'spacing'))) {
+    if (d > ideal0 + 0.9) return startStep(b, f, false);
+    if (d < ideal0 - 0.2 && b.rng() < 0.5 + f.instinct.survival * 0.5) return startStep(b, f, true);
+  }
   if (f.planT < B3.moveHold && f.plan !== 'hold') return;
   // 動き方(習熟度 Spacing): ちょうどよい間合いを保つ・回り込む・壁をよける
-  const ideal = 1.85 - f.instinct.attack * 0.35 + (f.hp / f.maxHp < 0.3 ? f.instinct.survival * 1.2 : 0);
+  const ideal = ideal0 + (f.hp / f.maxHp < 0.3 ? f.instinct.survival * 1.2 : 0);
   const circle = lerp(B3.skill.circle, lv(f, 'spacing'));
   const r = b.rng();
   let p: MovePlan;
@@ -467,9 +494,10 @@ function tryHit(b: B3Battle, f: B3Fighter, act: Extract<B3Act, { k: 'attack' }>)
   const pz = (f.z + o.z) / 2;
   const py = o.y + 0.9;
   const raw = mv.power * (1 + f.stats.power / B3.stat.powerDiv) * (B3.stat.toughDiv / (B3.stat.toughDiv + o.stats.tough));
+  // 押す: 床の上をすべって下がる(一瞬で動かさない)
   const push = (n: number) => {
-    o.x += Math.cos(act.dir) * n;
-    o.z += Math.sin(act.dir) * n;
+    o.kvx += Math.cos(act.dir) * n * B3.knock.friction;
+    o.kvz += Math.sin(act.dir) * n * B3.knock.friction;
   };
   // ガード(相手のほうを向いているときだけ)
   if (o.act.k === 'guard' && Math.abs(angDiff(angleTo(o, f), o.face)) < 1.8) {
@@ -499,6 +527,7 @@ function tryHit(b: B3Battle, f: B3Fighter, act: Extract<B3Act, { k: 'attack' }>)
   const dmg = Math.max(1, Math.round(raw * B3.combo.scale[n - 1]));
   o.hp = Math.max(0, o.hp - dmg);
   o.react = null;
+  o.lastHit = act.move;
   b.events.push({ kind: 'hit', side: f.side, target: o.side, damage: dmg, combo: n, move: act.move, x: px, y: py, z: pz });
   push(mv.push);
   if (o.hp <= 0) {
@@ -523,6 +552,8 @@ function tryHit(b: B3Battle, f: B3Fighter, act: Extract<B3Act, { k: 'attack' }>)
     o.y = Math.max(o.y, 0.001);
     o.act = { k: 'air', t: 0 };
   } else o.act = { k: 'stun', t: 0, until: mv.stun };
+  // やられた側は、攻撃してきた相手のほうを向く
+  o.face = angleTo(o, f);
 }
 
 function ko(b: B3Battle, f: B3Fighter): void {
@@ -547,8 +578,19 @@ function updateFighter(b: B3Battle, f: B3Fighter, dt: number): void {
     if (f.y <= 0) {
       f.y = 0;
       f.vy = 0;
+      const hard = f.act.k === 'air' || f.act.k === 'down' || f.act.k === 'ko';
+      b.events.push({ kind: 'land', side: f.side, hard });
       if (f.act.k === 'air') f.act = { k: 'down', t: 0, until: B3.down.landDown };
     }
+  }
+  // 吹っ飛び(すべる)
+  if (f.kvx !== 0 || f.kvz !== 0) {
+    f.x += f.kvx * dt;
+    f.z += f.kvz * dt;
+    const k = Math.exp(-B3.knock.friction * dt * (f.y > 0 ? 0.3 : 1));
+    f.kvx *= k;
+    f.kvz *= k;
+    if (Math.hypot(f.kvx, f.kvz) < 0.05) f.kvx = f.kvz = 0;
   }
   // スタミナ(攻撃・ガード中は回復しない)
   if (a.k !== 'attack' && a.k !== 'guard' && a.k !== 'ko') {
@@ -585,6 +627,21 @@ function updateFighter(b: B3Battle, f: B3Fighter, dt: number): void {
       f.x += a.dx * k;
       f.z += a.dz * k;
       if (a.t >= B3.evade.time) f.act = { k: 'free' };
+      break;
+    }
+    case 'step': {
+      a.t += dt;
+      // はじめ速く、あとゆっくり
+      const k = (a.dist / a.dur) * 2 * (1 - Math.min(1, a.t / a.dur)) * dt;
+      if (!a.back && dist(f, o) <= B3.body.minGap + 0.05) {
+        f.act = { k: 'free' };
+        break;
+      }
+      f.x += a.dx * k;
+      f.z += a.dz * k;
+      if (a.t >= a.dur) f.act = { k: 'free' };
+      const turn = B3.stat.turnRate * dt;
+      f.face += clamp(angDiff(angleTo(f, o), f.face), -turn, turn);
       break;
     }
     case 'stun':

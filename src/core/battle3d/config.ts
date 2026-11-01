@@ -17,7 +17,7 @@ export const B3 = {
   jump: { speed: 9, stamina: 6 },
 
   /** ステータス → 強さ(10/30 のオートバトルと同じ考え) */
-  stat: { hpBase: 190, perHp: 1, powerDiv: 60, toughDiv: 60, walkBase: 2.6, walkPerSpeed: 0.012, turnRate: 9 },
+  stat: { hpBase: 210, perHp: 1, powerDiv: 60, toughDiv: 60, walkBase: 3.0, walkPerSpeed: 0.012, turnRate: 14 },
 
   /** AIが状況を見直す間隔(秒)と、移動の方針を続ける最低の時間(秒)(10/30 の仮の値) */
   thinkEvery: 0.2,
@@ -33,6 +33,8 @@ export const B3 = {
     jab: { windup: 0.16, active: 0.08, recovery: 0.24, reach: 1.25, arc: 0.6, height: 1.0, power: 5, stamina: 6, stun: 0.44, push: 0.15, launch: 0, dash: 0 },
     /** まっすぐパンチ(基本) */
     straight: { windup: 0.26, active: 0.1, recovery: 0.34, reach: 1.5, arc: 0.45, height: 1.0, power: 8, stamina: 10, stun: 0.5, push: 0.3, launch: 0, dash: 0.3 },
+    /** 中段キック(基本。2026-11-01 格闘ゲームらしく) */
+    kick: { windup: 0.22, active: 0.1, recovery: 0.36, reach: 1.55, arc: 0.5, height: 1.0, power: 8, stamina: 10, stun: 0.48, push: 0.45, launch: 0, dash: 0.15 },
     /** 【仮】技の枠(4つ)。10/30 の「技を4つ自動で付ける」を残す(企画者 2026-11-01)。名前は画面に出さない */
     upper: { windup: 0.3, active: 0.1, recovery: 0.45, reach: 1.25, arc: 0.5, height: 1.0, power: 9, stamina: 14, stun: 0.6, push: 0.2, launch: 9.5, dash: 0 },
     smash: { windup: 0.5, active: 0.12, recovery: 0.6, reach: 1.6, arc: 0.55, height: 1.0, power: 15, stamina: 20, stun: 0.7, push: 1.4, launch: 4, dash: 0.2 },
@@ -48,6 +50,15 @@ export const B3 = {
 
   /** コンボ【確定】最大5ヒット(地上＋空中の合計)。ダメージの割合は【調整案】 */
   combo: { max: 5, scale: [1, 0.9, 0.8, 0.7, 0.6], /** ひるみ・空中が終わってから、これより後に当たったら数え直す */ grace: 0.12, /** 当たったときに、すきを短くする割合(次につなげるため) */ hitCancel: 0.85 },
+  /** 吹っ飛び: 床の上をすべる。friction が大きいほど早く止まる */
+  knock: { friction: 9 },
+  /** 間合い(格闘ゲームらしく近い間合いで攻め合う)・踏みこみ・バックステップ【仮】 */
+  spacing: {
+    ideal: 1.6,
+    stepChance: 0.3,
+    dash: { time: 0.2, dist: 1.5, stamina: 4 },
+    backdash: { time: 0.24, dist: 1.3, stamina: 5 },
+  },
   /** 5ヒット目のあと、たおれて起きるまで(この間は当たらない) */
   down: { time: 0.9, invincible: 0.9, landDown: 0.35 },
 
