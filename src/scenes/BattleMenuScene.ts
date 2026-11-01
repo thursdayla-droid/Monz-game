@@ -24,7 +24,8 @@ const ART_ZONES: Record<(typeof ENTRIES)[number]['id'], readonly [number, number
 /** 看板2枚: 操作するバトル と MYTHCLASH。pic: 看板に使う絵とその切り抜き範囲(元の絵の座標) */
 const ENTRIES = [
   // 企画者の指示書(2026-10-30): 旧アクションバトル(Battle)は使わない。MONZが自分で戦うオートバトルに置きかえ。旧バトルのコードは残してある
-  { id: 'action', scene: 'AutoBattle', title: 'バトル', sub: 'MONZが じぶんで たたかう', color: '#ff8a1f', pic: { key: DASH_BG_KEY, crop: [900, 250, 2150, 1020] } },
+  // 企画者 2026-11-01「2Dバトルはいらない」→ 3Dバトル(アニメのモンスターバトル風)へ。2D のオートバトル(AutoBattle)のコードは残す(メニューからは外した)
+  { id: 'action', scene: 'Battle3D', title: 'バトル', sub: 'MONZが じぶんで たたかう', color: '#ff8a1f', pic: { key: DASH_BG_KEY, crop: [900, 250, 2150, 1020] } },
   { id: 'mythclash', scene: 'MythTitle', title: 'MYTHCLASH', sub: 'カードを集めて 3対3でたたかう', color: '#c0182a', pic: { key: MYTH_TITLE_IMAGE, crop: [20, 385, 832, 880] } },
 ] as const;
 
