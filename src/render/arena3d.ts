@@ -364,8 +364,9 @@ export class Arena3D {
       fr.set(0, 0.9, -0.45);
     } else if (a.k === 'air' || a.k === 'down' || a.k === 'ko') {
       d.body.rotation.z = Math.PI / 2 - (a.k === 'air' ? 0.4 : 0);
-      d.body.position.x = -0.6;
-      d.body.position.y = 0.2;
+      // 横にたおれる(輪の上に体がくるように、ずらす)
+      d.body.position.x = 0.8;
+      d.body.position.y = 0.36;
       alpha = a.k === 'down' && a.t < B3.down.invincible ? 0.7 + Math.sin(t * 40) * 0.2 : 1;
     } else if (a.k === 'victory') {
       // 【仮】勝利モーション(性格ごとの動きは未決定)。こぶしを上げて跳ねる

@@ -46,12 +46,25 @@ const CSS = `
 .b3d .result{position:absolute;inset:0;background:#0d0614c0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px}
 .b3d .result h1{margin:0;font-size:64px;color:#ffd23a;text-shadow:0 5px 0 #16101c}
 .b3d .result button{font:900 22px ${UI_FONT};padding:12px 28px;border-radius:14px;border:3px solid #16101c;background:#ffd23a;color:#16101c;min-width:200px}
+.b3d .orders .gap{display:none}
+.b3d .turn{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:#0d0614d0;z-index:5}
+.b3d .turn div{border:4px solid #ffd23a;border-radius:18px;background:#16101c;color:#ffd23a;font-weight:900;font-size:26px;padding:22px 30px;text-align:center}
+.b3d .turn small{display:block;color:#fff;font-size:14px;margin-top:8px}
+@media (orientation:landscape){
+ .b3d .top{padding-left:calc(env(safe-area-inset-left) + 10px);padding-right:calc(env(safe-area-inset-right) + 10px)}
+ .b3d .orders{grid-template-columns:repeat(2,minmax(76px,104px)) 1fr repeat(2,minmax(76px,104px));padding-left:calc(env(safe-area-inset-left) + 10px);padding-right:calc(env(safe-area-inset-right) + 10px);padding-bottom:calc(env(safe-area-inset-bottom) + 8px)}
+ .b3d .orders .gap{display:block}
+ .b3d .orders button{height:60px;font-size:16px}
+ .b3d .state{bottom:calc(env(safe-area-inset-bottom) + 76px)}
+ .b3d .note{top:calc(env(safe-area-inset-top) + 64px)}
+ .b3d .combo{top:30%}
+}
 .b3d .note{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top) + 74px);text-align:center;font-size:11px;color:#fff9;pointer-events:none}
 `;
 
 /**
  * 3Dオートバトル(企画者 BATTLE SYSTEM Ver.41・2026-10-31 / 試作の開始 2026-11-01「やってみてください」)。
- * 3D の絵は Three.js で、Phaser の画面の上に重ねる。ボタン・HP は HTML。
+ * 3D の絵は Three.js で、Phaser の画面の上に重ねる。ボタン・HP は HTML。横画面(企画者 2026-11-01)。縦のときは止めて「横にしてね」を出す
  * 【仮】キャラクターは仮の人形(BUNKの3Dモデル待ち)。相手は 10/30 と同じ「色違いのBUNK」の能力。報酬はまだない。
  * 入口: 3Dバトル用の確認用ページ(window.__MONZ_START = 'Battle3D')。バトルメニューの「バトル」は、企画者の確認が終わるまで 10/30 の2Dオートバトルのまま
  */
@@ -71,6 +84,7 @@ export class Battle3DScene extends Phaser.Scene {
     btn: Record<OrderName, { el: HTMLButtonElement; cd: HTMLElement; sub: HTMLElement }>;
     result: HTMLElement;
     resultTitle: HTMLElement;
+    turn: HTMLElement;
   };
   private hitStop = 0;
   private slowT = 0;
@@ -115,7 +129,8 @@ export class Battle3DScene extends Phaser.Scene {
         <div class="side r"><div class="name">${esc(q.name)}</div><div class="bar"><i style="background:#ff5a5a;width:100%"></i></div><div class="bar st"><i style="background:#ffd23a;width:100%"></i></div><div class="tag"></div></div></div>
        <div class="note">【試作】仮の人形で動きを確かめる画面です（BUNKの3Dモデル待ち）</div>
        <div class="combo l"></div><div class="combo r"></div><div class="pop"></div><div class="big"></div><div class="state"></div>
-       <div class="orders">${ORDER_NAMES.map((o) => `<button data-o="${o}" style="background:${ORDER_COLOR[o]}"><span class="lb">${ORDER_LABEL[o]}</span><span class="sub"></span><span class="cd" style="height:0"></span></button>`).join('')}</div>
+       <div class="orders">${ORDER_NAMES.map((o, i) => `${i === 2 ? '<span class="gap"></span>' : ''}<button data-o="${o}" style="background:${ORDER_COLOR[o]}"><span class="lb">${ORDER_LABEL[o]}</span><span class="sub"></span><span class="cd" style="height:0"></span></button>`).join('')}</div>
+       <div class="turn"><div>スマホを 横にしてね<small>横にすると バトルが始まります</small></div></div>
        <div class="result"><h1></h1><button class="again">もう一度</button><button class="leave">もどる</button></div>`,
     );
     document.body.appendChild(root);
@@ -145,6 +160,7 @@ export class Battle3DScene extends Phaser.Scene {
       btn,
       result: $('.result'),
       resultTitle: $('.result h1'),
+      turn: $('.turn'),
     };
     $('.back').addEventListener('click', () => this.leave());
     $('.leave').addEventListener('click', () => this.leave());
@@ -163,7 +179,11 @@ export class Battle3DScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
-    if (!this.arena) return;
+    if (!this.arena || !this.root) return;
+    // 横画面で遊ぶ(企画者 2026-11-01「横画面で良いよ」)。縦のあいだは止めて「横にしてね」
+    const portrait = this.root.clientWidth < this.root.clientHeight;
+    this.ui.turn.style.display = portrait ? 'flex' : 'none';
+    if (portrait) return;
     let dt = Math.min(delta / 1000, 0.1);
     const real = dt;
     // 5ヒット目のヒットストップ・KOのスロー【確定】
