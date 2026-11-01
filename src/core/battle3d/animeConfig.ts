@@ -14,14 +14,16 @@ export const ANIME = {
   body: { radius: 0.7, minGap: 1.5 },
   timeLimit: 90,
   gravity: 24,
-  stat: { hpBase: 120, perHp: 1, powerDiv: 60, toughDiv: 60, walkBase: 3.2, walkPerSpeed: 0.012, turnRate: 8 },
+  stat: { hpBase: 120, perHp: 1, powerDiv: 60, toughDiv: 60, walkBase: 4.2, walkPerSpeed: 0.015, turnRate: 10 },
   /** AIが考える間隔・移動の方針を続ける時間 */
   thinkEvery: 0.25,
-  moveHold: 0.8,
+  moveHold: 0.4,
+  /** 動きの勢い(企画者 2026-11-01「もっさりしてロボみたい」→ 生き物らしく)【仮】 */
+  move: { accel: 7, stop: 9, burst: 2.1, burstTime: 0.35, burstChance: 0.1, hop: 5.5, hopChance: 0.04 },
   /** 遠くから撃ち合う間合い */
   spacing: { ideal: 7, near: 4.5, far: 10 },
   /** よける(横へ飛ぶ)。無敵の時間 */
-  dodge: { time: 0.4, invincible: 0.3, distance: 3.2, cooldown: 1.6 },
+  dodge: { time: 0.3, invincible: 0.28, distance: 3.4, cooldown: 1.6 },
   /** 指示: 動けない間は待つ。この時間をすぎたら消える。1件だけ(新しい指示で置きかえ) */
   command: { wait: 1.5 },
   /** 【仮】自分で技を出す確率(指示がないときも戦う。1回考えるごと) */
@@ -63,10 +65,10 @@ export interface Tech {
  * 色違いのライバルも同じ技(仮)。
  */
 export const TECHS = {
-  dash: { name: 'ダッシュアタック', element: '無', kind: 'rush', power: 13, cooldown: 3.5, windup: 0.35, recovery: 0.55, speed: 13, range: 9, size: 1.0, duration: 0, launch: 5, knock: 4 },
-  fire: { name: 'ファイアショット', element: '炎', kind: 'shot', power: 11, cooldown: 2.8, windup: 0.45, recovery: 0.35, speed: 15, range: 20, size: 0.6, duration: 0, launch: 0, knock: 3 },
-  beam: { name: 'ライトニングビーム', element: '雷', kind: 'beam', power: 20, cooldown: 7, windup: 1.0, recovery: 0.7, speed: 0, range: 22, size: 0.7, duration: 0.55, launch: 4, knock: 6 },
-  quake: { name: 'グラウンドブレイク', element: '自然', kind: 'quake', power: 16, cooldown: 6, windup: 0.75, recovery: 0.6, speed: 9, range: 6, size: 0.6, duration: 0, launch: 7, knock: 3 },
+  dash: { name: 'ダッシュアタック', element: '無', kind: 'rush', power: 13, cooldown: 3.5, windup: 0.25, recovery: 0.4, speed: 13, range: 9, size: 1.0, duration: 0, launch: 5, knock: 4 },
+  fire: { name: 'ファイアショット', element: '炎', kind: 'shot', power: 11, cooldown: 2.8, windup: 0.3, recovery: 0.25, speed: 15, range: 20, size: 0.6, duration: 0, launch: 0, knock: 3 },
+  beam: { name: 'ライトニングビーム', element: '雷', kind: 'beam', power: 20, cooldown: 7, windup: 0.75, recovery: 0.5, speed: 0, range: 22, size: 0.7, duration: 0.55, launch: 4, knock: 6 },
+  quake: { name: 'グラウンドブレイク', element: '自然', kind: 'quake', power: 16, cooldown: 6, windup: 0.5, recovery: 0.45, speed: 9, range: 6, size: 0.6, duration: 0, launch: 7, knock: 3 },
 } satisfies Record<string, Tech>;
 
 export type TechId = keyof typeof TECHS;

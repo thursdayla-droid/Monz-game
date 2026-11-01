@@ -28,8 +28,8 @@ const CSS = `
 .b3d .call{position:absolute;left:50%;top:26%;transform:translateX(-50%);font-weight:900;font-size:26px;white-space:nowrap;padding:8px 22px;border-radius:12px;background:#16101ce0;border:3px solid #fff;opacity:0;pointer-events:none}
 .b3d .pop{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);font-weight:900;font-size:30px;color:#fff;text-shadow:0 3px 0 #16101c;pointer-events:none;opacity:0;white-space:nowrap}
 .b3d .big{position:absolute;left:0;right:0;top:36%;text-align:center;font-weight:900;font-size:68px;color:#ffd23a;text-shadow:0 5px 0 #16101c,0 0 24px #f40;pointer-events:none;opacity:0}
-.b3d .cmds{position:absolute;left:0;right:0;bottom:0;padding:0 calc(env(safe-area-inset-right) + 10px) calc(env(safe-area-inset-bottom) + 8px) calc(env(safe-area-inset-left) + 10px);display:grid;grid-template-columns:repeat(2,minmax(96px,150px)) 1fr repeat(2,minmax(96px,150px));gap:8px;align-items:end}
-.b3d .cmds button{position:relative;height:58px;border-radius:14px;border:3px solid #16101c;color:#16101c;font:900 15px ${UI_FONT};white-space:nowrap;letter-spacing:-.03em;padding:0 6px;overflow:hidden;box-shadow:0 4px 0 #16101c;background:#fff}
+.b3d .cmds{position:absolute;left:0;right:0;bottom:0;padding:0 calc(env(safe-area-inset-right) + 10px) calc(env(safe-area-inset-bottom) + 8px) calc(env(safe-area-inset-left) + 10px);display:grid;grid-template-columns:repeat(2,minmax(84px,150px)) minmax(70px,1fr) repeat(2,minmax(84px,150px));gap:8px;align-items:end}
+.b3d .cmds button{position:relative;height:58px;border-radius:14px;border:3px solid #16101c;color:#16101c;font:900 min(15px,2.1vw) ${UI_FONT};white-space:nowrap;letter-spacing:-.05em;padding:0 4px;overflow:hidden;box-shadow:0 4px 0 #16101c;background:#fff}
 .b3d .cmds button .el{display:block;font-size:10px;color:#fff;border-radius:6px;margin:0 auto 2px;width:3.2em}
 .b3d .cmds button .cd{position:absolute;left:0;bottom:0;right:0;background:#16101c99;pointer-events:none}
 .b3d .cmds button .lb{position:relative}
@@ -37,7 +37,7 @@ const CSS = `
 .b3d .cmds button.queued{outline:3px solid #ffd23a;animation:b3p .35s infinite alternate}
 .b3d .cmds button.cool{filter:grayscale(.8) brightness(.8)}
 .b3d .cmds .mid{display:flex;justify-content:center}
-.b3d .cmds .dodge{width:96px;height:46px;background:#16101c;color:#fff;border-color:#fff}
+.b3d .cmds .dodge{width:min(96px,100%);height:46px;background:#16101c;color:#fff;border-color:#fff}
 @keyframes b3p{to{outline-color:#fff}}
 .b3d .result{position:absolute;inset:0;background:#0d0614b0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px}
 .b3d .result h1{margin:0;font-size:60px;color:#ffd23a;text-shadow:0 5px 0 #16101c}

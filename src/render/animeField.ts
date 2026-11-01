@@ -483,11 +483,11 @@ export class AnimeField {
     const [p, q] = b.f;
     const dir = Math.atan2(q.z - p.z, q.x - p.x);
     const sep = Math.hypot(q.x - p.x, q.z - p.z);
-    const back = 4.2 + sep * 0.25;
+    const back = 5.4 + sep * 0.25;
     const side = 2.6;
-    const want = new THREE.Vector3(p.x - Math.cos(dir) * back - Math.sin(dir) * side, 2.6 + sep * 0.12, p.z - Math.sin(dir) * back + Math.cos(dir) * side);
+    const want = new THREE.Vector3(p.x - Math.cos(dir) * back - Math.sin(dir) * side, 3.3 + sep * 0.12, p.z - Math.sin(dir) * back + Math.cos(dir) * side);
     const look = new THREE.Vector3(p.x + (q.x - p.x) * 0.6, 0.9 + Math.max(p.y, q.y) * 0.3, p.z + (q.z - p.z) * 0.6);
-    const k = 1 - Math.exp(-dt * 2.5);
+    const k = 1 - Math.exp(-dt * 3.5);
     this.camPos.lerp(want, k);
     this.camLook.lerp(look, 1 - Math.exp(-dt * 4));
     const pos = this.camPos.clone();

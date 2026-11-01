@@ -58,6 +58,11 @@ export interface AnimeMon {
   /** ダウンから起きたあとの無敵の終わり */
   safeUntil: number;
   speed: number;
+  /** 歩く速さ(勢いがある: 急に止まらない・急に速くならない) */
+  vx: number;
+  vz: number;
+  /** 急に走る(横へダッシュなど)の終わり */
+  burstUntil: number;
 }
 
 export interface Shot {
@@ -156,6 +161,9 @@ function newMon(e: AnimeEntrant, side: Side): AnimeMon {
     kvz: 0,
     safeUntil: 0,
     speed: 0,
+    vx: 0,
+    vz: 0,
+    burstUntil: 0,
   };
 }
 
@@ -432,6 +440,18 @@ function think(b: AnimeBattle, f: AnimeMon): void {
     const id = chooseTech(b, f);
     if (id) return startTech(b, f, id, false);
   }
+  // 生き物らしく: ときどき急に横へダッシュ・小さく跳ねる
+  if (b.rng() < C.move.burstChance) {
+    f.burstUntil = b.t + C.move.burstTime;
+    f.plan = b.rng() < 0.5 ? 'circleL' : 'circleR';
+    f.planT = 0;
+    return;
+  }
+  if (b.rng() < C.move.hopChance) {
+    f.vy = C.move.hop;
+    f.y = 0.001;
+    return;
+  }
   if (f.planT < C.moveHold) return;
   const r = b.rng();
   let plan: AnimeMon['plan'];
@@ -461,14 +481,20 @@ function walk(b: AnimeBattle, f: AnimeMon, dt: number): void {
   if (Math.abs(f.x) > H.halfX - 2 && Math.sign(vx) === Math.sign(f.x)) vx = -Math.sign(f.x) * 0.6;
   if (Math.abs(f.z) > H.halfZ - 2 && Math.sign(vz) === Math.sign(f.z)) vz = -Math.sign(f.z) * 0.6;
   const len = Math.hypot(vx, vz);
-  const sp = C.stat.walkBase + f.stats.speed * C.stat.walkPerSpeed;
-  if (len > 0.01) {
-    f.x += (vx / len) * sp * dt;
-    f.z += (vz / len) * sp * dt;
-    f.speed = sp;
-  }
-  const turn = C.stat.turnRate * dt;
-  f.face += clamp(angDiff(a, f.face), -turn, turn);
+  // 速さに強弱をつける(いつも同じ速さだと機械みたいなので)
+  const sway = 0.75 + 0.35 * Math.sin(b.t * 2.3 + f.side * 1.7) + 0.15 * Math.sin(b.t * 5.1 + f.side);
+  const sp = (C.stat.walkBase + f.stats.speed * C.stat.walkPerSpeed) * sway * (b.t < f.burstUntil ? C.move.burst : 1);
+  const wx = len > 0.01 ? (vx / len) * sp : 0;
+  const wz = len > 0.01 ? (vz / len) * sp : 0;
+  // 勢い: 少しずつ速さを合わせる
+  const k = 1 - Math.exp(-dt * C.move.accel);
+  f.vx += (wx - f.vx) * k;
+  f.vz += (wz - f.vz) * k;
+  f.x += f.vx * dt;
+  f.z += f.vz * dt;
+  f.speed = Math.hypot(f.vx, f.vz);
+  // 向き: すばやく相手のほうへ(近いほど速く回る)
+  f.face += angDiff(a, f.face) * (1 - Math.exp(-dt * C.stat.turnRate));
 }
 
 // ---------------- 1回分すすめる ----------------
@@ -531,7 +557,18 @@ function updateMon(b: AnimeBattle, f: AnimeMon, dt: number): void {
     b.events.push({ kind: 'command', side: f.side, cmd: f.command.cmd, state: 'expired' });
     f.command = null;
   }
-  if (f.act.k !== 'free' || f.y > 0) return;
+  if (f.act.k !== 'free' || f.y > 0) {
+    // 動けないあいだは、歩く勢いが少しのこって止まる
+    const k = Math.exp(-dt * C.move.stop);
+    f.vx *= k;
+    f.vz *= k;
+    if (f.act.k !== 'tech' || TECHS[f.act.id].kind !== 'rush') {
+      f.x += f.vx * dt;
+      f.z += f.vz * dt;
+    }
+    f.speed = f.y > 0 ? Math.hypot(f.vx, f.vz) : 0;
+    return;
+  }
   // 指示(技の名前)を実行
   if (f.command) {
     const c = f.command.cmd;

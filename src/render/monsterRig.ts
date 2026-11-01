@@ -118,6 +118,21 @@ export class MonsterRig {
     t1.rotation.z = Math.PI / 2 + 0.5;
   }
 
+  /** ばね(目標へ行きすぎて、ぷるんと戻る)。[今の値, 速さ] */
+  private spr: Record<string, [number, number]> = { sx: [1, 0], sy: [1, 0], rz: [0, 0], rx: [0, 0], lift: [0, 0] };
+  private spring(key: string, target: number, dt: number, stiff = 260, damp = 14): number {
+    const s = this.spr[key];
+    // 大きな時間でも暴れないように、細かく分けて計算する
+    const n = Math.max(1, Math.ceil(dt / (1 / 120)));
+    const h = dt / n;
+    for (let i = 0; i < n; i++) {
+      s[1] += (target - s[0]) * stiff * h;
+      s[1] *= Math.exp(-damp * h);
+      s[0] += s[1] * h;
+    }
+    return s[0];
+  }
+
   update(f: AnimeMon, dt: number): void {
     const now = performance.now() / 1000;
     const a = f.act;
@@ -132,86 +147,119 @@ export class MonsterRig {
     let lift = 0;
     let arm = 0;
     let legSwing = 0;
+    let direct = false;
     this.eyes.visible = a.k !== 'ko';
     this.xEyes.visible = a.k === 'ko';
+    // 進む向き(体の前・横)で、体をかたむける
+    const fwd = f.vx * Math.cos(f.face) + f.vz * Math.sin(f.face);
+    const side = -f.vx * Math.sin(f.face) + f.vz * Math.cos(f.face);
     if (a.k === 'tech') {
       const tech = TECHS[a.id];
       const w = Math.min(1, a.t / tech.windup);
       if (!a.fired) {
-        // ため: 体をちぢめて力をためる(ビームは長く・ふるえる)
-        sy = 1 - w * 0.18;
-        sx = 1 + w * 0.12;
-        rotZ = w * 0.25;
-        arm = w;
-        if (tech.kind === 'beam') b.position.x = Math.sin(now * 60) * 0.02 * w;
+        // ため: 体をちぢめて、うしろへ引く(ビームは ふるえる)
+        sy = 1 - w * 0.22;
+        sx = 1 + w * 0.15;
+        rotZ = w * 0.35;
+        arm = w * 1.2;
+        if (tech.kind === 'beam') b.position.x = Math.sin(now * 70) * 0.025 * w;
       } else {
         const k = a.t - tech.windup;
         if (tech.kind === 'shot' || tech.kind === 'beam') {
-          // 撃つ: 前へのびる
-          const p = Math.max(0, 1 - k / 0.25);
-          sx = 1 + 0.25 * p;
-          sy = 1 - 0.1 * p;
-          rotZ = -0.35 * p - (tech.kind === 'beam' && k < tech.duration ? 0.3 : 0);
-          arm = -0.5;
+          // 撃つ: ぐっと前へのびて、反動でうしろへ
+          const p = Math.max(0, 1 - k / 0.18);
+          sx = 1 + 0.3 * p;
+          sy = 1 - 0.15 * p;
+          rotZ = -0.45 * p + (k > 0.18 && k < 0.4 ? 0.2 : 0) - (tech.kind === 'beam' && k < tech.duration ? 0.25 : 0);
+          arm = -0.6;
         } else if (tech.kind === 'rush') {
-          rotZ = -0.55;
-          sx = 1.15;
-          sy = 0.9;
-          legSwing = Math.sin(now * 30) * 0.9;
+          rotZ = -0.6;
+          sx = 1.2;
+          sy = 0.85;
+          legSwing = Math.sin(now * 34) * 1.0;
         } else if (tech.kind === 'quake') {
-          // 飛び上がって回る → 着地でつぶれる
-          if (f.y > 0) rotX = k * 12;
-          else {
-            sy = 0.75;
-            sx = 1.2;
+          if (f.y > 0) {
+            rotX = k * 14;
+            direct = true;
+            sy = 1.15;
+            sx = 0.9;
+          } else {
+            sy = 0.65;
+            sx = 1.3;
           }
-          arm = 1;
+          arm = 1.2;
         }
       }
     } else if (a.k === 'dodge') {
-      const p = Math.sin(Math.min(1, a.t / 0.4) * Math.PI);
-      rotX = (a.dz > 0 ? 1 : -1) * p * (a.jump ? Math.PI * 2 * Math.min(1, a.t / 0.4) : 0.6);
-      sy = 1 - p * 0.1;
+      const p = Math.min(1, a.t / 0.3);
+      if (a.jump) {
+        rotX = (a.dz > 0 ? 1 : -1) * p * Math.PI * 2;
+        direct = true;
+      } else rotX = (a.dz > 0 ? 1 : -1) * Math.sin(p * Math.PI) * 0.7;
+      sy = 1 - Math.sin(p * Math.PI) * 0.15;
+      sx = 1 + Math.sin(p * Math.PI) * 0.1;
     } else if (a.k === 'hurt') {
       const p = 1 - a.t / a.until;
-      rotZ = 0.45 * p;
-      sx = 1 + 0.15 * p;
-      sy = 1 - 0.15 * p;
+      rotZ = 0.6 * p;
+      sx = 1 + 0.2 * p;
+      sy = 1 - 0.2 * p;
     } else if (a.k === 'air') {
-      rotZ = 0.6 + a.t * 9;
+      rotZ = 0.6 + a.t * 10;
+      direct = true;
     } else if (a.k === 'down' || a.k === 'ko') {
       rotZ = Math.PI / 2;
       lift = 0.05;
       if (a.k === 'down') rotY = Math.sin(now * 20) * 0.03;
     } else if (a.k === 'victory') {
-      lift = Math.abs(Math.sin(a.t * 6)) * 0.45;
-      arm = 1.2;
-      rotY = Math.sin(a.t * 3) * 0.4;
+      lift = Math.abs(Math.sin(a.t * 7)) * 0.5;
+      arm = 1.3;
+      rotY = Math.sin(a.t * 3) * 0.5;
     } else {
-      // ふだん: ぷるぷる揺れる。歩くと、ぴょこぴょこ跳ねる
-      const breathe = Math.sin(now * 4 + f.side * 2) * 0.03;
+      // ふだん: ぷるぷる息をする。歩くと、ぴょこぴょこ跳ねる(速いほど大きく速く)
+      const breathe = Math.sin(now * 4.5 + f.side * 2) * 0.035;
       sy = 1 + breathe;
       sx = 1 - breathe * 0.6;
-      if (f.speed > 0) {
-        this.hop += dt * 12;
-        lift = Math.abs(Math.sin(this.hop)) * 0.18;
-        legSwing = Math.sin(this.hop) * 0.6;
-        rotZ = -0.1;
+      const sp = f.speed;
+      if (sp > 0.3) {
+        this.hop += dt * (6 + sp * 2.4);
+        const h = Math.abs(Math.sin(this.hop));
+        const big = Math.min(1, sp / 4);
+        lift = h * 0.26 * big;
+        // 着地でつぶれ、空中でのびる
+        sy += (h - 0.5) * 0.16 * big;
+        sx -= (h - 0.5) * 0.1 * big;
+        legSwing = Math.sin(this.hop) * 0.8 * big;
       }
-      arm = 0.25 + breathe * 3;
+      // 進む向きへ体をかたむける
+      rotZ = -fwd * 0.07;
+      rotX = side * 0.07;
+      arm = 0.25 + breathe * 4 + Math.min(1, sp / 4) * 0.4;
+      if (f.y > 0) {
+        // 小さく跳ねたとき
+        sy = 1.12;
+        sx = 0.92;
+        legSwing = 0.6;
+      }
     }
-    b.scale.set(sx, sy, sx);
-    b.rotation.set(rotX, rotY, rotZ);
-    b.position.y = lift;
+    // ばねで動かす(ぷるんと生き物らしく)。回転が大きい時はそのまま
+    b.scale.set(this.spring('sx', sx, dt), this.spring('sy', sy, dt), this.spr.sx[0]);
+    const rz = direct ? rotZ : this.spring('rz', rotZ, dt, 220, 12);
+    const rx = direct ? rotX : this.spring('rx', rotX, dt, 220, 12);
+    if (direct) {
+      this.spr.rz = [0, 0];
+      this.spr.rx = [0, 0];
+    }
+    b.rotation.set(rx, rotY, rz);
+    b.position.y = this.spring('lift', lift, dt, 400, 18);
     if (a.k !== 'tech' || TECHS[a.id].kind !== 'beam') b.position.x = 0;
-    this.armL.rotation.set(0, 0, arm * 0.9);
-    this.armR.rotation.set(0, 0, arm * 0.9);
+    this.armL.rotation.set(0, 0, arm * 0.9 + Math.sin(now * 9) * 0.05);
+    this.armR.rotation.set(0, 0, arm * 0.9 - Math.sin(now * 9) * 0.05);
     this.legL.rotation.set(0, 0, legSwing);
     this.legR.rotation.set(0, 0, -legSwing);
-    this.tail.rotation.set(0, Math.sin(now * 5) * 0.4, 0);
+    this.tail.rotation.set(0, Math.sin(now * (5 + f.speed * 2)) * (0.4 + f.speed * 0.08), 0);
     // 当たった時の白い光・よけている時の半透明
     this.flash = Math.max(0, this.flash - dt);
-    const ghost = a.k === 'dodge' && a.t < 0.3 ? 0.6 : 1;
+    const ghost = a.k === 'dodge' && a.t < 0.28 ? 0.6 : 1;
     for (const m of this.mats) {
       m.emissive.setHex(this.flash > 0 ? 0xffffff : 0x000000);
       m.emissiveIntensity = this.flash > 0 ? 0.9 : 0;
