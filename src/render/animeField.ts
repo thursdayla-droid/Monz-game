@@ -254,15 +254,7 @@ export class AnimeField {
       this.rigs.push(r);
     }
     // 企画者の BUNK のモデル(2体とも BUNK。相手は色違い)
-    new GLTFLoader().load(
-      assetUrl(BUNK_MODEL_FILE),
-      (g) => {
-        this.rigs.forEach((r, i) => r.useModel(g.scene, MODEL.height, i === 1 ? MODEL.rivalHue : 0));
-        this.ready = true;
-      },
-      undefined,
-      () => (this.ready = true),
-    );
+    this.loadModel();
     for (let i = 0; i < 2; i++) {
       // 守りのドーム(半透明の球と、光る網)
       const dome = new THREE.Group();
@@ -287,6 +279,41 @@ export class AnimeField {
       s.visible = false;
       this.scene.add(s);
       this.charge.push(s);
+    }
+  }
+
+  /** モデルを読めなかったときの理由(確認用ページに出す) */
+  modelError = '';
+
+  /**
+   * 企画者の BUNK のモデルを読む(2体とも BUNK。相手は色違い)。
+   * 確認用ページではページに埋めこんだもの(data:)を、ネットにつながず その場で読む
+   * (2026-11-01 iPhone のアプリで BUNK が出なかった。別ファイル・blob の読みこみは iPhone のアプリで止められるため)
+   */
+  private loadModel(): void {
+    const done = (g: { scene: THREE.Object3D }) => {
+      try {
+        this.rigs.forEach((r, i) => r.useModel(g.scene, MODEL.height, i === 1 ? MODEL.rivalHue : 0));
+      } catch (e) {
+        this.modelError = `使えない: ${String(e)}`;
+      }
+      this.ready = true;
+    };
+    const fail = (e: unknown) => {
+      this.modelError = `読めない: ${e instanceof Error ? e.message : String(e)}`;
+      this.ready = true;
+    };
+    const url = assetUrl(BUNK_MODEL_FILE);
+    const loader = new GLTFLoader();
+    try {
+      if (url.startsWith('data:')) {
+        const bin = atob(url.slice(url.indexOf(',') + 1));
+        const buf = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+        loader.parse(buf.buffer, '', done, fail);
+      } else loader.load(url, done, undefined, fail);
+    } catch (e) {
+      fail(e);
     }
   }
 

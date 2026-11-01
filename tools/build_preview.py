@@ -9,7 +9,7 @@
   ・MYTHCLASH の確認用ページ: python3 -I tools/build_preview.py <出力先.html> --myth
     MYTHCLASH の絵・曲・効果音だけ。MYTHCLASH のタイトルから始まる(もどるの代わりに確認用のボタン)
 """
-import base64, glob, io, json, os, sys
+import base64, struct, glob, io, json, os, sys
 from PIL import Image
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 out = sys.argv[1]
@@ -39,7 +39,22 @@ else:
 assets = {}
 for p in paths:
     if p.endswith('.glb'):
-        assets[p] = 'data:model/gltf-binary;base64,' + base64.b64encode(open(pub + p, 'rb').read()).decode()
+        # 2026-11-01: モデルの中の絵(テクスチャ)を data: にする。GLB の中の絵は blob で読まれ、iPhone のアプリで止められるため
+        raw = open(pub + p, 'rb').read()
+        jlen = struct.unpack('<I', raw[12:16])[0]
+        gj = json.loads(raw[20:20 + jlen])
+        blen = struct.unpack('<I', raw[20 + jlen:24 + jlen])[0]
+        binc = raw[28 + jlen:28 + jlen + blen]
+        for im in gj.get('images', []):
+            if 'bufferView' in im:
+                bv = gj['bufferViews'][im.pop('bufferView')]
+                data = binc[bv.get('byteOffset', 0):bv.get('byteOffset', 0) + bv['byteLength']]
+                im['uri'] = f"data:{im.pop('mimeType', 'image/webp')};base64," + base64.b64encode(data).decode()
+        gjs = json.dumps(gj, separators=(',', ':')).encode()
+        gjs += b' ' * ((4 - len(gjs) % 4) % 4)
+        body = struct.pack('<I4s', len(gjs), b'JSON') + gjs + struct.pack('<I4s', len(binc), b'BIN\x00') + binc
+        out_glb = struct.pack('<4sII', b'glTF', 2, 12 + len(body)) + body
+        assets[p] = 'data:model/gltf-binary;base64,' + base64.b64encode(out_glb).decode()
         continue
     if p.endswith('.webp'):
         # 確認用ページの上限のため、大きい背景だけ少し圧縮しなおす(ゲーム本体はそのまま)

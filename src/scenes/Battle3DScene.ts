@@ -227,6 +227,13 @@ export class Battle3DScene extends Phaser.Scene {
     }
     if (!this.started) {
       this.started = true;
+      // 確認用ページ: BUNK のモデルを読めなかったら、理由を出す
+      if (isPreview() && this.field.modelError) {
+        const note = document.createElement('div');
+        note.style.cssText = 'position:absolute;left:8px;bottom:80px;max-width:60%;font-size:11px;color:#fff;background:#c0182acc;padding:4px 8px;border-radius:6px;pointer-events:none';
+        note.textContent = `BUNKのモデル: ${this.field.modelError}`;
+        this.root.appendChild(note);
+      }
       this.big('BATTLE START!');
       audio.se('whistle');
     }
