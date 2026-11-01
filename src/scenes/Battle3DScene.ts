@@ -94,6 +94,7 @@ export class Battle3DScene extends Phaser.Scene {
   /** 自分の MONZ のレベル(技枠の数) */
   private level = 1;
   private started = false;
+  private waitT = 0;
   private onResize = () => this.resize();
 
   constructor() {
@@ -103,7 +104,7 @@ export class Battle3DScene extends Phaser.Scene {
   create(): void {
     this.ended = false;
     this.started = false;
-    this.slowT = this.zoomT = this.hitStop = 0;
+    this.slowT = this.zoomT = this.hitStop = this.waitT = 0;
     const seed = (Date.now() ^ (Math.random() * 1e9)) >>> 0;
     const partner = partnerEntrant();
     let level = partner.level;
@@ -219,6 +220,11 @@ export class Battle3DScene extends Phaser.Scene {
     const portrait = this.root.clientWidth < this.root.clientHeight;
     this.ui.turn.style.display = portrait ? 'flex' : 'none';
     if (portrait) return;
+    // モデルを読みこむまで待つ(最大5秒)
+    if (!this.started && !this.field.ready && (this.waitT += delta) < 5000) {
+      this.field.render(this.battle, 0);
+      return;
+    }
     if (!this.started) {
       this.started = true;
       this.big('BATTLE START!');

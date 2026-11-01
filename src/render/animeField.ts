@@ -9,7 +9,14 @@ import * as THREE from 'three';
 import { ANIME, type Element, type TechId } from '../core/battle3d/animeConfig';
 import type { AnimeBattle } from '../core/battle3d/anime';
 import { getTech } from '../core/battle3d/techTable';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { assetUrl } from '../assetUrl';
 import { MonsterRig } from './monsterRig';
+
+/** 企画者の BUNK の3Dモデル(軽くしたもの。design/battle3d/README.md) */
+export const BUNK_MODEL_FILE = 'assets/battle3d/bunk.glb';
+/** 【仮】ゲームの中の高さ・色違い(相手)の色相の回し方 */
+const MODEL = { height: 1.55, rivalHue: 2.4 };
 
 export const ELEMENT_HEX: Record<Element, number> = { 炎: 0xff6a2a, 水: 0x3aa8ff, 自然: 0x6ad04a, 雷: 0xffd23a, 光: 0xfff2a0, 闇: 0xa05aff, 無: 0xe0e0f0 };
 /** 力の光の色(無属性は白だと見えにくいので、あたたかい色) */
@@ -156,6 +163,8 @@ export class AnimeField {
   private camLook = new THREE.Vector3();
   private shakeAmp = 0;
   zoom = 1;
+  /** モデルの読みこみが終わった(失敗したときも true。仮のモンスターのまま) */
+  ready = false;
   private gradient = toonGradient();
 
   constructor(canvas: HTMLCanvasElement) {
@@ -244,6 +253,16 @@ export class AnimeField {
       this.scene.add(r.root);
       this.rigs.push(r);
     }
+    // 企画者の BUNK のモデル(2体とも BUNK。相手は色違い)
+    new GLTFLoader().load(
+      assetUrl(BUNK_MODEL_FILE),
+      (g) => {
+        this.rigs.forEach((r, i) => r.useModel(g.scene, MODEL.height, i === 1 ? MODEL.rivalHue : 0));
+        this.ready = true;
+      },
+      undefined,
+      () => (this.ready = true),
+    );
     for (let i = 0; i < 2; i++) {
       // 守りのドーム(半透明の球と、光る網)
       const dome = new THREE.Group();

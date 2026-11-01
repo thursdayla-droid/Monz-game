@@ -7,13 +7,37 @@ import * as THREE from 'three';
 import { getTech } from '../core/battle3d/techTable';
 import type { AnimeMon } from '../core/battle3d/anime';
 
+/** 色違い: テクスチャの色の色相を回す(明るさは同じ) */
+function shiftHue(mat: THREE.MeshStandardMaterial, angle: number): void {
+  mat.onBeforeCompile = (sh) => {
+    sh.fragmentShader = sh.fragmentShader.replace(
+      '#include <map_fragment>',
+      `#include <map_fragment>
+      {
+        vec3 c = diffuseColor.rgb;
+        float Y = dot(c, vec3(0.299, 0.587, 0.114));
+        float I = dot(c, vec3(0.596, -0.274, -0.322));
+        float Q = dot(c, vec3(0.211, -0.523, 0.312));
+        float h = atan(Q, I) + ${angle.toFixed(4)};
+        float ch = length(vec2(I, Q));
+        I = ch * cos(h);
+        Q = ch * sin(h);
+        diffuseColor.rgb = clamp(vec3(Y + 0.956 * I + 0.621 * Q, Y - 0.272 * I - 0.647 * Q, Y - 1.106 * I + 1.703 * Q), 0.0, 1.0);
+      }`,
+    );
+  };
+  mat.customProgramCacheKey = () => `hue${angle.toFixed(3)}`;
+}
+
 const OUTLINE = new THREE.MeshBasicMaterial({ color: 0x1a1020, side: THREE.BackSide });
 
 export class MonsterRig {
   readonly root = new THREE.Group();
   /** 体全体(つぶれる・のびる・回る) */
   readonly body = new THREE.Group();
-  readonly mats: THREE.MeshToonMaterial[] = [];
+  readonly mats: (THREE.MeshToonMaterial | THREE.MeshStandardMaterial)[] = [];
+  /** 企画者の3Dモデルを使っている(仮のモンスターの形はかくす) */
+  private model: THREE.Object3D | null = null;
   /** 技を撃つ口の場所(光をためる所) */
   readonly mouth = new THREE.Object3D();
   private armL: THREE.Group;
@@ -118,6 +142,36 @@ export class MonsterRig {
     t1.rotation.z = Math.PI / 2 + 0.5;
   }
 
+  /**
+   * 企画者の3Dモデル(BUNK。Tripo・2026-11-01)に差しかえる。仮のモンスターの形はかくす。
+   * hue: 色違い(色相を回す角度・ラジアン)。0 = そのまま。
+   * 【仮】骨がないので、手足は別々に動かない(体全体を跳ねさせる・つぶす・かたむける)
+   */
+  useModel(src: THREE.Object3D, height: number, hue = 0): void {
+    const model = src.clone(true);
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    const k = height / Math.max(0.001, size.y);
+    model.scale.setScalar(k);
+    model.position.y = -box.min.y * k;
+    for (const c of [...this.body.children]) if (c !== this.mouth) c.visible = false;
+    this.mats.length = 0;
+    model.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      m.castShadow = true;
+      const mat = (m.material as THREE.MeshStandardMaterial).clone();
+      mat.metalness = Math.min(mat.metalness, 0.2);
+      if (hue) shiftHue(mat, hue);
+      m.material = mat;
+      this.mats.push(mat);
+    });
+    this.body.add(model);
+    this.model = model;
+    // 口(技を撃つ所)を、モデルの顔の前に
+    this.mouth.position.set(size.x * k * 0.55, height * 0.42, 0);
+  }
+
   /** ばね(目標へ行きすぎて、ぷるんと戻る)。[今の値, 速さ] */
   private spr: Record<string, [number, number]> = { sx: [1, 0], sy: [1, 0], rz: [0, 0], rx: [0, 0], lift: [0, 0] };
   private spring(key: string, target: number, dt: number, stiff = 260, damp = 14): number {
@@ -148,8 +202,8 @@ export class MonsterRig {
     let arm = 0;
     let legSwing = 0;
     let direct = false;
-    this.eyes.visible = a.k !== 'ko';
-    this.xEyes.visible = a.k === 'ko';
+    this.eyes.visible = !this.model && a.k !== 'ko';
+    this.xEyes.visible = !this.model && a.k === 'ko';
     // 進む向き(体の前・横)で、体をかたむける
     const fwd = f.vx * Math.cos(f.face) + f.vz * Math.sin(f.face);
     const side = -f.vx * Math.sin(f.face) + f.vz * Math.cos(f.face);

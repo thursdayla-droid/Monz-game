@@ -26,7 +26,8 @@ pub = root + '/public/'
 myth_paths = sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/mythclash/*.webp') + glob.glob(pub + 'assets/mythclash/opponents/*.webp'))
 card_paths = sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/mythclash/cards/*.webp'))
 if B3D:
-    paths = []
+    # 企画者の BUNK の3Dモデル(軽くしたもの)
+    paths = ['assets/battle3d/bunk.glb']
 elif MYTH:
     paths = myth_paths + card_paths
 else:
@@ -37,6 +38,9 @@ else:
     paths += myth_paths
 assets = {}
 for p in paths:
+    if p.endswith('.glb'):
+        assets[p] = 'data:model/gltf-binary;base64,' + base64.b64encode(open(pub + p, 'rb').read()).decode()
+        continue
     if p.endswith('.webp'):
         # 確認用ページの上限のため、大きい背景だけ少し圧縮しなおす(ゲーム本体はそのまま)
         data = open(pub + p, 'rb').read()
