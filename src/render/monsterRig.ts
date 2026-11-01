@@ -5,7 +5,7 @@
  */
 import * as THREE from 'three';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { BunkBones } from './bunkBones';
+import { BunkBones, type AttackPose } from './bunkBones';
 import { getTech } from '../core/battle3d/techTable';
 import type { AnimeMon } from '../core/battle3d/anime';
 
@@ -336,7 +336,22 @@ export class MonsterRig {
     // 骨で動かす(待機・移動だけ。ほかの動きは骨を休ませ、体全体で動かす)
     if (this.bones) {
       const mode = a.k === 'free' && f.y <= 0 ? (f.speed > 0.3 ? 'move' : 'idle') : 'other';
-      this.bones.update(mode, this.hop, f.speed, now, dt, f.side * 1.3);
+      // 腕を使う攻撃(突進・連続攻撃・弾。2026-11-01)
+      let atk: AttackPose | null = null;
+      if (a.k === 'tech') {
+        const tech = getTech(a.id);
+        const kind = tech.kind === 'rush' ? 'rush' : tech.kind === 'combo' ? 'combo' : tech.kind === 'shot' || tech.kind === 'barrage' || tech.kind === 'beam' ? 'shot' : null;
+        if (kind) {
+          const wind = a.fired ? 0 : Math.min(1, a.t / a.windup);
+          const run = a.t - a.windup;
+          const activeT = kind === 'shot' ? (tech.kind === 'beam' ? tech.duration : 0.18) : 0;
+          const active = a.fired && (kind === 'rush' ? !a.hit : kind === 'combo' ? a.n < tech.hits || run < 0.1 : run < activeT);
+          const recover = a.fired && !active ? Math.min(1, (run - activeT) / Math.max(0.1, tech.recovery)) : 0;
+          const punch = kind === 'combo' && a.n > 0 ? Math.min(1, Math.max(0, 1 - (a.next - a.t) / Math.max(0.05, tech.duration))) : 0;
+          atk = { kind, wind, active, recover, n: a.n, punch };
+        }
+      }
+      this.bones.update(mode, this.hop, f.speed, now, dt, f.side * 1.3, atk);
     }
     // 企画者のモデルは、形をゆがめないことを最優先(つぶす・のばすを小さくする)
     if (this.model) {
