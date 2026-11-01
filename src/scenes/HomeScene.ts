@@ -5,7 +5,10 @@ import { BunkBrain } from '../core/bunkBehavior';
 import { HOME_ACTIONS, HOME_ACTION_LABELS, HOME_ACTION_READY, ALL_PLACES, HOME_LAYOUTS, clipPolygonX, insidePolygon, randomPointIn, savedHomePlace, type HomeAction, type HomePlace, type Pt } from '../core/home';
 import { MonzLife } from '../core/life';
 import { moodWord, NEEDS_RULES } from '../core/needs';
-import { clearLife, LifeRecord, loadLife } from '../core/lifeSave';
+import { clearLife, LifeRecord, loadLife, type MonzData } from '../core/lifeSave';
+import { MAX_SLOTS, SLOT_LEVELS, slotsAt } from '../core/battle3d/techLearn';
+import { getTech } from '../core/battle3d/techTable';
+import { ELEMENT_HEX } from '../render/animeField';
 import { mulberry32 } from '../core/rng';
 import { currentStats, LOVE_RULES, shownLove, STAT_KEYS, STAT_LABELS, STAT_MAX, type StatBlock, type StatKey } from '../core/stats';
 import { clearSave, loadSave } from '../core/save';
@@ -848,10 +851,22 @@ export class HomeScene extends Phaser.Scene {
       this.add.text(x, y, s, { fontFamily: UI_FONT, fontSize: `${size}px`, fontStyle: '900', color }).setOrigin(ox, 0);
     const content = this.add.container(0, 0);
     layer.add(content);
+    // ステータス / わざ(3Dバトルの技。Ver.44 2026-11-01 企画者「ステータスに技を出す」)
+    let tab: 'stats' | 'techs' = 'stats';
     const draw = () => {
       content.removeAll(true);
       const m = record.monz;
       const st = currentStats(m);
+      const tabBtn = (x: number, label: string, id: typeof tab) => {
+        const b = t(x, py + 160, ` ${label} `, 26, id === tab ? ink : '#ffffff').setBackgroundColor(id === tab ? '#ffd23a' : '#5a4a66').setPadding(14, 6, 14, 8).setInteractive({ useHandCursor: true });
+        b.on('pointerdown', () => {
+          if (tab === id) return;
+          audio.se('tap');
+          tab = id;
+          draw();
+        });
+        return b;
+      };
       content.add(this.add.image(px + 32, py + 30, 'home:portrait').setOrigin(0, 0));
       content.add(this.add.text(px + 166, py + 36, m.name ?? speciesName(m.species), { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '42px', color: ink }));
       content.add(t(px + 168, py + 94, `Lv. ${m.level}`, 30));
@@ -860,9 +875,15 @@ export class HomeScene extends Phaser.Scene {
       bar.fillStyle(0xd9c7a0, 1).fillRoundedRect(px + 295, py + 105, pw - 340, 16, 8);
       bar.fillStyle(0x2fa8ff, 1).fillRoundedRect(px + 295, py + 105, Math.max(16, (pw - 340) * record.expRate), 16, 8);
       content.add(bar);
+      content.add(tabBtn(px + pw - 300, 'ステータス', 'stats'));
+      content.add(tabBtn(px + pw - 130, 'わざ', 'techs'));
+      if (tab === 'techs') {
+        this.drawTechs(content, m, px, py + 214, pw, t);
+        return;
+      }
       // ポイントの残り
       const pts = m.statPoints;
-      content.add(t(px + 32, py + 168, pts > 0 ? `振り分けられるポイント：${pts}` : '振り分けられるポイント：なし', 28, pts > 0 ? '#c2410c' : '#5a4a66'));
+      content.add(t(px + 32, py + 168, pts > 0 ? `ポイント：${pts}` : 'ポイント：なし', 28, pts > 0 ? '#c2410c' : '#5a4a66'));
       if (pts > 0) content.add(t(px + 32, py + 206, '＋をおすと 1 ずつ振り分けられます', 20, '#5a4a66'));
       // ゲージは数字そのまま: 通常ステータスは150、愛は100でいっぱい(企画者決定)
       // 6種類
@@ -934,6 +955,47 @@ export class HomeScene extends Phaser.Scene {
       layer.destroy();
       this.busy = false;
     });
+  }
+
+  /**
+   * ステータスの「わざ」: 装備している技(4つの枠。開いていない枠は鍵)と、覚えている技。Ver.44(2026-11-01)。
+   * 装備は AI が成長イベント(レベルアップ)で自動で見直す。プレイヤーは付けかえない
+   */
+  private drawTechs(content: Phaser.GameObjects.Container, m: MonzData, px: number, top: number, pw: number, t: (x: number, y: number, s: string, size: number, color?: string, ox?: number) => Phaser.GameObjects.Text): void {
+    const ink = '#16101c';
+    const techs = m.techs;
+    if (!techs) {
+      content.add(t(px + pw / 2, top + 120, 'このMONZの わざは\nまだ決まっていません', 30, '#5a4a66', 0.5).setAlign('center'));
+      return;
+    }
+    const slots = slotsAt(m.level);
+    content.add(t(px + 32, top, 'そうびしている わざ', 26, ink));
+    const card = (y: number, name: string | null, i: number) => {
+      const g = this.add.graphics();
+      const lock = i >= slots;
+      g.fillStyle(lock ? 0xd8d0c8 : 0xffffff, 1).fillRoundedRect(px + 26, y, pw - 52, 66, 14);
+      g.lineStyle(4, 0x16101c, 1).strokeRoundedRect(px + 26, y, pw - 52, 66, 14);
+      content.add(g);
+      if (lock) {
+        content.add(t(px + 50, y + 16, `🔒 Lv.${SLOT_LEVELS[i]} で使えるようになります`, 24, '#5a4a66'));
+        return;
+      }
+      if (!name) {
+        content.add(t(px + 50, y + 16, '―', 26, '#5a4a66'));
+        return;
+      }
+      const tech = getTech(name);
+      const chip = (x: number, s: string, bg: string, fg = '#ffffff') => t(x, y + 18, ` ${s} `, 18, fg).setBackgroundColor(bg).setPadding(6, 3, 6, 4);
+      content.add(chip(px + 46, tech.element, `#${ELEMENT_HEX[tech.element].toString(16).padStart(6, '0')}`, tech.element === '無' || tech.element === '光' || tech.element === '雷' ? ink : '#ffffff'));
+      content.add(t(px + 110, y + 14, name, 28, ink));
+      content.add(chip(px + pw - 120, tech.strength, tech.strength === '大技' ? '#c0182a' : '#5a4a66'));
+    };
+    for (let i = 0; i < MAX_SLOTS; i++) card(top + 40 + i * 76, techs.equipped[i] ?? null, i);
+    const rest = techs.learned.filter((n) => !techs.equipped.includes(n));
+    const y2 = top + 40 + MAX_SLOTS * 76 + 14;
+    content.add(t(px + 32, y2, `おぼえている わざ（${techs.learned.length}）`, 24, ink));
+    content.add(t(px + 32, y2 + 36, rest.length ? rest.join('・') : 'ぜんぶ そうびしています', 22, '#5a4a66').setWordWrapWidth(pw - 64));
+    content.add(t(px + 32, y2 + 110, 'わざは レベルアップのときに おぼえて、\nMONZが 自分で そうびを えらびます', 20, '#5a4a66'));
   }
 
   /** 中身がまだないボタン: 「じゅんび中」を出す */

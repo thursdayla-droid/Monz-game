@@ -21,13 +21,13 @@ const TENDENCY: Record<string, StatKey> = { パワー寄り: 'power', タフネ�
  * 育成傾向: 種族の「ふつうの伸び方」より、いちばん多く育っている能力(1つ)。
  * いちばん高い能力ではなく、種族の伸びやすさとの差で見る(EVOLUTION.md「いちばん高いステータスだけで決めない」)
  */
-export function tendency(species: string, stats: StatBlock): StatKey {
+export function tendency(species: string, stats: StatBlock, allowed: StatKey[] = ['power', 'tough', 'speed', 'tech', 'hp']): StatKey {
   const w = speciesStats(species as SpeciesId).weight;
   const wSum = STAT_KEYS.reduce((s, k) => s + w[k], 0) || 1;
   const sSum = STAT_KEYS.reduce((s, k) => s + stats[k], 0) || 1;
   let best: StatKey = 'power';
   let bestD = -Infinity;
-  for (const k of ['power', 'tough', 'speed', 'tech', 'hp'] as StatKey[]) {
+  for (const k of allowed) {
     const d = stats[k] / sSum - w[k] / wSum;
     if (d > bestD + 1e-9) {
       bestD = d;
@@ -51,7 +51,9 @@ function meets(row: TechRow, level: number, tend: StatKey): boolean {
  * 育て方の条件は「そのとき」の傾向で決まる(あとで育て方を変えると、別の技も覚えられる)
  */
 export function learnAt(species: string, level: number, stats: StatBlock, learned: string[] = []): string[] {
-  const tend = tendency(species, stats);
+  // 育て方は、その種族の表にある「○○寄り」の中から選ぶ(表にない傾向だと、何も覚えられないため)
+  const used = [...new Set(learnset(species).map((r) => TENDENCY[r.condition]).filter(Boolean))] as StatKey[];
+  const tend = tendency(species, stats, used.length ? used : undefined);
   const out = [...learned];
   for (const row of learnset(species)) if (!out.includes(row.name) && meets(row, level, tend)) out.push(row.name);
   return out;
