@@ -68,8 +68,12 @@ import re
 import sys
 sys.path.insert(0, HERE)
 import frame_color
+import card_marks
 _DATA = open(os.path.join(ROOT, 'src/core/mythclash/cardData.ts'), encoding='utf-8').read()
 ELEMENT = {int(m.group(1)): m.group(2) for m in re.finditer(r'"no": (\d+), .*?"rarity": "(?:N|R|SR|UR|SEC)", "element": "([^"]+)"', _DATA)}
+MAGIC_ELEMENT = {int(m.group(1)): m.group(2) for m in re.finditer(r'"no": (\d+), .*?"magicElement": "([^"]+)"', _DATA)}
+# 特別なカード(カード表の外)の属性
+EXTRA_ELEMENT = {101: '炎'}
 RARITY = {int(m.group(1)): m.group(2) for m in re.finditer(r'"no": (\d+), .*?"rarity": "([A-Z]+)"', _DATA)}
 
 os.makedirs(OUT, exist_ok=True)
@@ -95,5 +99,12 @@ for path in sorted(glob.glob(os.path.join(SRC, '*.png'))):
     # N・R のわくの色を、カードの属性の色にそろえる(企画者 2026-11-01)
     if RARITY.get(no) in ('N', 'R') and no in ELEMENT:
         img = frame_color.recolor(img, ELEMENT[no])
+    # 魔法の闇のしるしを三日月に(ステータスの「魔」と同じ形だったので。企画者 2026-11-01)・カードの属性の札を絵の左上に(企画者「属性がわかりづらい」)
+    big = np.array(Image.fromarray(img).resize((1064, 1478), Image.LANCZOS))
+    if MAGIC_ELEMENT.get(no) == '闇':
+        big = card_marks.dark_magic(big)
+    if no in ELEMENT or no in EXTRA_ELEMENT:
+        big = card_marks.element_tag(big, ELEMENT.get(no) or EXTRA_ELEMENT[no])
+    img = big
     Image.fromarray(img).resize(SIZE, Image.LANCZOS).save(os.path.join(OUT, f'{no:03d}.webp'), 'WEBP', quality=84, method=6)
     print(no)
