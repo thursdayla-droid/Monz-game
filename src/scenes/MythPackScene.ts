@@ -6,7 +6,7 @@ import { card, CARDS, type Rarity } from '../core/mythclash/cards';
 import { newCollection, ownedKinds } from '../core/mythclash/packs';
 import { preloadPacks } from '../render/packs';
 import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W, queueCardArt, useCardArt } from '../ui/mythCardArt';
-import { MYTH_PACK_IMAGE, type PackOpenData, MYTH_CARD_BACK } from '../ui/packBuy';
+import { MYTH_PACK_IMAGE, type PackOpenData, MYTH_CARD_BACK, openPackBuy } from '../ui/packBuy';
 import { canvasTextureOnce, roundRectPath, UI_FONT } from '../ui/paint';
 import { showCardZoom } from '../ui/cardZoom';
 
@@ -59,6 +59,8 @@ export class MythPackScene extends Phaser.Scene {
   private cardY = 0;
   private mouthY = 0;
   private seqTimer?: Phaser.Time.TimerEvent;
+  /** 「もっと買う」の箱を開いている */
+  private buying = false;
   private W = PORTRAIT.w;
   private H = PORTRAIT.h;
 
@@ -69,6 +71,7 @@ export class MythPackScene extends Phaser.Scene {
   init(data: PackOpenData): void {
     this.d = data;
     this.phase = 'cut';
+    this.buying = false;
     this.index = 0;
     this.shown = [];
     this.body = undefined;
@@ -519,10 +522,20 @@ export class MythPackScene extends Phaser.Scene {
     const col = loadLife().mythclash ?? newCollection();
     this.add.text(W / 2, H - footH + 40 * u, `所持種類数：${ownedKinds(col)}/${CARDS.length}`, { fontFamily: UI_FONT, fontSize: `${Math.round(28 * u)}px`, fontStyle: '900', color: '#ffd23a' }).setOrigin(0.5);
     const ok = this.add
-      .text(W / 2, H - footH / 2 + 30 * u, '  OK  ', { fontFamily: UI_FONT, fontSize: `${Math.round(40 * u)}px`, fontStyle: '900', color: '#16101c', backgroundColor: '#ffd23a', padding: { x: 30 * u, y: 10 * u } })
+      .text(W / 2 - 150 * u, H - footH / 2 + 30 * u, '  OK  ', { fontFamily: UI_FONT, fontSize: `${Math.round(40 * u)}px`, fontStyle: '900', color: '#16101c', backgroundColor: '#ffd23a', padding: { x: 30 * u, y: 10 * u } })
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
-    ok.on('pointerdown', () => this.leave());
+    ok.on('pointerdown', () => !this.buying && this.leave());
+    // 続けて買う(企画者 2026-11-01)。買う箱を開いて、買ったらそのまま次のパックを開ける
+    const again = this.add
+      .text(W / 2 + 150 * u, H - footH / 2 + 30 * u, 'もっと買う', { fontFamily: UI_FONT, fontSize: `${Math.round(36 * u)}px`, fontStyle: '900', color: '#ffffff', backgroundColor: '#8a35e0', padding: { x: 24 * u, y: 12 * u } })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    again.on('pointerdown', () => {
+      if (this.buying || this.phase !== 'grid') return;
+      this.buying = true;
+      openPackBuy(this, { back: this.d.back, backData: this.d.backData, bgm: this.d.bgm, onClose: () => (this.buying = false) });
+    });
     audio.se('happy');
   }
 
