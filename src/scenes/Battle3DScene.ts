@@ -204,7 +204,7 @@ export class Battle3DScene extends Phaser.Scene {
       audio.se('tap');
       this.scene.restart();
     });
-    this.field = new AnimeField(canvas);
+    this.field = new AnimeField(canvas, [this.battle.f[0].species, this.battle.f[1].species]);
     this.resize();
     window.addEventListener('resize', this.onResize);
   }

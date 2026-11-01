@@ -67,6 +67,8 @@
 
 ### 表1：種族の表（`monz_species.csv`）— 30行（10種族×3形態）
 
+- 2026-11-01：入れ物を作った。表は `data/monz_species.csv`（BUNK と MOFU・ZIPP・PUNI・KLAK の名前だけ入っている。ほかは「（未定）」、まだ決まっていない5種族は MONZ6〜MONZ10）→ `python3 -I tools/species_csv.py` → `src/core/rosterData.ts`。3Dモデルは `src/core/roster.ts` の `MODEL_FILES` に足す（ないと3Dバトルで仮のモンスター）
+
 | 列 | 書くこと |
 |---|---|
 | 種族 | BUNK など（同じ種族の3形態は同じ） |

@@ -11,6 +11,7 @@ import type { AnimeBattle } from '../core/battle3d/anime';
 import { getTech } from '../core/battle3d/techTable';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { assetUrl } from '../assetUrl';
+import { MODEL_FILES } from '../core/roster';
 import { MonsterRig } from './monsterRig';
 
 /** 企画者の BUNK の3Dモデル(軽くしたもの。design/battle3d/README.md) */
@@ -167,7 +168,8 @@ export class AnimeField {
   ready = false;
   private gradient = toonGradient();
 
-  constructor(canvas: HTMLCanvasElement) {
+  /** species: 2体の種族(モデルを選ぶ。モデルのない種族は仮のモンスター) */
+  constructor(canvas: HTMLCanvasElement, private species: [string, string] = ['bunk', 'bunk']) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.shadowMap.enabled = true;
@@ -291,19 +293,33 @@ export class AnimeField {
    * (2026-11-01 iPhone のアプリで BUNK が出なかった。別ファイル・blob の読みこみは iPhone のアプリで止められるため)
    */
   private loadModel(): void {
+    // 種族ごとのモデル(roster.ts。2026-11-01 全キャラの入れ物)。同じ種族の2体目は色違い
+    const files = new Map<string, number[]>();
+    this.species.forEach((sp, i) => {
+      const f = MODEL_FILES[sp];
+      if (f) files.set(f, [...(files.get(f) ?? []), i]);
+    });
+    let left = files.size;
+    if (!left) this.ready = true;
+    for (const [file, sides] of files) this.loadOne(file, sides, () => {
+      if (--left <= 0) this.ready = true;
+    });
+  }
+
+  private loadOne(file: string, sides: number[], finish: () => void): void {
     const done = (g: { scene: THREE.Object3D }) => {
       try {
-        this.rigs.forEach((r, i) => r.useModel(g.scene, MODEL.height, i === 1 ? MODEL.rivalHue : 0));
+        sides.forEach((i, n) => this.rigs[i].useModel(g.scene, MODEL.height, n > 0 || (i === 1 && this.species[0] === this.species[1]) ? MODEL.rivalHue : 0));
       } catch (e) {
         this.modelError = `使えない: ${String(e)}`;
       }
-      this.ready = true;
+      finish();
     };
     const fail = (e: unknown) => {
       this.modelError = `読めない: ${e instanceof Error ? e.message : String(e)}`;
-      this.ready = true;
+      finish();
     };
-    const url = assetUrl(BUNK_MODEL_FILE);
+    const url = assetUrl(file);
     const loader = new GLTFLoader();
     try {
       if (url.startsWith('data:')) {

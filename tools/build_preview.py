@@ -27,7 +27,7 @@ myth_paths = sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/myt
 card_paths = sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/mythclash/cards/*.webp'))
 if B3D:
     # 企画者の BUNK の3Dモデル(軽くしたもの)
-    paths = ['assets/battle3d/bunk.glb']
+    paths = sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/battle3d/*.glb'))
 elif MYTH:
     paths = myth_paths + card_paths
 else:
