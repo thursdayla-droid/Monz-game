@@ -13,6 +13,16 @@ const W = 720;
 const PORTRAIT = { w: 720, h: 1280 };
 export type MythModeView = 'mode' | 'cpu';
 
+/** 企画者のモード選択の絵(2026-11-01。design/mythclash/mode_select.png・941x1672)。文字・看板は絵に入っている */
+export const MYTH_MODE_IMAGE = 'myth:mode';
+export const MYTH_MODE_FILE = 'assets/mythclash/mode.webp';
+const MODE_ART = { w: 941, h: 1672 };
+/** 押せる看板(絵の座標 [x0, y0, x1, y1]) */
+const MODE_ZONES = {
+  tower: [30, 398, 915, 800],
+  battle: [25, 828, 915, 1248],
+} as const;
+
 
 const CPU_STARS: Record<CpuLevel, string> = { weak: '★', normal: '★★', strong: '★★★' };
 const CPU_COLORS: Record<CpuLevel, string> = { weak: '#3aa860', normal: '#2a6ad8', strong: '#c0182a' };
@@ -23,7 +33,7 @@ const CPU_COLORS: Record<CpuLevel, string> = { weak: '#3aa860', normal: '#2a6ad8
  * - ストーリーモードの階えらびは MythTowerScene(企画者の絵)
  * - cpu: バトルモードの CPU の強さ(弱い・普通・強い)
  * えらんだら デッキ編成 → バトル。カードが3種類ないときは「あと○種類」だけ(はじめのカードのプレゼントはしない。企画者)
- * 【仮】画面の見た目はプログラムで描いたもの
+ * モードえらびの画面は企画者の絵(2026-11-01。絵が読めないときは前のプログラムで描いた板)。CPU の強さの画面は【仮】プログラムで描いたもの
  */
 export class MythModeScene extends Phaser.Scene {
   private view: MythModeView = 'mode';
@@ -78,8 +88,11 @@ export class MythModeScene extends Phaser.Scene {
       else this.switchView('mode');
     });
     const title = this.view === 'cpu' ? 'バトルモード' : 'モードをえらぶ';
-    L.add([back, this.text(W / 2 + 60, 46, title, 40, '#ffd23a').setStroke('#16101c', 8)]);
+    const art = this.view === 'mode' && this.textures.exists(MYTH_MODE_IMAGE);
+    // 企画者の絵には「MODE SELECT」の文字があるので、見出しは出さない
+    L.add(art ? [back] : [back, this.text(W / 2 + 60, 46, title, 40, '#ffd23a').setStroke('#16101c', 8)]);
     if (this.view === 'cpu') this.drawCpu(L);
+    else if (art) this.drawModesArt(L);
     else this.drawModes(L);
   }
 
@@ -119,6 +132,33 @@ export class MythModeScene extends Phaser.Scene {
     this.panel(L, top, 240, '#8a35e0', '🏰 BLOOD TOWER', 'タワーを 1階から のぼろう', ok ? () => this.go('MythTower') : null);
     this.panel(L, top + 300, 240, '#c0182a', '⚔ バトル', 'CPUの強さを えらんで 1回バトル', ok ? () => this.switchView('cpu') : null);
     if (!ok) L.add(this.text(W / 2, top + 500, `異なるカードをあと${kindsToUnlock(col)}種類集めると\nバトル解放！`, 32, '#ffb070'));
+  }
+
+  /** 企画者の絵を画面いっぱいに出し、看板の所を押せるようにする(2026-11-01) */
+  private drawModesArt(L: Phaser.GameObjects.Container): void {
+    const H = this.H;
+    const col = loadLife().mythclash ?? newCollection();
+    const ok = battleUnlocked(col);
+    const k = Math.max(W / MODE_ART.w, H / MODE_ART.h);
+    const ox = (W - MODE_ART.w * k) / 2;
+    const oy = (H - MODE_ART.h * k) / 2;
+    L.addAt(this.add.image(ox, oy, MYTH_MODE_IMAGE).setOrigin(0, 0).setScale(k), 0);
+    const targets = { tower: () => this.go('MythTower'), battle: () => this.switchView('cpu') };
+    for (const id of Object.keys(MODE_ZONES) as (keyof typeof MODE_ZONES)[]) {
+      const [x0, y0, x1, y1] = MODE_ZONES[id];
+      const z = this.add.rectangle(ox + x0 * k, oy + y0 * k, (x1 - x0) * k, (y1 - y0) * k, ok ? 0xffffff : 0x0a0408, ok ? 0 : 0.6).setOrigin(0, 0);
+      L.add(z);
+      // カードが3種類そろうまでは、看板を暗くして押せない
+      if (!ok) continue;
+      z.setInteractive({ useHandCursor: true });
+      z.on('pointerdown', () => {
+        z.setFillStyle(0xffffff, 0.25);
+        this.tweens.add({ targets: z, fillAlpha: 0, duration: 220 });
+        targets[id]();
+      });
+    }
+    // お知らせは、絵の下の空いている所に出す
+    if (!ok) L.add(this.text(W / 2, oy + 1430 * k, `異なるカードをあと${kindsToUnlock(col)}種類集めると\nバトル解放！`, 32, '#ffb070').setStroke('#16101c', 6));
   }
 
   private drawCpu(L: Phaser.GameObjects.Container): void {
