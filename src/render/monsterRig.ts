@@ -151,7 +151,7 @@ export class MonsterRig {
    * hue: 色違い(色相を回す角度・ラジアン)。0 = そのまま。
    * 骨入りのモデル(2026-11-01)は、待機・移動を骨で動かす(bunkBones.ts)。骨がないモデルは体全体だけで動かす
    */
-  useModel(src: THREE.Object3D, height: number, hue = 0): void {
+  useModel(src: THREE.Object3D, height: number, hue = 0, useBones = true): void {
     // 骨入りのモデルは、骨ごと写す(ふつうの写し方だと骨とのつながりが切れる)
     const model = SkeletonUtils.clone(src);
     const box = new THREE.Box3().setFromObject(model);
@@ -175,8 +175,9 @@ export class MonsterRig {
     });
     this.body.add(model);
     this.model = model;
-    const bones = new BunkBones(model);
-    this.bones = bones.ok ? bones : null;
+    // 骨がずれているモデルは、骨を動かさない(形がくずれないように。体全体だけで動かす)
+    const bones = useBones ? new BunkBones(model) : null;
+    this.bones = bones?.ok ? bones : null;
     // 口(技を撃つ所)を、モデルの顔の前に
     this.mouth.position.set(size.x * k * 0.55, height * 0.42, 0);
   }

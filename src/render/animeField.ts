@@ -312,7 +312,7 @@ export class AnimeField {
     const done = (g: { scene: THREE.Object3D }) => {
       try {
         // 同じモデルの2体目は色違い
-        sides.forEach((i, n) => this.rigs[i].useModel(g.scene, this.models[i]?.height ?? MODEL.height, n > 0 ? MODEL.rivalHue : 0));
+        sides.forEach((i, n) => this.rigs[i].useModel(g.scene, this.models[i]?.height ?? MODEL.height, n > 0 ? MODEL.rivalHue : 0, this.models[i]?.bones ?? true));
       } catch (e) {
         this.modelError = `使えない: ${String(e)}`;
       }

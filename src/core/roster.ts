@@ -28,15 +28,20 @@ export const MODEL_FILES: Record<string, string> = {
   bunk: 'assets/battle3d/bunk.glb',
   // BUNKER(BUNK の第1進化。企画者の Tripo モデル・骨入り 2026-11-02。左右の骨はそろっていて、直しはいらなかった)
   'bunk:2': 'assets/battle3d/bunker.glb',
+  // BUNKLORD(第2進化。企画者の Tripo モデル 2026-11-02)。右側の骨が大きくずれている(右腕の骨が頭を、右足の骨が右のグローブを動かす)ので、骨は動かさない
+  'bunk:3': 'assets/battle3d/bunklord.glb',
 };
+/** 骨がずれていて、骨を動かすと形がくずれるモデル(体全体だけで動かす) */
+export const MODEL_NO_BONES = new Set(['bunk:3']);
 /** 【仮】形態ごとのゲームの中の高さ(進化すると大きくなる) */
 export const MODEL_HEIGHT = [1.55, 1.8, 2.0];
 
 /** そのレベルで使う3Dモデル(今の形態のモデルがなければ、1つ前の形態のモデル)。なければ null(仮のモンスター) */
-export function modelFor(species: string, level: number): { file: string; form: number; height: number } | null {
+export function modelFor(species: string, level: number): { file: string; form: number; height: number; bones: boolean } | null {
   for (let f = formAt(level); f >= 1; f--) {
-    const file = MODEL_FILES[f === 1 ? species : `${species}:${f}`];
-    if (file) return { file, form: f, height: MODEL_HEIGHT[f - 1] };
+    const key = f === 1 ? species : `${species}:${f}`;
+    const file = MODEL_FILES[key];
+    if (file) return { file, form: f, height: MODEL_HEIGHT[f - 1], bones: !MODEL_NO_BONES.has(key) };
   }
   return null;
 }
