@@ -255,8 +255,10 @@ export class BunkBones {
       this.lunge = Math.max(this.lunge, Math.max(0, ext) * w);
       // 腕ごとグローブを前へ押し出す(骨を回すだけでは、肩が高く腕がたれているため、前に出て見えない)
       const e2 = Math.max(0, ext) * w;
-      this.push(up, 'front', 0.07 * e2);
-      this.push(fo, 'front', 0.16 * e2);
+      // 腕を大きく前へ(のびる)。2026-11-02 企画者「全然パンチしない」
+      this.push(up, 'front', 0.1 * e2);
+      this.push(fo, 'front', 0.24 * e2);
+      this.push(side > 0 ? 'R_Clavicle' : 'L_Clavicle', 'front', 0.04 * e2);
       if (e2 > this.punchExt) {
         this.punchExt = e2;
         this.punchSide = side;

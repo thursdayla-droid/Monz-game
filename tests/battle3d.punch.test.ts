@@ -1,7 +1,7 @@
 import { it, expect } from 'vitest';
 import { instinctFor } from '../src/core/autobattle/engine';
 import { ANIME } from '../src/core/battle3d/animeConfig';
-import { giveCommand, newAnimeBattle, stepAnime, commandState, type AnimeEntrant } from '../src/core/battle3d/anime';
+import { giveCommand, newAnimeBattle, stepAnime, type AnimeEntrant } from '../src/core/battle3d/anime';
 const st = { hp: 30, power: 36, tough: 32, speed: 12, tech: 16 };
 const e = (): AnimeEntrant => ({ name: 'B', species: 'bunk', stats: st, instinct: instinctFor('bunk', st), proficiency: { attack: 2, defense: 2, evasion: 2, counter: 2, spacing: 2 }, techs: ['バンクバッシュ'] });
 it('normal attack: punch in place, 3 hits if the first lands, 0.5s cooldown after, also in the air', () => {

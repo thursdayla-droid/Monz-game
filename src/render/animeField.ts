@@ -876,11 +876,12 @@ export class AnimeField {
     const sep = Math.hypot(q.x - p.x, q.z - p.z);
     // 2026-11-02 企画者「カメラがガチャガチャ」「若干遠目でもいい」→ 技ごとにカメラを動かすのをやめ、ひとつの落ち着いたカメラに。
     // 2体のまん中を、自分の MONZ 側のななめうしろ・少し横から、少し遠めに見る。2体が回りこんでも、向きはゆっくりついていく
-    const targetYaw = dir + Math.PI - 0.95;
+    // 2026-11-02 パンチ(腕が前へ出る)が見えるよう、横からに近づけた(0.95 → 1.25)
+    const targetYaw = dir + Math.PI - 1.25;
     if (this.camYaw === null) this.camYaw = targetYaw;
     this.camYaw += Math.atan2(Math.sin(targetYaw - this.camYaw), Math.cos(targetYaw - this.camYaw)) * (1 - Math.exp(-dt * 1.2));
     const mid = new THREE.Vector3(p.x + (q.x - p.x) * 0.45, 0, p.z + (q.z - p.z) * 0.45);
-    const dist = 8.5 + Math.min(sep, 16) * 0.45;
+    const dist = 7.5 + Math.min(sep, 16) * 0.45;
     const want = new THREE.Vector3(mid.x + Math.cos(this.camYaw) * dist, 3.6 + Math.min(sep, 16) * 0.18, mid.z + Math.sin(this.camYaw) * dist);
     const look = new THREE.Vector3(mid.x, 0.9 + Math.max(p.y, q.y) * 0.25, mid.z);
     this.camPos.lerp(want, 1 - Math.exp(-dt * 2));

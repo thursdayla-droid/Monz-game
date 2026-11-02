@@ -280,6 +280,11 @@ export class MonsterRig {
             sy = 0.85;
             sx = 0.95;
           }
+        } else if (tech.kind === 'jab' || (tech.kind === 'combo' && this.bones)) {
+          // パンチ(通常攻撃・連続攻撃): 体はまっすぐ立てたまま、腕でパンチ(前にかたむけると頭突きに見える。2026-11-02 企画者「頭突きだし」)
+          rotZ = 0.06;
+          sx = 1;
+          sy = 1;
         } else if (tech.kind === 'combo') {
           // 連続攻撃: 小きざみに跳ねて、何回もぶつかる
           lift = Math.abs(Math.sin(k * 22)) * 0.35;
@@ -369,7 +374,9 @@ export class MonsterRig {
       }
       this.bones.update(mode, this.hop, f.speed, now, dt, f.side * 1.3, atk, f.speed > 0.3 ? side / f.speed : 0);
       // パンチに合わせて、体ごと前へ出る(腕だけだと小さく見えるため。2026-11-02)
-      this.lungeNow += ((atk ? this.bones.lunge : 0) - this.lungeNow) * Math.min(1, dt * 25);
+      // パンチは体ごと前へは出ない(腕が前へ出るのを見せる)
+      const jabbing = a.k === 'tech' && (getTech(a.id).kind === 'jab' || getTech(a.id).kind === 'combo');
+      this.lungeNow += ((atk && !jabbing ? this.bones.lunge : 0) - this.lungeNow) * Math.min(1, dt * 25);
     }
     // 企画者のモデルは、形をゆがめないことを最優先(つぶす・のばすを小さくする)
     if (this.model) {
