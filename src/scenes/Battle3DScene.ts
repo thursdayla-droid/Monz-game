@@ -99,6 +99,7 @@ const CSS = `
 .b3d .setup .slots{margin-top:34px;display:grid;grid-template-columns:repeat(2,130px);grid-auto-rows:52px;gap:8px;align-content:start}
 .b3d .setup .slot{border:3px dashed #ffffff80;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;text-align:center;padding:2px}
 .b3d .setup .slot.on{border-style:solid;border-color:#ffd23a;background:#ffd23a22}
+.b3d .setup .slot.sel{border-style:solid;border-color:#7dd8ff;background:#7dd8ff33;box-shadow:0 0 12px #7dd8ff}
 .b3d .setup .slot.lock{color:#8a809a;border-color:#5a4a6a}
 .b3d .setup .list{flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px;align-content:start}
 .b3d .setup .t{background:#fff;color:#16101c;border:3px solid #16101c;border-radius:10px;padding:4px 8px;text-align:left;font:900 13px ${UI_FONT};position:relative}
@@ -387,10 +388,17 @@ export class Battle3DScene extends Phaser.Scene {
   private openSetup(el: HTMLElement): void {
     const me = this.battle.f[0];
     const slots = slotsAt(this.level);
-    const picked = me.techs.slice(0, slots);
+    // 枠ごとに持つ(外しても ほかの技がつめて動かない。空いた枠は空のまま)
+    const picked: (string | null)[] = [0, 1, 2, 3].slice(0, slots).map((i) => me.techs[i] ?? null);
+    // 2026-11-02 企画者「外すと技の1番最初にもどるのをやめたい」「技を入れ替えられるように」→ 一覧の場所をおぼえておく・枠をえらんで入れかえ
+    let sel = -1;
+    let scroll = 0;
+    const count = () => picked.filter(Boolean).length;
     const draw = () => {
+      const old = el.querySelector('.list');
+      if (old) scroll = old.scrollTop;
       const slotHtml = [0, 1, 2, 3]
-        .map((i) => (i >= slots ? `<div class="slot lock">🔒 Lv.${SLOT_LEVELS[i]}</div>` : picked[i] ? `<div class="slot on">${esc(picked[i])}</div>` : `<div class="slot">わざ ${i + 1}</div>`))
+        .map((i) => (i >= slots ? `<div class="slot lock">🔒 Lv.${SLOT_LEVELS[i]}</div>` : `<div class="slot ${picked[i] ? 'on' : ''} ${sel === i ? 'sel' : ''}" data-s="${i}">${picked[i] ? esc(picked[i]!) : `わざ ${i + 1}`}</div>`))
         .join('');
       const list = this.learned
         .map((n) => {
@@ -400,15 +408,34 @@ export class Battle3DScene extends Phaser.Scene {
           return `<button class="t ${k >= 0 ? 'on' : ''}" data-n="${esc(n)}">${esc(n)}${k >= 0 ? `<i>${k + 1}</i>` : ''}<small>${t.element}・${t.strength}・${info}・待ち ${t.cooldown.toFixed(1)}秒</small></button>`;
         })
         .join('');
-      el.innerHTML = `<h2>わざを セットしよう（${picked.length}/${slots}）</h2>
-        <div class="row"><div><div class="slots">${slotHtml}</div><div class="note">さわると入る・もう一度で外れる</div></div><div class="list">${list}</div></div>
-        <button class="go" ${picked.length ? '' : 'disabled'}>バトルスタート！</button>`;
+      el.innerHTML = `<h2>わざを セットしよう（${count()}/${slots}）</h2>
+        <div class="row"><div><div class="slots">${slotHtml}</div><div class="note">${sel >= 0 ? `わざ ${sel + 1} に入れる わざを さわってね<br>ほかの枠をさわると 入れかえ` : 'わざをさわると入る・もう一度で外れる<br>枠をさわると 入れかえできる'}</div></div><div class="list">${list}</div></div>
+        <button class="go" ${count() ? '' : 'disabled'}>バトルスタート！</button>`;
+      (el.querySelector('.list') as HTMLElement).scrollTop = scroll;
+      for (const d of [...el.querySelectorAll('.slot[data-s]')] as HTMLElement[]) {
+        d.addEventListener('click', () => {
+          const i = Number(d.dataset.s);
+          if (sel === i) sel = -1;
+          else if (sel >= 0) {
+            // 枠どうしを入れかえ
+            [picked[sel], picked[i]] = [picked[i], picked[sel]];
+            sel = -1;
+          } else sel = i;
+          audio.se('tap');
+          draw();
+        });
+      }
       for (const b of [...el.querySelectorAll('.t')] as HTMLElement[]) {
         b.addEventListener('click', () => {
           const n = b.dataset.n!;
           const k = picked.indexOf(n);
-          if (k >= 0) picked.splice(k, 1);
-          else if (picked.length < slots) picked.push(n);
+          if (sel >= 0) {
+            // えらんだ枠に入れる(ほかの枠にあった技なら、入れかえ)
+            if (k >= 0) picked[k] = picked[sel];
+            picked[sel] = n;
+            sel = -1;
+          } else if (k >= 0) picked[k] = null;
+          else if (picked.includes(null)) picked[picked.indexOf(null)] = n;
           else {
             audio.se('beep');
             return;
@@ -418,14 +445,15 @@ export class Battle3DScene extends Phaser.Scene {
         });
       }
       (el.querySelector('.go') as HTMLElement).addEventListener('click', () => {
-        if (!picked.length) return;
+        const set = picked.filter((n): n is string => !!n);
+        if (!set.length) return;
         audio.unlock();
         audio.se('select');
-        me.techs = [...picked];
-        for (const n of picked) me.cooldown[n] ??= 0;
+        me.techs = [...set];
+        for (const n of set) me.cooldown[n] ??= 0;
         // 保存(確認用ページの「確認用」でえらんだ BUNK は保存しない)
-        if (devPick && isPreview()) devTechs = [...picked];
-        else new LifeRecord(loadLife()).setTechs(picked);
+        if (devPick && isPreview()) devTechs = [...set];
+        else new LifeRecord(loadLife()).setTechs(set);
         this.techButtons();
         el.style.display = 'none';
         this.setupDone = true;
