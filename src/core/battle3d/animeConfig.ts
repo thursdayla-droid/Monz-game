@@ -30,7 +30,8 @@ export const ANIME = {
   /** 指示: 動けない間は待つ。この時間をすぎたら消える。1件だけ(新しい指示で置きかえ) */
   command: { wait: 1.5 },
   /** 【仮】自分で技を出す確率(指示がないときも戦う。1回考えるごと) */
-  selfUse: { partner: 0.08, rival: 0.18 },
+  // 2026-11-02: 自分の MONZ は「オート」なら相手と同じくらい自分で技を出す。「しゅどう」なら出さない(Battle3DScene で切りかえ)
+  selfUse: { partner: 0.08, partnerAuto: 0.18, rival: 0.18 },
   /** やられ: ひるみ・吹っ飛び・ダウン */
   hurt: { stun: 0.45, down: 0.9, invincibleAfterDown: 0.5, friction: 6 },
   /** 演出(5ヒット目は無いので、大技とKOだけ) */

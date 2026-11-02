@@ -20,6 +20,22 @@ const START_PROFICIENCY: Proficiency = { attack: 2, defense: 2, evasion: 2, coun
 let devPick: { level: number; style: StatKey } | null = null;
 const isPreview = () => (window as { __MONZ_START?: string }).__MONZ_START === 'Battle3D';
 const STYLE_LABEL: Record<string, string> = { power: 'パワー', tough: 'タフネス', speed: 'スピード', tech: 'テクニック' };
+/** 技の出し方(オート / しゅどう)。この端末に覚える(2026-11-02) */
+const MODE_KEY = 'monz:b3d:techMode';
+const techMode = (): 'auto' | 'manual' => {
+  try {
+    return localStorage.getItem(MODE_KEY) === 'manual' ? 'manual' : 'auto';
+  } catch {
+    return 'auto';
+  }
+};
+const saveTechMode = (m: 'auto' | 'manual') => {
+  try {
+    localStorage.setItem(MODE_KEY, m);
+  } catch {
+    /* 保存できなくても続ける */
+  }
+};
 const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
 
 const CSS = `
@@ -50,6 +66,8 @@ const CSS = `
 .b3d .cmds button.queued{outline:3px solid #ffd23a;animation:b3p .35s infinite alternate}
 .b3d .cmds button.cool{filter:grayscale(.8) brightness(.8)}
 .b3d .cmds button.lock,.b3d .cmds button.empty{background:#3a3040;color:#bfb4c8;box-shadow:0 4px 0 #16101c}
+.b3d .mode{position:absolute;left:calc(env(safe-area-inset-left) + 10px);bottom:calc(env(safe-area-inset-bottom) + 76px);font:900 14px ${UI_FONT};padding:6px 14px;border-radius:10px;border:3px solid #16101c;background:#ffd23a;color:#16101c;box-shadow:0 3px 0 #16101c}
+.b3d .mode.manual{background:#3a9cff;color:#fff}
 .b3d .dev{position:absolute;left:calc(env(safe-area-inset-left) + 10px);top:calc(env(safe-area-inset-top) + 66px);font-size:12px;font-weight:900}
 .b3d .dev button{font:900 12px ${UI_FONT};border:2px solid #16101c;border-radius:8px;background:#fff;color:#16101c;padding:3px 7px;margin:2px}
 .b3d .dev button.on{background:#ffd23a}
@@ -127,7 +145,7 @@ export class Battle3DScene extends Phaser.Scene {
     this.level = level;
     const rival = rivalEntrant(level, seed);
     const foe: AnimeEntrant = { ...rival, stats: rival.stats as StatBlock, proficiency: { ...START_PROFICIENCY }, techs: growTechs(rival.species, level, rival.stats as StatBlock, undefined, rival.instinct).state.equipped };
-    this.battle = newAnimeBattle(me, foe, seed);
+    this.battle = newAnimeBattle(me, foe, seed, techMode());
     this.buildDom();
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.cleanup());
     audio.playBgm('dash');
@@ -158,6 +176,7 @@ export class Battle3DScene extends Phaser.Scene {
     root.insertAdjacentHTML(
       'beforeend',
       `<div class="top"><button class="back">◀</button>${card(p, '')}<div class="timer">90</div>${card(q, 'r')}</div>
+       <button class="mode">${p.techMode === 'auto' ? 'オート' : 'しゅどう'}</button>
        <div class="call"></div><div class="pop"></div><div class="big"></div>
        <div class="cmds">${slot(0)}${slot(1)}<div class="gap"></div>${slot(2)}${slot(3)}<div class="mid"><button class="dodge" data-c="dodge"><span class="lb">よけろ！</span><span class="cd" style="height:0"></span></button></div></div>
        ${isPreview() ? `<div class="dev"><button class="devOpen">確認用</button><div class="devPanel"><div>レベル ${[1, 10, 20, 25, 30, 60].map((l) => `<button data-lv="${l}" class="${devPick?.level === l ? 'on' : ''}">${l}</button>`).join('')}</div><div>育て方 ${Object.keys(STYLE_LABEL).map((k) => `<button data-st="${k}" class="${devPick?.style === k ? 'on' : ''}">${STYLE_LABEL[k]}</button>`).join('')}</div><small>今の技: ${p.techs.map(esc).join('・')}</small></div></div>` : ''}
@@ -192,6 +211,18 @@ export class Battle3DScene extends Phaser.Scene {
       turn: $('.turn'),
     };
     $('.back').addEventListener('click', () => this.leave());
+    // 技の出し方の切りかえ(オート / しゅどう)。試合中でも切りかえられる。端末に覚える
+    const modeBtn = $('.mode');
+    modeBtn.addEventListener('click', () => {
+      const f = this.battle.f[0];
+      f.techMode = f.techMode === 'auto' ? 'manual' : 'auto';
+      saveTechMode(f.techMode);
+      modeBtn.textContent = f.techMode === 'auto' ? 'オート' : 'しゅどう';
+      modeBtn.classList.toggle('manual', f.techMode === 'manual');
+      audio.se('tap');
+      this.pop(f.techMode === 'auto' ? 'オート：自分で技を出す' : 'しゅどう：技はボタンで', '#ffffff');
+    });
+    modeBtn.classList.toggle('manual', this.battle.f[0].techMode === 'manual');
     // 確認用: レベル・育て方を切りかえて、やり直す
     if (isPreview()) {
       $('.devOpen').addEventListener('click', () => $('.dev').classList.toggle('open'));

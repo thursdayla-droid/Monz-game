@@ -92,4 +92,17 @@ describe('3D battle (anime monster battle style)', () => {
     }
     expect(w).toBeGreaterThan(12);
   });
+  it('manual mode: my MONZ never uses a move by itself (only by command), auto mode does', () => {
+    for (const mode of ['manual', 'auto'] as const) {
+      let self = 0;
+      for (let sd = 1; sd <= 5; sd++) {
+        const b = newAnimeBattle(ent(), ent(), sd, mode);
+        run(b, 40, (e) => {
+          if (e.kind === 'call' && e.side === 0 && !e.byCommand) self++;
+        });
+      }
+      if (mode === 'manual') expect(self).toBe(0);
+      else expect(self).toBeGreaterThan(5);
+    }
+  });
 });

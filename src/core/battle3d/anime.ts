@@ -75,6 +75,11 @@ export interface AnimeMon {
   vz: number;
   /** 急に走る(横へダッシュなど)の終わり */
   burstUntil: number;
+  /**
+   * 技の出し方(企画者 2026-11-02「オートで技出すモードと、自分で全部技を選んで動きだけ勝手に動く感じで切り替え」)。
+   * 'auto' = 自分で技をえらんで出す(指示もできる) / 'manual' = 技は指示だけ。動く・よける は自分で
+   */
+  techMode: 'auto' | 'manual';
 }
 
 export interface Shot {
@@ -186,12 +191,14 @@ function newMon(e: AnimeEntrant, side: Side): AnimeMon {
     vx: 0,
     vz: 0,
     burstUntil: 0,
+    techMode: 'auto',
   };
 }
 
-export function newAnimeBattle(a: AnimeEntrant, c: AnimeEntrant, seed: number): AnimeBattle {
+export function newAnimeBattle(a: AnimeEntrant, c: AnimeEntrant, seed: number, partnerMode: 'auto' | 'manual' = 'auto'): AnimeBattle {
   const rng = mulberry32(seed);
   const f: [AnimeMon, AnimeMon] = [newMon(a, 0), newMon(c, 1)];
+  f[0].techMode = partnerMode;
   // はじめは少し様子を見る
   for (const m of f) m.thinkT = 0.8 + rng() * 0.6;
   return { f, t: 0, rng, winner: null, koAt: null, shots: [], beams: [], quakes: [], seq: 0, events: [] };
@@ -546,7 +553,8 @@ function watchDanger(b: AnimeBattle, f: AnimeMon): void {
   for (const q of b.quakes) if (q.owner !== f.side && !q.hit && dist(q, f) - q.r < 1.4 && dist(q, f) - q.r > 0.3) danger = 'jump';
   if (!danger) return;
   // 守りの技があれば、ドームで止める(習熟度 Defense・防衛本能)
-  const guard = f.techs.find((id) => getTech(id).kind === 'barrier' && (f.cooldown[id] ?? 0) <= b.t);
+  // 守りの技は技なので、しゅどうのときは自分では出さない
+  const guard = f.techMode === 'auto' ? f.techs.find((id) => getTech(id).kind === 'barrier' && (f.cooldown[id] ?? 0) <= b.t) : undefined;
   if (guard && b.t >= f.dizzyUntil && danger === 'side' && b.rng() < lerp(C.skill.dodge, lv(f, 'defense')) * (0.4 + f.instinct.defense * 0.8)) {
     startTech(b, f, guard, false);
     return;
@@ -583,7 +591,8 @@ function think(b: AnimeBattle, f: AnimeMon): void {
   const o = other(b, f);
   const d = dist(f, o);
   // 自分で技を出す(相手はよく出す。自分の MONZ は指示が中心で、ときどき)【仮】
-  const p = f.side === 0 ? C.selfUse.partner : C.selfUse.rival;
+  // オート: 自分で技を出す(相手と同じくらい) / しゅどう: 自分では出さない
+  const p = f.techMode === 'manual' ? 0 : f.side === 0 ? C.selfUse.partnerAuto : C.selfUse.rival;
   if (b.t < f.dizzyUntil) {
     // ふらつき: 技を出せず、ふらふら歩く
     f.plan = (['circleL', 'circleR', 'retreat', 'hold'] as const)[Math.floor(b.rng() * 4)];
