@@ -487,6 +487,28 @@ export class AnimeField {
     this.shake(0.4);
   }
 
+  /** 炎(炎の技): ゆらゆら のぼる火の粉(赤・オレンジ・黄色) */
+  flame(x: number, y: number, z: number, spread: number, n = 2): void {
+    for (let i = 0; i < n; i++) {
+      const c = [0xff3a10, 0xff7a1a, 0xffc040][Math.floor(Math.random() * 3)];
+      const s = this.sprite(c);
+      s.position.set(x + (Math.random() - 0.5) * spread, y + Math.random() * spread * 0.5, z + (Math.random() - 0.5) * spread);
+      this.add(s, 0.4 + Math.random() * 0.25, -0.5, 0.5 + Math.random() * 0.3, { vx: (Math.random() - 0.5) * 0.6, vz: (Math.random() - 0.5) * 0.6, vy: 1.8 + Math.random() * 1.5 });
+    }
+  }
+
+  /** 炎の技が当たった: 火が はじける */
+  flameBurst(x: number, y: number, z: number): void {
+    for (let i = 0; i < 14; i++) {
+      const c = [0xff3a10, 0xff7a1a, 0xffd060][i % 3];
+      const s = this.sprite(c);
+      s.position.set(x, y, z);
+      const a = Math.random() * Math.PI * 2;
+      const sp = 1.5 + Math.random() * 3;
+      this.add(s, 0.45, -0.4, 0.5, { vx: Math.cos(a) * sp, vz: Math.sin(a) * sp, vy: 1.5 + Math.random() * 3 });
+    }
+  }
+
   /** 突進・回転の出だし: 足もとの砂けむりと、うしろへ飛ぶ土 */
   launch(x: number, z: number, dir: number): void {
     this.dust(x, z, true);
@@ -630,6 +652,10 @@ export class AnimeField {
         (aura.material as THREE.MeshBasicMaterial).color.setHex(auraColor(at.element));
         (aura.material as THREE.MeshBasicMaterial).opacity = 0.28 + Math.sin(performance.now() / 30) * 0.06;
       }
+      // 炎の技: ためから技が終わるまで、体から火の粉が のぼる(2026-11-02 企画者「技炎少しほしい」)
+      if (a.k === 'tech' && dt > 0 && getTech(a.id).element === '炎' && !(a.fired && a.hit && getTech(a.id).kind !== 'shot')) {
+        if (Math.random() < dt * 70) this.flame(f.x, f.y + 0.3, f.z, 1.2, 2);
+      }
       // 突進: オレンジのスピードライン(体のうしろへ流れる)。回転: 体のまわりを紫と属性の色の輪が回り、軌跡が残る(2026-11-02 企画者の技演出イメージ)
       const sr = this.spinRings[i];
       sr.visible = false;
@@ -763,6 +789,8 @@ export class AnimeField {
       g.position.set(s.x, s.y, s.z);
       g.children[1].rotation.z += dt * 10;
       (g.children[1] as THREE.Sprite).material.rotation += dt * 12;
+      // 炎の弾は、火の粉を引く
+      if (getTech(s.tech).element === '炎' && Math.random() < 0.7) this.flame(s.x, s.y, s.z, 0.4, 1);
       // 尾
       const tail = this.sprite(col);
       tail.position.set(s.x, s.y, s.z);

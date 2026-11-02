@@ -25,6 +25,8 @@ export interface AnimeEntrant {
   proficiency: Proficiency;
   /** 装備している技(最大4つ。Ver.44)。ないときは前の試作の4つ */
   techs?: TechId[];
+  /** 形態(1 = 初期・2 = 第1進化・3 = 第2進化)。通常攻撃が変わる */
+  form?: number;
 }
 
 export type AnimeAct =
@@ -88,6 +90,10 @@ export interface AnimeMon {
    * 動く向き(世界の X・Z。長さ0〜1)。null なら AI が動かす
    */
   pad: { x: number; z: number } | null;
+  /** 通常攻撃(形態で変わる) */
+  jab: { parts: number[]; range: number };
+  /** 受け身の予約(空中で よける を押した) */
+  ukemi: boolean;
 }
 
 export interface Shot {
@@ -136,6 +142,7 @@ export type AnimeEvent =
   | { kind: 'command'; side: Side; cmd: Command; state: 'queued' | 'done' | 'expired' }
   | { kind: 'status'; side: Side; effect: Effect }
   | { kind: 'roar'; side: Side; x: number; z: number }
+  | { kind: 'ukemi'; side: Side }
   | { kind: 'field'; side: Side; x: number; z: number; r: number; until: number }
   | { kind: 'blocked'; side: Side; x: number; y: number; z: number }
   | { kind: 'mark'; side: Side; x: number; z: number; r: number; until: number }
@@ -181,6 +188,8 @@ function newMon(e: AnimeEntrant, side: Side): AnimeMon {
     instinct: e.instinct,
     prof: e.proficiency,
     techs: e.techs ?? [...TECH_IDS],
+    jab: C.jabByForm[Math.max(1, Math.min(3, e.form ?? 1)) - 1],
+    ukemi: false,
     dizzyUntil: 0,
     paraUntil: 0,
     atkDownUntil: 0,
@@ -253,7 +262,7 @@ function startTech(b: AnimeBattle, f: AnimeMon, id: TechId, byCommand: boolean):
   f.face = dir;
   // テクニックが高いと、技の待ち時間が少し短い(最大2割。2026-11-02 バランス)
   f.cooldown[id] = tech.kind === 'jab'
-    ? b.t + tech.windup + tech.duration * C.jab.parts.length + tech.recovery + tech.cooldown // 通常攻撃: 3連が終わってから0.5秒
+    ? b.t + tech.windup + tech.duration * f.jab.parts.length + tech.recovery + tech.cooldown // 通常攻撃: 連打が終わってから0.5秒
     : b.t + tech.cooldown * (1 - Math.min(C.stat.techCdMax, f.stats.tech / C.stat.techCdDiv));
   b.events.push({ kind: 'call', side: f.side, tech: id, byCommand });
 }
@@ -395,12 +404,12 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
     case 'jab': {
       // 通常攻撃: その場で前へパンチ。当たったら続けて3連まで(外れたら そこで終わり)。空中でも出せる
       if (!a.hit && a.t >= a.next) {
-        const reach = tech.range + C.body.radius;
+        const reach = f.jab.range + C.body.radius;
         const ok = dist(f, o) < reach && Math.abs(angDiff(angleTo(f, o), f.face)) < 0.9 && Math.abs(o.y - f.y) < 1.3;
         a.n++;
         a.next = a.t + tech.duration;
         b.events.push({ kind: 'comboHit', side: f.side, n: a.n });
-        const parts = C.jab.parts;
+        const parts = f.jab.parts;
         const landed = ok && hit(b, f, o, a.id, (f.x + o.x) / 2, f.y + 0.8, (f.z + o.z) / 2, f.face, { last: a.n >= parts.length, part: parts[a.n - 1] });
         if (!landed || a.n >= parts.length) a.hit = true;
       }
@@ -463,7 +472,8 @@ function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y:
   const dmg = Math.max(1, Math.round(down * (crit ? C.stat.critMul : 1) * tech.power * part * (part < 1 ? C.combo.bonus : 1) * (1 + f.stats.power / C.stat.powerDiv) * (C.stat.toughDiv / (C.stat.toughDiv + o.stats.tough)) * (0.9 + b.rng() * 0.2)));
   o.hp = Math.max(0, o.hp - dmg);
   const finish = opt.last ?? true;
-  const knock = tech.knock * (finish ? 1 : 0.25);
+  // 通常攻撃(パンチの連打)は、さいごの1発だけ押す(とちゅうで とどかなくならないように)
+  const knock = tech.knock * (finish ? 1 : tech.kind === 'jab' ? 0 : 0.25);
   o.kvx += Math.cos(dir) * knock * C.hurt.friction * 0.35;
   o.kvz += Math.sin(dir) * knock * C.hurt.friction * 0.35;
   o.command = null;
@@ -766,7 +776,16 @@ function updateMon(b: AnimeBattle, f: AnimeMon, dt: number): void {
       f.vy = 0;
       const hard = a.k === 'air' || a.k === 'ko' || (a.k === 'tech' && (getTech(a.id).kind === 'quake' || getTech(a.id).kind === 'drop'));
       b.events.push({ kind: 'land', side: f.side, hard });
-      if (a.k === 'air') f.act = { k: 'down', t: 0, until: C.hurt.down };
+      if (a.k === 'air') {
+        // 受け身: 空中で よける を押していたら、たおれずに転がって起きる
+        if (f.ukemi) {
+          f.ukemi = false;
+          f.act = { k: 'free' };
+          startDodge(b, f, false);
+          f.safeUntil = b.t + C.ukemi.safe;
+          b.events.push({ kind: 'ukemi', side: f.side });
+        } else f.act = { k: 'down', t: 0, until: C.hurt.down };
+      }
     }
   }
   if (f.kvx || f.kvz) {
@@ -812,6 +831,17 @@ function updateMon(b: AnimeBattle, f: AnimeMon, dt: number): void {
   if (f.command && b.t > f.command.until) {
     b.events.push({ kind: 'command', side: f.side, cmd: f.command.cmd, state: 'expired' });
     f.command = null;
+  }
+  // 受け身(2026-11-02 企画者「倒れる時 よける押すと受け身とれるように」)。ふっとんでいる間・たおれている間に よける
+  if (f.command?.cmd === 'dodge' && (f.act.k === 'air' || f.act.k === 'down') && (f.cooldown.dodge ?? 0) <= b.t) {
+    f.command = null;
+    f.cooldown.dodge = b.t + C.dodge.cooldown;
+    if (f.act.k === 'down') {
+      f.act = { k: 'free' };
+      startDodge(b, f, false);
+      f.safeUntil = b.t + C.ukemi.safe;
+      b.events.push({ kind: 'ukemi', side: f.side });
+    } else f.ukemi = true;
   }
   // 空中でも通常攻撃は出せる(2026-11-02 企画者「空中でも攻撃出せるように」)
   if (f.act.k === 'free' && f.y > 0 && f.command?.cmd === 'punch') {

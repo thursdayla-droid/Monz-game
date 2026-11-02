@@ -19,3 +19,30 @@ it('normal attack: punch in place, 3 hits if the first lands, 0.5s cooldown afte
   expect(giveCommand(b, 0, 'punch')).toBe(true); b.events = []; stepAnime(b, ANIME.dt);
   expect(p.act.k).toBe('tech');
 });
+
+it('evolution changes the normal attack (form 2: 4 hits, form 3: 5 hits, longer reach)', () => {
+  for (const [form, want] of [[1, 3], [2, 4], [3, 5]] as const) {
+    const b = newAnimeBattle({ ...e(), form }, e(), 1, 'manual');
+    const [p, q] = b.f;
+    p.pad = { x: 0, z: 0 };
+    p.x = 0; p.z = 0; q.x = form === 3 ? 2.6 : 1.6; q.z = 0; p.face = 0; q.thinkT = 99; q.cooldown.dodge = 99;
+    giveCommand(b, 0, 'punch');
+    let hits = 0;
+    for (let i = 0; i < 60; i++) { b.events = []; stepAnime(b, ANIME.dt); for (const ev of b.events) if (ev.kind === 'hit') hits++; }
+    expect(hits).toBe(want);
+  }
+});
+
+it('ukemi: pressing dodge while knocked into the air or down gets up with a roll', () => {
+  const b = newAnimeBattle(e(), e(), 2, 'manual');
+  const p = b.f[0];
+  p.pad = { x: 0, z: 0 };
+  b.f[1].thinkT = 99;
+  p.act = { k: 'air', t: 0 };
+  p.vy = 5; p.y = 0.5;
+  giveCommand(b, 0, 'dodge');
+  const ev: string[] = [];
+  for (let i = 0; i < 60; i++) { b.events = []; stepAnime(b, ANIME.dt); for (const x of b.events) ev.push(x.kind); }
+  expect(ev).toContain('ukemi');
+  expect(p.act.k).not.toBe('down');
+});

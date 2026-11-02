@@ -4,7 +4,7 @@ import { audio } from '../audio/engine';
 import type { StatBlock } from '../core/stats';
 import type { Proficiency } from '../core/battle3d/config';
 import { ANIME, type TechId } from '../core/battle3d/animeConfig';
-import { growTechs, SLOT_LEVELS, slotsAt } from '../core/battle3d/techLearn';
+import { formAt, growTechs, SLOT_LEVELS, slotsAt } from '../core/battle3d/techLearn';
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { addStats, autoGrowthAt, speciesStats, type StatKey } from '../core/stats';
 import { instinctFor } from '../core/autobattle/engine';
@@ -200,6 +200,9 @@ export class Battle3DScene extends Phaser.Scene {
     // 自分で動かす(左のスティック)・技は自分で押す(2026-11-02 企画者)
     if (devPick && isPreview() && devTechs) me.techs = devTechs.filter((n) => me.techs!.includes(n) || growTechs('bunk', level, me.stats, undefined, me.instinct).state.learned.includes(n));
     this.learned = devPick && isPreview() ? growTechs('bunk', level, me.stats, undefined, me.instinct).state.learned : mon.techs?.learned ?? me.techs ?? [];
+    // 形態で通常攻撃が変わる(Lv.30 で4連・Lv.60 で5連)
+    me.form = formAt(level);
+    foe.form = formAt(level);
     this.battle = newAnimeBattle(me, foe, seed, 'manual');
     this.control = loadControl();
     this.applyControl();
@@ -542,6 +545,7 @@ export class Battle3DScene extends Phaser.Scene {
         // 型ごとの命中の光(2026-11-02 企画者の技演出イメージ)
         if (ht.kind === 'rush') F.rushHit(e.x, e.y, e.z, hdir, hcol, ht.strength === '強' || ht.strength === '大技');
         else if (ht.kind === 'spin') F.spinHit(e.x, e.y, e.z, hcol);
+        if (ht.element === '炎') F.flameBurst(e.x, e.y, e.z);
         // 当たった所から光の輪(技の色)。大きい当たりは画面が白く光る(2026-11-02 企画者「技しょぼい」)
         F.shockRing(e.x, e.y, e.z, ELEMENT_HEX[getTech(e.tech).element] === 0xe0e0f0 ? 0xffd080 : ELEMENT_HEX[getTech(e.tech).element], e.big ? 1.8 : 1.1);
         // 画面の光・ゆれ・止まる時間は、技の強さで決める(弱い技でも迫力は出すが、控えめ)
@@ -587,6 +591,10 @@ export class Battle3DScene extends Phaser.Scene {
         break;
       case 'dodge':
         audio.se('whoosh', { pitch: 1.5 });
+        break;
+      case 'ukemi':
+        this.pop(e.side === 0 ? '受け身！' : 'あいての受け身！', '#7dd8ff');
+        audio.se('whoosh', { pitch: 1.6 });
         break;
       case 'evaded':
         this.pop(e.side === 0 ? 'よけた！' : 'よけられた！', e.side === 0 ? '#7dffa0' : '#ffb070');
