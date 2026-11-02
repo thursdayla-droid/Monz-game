@@ -505,6 +505,11 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
  * ガンジョウドームの反撃(2026-11-02 企画者「相手の技や攻撃受けたら爆発が起きて反撃できるように」)。
  * 守りのドームが攻撃を受けると、ドームが はじけて衝撃波が広がる(ドームはそこで終わり)。近くの相手に当たる(ジャンプでよけられる)
  */
+/** 今、攻撃が当たらないか(たおれている・起きた直後・受け身のあと・よけている瞬間)。hit() と同じ決まり。見た目で分かるように使う(2026-11-02 企画者) */
+export function isInvincible(b: AnimeBattle, f: AnimeMon): boolean {
+  return b.t < f.safeUntil || f.act.k === 'down' || (f.act.k === 'dodge' && f.act.t < C.dodge.invincible);
+}
+
 function domeBurst(b: AnimeBattle, f: AnimeMon): void {
   if (b.t >= f.barrierUntil) return;
   f.barrierUntil = b.t;

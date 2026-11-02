@@ -60,6 +60,8 @@ export class MonsterRig {
   private xEyes: THREE.Group;
   private hop = 0;
   flash = 0;
+  /** 攻撃が当たらない間(たおれている・起きた直後・よけている瞬間)。白く点滅させる(2026-11-02 企画者「喰らわない時白くするか分かりやすく」) */
+  safe = false;
 
   constructor(color: number, belly: number, horn: number, gradient: THREE.Texture) {
     const mat = (c: number) => {
@@ -418,9 +420,11 @@ export class MonsterRig {
     // 当たった時の白い光・よけている時の半透明
     this.flash = Math.max(0, this.flash - dt);
     const ghost = a.k === 'dodge' && a.t < 0.28 ? 0.6 : 1;
+    // 当たらない間: 白く ちかちか(当たった時の光より弱く、点滅させて ちがいが分かるように)
+    const safeGlow = this.safe ? 0.25 + 0.3 * (0.5 + 0.5 * Math.sin(now * 28)) : 0;
     for (const m of this.mats) {
-      m.emissive.setHex(this.flash > 0 ? 0xffffff : 0x000000);
-      m.emissiveIntensity = this.flash > 0 ? 0.9 : 0;
+      m.emissive.setHex(this.flash > 0 || safeGlow > 0 ? 0xffffff : 0x000000);
+      m.emissiveIntensity = this.flash > 0 ? 0.9 : safeGlow;
       m.transparent = ghost < 1;
       m.opacity = ghost;
     }

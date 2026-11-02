@@ -7,7 +7,7 @@
  */
 import * as THREE from 'three';
 import { ANIME, type Element, type TechId } from '../core/battle3d/animeConfig';
-import type { AnimeBattle } from '../core/battle3d/anime';
+import { isInvincible, type AnimeBattle } from '../core/battle3d/anime';
 import { getTech } from '../core/battle3d/techTable';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { assetUrl } from '../assetUrl';
@@ -601,6 +601,7 @@ export class AnimeField {
   render(b: AnimeBattle, dt: number): void {
     b.f.forEach((f, i) => {
       const rig = this.rigs[i];
+      rig.safe = f.act.k !== 'ko' && f.act.k !== 'victory' && isInvincible(b, f);
       rig.update(f, dt);
       // 技のため: 口に光が集まる
       const ch = this.charge[i];
