@@ -83,6 +83,11 @@ export interface AnimeMon {
    * 'auto' = 自分で技をえらんで出す(指示もできる) / 'manual' = 技は指示だけ。動く・よける は自分で
    */
   techMode: 'auto' | 'manual';
+  /**
+   * プレイヤーが動かす(2026-11-02 企画者「左に移動スティックで自分で動かす」)。
+   * 動く向き(世界の X・Z。長さ0〜1)。null なら AI が動かす
+   */
+  pad: { x: number; z: number } | null;
 }
 
 export interface Shot {
@@ -203,6 +208,7 @@ function newMon(e: AnimeEntrant, side: Side): AnimeMon {
     vz: 0,
     burstUntil: 0,
     techMode: 'auto',
+    pad: null,
   };
 }
 
@@ -259,7 +265,9 @@ function startDodge(b: AnimeBattle, f: AnimeMon, jump: boolean): void {
     return Math.max(Math.abs(x) / C.field.halfX, Math.abs(z) / C.field.halfZ);
   };
   if (out(s) > 0.9 && out(-s) < out(s)) s = -s;
-  const dir = a + (s * Math.PI) / 2;
+  let dir = a + (s * Math.PI) / 2;
+  // プレイヤーが動かしているときは、スティックの向きへよける(倒していなければ横へ)
+  if (f.pad && Math.hypot(f.pad.x, f.pad.z) > 0.2) dir = Math.atan2(f.pad.z, f.pad.x);
   f.act = { k: 'dodge', t: 0, dx: Math.cos(dir), dz: Math.sin(dir), jump };
   if (jump) f.vy = 9;
   f.cooldown.dodge = b.t + C.dodge.cooldown * 0.5;
@@ -710,6 +718,23 @@ function walk(b: AnimeBattle, f: AnimeMon, dt: number): void {
   f.face += angDiff(a, f.face) * (1 - Math.exp(-dt * C.stat.turnRate));
 }
 
+/** スティックで歩く(勢いあり・相手のほうを向いたまま) */
+function padWalk(b: AnimeBattle, f: AnimeMon, dt: number): void {
+  const o = other(b, f);
+  const len = Math.min(1, Math.hypot(f.pad!.x, f.pad!.z));
+  const sp = (C.stat.walkBase + f.stats.speed * C.stat.walkPerSpeed) * C.pad.speed * len * (b.t < f.paraUntil ? C.status.paraSpeed : 1) * (b.t < f.slowUntil ? C.gfield.slow : 1) * (b.t < f.dizzyUntil ? 0.6 : 1);
+  const n = Math.hypot(f.pad!.x, f.pad!.z) || 1;
+  const wx = len > 0.05 ? (f.pad!.x / n) * sp : 0;
+  const wz = len > 0.05 ? (f.pad!.z / n) * sp : 0;
+  const k = 1 - Math.exp(-dt * C.move.accel * 1.6);
+  f.vx += (wx - f.vx) * k;
+  f.vz += (wz - f.vz) * k;
+  f.x += f.vx * dt;
+  f.z += f.vz * dt;
+  f.speed = Math.hypot(f.vx, f.vz);
+  f.face += angDiff(angleTo(f, o), f.face) * (1 - Math.exp(-dt * C.stat.turnRate));
+}
+
 // ---------------- 1回分すすめる ----------------
 
 function updateMon(b: AnimeBattle, f: AnimeMon, dt: number): void {
@@ -797,6 +822,11 @@ function updateMon(b: AnimeBattle, f: AnimeMon, dt: number): void {
       f.cooldown.dodge = b.t + C.dodge.cooldown;
     } else startTech(b, f, c, true);
     b.events.push({ kind: 'command', side: f.side, cmd: c, state: 'done' });
+    return;
+  }
+  // プレイヤーが動かしている: 自分では考えない(よけない・技を出さない)。スティックの向きへ歩く
+  if (f.pad) {
+    padWalk(b, f, dt);
     return;
   }
   watchDanger(b, f);

@@ -106,6 +106,15 @@ export function autoEquip(species: string, learned: string[], level: number, ins
 export interface TechState {
   learned: string[];
   equipped: string[];
+  /** プレイヤーが自分で装備を決めた(2026-11-02 企画者「試合前に覚えた技から自分で4個セッティング」)。決めた後はレベルアップで勝手に変えない */
+  manual?: boolean;
+}
+
+/** 自分で決めた装備をそろえる(覚えていない技・同じ技を外し、開いている枠の数まで) */
+export function setEquip(learned: string[], wanted: string[], level: number): string[] {
+  const out: string[] = [];
+  for (const n of wanted) if (learned.includes(n) && !out.includes(n) && out.length < slotsAt(level)) out.push(n);
+  return out;
 }
 
 /** 成長イベント(レベルアップ)での更新。新しく覚えた技も返す */
@@ -113,6 +122,12 @@ export function growTechs(species: string, level: number, stats: StatBlock, prev
   const before = prev?.learned ?? [];
   const learned = learnAt(species, level, stats, before);
   const newly = learned.filter((n) => !before.includes(n));
+  // 自分で決めた装備は変えない(新しく開いた枠だけ、空いていれば足す)
+  if (prev?.manual) {
+    const keep = setEquip(learned, prev.equipped, level);
+    for (const n of autoEquip(species, learned, level, instinct)) if (keep.length < slotsAt(level) && !keep.includes(n)) keep.push(n);
+    return { state: { learned, equipped: keep, manual: true }, newly };
+  }
   return { state: { learned, equipped: autoEquip(species, learned, level, instinct) }, newly };
 }
 

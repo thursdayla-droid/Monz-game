@@ -14,7 +14,7 @@ import type { CpuLevel } from './mythclash/cpu';
 import { battleReward, TOWER_FLOORS, towerReward } from './mythclash/modes';
 import { addCards, deckOwned, fixCollection, newCollection, openPacks, PACK_PRICE, type MythCollection } from './mythclash/packs';
 import type { Rng } from './rng';
-import { growTechs, hasTechTable, type TechState } from './battle3d/techLearn';
+import { growTechs, hasTechTable, setEquip, type TechState } from './battle3d/techLearn';
 import { instinctFor } from './autobattle/engine';
 import { addStats, autoGrowthAt, currentStats, FREE_POINTS_PER_LEVEL, levelUpRng, LOVE_RULES, rollAutoGrowth, STAT_KEYS, STAT_MAX, zeroStats, type StatBlock, type StatKey } from './stats';
 
@@ -160,7 +160,7 @@ function fixTechs(m: MonzData): TechState | undefined {
   const stats = currentStats(m);
   const ok = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === 'string');
   const t = m.techs;
-  if (t && ok(t.learned) && ok(t.equipped) && t.learned.length) return { learned: t.learned, equipped: t.equipped.filter((n) => t.learned.includes(n)) };
+  if (t && ok(t.learned) && ok(t.equipped) && t.learned.length) return { learned: t.learned, equipped: t.equipped.filter((n) => t.learned.includes(n)), ...(t.manual ? { manual: true } : {}) };
   return growTechs(m.species, m.level, stats, undefined, instinctFor(m.species, stats)).state;
 }
 
@@ -317,6 +317,13 @@ export class LifeRecord {
 
   get snapshot(): Readonly<LifeData> {
     return this.data;
+  }
+
+  /** 3Dバトルの技の装備を自分で決める(試合前のセッティング。2026-11-02) */
+  setTechs(equipped: string[]): void {
+    const t = this.monz.techs;
+    if (!t) return;
+    this.update({}, { techs: { learned: t.learned, equipped: setEquip(t.learned, equipped, this.monz.level), manual: true } });
   }
 
   /** 今のMONZの名前を決める(生まれたとき) */

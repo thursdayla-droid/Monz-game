@@ -5,7 +5,7 @@ import type { StatBlock } from '../core/stats';
 import type { Proficiency } from '../core/battle3d/config';
 import { ANIME, type TechId } from '../core/battle3d/animeConfig';
 import { growTechs, SLOT_LEVELS, slotsAt } from '../core/battle3d/techLearn';
-import { loadLife } from '../core/lifeSave';
+import { LifeRecord, loadLife } from '../core/lifeSave';
 import { addStats, autoGrowthAt, speciesStats, type StatKey } from '../core/stats';
 import { instinctFor } from '../core/autobattle/engine';
 import { animeFinished, commandState, giveCommand, newAnimeBattle, stepAnime, type AnimeBattle, type AnimeEntrant, type AnimeEvent, type Command } from '../core/battle3d/anime';
@@ -20,22 +20,9 @@ const START_PROFICIENCY: Proficiency = { attack: 2, defense: 2, evasion: 2, coun
 let devPick: { level: number; style: StatKey } | null = null;
 const isPreview = () => (window as { __MONZ_START?: string }).__MONZ_START === 'Battle3D';
 const STYLE_LABEL: Record<string, string> = { power: 'パワー', tough: 'タフネス', speed: 'スピード', tech: 'テクニック' };
-/** 技の出し方(オート / しゅどう)。この端末に覚える(2026-11-02) */
-const MODE_KEY = 'monz:b3d:techMode';
-const techMode = (): 'auto' | 'manual' => {
-  try {
-    return localStorage.getItem(MODE_KEY) === 'manual' ? 'manual' : 'auto';
-  } catch {
-    return 'auto';
-  }
-};
-const saveTechMode = (m: 'auto' | 'manual') => {
-  try {
-    localStorage.setItem(MODE_KEY, m);
-  } catch {
-    /* 保存できなくても続ける */
-  }
-};
+/** 確認用ページで、試合前にえらんだ技(保存データには入れない) */
+let devTechs: string[] | null = null;
+const real0 = (delta: number) => Math.min(delta / 1000, 0.1) * 0.05;
 const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
 
 const CSS = `
@@ -68,7 +55,38 @@ const CSS = `
 .b3d .cmds button.lock,.b3d .cmds button.empty{background:#3a3040;color:#bfb4c8;box-shadow:0 4px 0 #16101c}
 .b3d .mode{position:absolute;left:calc(env(safe-area-inset-left) + 10px);bottom:calc(env(safe-area-inset-bottom) + 76px);font:900 14px ${UI_FONT};padding:6px 14px;border-radius:10px;border:3px solid #16101c;background:#ffd23a;color:#16101c;box-shadow:0 3px 0 #16101c}
 .b3d .mode.manual{background:#3a9cff;color:#fff}
-.b3d .dev{position:absolute;left:calc(env(safe-area-inset-left) + 10px);top:calc(env(safe-area-inset-top) + 66px);font-size:12px;font-weight:900}
+/* 2026-11-02 企画者「左に移動スティック・右に技4つ・よけるボタン」 */
+.b3d .stickZone{position:absolute;left:0;top:70px;bottom:0;width:45%;touch-action:none}
+.b3d .stickBase{position:absolute;width:120px;height:120px;margin:-60px 0 0 -60px;border-radius:50%;background:#ffffff30;border:3px solid #ffffffa0;display:none;pointer-events:none}
+.b3d .stickKnob{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:#ffffffd0;border:3px solid #16101c}
+.b3d .stickHint{position:absolute;left:calc(env(safe-area-inset-left) + 40px);bottom:calc(env(safe-area-inset-bottom) + 40px);width:110px;height:110px;border-radius:50%;border:3px dashed #ffffff80;color:#ffffffc0;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;text-align:center;pointer-events:none}
+.b3d .pad{position:absolute;right:calc(env(safe-area-inset-right) + 10px);bottom:calc(env(safe-area-inset-bottom) + 10px);display:flex;align-items:flex-end;gap:10px}
+.b3d .grid{display:grid;grid-template-columns:repeat(2,minmax(96px,128px));gap:8px}
+.b3d .pad button{position:relative;height:54px;border-radius:14px;border:3px solid #16101c;color:#16101c;font:900 min(14px,1.9vw) ${UI_FONT};white-space:nowrap;letter-spacing:-.05em;padding:0 4px;overflow:hidden;box-shadow:0 4px 0 #16101c;background:#fff}
+.b3d .pad button .el{display:block;font-size:10px;color:#fff;border-radius:6px;margin:0 auto 2px;width:3.2em}
+.b3d .pad button .cd{position:absolute;left:0;bottom:0;right:0;background:#16101c99;pointer-events:none}
+.b3d .pad button .lb{position:relative}
+.b3d .pad button:active{transform:translateY(3px);box-shadow:0 1px 0 #16101c}
+.b3d .pad button.queued{outline:3px solid #ffd23a}
+.b3d .pad button.cool{filter:grayscale(.8) brightness(.8)}
+.b3d .pad button.lock,.b3d .pad button.empty{background:#3a3040;color:#bfb4c8}
+.b3d .pad .dodge{width:76px;height:76px;border-radius:50%;background:#16101c;color:#fff;border-color:#fff;margin-bottom:16px}
+.b3d .setup{position:absolute;inset:0;background:#0d0614e8;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top) + 10px) calc(env(safe-area-inset-right) + 16px) calc(env(safe-area-inset-bottom) + 10px) calc(env(safe-area-inset-left) + 16px);gap:8px;z-index:6}
+.b3d .setup h2{margin:0 0 0 70px;font-size:20px;color:#ffd23a}
+.b3d .setup .row{display:flex;gap:12px;flex:1;min-height:0}
+.b3d .setup .slots{margin-top:34px;display:grid;grid-template-columns:repeat(2,130px);grid-auto-rows:52px;gap:8px;align-content:start}
+.b3d .setup .slot{border:3px dashed #ffffff80;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;text-align:center;padding:2px}
+.b3d .setup .slot.on{border-style:solid;border-color:#ffd23a;background:#ffd23a22}
+.b3d .setup .slot.lock{color:#8a809a;border-color:#5a4a6a}
+.b3d .setup .list{flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px;align-content:start}
+.b3d .setup .t{background:#fff;color:#16101c;border:3px solid #16101c;border-radius:10px;padding:4px 8px;text-align:left;font:900 13px ${UI_FONT};position:relative}
+.b3d .setup .t small{display:block;font-size:10px;color:#5a4a66;font-weight:700}
+.b3d .setup .t.on{background:#ffd23a}
+.b3d .setup .t i{position:absolute;right:6px;top:4px;font-style:normal;background:#16101c;color:#ffd23a;border-radius:50%;width:18px;height:18px;font-size:11px;display:flex;align-items:center;justify-content:center}
+.b3d .setup .go{align-self:flex-end;font:900 18px ${UI_FONT};padding:8px 26px;border-radius:12px;border:3px solid #16101c;background:#ffd23a;color:#16101c}
+.b3d .setup .go:disabled{opacity:.4}
+.b3d .setup .note{font-size:11px;color:#c8bcd8}
+.b3d .dev{z-index:7;position:absolute;left:calc(env(safe-area-inset-left) + 10px);top:calc(env(safe-area-inset-top) + 66px);font-size:12px;font-weight:900}
 .b3d .dev button{font:900 12px ${UI_FONT};border:2px solid #16101c;border-radius:8px;background:#fff;color:#16101c;padding:3px 7px;margin:2px}
 .b3d .dev button.on{background:#ffd23a}
 .b3d .devPanel{display:none;background:#16101ce8;border-radius:10px;padding:6px 8px;margin-top:4px;max-width:360px}
@@ -116,6 +134,12 @@ export class Battle3DScene extends Phaser.Scene {
   /** 自分の MONZ のレベル(技枠の数) */
   private level = 1;
   private started = false;
+  /** 覚えている技(試合前のセッティング用) */
+  private learned: string[] = [];
+  /** 試合前のセッティングが終わったか */
+  private setupDone = false;
+  /** スティックの向き(画面の右・下が +。長さ0〜1) */
+  private stick = { x: 0, y: 0 };
   private waitT = 0;
   private onResize = () => this.resize();
 
@@ -126,6 +150,8 @@ export class Battle3DScene extends Phaser.Scene {
   create(): void {
     this.ended = false;
     this.started = false;
+    this.setupDone = false;
+    this.stick = { x: 0, y: 0 };
     this.slowT = this.zoomT = this.hitStop = this.waitT = 0;
     const seed = (Date.now() ^ (Math.random() * 1e9)) >>> 0;
     const partner = partnerEntrant();
@@ -145,7 +171,11 @@ export class Battle3DScene extends Phaser.Scene {
     this.level = level;
     const rival = rivalEntrant(level, seed);
     const foe: AnimeEntrant = { ...rival, stats: rival.stats as StatBlock, proficiency: { ...START_PROFICIENCY }, techs: growTechs(rival.species, level, rival.stats as StatBlock, undefined, rival.instinct).state.equipped };
-    this.battle = newAnimeBattle(me, foe, seed, techMode());
+    // 自分で動かす(左のスティック)・技は自分で押す(2026-11-02 企画者)
+    if (devPick && isPreview() && devTechs) me.techs = devTechs.filter((n) => me.techs!.includes(n) || growTechs('bunk', level, me.stats, undefined, me.instinct).state.learned.includes(n));
+    this.learned = devPick && isPreview() ? growTechs('bunk', level, me.stats, undefined, me.instinct).state.learned : mon.techs?.learned ?? me.techs ?? [];
+    this.battle = newAnimeBattle(me, foe, seed, 'manual');
+    this.battle.f[0].pad = { x: 0, z: 0 };
     this.buildDom();
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.cleanup());
     audio.playBgm('dash');
@@ -176,9 +206,11 @@ export class Battle3DScene extends Phaser.Scene {
     root.insertAdjacentHTML(
       'beforeend',
       `<div class="top"><button class="back">◀</button>${card(p, '')}<div class="timer">90</div>${card(q, 'r')}</div>
-       <button class="mode">${p.techMode === 'auto' ? 'オート' : 'しゅどう'}</button>
        <div class="call"></div><div class="pop"></div><div class="big"></div>
-       <div class="cmds">${slot(0)}${slot(1)}<div class="gap"></div>${slot(2)}${slot(3)}<div class="mid"><button class="dodge" data-c="dodge"><span class="lb">よけろ！</span><span class="cd" style="height:0"></span></button></div></div>
+       <div class="stickZone"><div class="stickBase"><div class="stickKnob"></div></div></div>
+       <div class="stickHint">ここを<br>さわって<br>うごかす</div>
+       <div class="pad"><button class="dodge" data-c="dodge"><span class="lb">よける</span><span class="cd" style="height:0"></span></button><div class="grid"></div></div>
+       <div class="setup"></div>
        ${isPreview() ? `<div class="dev"><button class="devOpen">確認用</button><div class="devPanel"><div>レベル ${[1, 10, 20, 25, 30, 60].map((l) => `<button data-lv="${l}" class="${devPick?.level === l ? 'on' : ''}">${l}</button>`).join('')}</div><div>育て方 ${Object.keys(STYLE_LABEL).map((k) => `<button data-st="${k}" class="${devPick?.style === k ? 'on' : ''}">${STYLE_LABEL[k]}</button>`).join('')}</div><small>今の技: ${p.techs.map(esc).join('・')}</small></div></div>` : ''}
        <div class="result"><h1></h1><button class="again">もう一度</button><button class="leave">もどる</button></div>
        <div class="turn"><div>スマホを 横にしてね<small>横にすると バトルが始まります</small></div></div>`,
@@ -188,16 +220,14 @@ export class Battle3DScene extends Phaser.Scene {
     const $ = (s: string) => root.querySelector(s) as HTMLElement;
     const all = (s: string) => [...root.querySelectorAll(s)] as HTMLElement[];
     const btn = {} as Battle3DScene['ui']['btn'];
-    for (const el of all('.cmds button[data-c]') as HTMLButtonElement[]) {
-      const c = el.dataset.c as Command;
-      btn[c] = { el, cd: el.querySelector('.cd') as HTMLElement };
-      el.addEventListener('pointerdown', (ev) => {
-        ev.preventDefault();
-        audio.unlock();
-        if (giveCommand(this.battle, 0, c)) audio.se('select');
-        else audio.se('beep');
-      });
-    }
+    this.bindButton($('.pad .dodge') as HTMLButtonElement, 'dodge', btn);
+    // 右の技のボタン4つ(セットした技。開いていない枠は鍵)
+    this.techButtons = () => {
+      const grid = $('.pad .grid');
+      grid.innerHTML = [0, 1, 2, 3].map(slot).join('');
+      for (const el of [...grid.querySelectorAll('button[data-c]')] as HTMLButtonElement[]) this.bindButton(el, el.dataset.c as Command, btn);
+    };
+    this.bindStick($('.stickZone'), $('.stickBase'), $('.stickKnob'), $('.stickHint'));
     this.ui = {
       hp: all('.card .bar > i'),
       num: all('.card .num'),
@@ -211,18 +241,7 @@ export class Battle3DScene extends Phaser.Scene {
       turn: $('.turn'),
     };
     $('.back').addEventListener('click', () => this.leave());
-    // 技の出し方の切りかえ(オート / しゅどう)。試合中でも切りかえられる。端末に覚える
-    const modeBtn = $('.mode');
-    modeBtn.addEventListener('click', () => {
-      const f = this.battle.f[0];
-      f.techMode = f.techMode === 'auto' ? 'manual' : 'auto';
-      saveTechMode(f.techMode);
-      modeBtn.textContent = f.techMode === 'auto' ? 'オート' : 'しゅどう';
-      modeBtn.classList.toggle('manual', f.techMode === 'manual');
-      audio.se('tap');
-      this.pop(f.techMode === 'auto' ? 'オート：自分で技を出す' : 'しゅどう：技はボタンで', '#ffffff');
-    });
-    modeBtn.classList.toggle('manual', this.battle.f[0].techMode === 'manual');
+    this.openSetup($('.setup'));
     // 確認用: レベル・育て方を切りかえて、やり直す
     if (isPreview()) {
       $('.devOpen').addEventListener('click', () => $('.dev').classList.toggle('open'));
@@ -247,6 +266,117 @@ export class Battle3DScene extends Phaser.Scene {
     window.addEventListener('resize', this.onResize);
   }
 
+  private techButtons: () => void = () => undefined;
+
+  private bindButton(el: HTMLButtonElement, c: Command, btn: Battle3DScene['ui']['btn']): void {
+    btn[c] = { el, cd: el.querySelector('.cd') as HTMLElement };
+    el.addEventListener('pointerdown', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      audio.unlock();
+      if (giveCommand(this.battle, 0, c)) audio.se('select');
+      else audio.se('beep');
+    });
+  }
+
+  /** 左の移動スティック: さわった所に出て、指の向きへ動く(はなすと止まる) */
+  private bindStick(zone: HTMLElement, base: HTMLElement, knob: HTMLElement, hint: HTMLElement): void {
+    let id: number | null = null;
+    let ox = 0;
+    let oy = 0;
+    const R = 50;
+    const move = (e: PointerEvent) => {
+      if (e.pointerId !== id) return;
+      let dx = e.clientX - ox;
+      let dy = e.clientY - oy;
+      const d = Math.hypot(dx, dy);
+      if (d > R) {
+        dx = (dx / d) * R;
+        dy = (dy / d) * R;
+      }
+      knob.style.transform = `translate(${dx}px,${dy}px)`;
+      const k = Math.min(1, d / R);
+      this.stick = d > 4 ? { x: (dx / R) * (k > 0.25 ? 1 : k * 4), y: (dy / R) * (k > 0.25 ? 1 : k * 4) } : { x: 0, y: 0 };
+    };
+    const end = (e: PointerEvent) => {
+      if (e.pointerId !== id) return;
+      id = null;
+      base.style.display = 'none';
+      this.stick = { x: 0, y: 0 };
+    };
+    zone.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      audio.unlock();
+      id = e.pointerId;
+      zone.setPointerCapture(e.pointerId);
+      const r = zone.getBoundingClientRect();
+      ox = e.clientX;
+      oy = e.clientY;
+      base.style.left = `${ox - r.left}px`;
+      base.style.top = `${oy - r.top}px`;
+      base.style.display = 'block';
+      knob.style.transform = '';
+      hint.style.display = 'none';
+    });
+    zone.addEventListener('pointermove', move);
+    zone.addEventListener('pointerup', end);
+    zone.addEventListener('pointercancel', end);
+  }
+
+  /**
+   * 試合前の技のセッティング(2026-11-02 企画者「試合前に現在覚えたものを自分で4個セッティング」)。
+   * 覚えている技から、開いている枠の数(Lv.1 は2つ・Lv.10 で3つ・Lv.20 で4つ【調整案】)まで えらぶ。次の試合でも同じ(保存する)
+   */
+  private openSetup(el: HTMLElement): void {
+    const me = this.battle.f[0];
+    const slots = slotsAt(this.level);
+    const picked = me.techs.slice(0, slots);
+    const draw = () => {
+      const slotHtml = [0, 1, 2, 3]
+        .map((i) => (i >= slots ? `<div class="slot lock">🔒 Lv.${SLOT_LEVELS[i]}</div>` : picked[i] ? `<div class="slot on">${esc(picked[i])}</div>` : `<div class="slot">わざ ${i + 1}</div>`))
+        .join('');
+      const list = this.learned
+        .map((n) => {
+          const t = getTech(n);
+          const k = picked.indexOf(n);
+          const info = t.kind === 'barrier' ? '守り' : t.power ? `威力 ${t.power.toFixed(1)}` : t.kind === 'debuff' ? '攻撃ダウン' : '遅くする';
+          return `<button class="t ${k >= 0 ? 'on' : ''}" data-n="${esc(n)}">${esc(n)}${k >= 0 ? `<i>${k + 1}</i>` : ''}<small>${t.element}・${t.strength}・${info}・待ち ${t.cooldown.toFixed(1)}秒</small></button>`;
+        })
+        .join('');
+      el.innerHTML = `<h2>わざを セットしよう（${picked.length}/${slots}）</h2>
+        <div class="row"><div><div class="slots">${slotHtml}</div><div class="note">さわると入る・もう一度で外れる</div></div><div class="list">${list}</div></div>
+        <button class="go" ${picked.length ? '' : 'disabled'}>バトルスタート！</button>`;
+      for (const b of [...el.querySelectorAll('.t')] as HTMLElement[]) {
+        b.addEventListener('click', () => {
+          const n = b.dataset.n!;
+          const k = picked.indexOf(n);
+          if (k >= 0) picked.splice(k, 1);
+          else if (picked.length < slots) picked.push(n);
+          else {
+            audio.se('beep');
+            return;
+          }
+          audio.se('tap');
+          draw();
+        });
+      }
+      (el.querySelector('.go') as HTMLElement).addEventListener('click', () => {
+        if (!picked.length) return;
+        audio.unlock();
+        audio.se('select');
+        me.techs = [...picked];
+        for (const n of picked) me.cooldown[n] ??= 0;
+        // 保存(確認用ページの「確認用」でえらんだ BUNK は保存しない)
+        if (devPick && isPreview()) devTechs = [...picked];
+        else new LifeRecord(loadLife()).setTechs(picked);
+        this.techButtons();
+        el.style.display = 'none';
+        this.setupDone = true;
+      });
+    };
+    draw();
+  }
+
   private resize(): void {
     if (!this.root || !this.field) return;
     this.field.resize(this.root.clientWidth, this.root.clientHeight);
@@ -261,6 +391,11 @@ export class Battle3DScene extends Phaser.Scene {
     // モデルを読みこむまで待つ(最大5秒)
     if (!this.started && !this.field.ready && (this.waitT += delta) < 5000) {
       this.field.render(this.battle, 0);
+      return;
+    }
+    // 試合前の技のセッティングが終わるまで、試合は始めない
+    if (!this.setupDone) {
+      this.field.render(this.battle, real0(delta));
       return;
     }
     if (!this.started) {
@@ -285,6 +420,13 @@ export class Battle3DScene extends Phaser.Scene {
       dt *= 0.3;
     }
     const b = this.battle;
+    // スティックの向き(画面)→ 床の上の向き(カメラから見て、上 = 奥)
+    {
+      const f = this.field.camForward;
+      const sx = this.stick.x;
+      const sy = -this.stick.y;
+      b.f[0].pad = { x: f.x * sy - f.z * sx, z: f.z * sy + f.x * sx };
+    }
     if (dt > 0 && !animeFinished(b)) {
       b.events = [];
       stepAnime(b, dt);

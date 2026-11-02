@@ -210,6 +210,8 @@ export class AnimeField {
   private camPos = new THREE.Vector3(-12, 5, 6);
   private camLook = new THREE.Vector3();
   private shakeAmp = 0;
+  /** カメラの見ている向き(床の上。スティックの向きを世界の向きに直すのに使う) */
+  camForward = { x: 1, z: 0 };
   /** カメラの向き(ゆっくりついていく) */
   private camYaw: number | null = null;
   zoom = 1;
@@ -883,6 +885,12 @@ export class AnimeField {
     const look = new THREE.Vector3(mid.x, 0.9 + Math.max(p.y, q.y) * 0.25, mid.z);
     this.camPos.lerp(want, 1 - Math.exp(-dt * 2));
     this.camLook.lerp(look, 1 - Math.exp(-dt * 2.5));
+    {
+      const fx = this.camLook.x - this.camPos.x;
+      const fz = this.camLook.z - this.camPos.z;
+      const n = Math.hypot(fx, fz) || 1;
+      this.camForward = { x: fx / n, z: fz / n };
+    }
     const pos = this.camPos.clone();
     if (this.shakeAmp > 0.002) {
       pos.x += (Math.random() - 0.5) * this.shakeAmp;
