@@ -314,6 +314,13 @@ export class Battle3DScene extends Phaser.Scene {
       }
       case 'fire': {
         const k = getTech(e.tech).kind;
+        // 突進・回転の出だし: 足もとから砂けむり
+        if (k === 'rush' || k === 'spin') {
+          const fa = b.f[e.side];
+          const fd = fa.act.k === 'tech' ? fa.act.dir : fa.face;
+          F.launch(fa.x, fa.z, fd);
+          F.shake(0.12);
+        }
         if (k === 'beam') {
           audio.se('mcMagic');
           F.shake(0.25);
@@ -325,17 +332,27 @@ export class Battle3DScene extends Phaser.Scene {
         if (getTech(e.tech).strength === '大技') F.shake(0.3);
         break;
       }
-      case 'hit':
+      case 'hit': {
         F.flash(e.target);
+        const ht = getTech(e.tech);
+        const atk = b.f[e.side];
+        const hdir = Math.atan2(b.f[e.target].z - atk.z, b.f[e.target].x - atk.x);
+        const hcol = ht.element === '無' ? 0xff8a2a : ELEMENT_HEX[ht.element];
+        // 型ごとの命中の光(2026-11-02 企画者の技演出イメージ)
+        if (ht.kind === 'rush') F.rushHit(e.x, e.y, e.z, hdir, hcol, ht.strength === '強' || ht.strength === '大技');
+        else if (ht.kind === 'spin') F.spinHit(e.x, e.y, e.z, hcol);
         // 当たった所から光の輪(技の色)。大きい当たりは画面が白く光る(2026-11-02 企画者「技しょぼい」)
         F.shockRing(e.x, e.y, e.z, ELEMENT_HEX[getTech(e.tech).element] === 0xe0e0f0 ? 0xffd080 : ELEMENT_HEX[getTech(e.tech).element], e.big ? 1.8 : 1.1);
-        if (e.big) this.screenFlash(0.55);
-        F.shake(e.big ? 0.45 : 0.2);
+        // 画面の光・ゆれ・止まる時間は、技の強さで決める(弱い技でも迫力は出すが、控えめ)
+        const lvS = { 弱: 0, 中: 1, 強: 2, 大技: 3 }[ht.strength];
+        if (lvS >= 2) this.screenFlash(0.35 + lvS * 0.1);
+        F.shake(0.18 + lvS * 0.1);
         audio.se(e.big ? 'punchHeavy' : 'punch', { pitch: 0.9 + Math.random() * 0.2 });
-        this.hitStop = Math.max(this.hitStop, e.big ? 0.1 : 0.05);
+        this.hitStop = Math.max(this.hitStop, [0.06, 0.08, 0.11, 0.15][lvS]);
         if (!e.big) F.explode(e.x, e.y, e.z, e.tech, false);
         this.pop(e.crit ? `クリティカル！ -${e.damage}` : `-${e.damage}`, e.target === 0 ? '#ff8a8a' : '#ffd23a');
         break;
+      }
       case 'explode':
         F.explode(e.x, e.y, e.z, e.tech, e.big);
         audio.se('crackBig', { pitch: e.big ? 0.8 : 1.2 });

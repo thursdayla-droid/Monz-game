@@ -234,6 +234,11 @@ export class MonsterRig {
         rotZ = w * 0.35;
         arm = w * 1.2;
         if (tech.kind === 'beam') b.position.x = Math.sin(now * 70) * 0.025 * w;
+        // 突進・回転のため: ぐっと しゃがむ(企画者のモデルは形をくずさず、体ごと下げる)
+        if (this.model && (tech.kind === 'rush' || tech.kind === 'spin')) {
+          lift = -0.12 * w;
+          rotZ = tech.kind === 'spin' ? w * 0.6 : rotZ;
+        }
       } else {
         const k = a.t - a.windup;
         if (tech.kind === 'shot' || tech.kind === 'beam') {

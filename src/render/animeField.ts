@@ -23,6 +23,8 @@ const MODEL = { height: 1.55, rivalHue: 2.4 };
 
 export const ELEMENT_HEX: Record<Element, number> = { 炎: 0xff6a2a, 水: 0x3aa8ff, 自然: 0x6ad04a, 雷: 0xffd23a, 光: 0xfff2a0, 闇: 0xa05aff, 無: 0xe0e0f0 };
 /** 力の光の色(無属性は白だと見えにくいので、あたたかい色) */
+/** 一度に出せる光の粒の数(iPhone の負担を おさえる) */
+const MAX_BURSTS = 320;
 const auraColor = (e: Element) => (e === '無' ? 0xff7a2a : ELEMENT_HEX[e]);
 
 interface Burst {
@@ -35,6 +37,8 @@ interface Burst {
   vx?: number;
   vz?: number;
   fade?: boolean;
+  /** 形を使い回している(消すときに形を捨てない) */
+  shared?: boolean;
 }
 
 function toonGradient(): THREE.DataTexture {
@@ -191,6 +195,10 @@ export class AnimeField {
   private quakeObjs: THREE.Mesh[] = [];
   private charge: THREE.Sprite[] = [];
   private domes: THREE.Group[] = [];
+  /** 回転技の、体のまわりを回る光の輪(紫と、属性の色) */
+  private spinRings: THREE.Group[] = [];
+  /** スピードライン(使い回す細い棒) */
+  private streakGeo = new THREE.BoxGeometry(1, 0.035, 0.035);
   /** 体で行く技の、力の光(体をつつむ) */
   private auras: THREE.Mesh[] = [];
   private crackTex = crackTexture();
@@ -300,6 +308,15 @@ export class AnimeField {
     // 企画者の BUNK のモデル(2体とも BUNK。相手は色違い)
     this.loadModel();
     for (let i = 0; i < 2; i++) {
+      const ring = new THREE.Group();
+      for (const [c, rot] of [[0xa040ff, 0], [0xff8a2a, Math.PI]] as const) {
+        const arc = new THREE.Mesh(new THREE.TorusGeometry(1.05, 0.11, 6, 28, Math.PI * 0.9), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending }));
+        arc.rotation.z = rot;
+        ring.add(arc);
+      }
+      ring.visible = false;
+      this.scene.add(ring);
+      this.spinRings.push(ring);
       const aura = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), new THREE.MeshBasicMaterial({ color: 0xffb04a, transparent: true, opacity: 0.3, depthWrite: false, blending: THREE.AdditiveBlending }));
       aura.visible = false;
       this.scene.add(aura);
@@ -395,6 +412,12 @@ export class AnimeField {
   }
 
   private add(obj: THREE.Object3D, life: number, grow: number, base: number, extra: Partial<Burst> = {}): void {
+    // iPhone の負担を おさえるため、光の粒は一度に出す数に上限(2026-11-02)
+    if (this.bursts.length > MAX_BURSTS) {
+      ((obj as THREE.Mesh).material as THREE.Material | undefined)?.dispose?.();
+      if (!extra.shared && !(obj instanceof THREE.Sprite)) (obj as THREE.Mesh).geometry?.dispose?.();
+      return;
+    }
     this.scene.add(obj);
     obj.scale.setScalar(base);
     this.bursts.push({ obj, t: 0, life, grow, base, fade: true, ...extra });
@@ -460,6 +483,43 @@ export class AnimeField {
     }
     this.dust(x, z, true);
     this.shake(0.4);
+  }
+
+  /** 突進・回転の出だし: 足もとの砂けむりと、うしろへ飛ぶ土 */
+  launch(x: number, z: number, dir: number): void {
+    this.dust(x, z, true);
+    for (let i = 0; i < 6; i++) {
+      const s = this.sprite(0xd8c8a8, false);
+      s.material.opacity = 0.8;
+      s.position.set(x, 0.15, z);
+      const a = dir + Math.PI + (Math.random() - 0.5) * 1.2;
+      const sp = 2 + Math.random() * 3;
+      this.add(s, 0.5, 1.2, 0.5, { vx: Math.cos(a) * sp, vz: Math.sin(a) * sp, vy: 1 + Math.random() * 2 });
+    }
+  }
+
+  /** 突進の命中: 火花が前へ飛び散る */
+  rushHit(x: number, y: number, z: number, dir: number, color: number, strong: boolean): void {
+    for (let i = 0; i < (strong ? 16 : 10); i++) {
+      const s = this.sprite(i % 3 ? color : 0xffffff, true, this.star);
+      s.position.set(x, y, z);
+      const a = dir + (Math.random() - 0.5) * 1.8;
+      const sp = 4 + Math.random() * 5;
+      this.add(s, 0.3, -0.6, 0.35, { vx: Math.cos(a) * sp, vz: Math.sin(a) * sp, vy: 1 + Math.random() * 4 });
+    }
+    if (strong) this.rocks(x, z);
+  }
+
+  /** 回転の命中: うずを巻いて広がる光(回転の勢い) */
+  spinHit(x: number, y: number, z: number, color: number): void {
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      const s = this.sprite(i % 2 ? 0xa040ff : color);
+      s.position.set(x + Math.cos(a) * 0.3, y + Math.sin(a) * 0.3, z);
+      // 円に沿って(うず)外へ
+      this.add(s, 0.4, -0.5, 0.45, { vx: Math.cos(a + 1.2) * 5, vz: Math.sin(a + 1.2) * 5, vy: Math.sin(a) * 2 });
+    }
+    this.shockRing(x, y, z, 0xa040ff, 1.4);
   }
 
   /** 当たった所から広がる、立った光の輪(カメラのほうを向く) */
@@ -557,7 +617,8 @@ export class AnimeField {
       // 体で行く技(突進・回転・連続攻撃・落下・衝撃波): 体を力の光がつつむ(ためから、技が終わるまで)
       const aura = this.auras[i];
       const at = a.k === 'tech' ? getTech(a.id) : null;
-      const auraOn = !!at && ['rush', 'spin', 'combo', 'drop', 'quake'].includes(at.kind) && !(a.k === 'tech' && a.hit && at.kind !== 'combo');
+      // 回転は、回る輪で見せる(光の玉は輪をかくすので出さない)
+      const auraOn = !!at && ['rush', 'combo', 'drop', 'quake'].includes(at.kind) && !(a.k === 'tech' && a.hit && at.kind !== 'combo');
       aura.visible = auraOn;
       if (auraOn && at) {
         const pulse = 1 + Math.sin(performance.now() / 45) * 0.08;
@@ -566,6 +627,39 @@ export class AnimeField {
         aura.scale.set(1.1 * pulse * big, 1.25 * pulse * big, 1.1 * pulse * big);
         (aura.material as THREE.MeshBasicMaterial).color.setHex(auraColor(at.element));
         (aura.material as THREE.MeshBasicMaterial).opacity = 0.28 + Math.sin(performance.now() / 30) * 0.06;
+      }
+      // 突進: オレンジのスピードライン(体のうしろへ流れる)。回転: 体のまわりを紫と属性の色の輪が回り、軌跡が残る(2026-11-02 企画者の技演出イメージ)
+      const sr = this.spinRings[i];
+      sr.visible = false;
+      if (a.k === 'tech' && a.fired && !a.hit && dt > 0) {
+        const t2 = getTech(a.id);
+        if (t2.kind === 'rush') {
+          for (let n = 0; n < 2; n++) {
+            const m = new THREE.Mesh(this.streakGeo, new THREE.MeshBasicMaterial({ color: n ? 0xffd080 : 0xff8a2a, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+            const side = (Math.random() - 0.5) * 1.3;
+            m.position.set(f.x - Math.cos(a.dir) * (0.6 + Math.random()) - Math.sin(a.dir) * side, f.y + 0.3 + Math.random() * 1.1, f.z - Math.sin(a.dir) * (0.6 + Math.random()) + Math.cos(a.dir) * side);
+            m.rotation.y = -a.dir;
+            this.add(m, 0.16, 0, 1, { shared: true });
+            m.scale.set(1.2 + Math.random() * 1.2, 1, 1);
+          }
+        } else if (t2.kind === 'spin') {
+          const col = t2.element === '無' ? 0xff8a2a : ELEMENT_HEX[t2.element];
+          sr.visible = true;
+          sr.position.set(f.x, f.y + 0.75, f.z);
+          sr.rotation.set(0, -a.dir, 0);
+          ((sr.children[1] as THREE.Mesh).material as THREE.MeshBasicMaterial).color.setHex(col);
+          for (const c of sr.children) c.rotation.z -= dt * 22;
+          // 回転の軌跡(紫と属性の色を交互に)
+          const tr = this.sprite(Math.random() < 0.5 ? 0xa040ff : col);
+          tr.position.set(f.x + (Math.random() - 0.5) * 0.6, f.y + 0.3 + Math.random() * 0.9, f.z + (Math.random() - 0.5) * 0.6);
+          this.add(tr, 0.35, -0.4, 0.75);
+          // 雷の回転は、火花が飛ぶ
+          if (t2.element === '雷' && Math.random() < dt * 30) {
+            const sp = this.sprite(0xfff060, true, this.star);
+            sp.position.set(f.x + (Math.random() - 0.5) * 1.6, f.y + 0.2 + Math.random() * 1.3, f.z + (Math.random() - 0.5) * 1.6);
+            this.add(sp, 0.12, 1.2, 0.45);
+          }
+        }
       }
       // 体で行く技(突進・回転・連続攻撃): 体に光の尾と土けむり
       if (a.k === 'tech' && a.fired && !a.hit && dt > 0) {
@@ -639,7 +733,7 @@ export class AnimeField {
       if (p.t < p.life) return true;
       this.scene.remove(p.obj);
       const m = p.obj as THREE.Mesh;
-      if (!(p.obj instanceof THREE.Sprite)) m.geometry?.dispose();
+      if (!(p.obj instanceof THREE.Sprite) && !p.shared) m.geometry?.dispose();
       (m.material as THREE.Material)?.dispose?.();
       return false;
     });
