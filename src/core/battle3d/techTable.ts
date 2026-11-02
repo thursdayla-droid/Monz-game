@@ -58,6 +58,8 @@ const BASE: Record<TechKind, Omit<Tech, 'name' | 'element' | 'kind'>> = {
   // 2026-11-02 追加(ブレイクロア・グラビティプレス)【案・未承認】
   debuff: { power: 0, cooldown: 8, windup: 0.6, recovery: 0.4, speed: 10, range: 7, size: 0, duration: 0, launch: 0, knock: 0 },
   field: { power: 0, cooldown: 7, windup: 0.45, recovery: 0.45, speed: 0, range: 14, size: 3.2, duration: 0, launch: 0, knock: 0 },
+  // 通常攻撃(パンチ。animeConfig の TECHS.punch。表の技には使わない)
+  jab: { power: 7, cooldown: 0.5, windup: 0.06, recovery: 0.16, speed: 0, range: 1.9, size: 0.9, duration: 0.14, launch: 0, knock: 2 },
   barrier: { power: 0, cooldown: 7, windup: 0.15, recovery: 0.2, speed: 0, range: 0, size: 1.7, duration: 2.0, launch: 0, knock: 0 },
 };
 

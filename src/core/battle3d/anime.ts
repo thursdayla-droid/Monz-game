@@ -252,7 +252,9 @@ function startTech(b: AnimeBattle, f: AnimeMon, id: TechId, byCommand: boolean):
   f.act = { k: 'tech', id, t: 0, dir, fired: false, hit: false, tx: o.x, tz: o.z, windup, n: 0, next: 0 };
   f.face = dir;
   // テクニックが高いと、技の待ち時間が少し短い(最大2割。2026-11-02 バランス)
-  f.cooldown[id] = b.t + tech.cooldown * (1 - Math.min(C.stat.techCdMax, f.stats.tech / C.stat.techCdDiv));
+  f.cooldown[id] = tech.kind === 'jab'
+    ? b.t + tech.windup + tech.duration * C.jab.parts.length + tech.recovery + tech.cooldown // 通常攻撃: 3連が終わってから0.5秒
+    : b.t + tech.cooldown * (1 - Math.min(C.stat.techCdMax, f.stats.tech / C.stat.techCdDiv));
   b.events.push({ kind: 'call', side: f.side, tech: id, byCommand });
 }
 
@@ -389,6 +391,21 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
       }
       a.hit = true;
       break;
+    }
+    case 'jab': {
+      // 通常攻撃: その場で前へパンチ。当たったら続けて3連まで(外れたら そこで終わり)。空中でも出せる
+      if (!a.hit && a.t >= a.next) {
+        const reach = tech.range + C.body.radius;
+        const ok = dist(f, o) < reach && Math.abs(angDiff(angleTo(f, o), f.face)) < 0.9 && Math.abs(o.y - f.y) < 1.3;
+        a.n++;
+        a.next = a.t + tech.duration;
+        b.events.push({ kind: 'comboHit', side: f.side, n: a.n });
+        const parts = C.jab.parts;
+        const landed = ok && hit(b, f, o, a.id, (f.x + o.x) / 2, f.y + 0.8, (f.z + o.z) / 2, f.face, { last: a.n >= parts.length, part: parts[a.n - 1] });
+        if (!landed || a.n >= parts.length) a.hit = true;
+      }
+      if (a.hit && a.t >= a.next + tech.recovery) f.act = { k: 'free' };
+      return;
     }
     case 'barrage':
       if (a.n < C.barrage.count && a.t >= a.next) {
@@ -795,6 +812,12 @@ function updateMon(b: AnimeBattle, f: AnimeMon, dt: number): void {
   if (f.command && b.t > f.command.until) {
     b.events.push({ kind: 'command', side: f.side, cmd: f.command.cmd, state: 'expired' });
     f.command = null;
+  }
+  // 空中でも通常攻撃は出せる(2026-11-02 企画者「空中でも攻撃出せるように」)
+  if (f.act.k === 'free' && f.y > 0 && f.command?.cmd === 'punch') {
+    f.command = null;
+    startTech(b, f, 'punch', true);
+    b.events.push({ kind: 'command', side: f.side, cmd: 'punch', state: 'done' });
   }
   if (f.act.k !== 'free' || f.y > 0) {
     // 動けないあいだは、歩く勢いが少しのこって止まる(ジャンプ中は勢いのまま)

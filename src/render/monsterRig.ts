@@ -356,12 +356,12 @@ export class MonsterRig {
       let atk: AttackPose | null = null;
       if (a.k === 'tech') {
         const tech = getTech(a.id);
-        const kind = tech.kind === 'rush' ? 'rush' : tech.kind === 'combo' ? 'combo' : tech.kind === 'shot' || tech.kind === 'barrage' || tech.kind === 'beam' ? 'shot' : null;
+        const kind = tech.kind === 'rush' ? 'rush' : tech.kind === 'combo' || tech.kind === 'jab' ? 'combo' : tech.kind === 'shot' || tech.kind === 'barrage' || tech.kind === 'beam' ? 'shot' : null;
         if (kind) {
           const wind = a.fired ? 0 : Math.min(1, a.t / a.windup);
           const run = a.t - a.windup;
           const activeT = kind === 'shot' ? (tech.kind === 'beam' ? tech.duration : 0.35) : 0;
-          const active = a.fired && (kind === 'rush' ? !a.hit : kind === 'combo' ? a.n < tech.hits || run < 0.1 : run < activeT);
+          const active = a.fired && (kind === 'rush' ? !a.hit : tech.kind === 'jab' ? !a.hit || a.t < a.next : kind === 'combo' ? a.n < tech.hits || run < 0.1 : run < activeT);
           const recover = a.fired && !active ? Math.min(1, (run - activeT) / Math.max(0.1, tech.recovery)) : 0;
           const punch = kind === 'combo' && a.n > 0 ? Math.min(1, Math.max(0, 1 - (a.next - a.t) / Math.max(0.05, tech.duration))) : 0;
           atk = { kind, wind, active, recover, n: a.n, punch };

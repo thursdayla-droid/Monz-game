@@ -56,6 +56,8 @@ export const ANIME = {
   gfield: { slow: 0.6, time: 5, linger: 0.5 },
   /** 連続攻撃4発(メガトンラッシュ)の1発ずつの割合。4発目がフィニッシュ【案】 */
   combo4: [0.2, 0.2, 0.2, 0.4],
+  /** 通常攻撃(パンチ)の3連の割合【仮】 */
+  jab: { parts: [0.3, 0.3, 0.4] },
   /** 追加効果: ふらつき(技を出せず ふらふら)・まひ(遅くなり、ためが長い)【仮】 */
   status: { dizzy: 1.8, para: 3, paraSpeed: 0.55, paraWindup: 1.4 },
   /** AI習熟度(よけるのがうまくなる) Lv.1 → Lv.5 */
@@ -63,7 +65,7 @@ export const ANIME = {
 };
 
 /** 技の種類(表の「型」から決まる。techTable.ts)。2026-11-01 回転・連射・落下・連続攻撃・守り を追加 */
-export type TechKind = 'rush' | 'shot' | 'beam' | 'quake' | 'spin' | 'barrage' | 'drop' | 'combo' | 'barrier' | 'debuff' | 'field';
+export type TechKind = 'rush' | 'shot' | 'beam' | 'quake' | 'spin' | 'barrage' | 'drop' | 'combo' | 'barrier' | 'debuff' | 'field' | 'jab';
 export type Element = '炎' | '水' | '自然' | '雷' | '光' | '闇' | '無';
 
 export interface Tech {
@@ -92,7 +94,8 @@ export interface Tech {
  */
 export const TECHS = {
   /** 通常攻撃(2026-11-02 企画者「通常攻撃もいれよう」)。近くでパンチ1発。待ち時間ほぼなし・威力は弱い【仮】。技の枠には入れない */
-  punch: { name: 'パンチ', element: '無', kind: 'combo', power: 4, cooldown: 0.45, windup: 0.06, recovery: 0.14, speed: 9, range: 2.2, size: 1.0, duration: 0.12, launch: 0, knock: 1.2 },
+  // 2026-11-02 企画者「連打はやめ・クールタイム0.5秒」「その場でパンチ。ヒットしたら3連ぐらい」「空中でも」→ 型 jab。1発目が当たったら3連(合計 power)。待ち時間は攻撃が終わってから0.5秒
+  punch: { name: 'パンチ', element: '無', kind: 'jab', power: 7, cooldown: 0.5, windup: 0.06, recovery: 0.16, speed: 0, range: 1.9, size: 0.9, duration: 0.14, launch: 0, knock: 2 },
   dash: { name: 'ダッシュアタック', element: '無', kind: 'rush', power: 13, cooldown: 3.5, windup: 0.25, recovery: 0.4, speed: 13, range: 9, size: 1.0, duration: 0, launch: 5, knock: 4 },
   fire: { name: 'ファイアショット', element: '炎', kind: 'shot', power: 11, cooldown: 2.8, windup: 0.3, recovery: 0.25, speed: 15, range: 20, size: 0.6, duration: 0, launch: 0, knock: 3 },
   beam: { name: 'ライトニングビーム', element: '雷', kind: 'beam', power: 20, cooldown: 7, windup: 0.75, recovery: 0.5, speed: 0, range: 22, size: 0.7, duration: 0.55, launch: 4, knock: 6 },
