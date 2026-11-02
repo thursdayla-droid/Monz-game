@@ -61,6 +61,7 @@ interface Driven {
   bone: THREE.Bone;
   bind: THREE.Quaternion;
   bindScale: THREE.Vector3;
+  bindPos: THREE.Vector3;
   /** モデルの向きの軸を、この骨の中の軸に直したもの */
   axis: Record<AxisName, THREE.Vector3>;
 }
@@ -83,7 +84,7 @@ export class BunkBones {
   lunge = 0;
 
   /** amp: 腕の動きの大きさ(モデルごと。肩が高い・上着があるモデルは小さく) */
-  constructor(modelRoot: THREE.Object3D, private amp = 1) {
+  constructor(private modelRoot: THREE.Object3D, private amp = 1) {
     modelRoot.updateMatrixWorld(true);
     const rootInv = modelRoot.getWorldQuaternion(new THREE.Quaternion()).invert();
     for (const name of Object.keys(SAFE)) {
@@ -94,7 +95,7 @@ export class BunkBones {
       const pInv = p.clone().invert();
       const axis = {} as Record<AxisName, THREE.Vector3>;
       for (const k of Object.keys(AX) as AxisName[]) axis[k] = AX[k].clone().applyQuaternion(pInv).normalize();
-      this.bones.set(name, { bone, bind: bone.quaternion.clone(), bindScale: bone.scale.clone(), axis });
+      this.bones.set(name, { bone, bind: bone.quaternion.clone(), bindScale: bone.scale.clone(), bindPos: bone.position.clone(), axis });
     }
   }
 
@@ -102,6 +103,26 @@ export class BunkBones {
   get ok(): boolean {
     return this.bones.size === Object.keys(SAFE).length;
   }
+
+  /**
+   * 骨を前へ押し出す(漫画のパンチのように、腕がのびてグローブが前へ出る。2026-11-02 企画者「パンチ出してるの分からない」)。
+   * amount はモデルの大きさ(高さ 約0.9)での長さ
+   */
+  private push(name: string, axis: AxisName, amount: number): void {
+    const d = this.bones.get(name);
+    if (!d) return;
+    d.bone.position.addScaledVector(d.axis[axis], amount);
+  }
+
+  /** グローブ(手の骨)の場所(世界の座標) */
+  glove(side: 1 | -1, out: THREE.Vector3): THREE.Vector3 | null {
+    const h = this.modelRoot.getObjectByName(side > 0 ? 'R_Hand' : 'L_Hand');
+    return h ? h.getWorldPosition(out) : null;
+  }
+
+  /** パンチを出している腕(1 = 右・-1 = 左・0 = なし)と、のびぐあい(光の演出用) */
+  punchSide: 0 | 1 | -1 = 0;
+  punchExt = 0;
 
   /** 骨を、入れたときの形にもどしてから、少しずつ回す */
   private rot(name: string, axis: AxisName, angle: number): void {
@@ -125,6 +146,7 @@ export class BunkBones {
     for (const d of this.bones.values()) {
       d.bone.quaternion.copy(d.bind);
       d.bone.scale.copy(d.bindScale);
+      d.bone.position.copy(d.bindPos);
     }
     const wi = this.wIdle;
     const wm = this.wMove;
@@ -175,6 +197,8 @@ export class BunkBones {
       this.rot('L_Upperarm', 'side', this.lag.arm * 0.3);
       this.rot('R_Upperarm', 'side', this.lag.arm * 0.3);
     }
+    this.punchExt = 0;
+    this.punchSide = 0;
     if (this.wAtk > 0.01) this.attack(atk ?? this.lastAtk, this.wAtk);
     if (atk) this.lastAtk = atk;
   }
@@ -203,10 +227,20 @@ export class BunkBones {
       this.rot('Spine01', 'up', side * 0.32 * ext * w);
       this.rot('Spine02', 'up', side * 0.15 * ext * w);
       this.lunge = Math.max(this.lunge, Math.max(0, ext) * w);
+      // 腕ごとグローブを前へ押し出す(骨を回すだけでは、肩が高く腕がたれているため、前に出て見えない)
+      const e2 = Math.max(0, ext) * w;
+      this.push(up, 'front', 0.07 * e2);
+      this.push(fo, 'front', 0.16 * e2);
+      if (e2 > this.punchExt) {
+        this.punchExt = e2;
+        this.punchSide = side;
+      }
       // 反対の腕は少し引く(ガード)
       this.rot(side > 0 ? 'L_Upperarm' : 'R_Upperarm', 'side', -0.15 * ext * w);
     };
     this.lunge = 0;
+    this.punchExt = 0;
+    this.punchSide = 0;
     if (a.kind === 'rush') {
       // 突進: 体を前にかたむけ、グローブ2つを前に突き出して飛びこむ。ぶつかった(走り終わった)瞬間に、右のストレート
       if (!a.active && a.wind === 0 && a.recover < 0.7) {
@@ -222,6 +256,7 @@ export class BunkBones {
         this.rot(s > 0 ? 'R_Upperarm' : 'L_Upperarm', 'side', 0.65 * ext * w);
         this.rot(s > 0 ? 'R_Forearm' : 'L_Forearm', 'side', 0.25 * Math.max(0, ext) * w);
         this.rot(s > 0 ? 'R_Upperarm' : 'L_Upperarm', 'up', s * 0.3 * Math.max(0, ext) * w);
+        this.push(s > 0 ? 'R_Forearm' : 'L_Forearm', 'front', 0.12 * Math.max(0, ext) * w);
       }
       // 足はうしろへ流す
       this.rot('L_Thigh', 'side', -0.3 * Math.max(0, ext) * w);

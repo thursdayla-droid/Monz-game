@@ -43,6 +43,12 @@ export class MonsterRig {
   /** 骨で動かす(骨入りのモデルのとき) */
   private bones: BunkBones | null = null;
   private lungeNow = 0;
+  /** パンチのグローブの場所(のばしている時だけ。光の演出用) */
+  punch(out: THREE.Vector3): { ext: number } | null {
+    const b = this.bones;
+    if (!b || b.punchSide === 0 || b.punchExt < 0.2) return null;
+    return b.glove(b.punchSide, out) ? { ext: b.punchExt } : null;
+  }
   /** 技を撃つ口の場所(光をためる所) */
   readonly mouth = new THREE.Object3D();
   private armL: THREE.Group;

@@ -194,6 +194,9 @@ export class AnimeField {
   /** 体で行く技の、力の光(体をつつむ) */
   private auras: THREE.Mesh[] = [];
   private crackTex = crackTexture();
+  private tmpV = new THREE.Vector3();
+  /** パンチの光を出したか(のばしきりで1回) */
+  private punchLit = [0, 0];
   private stars: THREE.Group[] = [];
   private markers: { obj: THREE.Group; r: number; until: number }[] = [];
   private camPos = new THREE.Vector3(-12, 5, 6);
@@ -537,6 +540,20 @@ export class AnimeField {
           this.add(p, 0.25, -0.9, 0.25, { vx: -Math.cos(ang) * r * 4, vz: -Math.sin(ang) * r * 4, vy: 0 });
         }
       } else ch.visible = false;
+      // パンチ: グローブのあとに光の尾、のばしきりで星の光(2026-11-02 企画者「パンチ出してるの分からない」)
+      const pg = rig.punch(this.tmpV);
+      if (pg && dt > 0) {
+        const tr = this.sprite(0xffe0a0);
+        tr.position.copy(this.tmpV);
+        this.add(tr, 0.18, -0.5, 0.55);
+        if (pg.ext > 0.9 && this.punchLit[i] < 0.9) {
+          const st = this.sprite(0xffffff, true, this.star);
+          st.position.copy(this.tmpV);
+          this.add(st, 0.22, 2.8, 0.9);
+          this.shockRing(this.tmpV.x, this.tmpV.y, this.tmpV.z, 0xffd080, 0.8);
+        }
+      }
+      this.punchLit[i] = pg ? pg.ext : 0;
       // 体で行く技(突進・回転・連続攻撃・落下・衝撃波): 体を力の光がつつむ(ためから、技が終わるまで)
       const aura = this.auras[i];
       const at = a.k === 'tech' ? getTech(a.id) : null;
