@@ -172,6 +172,32 @@ export class BunkBones {
     // 腕は小さく(大きく動かすと顔までのびるため)。グローブを少し外へ・前へ
     this.rot('L_Upperarm', 'front', -wi * 0.04 * (0.5 + 0.5 * br));
     this.rot('R_Upperarm', 'front', wi * 0.04 * (0.5 + 0.5 * br));
+    // ---- 待機の構え: ずっと立っているだけにしない(2026-11-02 企画者「もう少し体を動かして」)
+    // 小さく はずむ(ひざを曲げのばし)・グローブを上げて構える・体を左右にゆらす・ときどきグローブを小さく突き出す(フェイント)
+    if (wi > 0.01) {
+      const bo = Math.abs(Math.sin(t * 5.5 + seed));
+      this.rot('L_Thigh', 'side', 0.12 * bo * wi);
+      this.rot('R_Thigh', 'side', 0.12 * bo * wi);
+      this.rot('L_Calf', 'side', -0.2 * bo * wi);
+      this.rot('R_Calf', 'side', -0.2 * bo * wi);
+      const sway = Math.sin(t * 1.7 + seed);
+      this.rot('Spine01', 'up', 0.12 * sway * wi);
+      this.rot('Spine01', 'front', 0.07 * Math.sin(t * 1.3 + seed) * wi);
+      this.rot('Head', 'up', -0.08 * sway * wi);
+      // グローブを上げて構える(左右で少しずらして上下)
+      this.rot('L_Upperarm', 'side', (0.18 + 0.05 * Math.sin(t * 5.5 + seed)) * wi);
+      this.rot('R_Upperarm', 'side', (0.18 + 0.05 * Math.sin(t * 5.5 + seed + 1.5)) * wi);
+      this.rot('L_Forearm', 'side', 0.25 * wi);
+      this.rot('R_Forearm', 'side', 0.25 * wi);
+      // フェイント: 3秒に1回くらい、片方のグローブを小さく前へ
+      const ph = (t + seed * 0.7) % 3.1;
+      if (ph < 0.35) {
+        const k = Math.sin((ph / 0.35) * Math.PI);
+        const sideF = Math.floor((t + seed) / 3.1) % 2 ? 'L' : 'R';
+        this.rot(`${sideF}_Forearm`, 'side', 0.2 * k * wi);
+        this.push(`${sideF}_Forearm`, 'front', 0.05 * k * wi);
+      }
+    }
     // ---- 移動: 短い足で ぴょこぴょこ(人の歩き方ではなく、左右に体をゆらしながら小走り) ----
     if (wm > 0.01) {
       const s = Math.sin(hop);

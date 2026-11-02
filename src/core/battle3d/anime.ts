@@ -195,7 +195,7 @@ function newMon(e: AnimeEntrant, side: Side): AnimeMon {
     hp: maxHp,
     maxHp,
     act: { k: 'free' },
-    cooldown: Object.fromEntries([...(e.techs ?? TECH_IDS), 'dodge'].map((k) => [k, 0])),
+    cooldown: Object.fromEntries([...(e.techs ?? TECH_IDS), 'dodge', 'jump'].map((k) => [k, 0])),
     command: null,
     plan: 'hold',
     planT: 0,
@@ -796,8 +796,8 @@ function updateMon(b: AnimeBattle, f: AnimeMon, dt: number): void {
     f.command = null;
   }
   if (f.act.k !== 'free' || f.y > 0) {
-    // 動けないあいだは、歩く勢いが少しのこって止まる
-    const k = Math.exp(-dt * C.move.stop);
+    // 動けないあいだは、歩く勢いが少しのこって止まる(ジャンプ中は勢いのまま)
+    const k = f.act.k === 'free' ? 1 : Math.exp(-dt * C.move.stop);
     f.vx *= k;
     f.vz *= k;
     const ka = f.act.k === 'tech' ? getTech(f.act.id).kind : null;
@@ -820,6 +820,12 @@ function updateMon(b: AnimeBattle, f: AnimeMon, dt: number): void {
     if (c === 'dodge') {
       startDodge(b, f, false);
       f.cooldown.dodge = b.t + C.dodge.cooldown;
+    } else if (c === 'jump') {
+      // ジャンプ(2026-11-02 企画者「よけるの近くにジャンプも」)。衝撃波・弾を跳んでよけられる。スティックの向きへ少し進む
+      f.vy = C.jump.speed;
+      f.y = 0.001;
+      f.cooldown.jump = b.t + C.jump.cooldown;
+      b.events.push({ kind: 'land', side: f.side, hard: false });
     } else startTech(b, f, c, true);
     b.events.push({ kind: 'command', side: f.side, cmd: c, state: 'done' });
     return;

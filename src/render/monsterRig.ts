@@ -336,6 +336,8 @@ export class MonsterRig {
         sx -= (h - 0.5) * 0.1 * big;
         legSwing = Math.sin(this.hop) * 0.8 * big;
       }
+      // 企画者のモデル: 止まっている時も、小さく はずむ(構え。2026-11-02)
+      if (this.model && sp <= 0.3) lift = Math.abs(Math.sin(now * 5.5 + f.side * 1.3)) * 0.05;
       // 進む向きへ体をかたむける
       rotZ = -fwd * 0.07;
       rotX = side * 0.07;
