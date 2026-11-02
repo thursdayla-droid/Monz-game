@@ -552,7 +552,9 @@ export class Battle3DScene extends Phaser.Scene {
         const lvS = { 弱: 0, 中: 1, 強: 2, 大技: 3 }[ht.strength];
         if (lvS >= 2) this.screenFlash(0.35 + lvS * 0.1);
         F.shake(0.18 + lvS * 0.1);
-        audio.se(e.big ? 'punchHeavy' : 'punch', { pitch: 0.9 + Math.random() * 0.2 });
+        // 通常攻撃のパンチは企画者の音(2026-11-02)
+        if (ht.kind === 'jab') audio.se('b3dPunchHit');
+        else audio.se(e.big ? 'punchHeavy' : 'punch', { pitch: 0.9 + Math.random() * 0.2 });
         this.hitStop = Math.max(this.hitStop, [0.06, 0.08, 0.11, 0.15][lvS]);
         if (!e.big) F.explode(e.x, e.y, e.z, e.tech, false);
         this.pop(e.crit ? `クリティカル！ -${e.damage}` : `-${e.damage}`, e.target === 0 ? '#ff8a8a' : '#ffd23a');

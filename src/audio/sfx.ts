@@ -51,7 +51,8 @@ export type SeName =
   | 'mcMagicGuardOk'
   | 'mcBuff'
   | 'mcBurn'
-  | 'mcSelect';
+  | 'mcSelect'
+  | 'b3dPunchHit';
 
 let noise: AudioBuffer | null = null;
 function noiseBuf(ctx: BaseAudioContext): AudioBuffer {
@@ -267,6 +268,7 @@ export function playSe(ctx: AudioContext, out: AudioNode, name: SeName, pitch: n
       if (p > 1.05) for (const d of [0.07, 0.14]) tone(ctx, out, t + d, 'sine', [[0, 1720]], [[0, 0.1 / (d * 14)], [ring * 0.8, 0.0001]], ring);
       break;
     }
+    case 'b3dPunchHit': // ファイルが読めなかったときの代わり
     case 'punch': {
       // バトル: パンチが当たった「バシッ」。p: 強さ(1 ふつう)【仮】
       const o = crunch(ctx, out, 2.5);

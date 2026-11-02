@@ -10,6 +10,7 @@ import type { SeName } from './sfx';
  * - 2026-10-26 MYTHCLASH その4: 必殺技のカットイン・火傷
  * - 2026-10-26 MYTHCLASH その5: 無の魔法
  * - 2026-10-26 MYTHCLASH その6: 攻撃など行動を選んだときの音
+ * - 2026-11-02 3Dバトル: 通常攻撃のパンチが当たった音(企画者「パンチ当たる音はこれ」)
  */
 export const SE_FILES: Partial<Record<SeName, { file: string; gain?: number }>> = {
   mcSlash: { file: 'assets/se/mythclash/attack.mp3' },
@@ -31,6 +32,7 @@ export const SE_FILES: Partial<Record<SeName, { file: string; gain?: number }>> 
   mcBurn: { file: 'assets/se/mythclash/burn.mp3' },
   mcMagic: { file: 'assets/se/mythclash/magic_none.mp3' },
   mcSelect: { file: 'assets/se/mythclash/select.mp3' },
+  b3dPunchHit: { file: 'assets/se/battle3d/punch_hit.mp3' },
 };
 
 /** 同じ効果音が一度に鳴る数の上限(重なりすぎて音が割れないように) */
