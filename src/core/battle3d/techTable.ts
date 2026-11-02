@@ -28,6 +28,7 @@ export const TYPE_KIND: Record<string, TechKind | null> = {
   衝撃波: 'quake',
   落下: 'drop',
   設置: 'field',
+  火柱: 'pillar',
   連続攻撃: 'combo',
   回転: 'spin',
   守り: 'barrier',
@@ -60,6 +61,8 @@ const BASE: Record<TechKind, Omit<Tech, 'name' | 'element' | 'kind'>> = {
   field: { power: 0, cooldown: 7, windup: 0.45, recovery: 0.45, speed: 0, range: 14, size: 3.2, duration: 0, launch: 0, knock: 0 },
   // 通常攻撃(パンチ。animeConfig の TECHS.punch。表の技には使わない)
   jab: { power: 7, cooldown: 0.5, windup: 0.06, recovery: 0.16, speed: 0, range: 1.9, size: 0.9, duration: 0.14, launch: 0, knock: 2 },
+  // 2026-11-02 火柱(地面から柱が出る。相手の足もと＋まわり3本・当たるのは1回)【案・未承認】
+  pillar: { power: 16, cooldown: 6, windup: 0.5, recovery: 0.5, speed: 0, range: 14, size: 1.0, duration: 0, launch: 7, knock: 2 },
   barrier: { power: 0, cooldown: 7, windup: 0.15, recovery: 0.2, speed: 0, range: 0, size: 1.7, duration: 2.0, launch: 0, knock: 0 },
 };
 
@@ -97,7 +100,7 @@ export function buildTech(row: TechRow): TableTech {
     cooldown: base.cooldown * m.cooldown,
     windup: base.windup * m.windup,
     range: base.range * (kind === 'quake' || kind === 'drop' ? m.area : 1),
-    size: base.size * (kind === 'beam' || kind === 'drop' || kind === 'barrier' || kind === 'shot' || kind === 'field' ? m.area : 1),
+    size: base.size * (kind === 'beam' || kind === 'drop' || kind === 'barrier' || kind === 'shot' || kind === 'field' || kind === 'pillar' ? m.area : 1),
     duration: base.duration * (kind === 'barrier' ? m.area : 1),
     launch: base.launch * (st === '大技' ? 1.3 : 1),
     knock: base.knock * (st === '強' ? 1.2 : st === '大技' ? 1.5 : 1),

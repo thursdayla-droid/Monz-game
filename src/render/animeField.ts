@@ -747,6 +747,7 @@ export class AnimeField {
     this.drawBeams(b);
     this.drawQuakes(b);
     this.drawRoarsFields(b);
+    this.drawPillars(b, dt);
     for (const p of this.bursts) {
       p.t += dt;
       const k = Math.min(1, p.t / p.life);
@@ -877,6 +878,69 @@ export class AnimeField {
       m.position.set(fl.x, 0.04, fl.z);
       m.scale.setScalar(fl.r * (1 + Math.sin(performance.now() / 200) * 0.03));
       m.rotation.z += 0.01;
+    });
+  }
+
+  private pillarObjs: THREE.Group[] = [];
+  /** 火柱(2026-11-02 企画者「相手の真下とその周り3箇所ぐらい下から炎の柱」): 地面が赤く光る → 下から炎の柱が噴き出す */
+  private drawPillars(b: AnimeBattle, dt: number): void {
+    while (this.pillarObjs.length < b.pillars.length) {
+      const g = new THREE.Group();
+      const warn = new THREE.Mesh(new THREE.CircleGeometry(1, 32), new THREE.MeshBasicMaterial({ color: 0xff3a00, transparent: true, opacity: 0.5, depthWrite: false }));
+      warn.rotation.x = -Math.PI / 2;
+      warn.position.y = 0.05;
+      const rim = new THREE.Mesh(new THREE.RingGeometry(0.88, 1, 32), new THREE.MeshBasicMaterial({ color: 0xffc040, transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide }));
+      rim.rotation.x = -Math.PI / 2;
+      rim.position.y = 0.06;
+      const outer = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1, 1, 20, 1, true), new THREE.MeshBasicMaterial({ color: 0xff4a0a, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+      const inner = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.6, 1, 14, 1, true), new THREE.MeshBasicMaterial({ color: 0xffd040, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+      g.add(warn, rim, outer, inner);
+      this.scene.add(g);
+      this.pillarObjs.push(g);
+    }
+    const P = ANIME.pillar;
+    this.pillarObjs.forEach((g, i) => {
+      const p = b.pillars[i];
+      g.visible = !!p;
+      if (!p) return;
+      g.position.set(p.x, 0, p.z);
+      const [warn, rim, outer, inner] = g.children as THREE.Mesh[];
+      const k = b.t - p.at;
+      const mat = (m: THREE.Mesh) => m.material as THREE.MeshBasicMaterial;
+      if (k < 0) {
+        // 出る前: 地面が赤く光って ふるえる(ここから出ると分かる)
+        const w = 1 - Math.min(1, -k / P.warn);
+        warn.visible = rim.visible = true;
+        outer.visible = inner.visible = false;
+        warn.scale.setScalar(p.r * (0.4 + 0.6 * w));
+        rim.scale.setScalar(p.r);
+        mat(warn).opacity = 0.25 + 0.4 * w + Math.sin(performance.now() / 40) * 0.1;
+        mat(rim).opacity = 0.5 + 0.5 * w;
+        if (dt > 0 && Math.random() < dt * 25) this.flame(p.x, 0.1, p.z, p.r * 1.4, 1);
+        return;
+      }
+      // 柱: 一気にのびて、太くなり、消えていく
+      const life = P.life;
+      const grow = Math.min(1, k / 0.1);
+      const fade = Math.max(0, 1 - Math.max(0, k - P.burst) / (life - P.burst));
+      const h = 5 * grow;
+      warn.visible = true;
+      rim.visible = false;
+      mat(warn).opacity = 0.7 * fade;
+      warn.scale.setScalar(p.r * 1.2);
+      outer.visible = inner.visible = true;
+      const wob = 1 + Math.sin(performance.now() / 25 + i) * 0.08;
+      outer.scale.set(p.r * wob * (0.8 + 0.3 * grow), h, p.r * wob * (0.8 + 0.3 * grow));
+      outer.position.y = h / 2;
+      inner.scale.set(p.r, h * 1.05, p.r);
+      inner.position.y = (h * 1.05) / 2;
+      mat(outer).opacity = 0.8 * fade;
+      mat(inner).opacity = 0.95 * fade;
+      inner.renderOrder = 2;
+      outer.rotation.y += dt * 8;
+      if (dt > 0 && fade > 0.2) {
+        if (Math.random() < dt * 60) this.flame(p.x, Math.random() * h, p.z, p.r * 1.2, 2);
+      }
     });
   }
 

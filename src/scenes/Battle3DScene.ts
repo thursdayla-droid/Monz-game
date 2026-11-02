@@ -622,6 +622,13 @@ export class Battle3DScene extends Phaser.Scene {
       case 'dodge':
         audio.se('whoosh', { pitch: 1.5 });
         break;
+      case 'pillar':
+        // 火柱が地面から噴き出す
+        F.flameBurst(e.x, 0.4, e.z);
+        F.rocks(e.x, e.z);
+        F.shake(0.2);
+        audio.se('mcFire', { pitch: 0.8 });
+        break;
       case 'domeBurst':
         F.impact(e.x, e.z, 2.2, true);
         this.screenFlash(0.4);

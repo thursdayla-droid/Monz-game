@@ -133,3 +133,36 @@ describe('table moves in battle', () => {
     expect(q.hp).toBe(q.maxHp);
   });
 });
+
+describe('ボルケーノピラー (fire pillars, 2026-11-02)', () => {
+  const ent = (): AnimeEntrant => ({ name: 'B', species: 'bunk', stats: S({}), instinct: instinctFor('bunk', S({})), proficiency: { attack: 2, defense: 2, evasion: 2, counter: 2, spacing: 2 }, techs: ['ボルケーノピラー'] });
+  const run = (moveAway: boolean) => {
+    const b = newAnimeBattle(ent(), ent(), 5, 'manual');
+    const [p, q] = b.f;
+    p.pad = { x: 0, z: 0 };
+    q.pad = { x: 0, z: 0 };
+    p.x = -4; p.z = 0; q.x = 4; q.z = 0; q.cooldown.dodge = 99;
+    giveCommand(b, 0, 'ボルケーノピラー');
+    const hits: string[] = [];
+    let pillars = 0;
+    for (let i = 0; i < 150; i++) {
+      b.events = [];
+      if (moveAway && b.pillars.length && !b.pillars.some((x) => x.up)) { q.x = -1; q.z = 6; }
+      stepAnime(b, ANIME.dt);
+      for (const ev of b.events) {
+        if (ev.kind === 'hit') hits.push(ev.tech);
+        if (ev.kind === 'pillar') pillars++;
+      }
+    }
+    return { hits, pillars };
+  };
+  it('4 pillars come up (under the foe and 3 around), and hit only once', () => {
+    expect(learnset('bunk').find((r) => r.name === 'ボルケーノピラー')?.level).toBe(70);
+    const r = run(false);
+    expect(r.pillars).toBe(4);
+    expect(r.hits).toEqual(['ボルケーノピラー']);
+  });
+  it('moving away before the pillars come up avoids them', () => {
+    expect(run(true).hits).toEqual([]);
+  });
+});

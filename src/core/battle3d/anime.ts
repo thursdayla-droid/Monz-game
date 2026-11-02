@@ -145,6 +145,7 @@ export type AnimeEvent =
   | { kind: 'ukemi'; side: Side }
   | { kind: 'domeBurst'; side: Side; x: number; z: number }
   | { kind: 'field'; side: Side; x: number; z: number; r: number; until: number }
+  | { kind: 'pillar'; side: Side; x: number; z: number }
   | { kind: 'blocked'; side: Side; x: number; y: number; z: number }
   | { kind: 'mark'; side: Side; x: number; z: number; r: number; until: number }
   | { kind: 'impact'; side: Side; tech: TechId; x: number; z: number; r: number }
@@ -152,6 +153,19 @@ export type AnimeEvent =
   | { kind: 'ko'; side: Side }
   | { kind: 'victory'; side: Side }
   | { kind: 'timeUp' };
+
+export interface Pillar {
+  owner: Side;
+  tech: TechId;
+  g: number;
+  x: number;
+  z: number;
+  r: number;
+  /** 柱が出る時刻 */
+  at: number;
+  up: boolean;
+  hitDone?: boolean;
+}
 
 export interface AnimeBattle {
   f: [AnimeMon, AnimeMon];
@@ -166,6 +180,8 @@ export interface AnimeBattle {
   roars: Quake[];
   /** 重力の場(中にいると遅くなる) */
   fields: { owner: Side; tech: TechId; x: number; z: number; r: number; until: number }[];
+  /** 火柱(at に地面から出る。同じ g の柱は、どれか1本が当たったら ほかは当たらない) */
+  pillars: Pillar[];
   seq: number;
   events: AnimeEvent[];
 }
@@ -228,7 +244,7 @@ export function newAnimeBattle(a: AnimeEntrant, c: AnimeEntrant, seed: number, p
   f[0].techMode = partnerMode;
   // はじめは少し様子を見る
   for (const m of f) m.thinkT = 0.8 + rng() * 0.6;
-  return { f, t: 0, rng, winner: null, koAt: null, shots: [], beams: [], quakes: [], roars: [], fields: [], seq: 0, events: [] };
+  return { f, t: 0, rng, winner: null, koAt: null, shots: [], beams: [], quakes: [], roars: [], fields: [], pillars: [], seq: 0, events: [] };
 }
 
 // ---------------- 指示 ----------------
@@ -335,6 +351,22 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
       const fz = clamp(o.z, -C.field.halfZ, C.field.halfZ);
       b.fields.push({ owner: f.side, tech: a.id, x: fx, z: fz, r: tech.size, until: b.t + C.gfield.time });
       b.events.push({ kind: 'field', side: f.side, x: fx, z: fz, r: tech.size, until: b.t + C.gfield.time });
+    } else if (tech.kind === 'pillar') {
+      // 自分の前の地面を なぐる → 使った時の相手の足もと と、そのまわり3か所から 炎の柱(地面が光ってから出る。よけられる)
+      const P = C.pillar;
+      const cx = clamp(o.x, -C.field.halfX, C.field.halfX);
+      const cz = clamp(o.z, -C.field.halfZ, C.field.halfZ);
+      b.seq++;
+      const g = b.seq;
+      b.pillars.push({ owner: f.side, tech: a.id, g, x: cx, z: cz, r: tech.size, at: b.t + P.warn, up: false });
+      const a0 = b.rng() * Math.PI * 2;
+      for (let i = 0; i < 3; i++) {
+        const ang = a0 + (i * Math.PI * 2) / 3;
+        const px = clamp(cx + Math.cos(ang) * P.ring, -C.field.halfX, C.field.halfX);
+        const pz = clamp(cz + Math.sin(ang) * P.ring, -C.field.halfZ, C.field.halfZ);
+        b.pillars.push({ owner: f.side, tech: a.id, g, x: px, z: pz, r: tech.size, at: b.t + P.warn + P.gap * (i + 1), up: false });
+      }
+      b.events.push({ kind: 'impact', side: f.side, tech: a.id, x: f.x + Math.cos(a.dir) * 0.9, z: f.z + Math.sin(a.dir) * 0.9, r: 0.8 });
     } else if (tech.kind === 'barrier') {
       f.barrierUntil = b.t + tech.duration;
       f.barrierR = tech.size;
@@ -462,7 +494,7 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
   }
   const extra = tech.kind === 'beam' || tech.kind === 'barrier' ? tech.duration : tech.kind === 'barrage' ? C.barrage.gap * C.barrage.count : 0;
   const move = tech.kind === 'rush' ? tech.range / tech.speed : 0;
-  if (a.hit || tech.kind === 'shot' || tech.kind === 'barrage' || tech.kind === 'beam' || tech.kind === 'barrier' || tech.kind === 'debuff' || tech.kind === 'field') {
+  if (a.hit || tech.kind === 'shot' || tech.kind === 'barrage' || tech.kind === 'beam' || tech.kind === 'barrier' || tech.kind === 'debuff' || tech.kind === 'field' || tech.kind === 'pillar') {
     if (a.t >= a.windup + extra + tech.recovery + (a.hit ? 0 : move) && f.y <= 0) f.act = { k: 'free' };
     else if (tech.kind === 'rush' && a.hit && run >= tech.recovery && f.y <= 0 && a.t >= a.windup + tech.recovery) f.act = { k: 'free' };
   }
@@ -638,6 +670,19 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
     }
   }
   b.fields = b.fields.filter((fl) => b.t < fl.until);
+  // 火柱: 出た瞬間から少しのあいだ、柱の中にいる相手に当たる(1回の技で1回だけ)
+  for (const p of b.pillars) {
+    if (b.t < p.at) continue;
+    if (!p.up) {
+      p.up = true;
+      b.events.push({ kind: 'pillar', side: p.owner, x: p.x, z: p.z });
+    }
+    const tgt = b.f[p.owner === 0 ? 1 : 0];
+    if (b.t < p.at + C.pillar.burst && dist(p, tgt) < p.r + C.body.radius * 0.6 && tgt.y < 2.5 && !b.pillars.some((q) => q.g === p.g && q.hitDone)) {
+      if (hit(b, b.f[p.owner], tgt, p.tech, tgt.x, tgt.y + 0.6, tgt.z, angleTo(p, tgt))) for (const q of b.pillars) if (q.g === p.g) q.hitDone = true;
+    }
+  }
+  b.pillars = b.pillars.filter((p) => b.t < p.at + C.pillar.life);
   b.shots = b.shots.filter((s) => s.alive);
 }
 
@@ -693,6 +738,7 @@ function chooseTech(b: AnimeBattle, f: AnimeMon): TechId | null {
     else if (t.kind === 'drop') x = d < t.range ? 1 + f.instinct.fight : 0.1;
     else if (t.kind === 'beam') x = 0.8 + f.instinct.fight;
     else if (t.kind === 'debuff') x = b.t < o.atkDownUntil ? 0.05 : d < t.range ? 0.9 : 0.1;
+    else if (t.kind === 'pillar') x = d < t.range ? 1 + f.instinct.fight : 0.1;
     else if (t.kind === 'field') x = b.fields.some((fl) => fl.owner === f.side) ? 0.05 : 0.8;
     return x * (t.strength === '大技' ? 1.6 : 1);
   });

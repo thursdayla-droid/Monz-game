@@ -292,6 +292,13 @@ export class MonsterRig {
           sx = 1.1;
           sy = 0.92;
           legSwing = Math.sin(k * 30) * 0.9;
+        } else if (tech.kind === 'pillar') {
+          // 火柱: 前の地面を なぐる(前へかがんで、ぐっと つぶれる)
+          const p = Math.max(0, 1 - k / 0.35);
+          rotZ = -0.55 * p;
+          sy = 1 - 0.25 * p;
+          sx = 1 + 0.18 * p;
+          arm = -1.2 * p;
         } else if (tech.kind === 'barrier') {
           // 守り: 体を丸める
           sy = 0.82;

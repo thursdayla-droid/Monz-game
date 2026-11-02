@@ -56,6 +56,11 @@ export const ANIME = {
    */
   debuff: { atkDown: 0.75, time: 5 },
   gfield: { slow: 0.6, time: 5, linger: 0.5 },
+  /**
+   * 火柱(2026-11-02 企画者「自分の地面を殴って、使った時にいる相手の真下とその周り3箇所ぐらい下から炎の柱」)【仮】
+   * ring: まわりの3本の、まん中からの距離 / warn: 地面が光ってから柱が出るまで(まん中)/ gap: まわりの柱が1本ずつ遅れる時間 / burst: 柱が当たる時間 / life: 柱が見えている時間
+   */
+  pillar: { ring: 2.2, warn: 0.55, gap: 0.12, burst: 0.4, life: 0.75 },
   /** 連続攻撃4発(メガトンラッシュ)の1発ずつの割合。4発目がフィニッシュ【案】 */
   combo4: [0.2, 0.2, 0.2, 0.4],
   /** 通常攻撃(パンチ)の3連の割合【仮】 */
@@ -82,7 +87,7 @@ export const ANIME = {
 };
 
 /** 技の種類(表の「型」から決まる。techTable.ts)。2026-11-01 回転・連射・落下・連続攻撃・守り を追加 */
-export type TechKind = 'rush' | 'shot' | 'beam' | 'quake' | 'spin' | 'barrage' | 'drop' | 'combo' | 'barrier' | 'debuff' | 'field' | 'jab';
+export type TechKind = 'rush' | 'shot' | 'beam' | 'quake' | 'spin' | 'barrage' | 'drop' | 'combo' | 'barrier' | 'debuff' | 'field' | 'jab' | 'pillar';
 export type Element = '炎' | '水' | '自然' | '雷' | '光' | '闇' | '無';
 
 export interface Tech {
