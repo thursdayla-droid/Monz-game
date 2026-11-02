@@ -143,6 +143,7 @@ export type AnimeEvent =
   | { kind: 'status'; side: Side; effect: Effect }
   | { kind: 'roar'; side: Side; x: number; z: number }
   | { kind: 'ukemi'; side: Side }
+  | { kind: 'domeBurst'; side: Side; x: number; z: number }
   | { kind: 'field'; side: Side; x: number; z: number; r: number; until: number }
   | { kind: 'blocked'; side: Side; x: number; y: number; z: number }
   | { kind: 'mark'; side: Side; x: number; z: number; r: number; until: number }
@@ -453,6 +454,17 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
   }
 }
 
+/**
+ * ガンジョウドームの反撃(2026-11-02 企画者「相手の技や攻撃受けたら爆発が起きて反撃できるように」)。
+ * 守りのドームが攻撃を受けると、ドームが はじけて衝撃波が広がる(ドームはそこで終わり)。近くの相手に当たる(ジャンプでよけられる)
+ */
+function domeBurst(b: AnimeBattle, f: AnimeMon): void {
+  if (b.t >= f.barrierUntil) return;
+  f.barrierUntil = b.t;
+  b.quakes.push({ owner: f.side, tech: 'domeBurst', x: f.x, z: f.z, r: f.barrierR, hit: false });
+  b.events.push({ kind: 'domeBurst', side: f.side, x: f.x, z: f.z });
+}
+
 /** 当たり → ダメージ・吹っ飛び */
 function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y: number, z: number, dir: number, opt: { last?: boolean; part?: number } = {}): boolean {
   if (o.act.k === 'ko' || o.act.k === 'victory') return false;
@@ -460,6 +472,7 @@ function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y:
   // 守りのドームの中 → 止める
   if (b.t < o.barrierUntil) {
     b.events.push({ kind: 'blocked', side: o.side, x, y, z });
+    domeBurst(b, o);
     return false;
   }
   if (o.act.k === 'dodge' && o.act.t < C.dodge.invincible) {
@@ -521,6 +534,7 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
     if (b.t < tgt.barrierUntil && dist(s, tgt) < tgt.barrierR + s.r) {
       s.alive = false;
       b.events.push({ kind: 'blocked', side: tgt.side, x: s.x, y: s.y, z: s.z });
+      domeBurst(b, tgt);
       continue;
     }
     if (dist(s, tgt) < s.r + C.body.radius && Math.abs(tgt.y + 0.7 - s.y) < 1.2) {

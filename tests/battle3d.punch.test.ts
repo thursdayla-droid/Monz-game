@@ -56,3 +56,18 @@ it('while knocked down, buttons are not reserved (only dodge for ukemi)', () => 
   expect(giveCommand(b, 0, 'バンクバッシュ')).toBe(false);
   expect(giveCommand(b, 0, 'dodge')).toBe(true);
 });
+
+it('guard dome: when it is hit, it bursts and the blast hits a nearby attacker', () => {
+  const b = newAnimeBattle(e(), e(), 4, 'manual');
+  const [p, q] = b.f;
+  p.pad = { x: 0, z: 0 };
+  p.x = 0; p.z = 0; q.x = 1.6; q.z = 0; q.face = Math.PI; p.thinkT = 99; q.thinkT = 99; q.cooldown.dodge = 99;
+  p.barrierUntil = 5; p.barrierR = 1.7;
+  q.pad = { x: 0, z: 0 };
+  giveCommand(b, 1, 'punch');
+  const ev: string[] = [];
+  for (let i = 0; i < 60; i++) { b.events = []; stepAnime(b, ANIME.dt); for (const x of b.events) ev.push(x.kind); }
+  expect(ev).toContain('domeBurst');
+  expect(p.hp).toBe(p.maxHp);
+  expect(q.hp).toBeLessThan(q.maxHp);
+});

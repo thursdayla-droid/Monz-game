@@ -592,6 +592,12 @@ export class Battle3DScene extends Phaser.Scene {
       case 'dodge':
         audio.se('whoosh', { pitch: 1.5 });
         break;
+      case 'domeBurst':
+        F.impact(e.x, e.z, 2.2, true);
+        this.screenFlash(0.4);
+        this.pop(e.side === 0 ? 'ドームはんげき！' : 'あいてのドームはんげき！', '#9ad8ff');
+        audio.se('koBlast', { pitch: 1.2 });
+        break;
       case 'ukemi':
         this.pop(e.side === 0 ? '受け身！' : 'あいての受け身！', '#7dd8ff');
         audio.se('whoosh', { pitch: 1.6 });
