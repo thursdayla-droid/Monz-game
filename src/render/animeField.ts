@@ -165,8 +165,8 @@ export class AnimeField {
   private camPos = new THREE.Vector3(-12, 5, 6);
   private camLook = new THREE.Vector3();
   private shakeAmp = 0;
-  /** 技のときの横からのカメラの残り時間 */
-  private atkCamT = 0;
+  /** カメラの向き(ゆっくりついていく) */
+  private camYaw: number | null = null;
   zoom = 1;
   /** モデルの読みこみが終わった(失敗したときも true。仮のモンスターのまま) */
   ready = false;
@@ -654,27 +654,17 @@ export class AnimeField {
     const [p, q] = b.f;
     const dir = Math.atan2(q.z - p.z, q.x - p.x);
     const sep = Math.hypot(q.x - p.x, q.z - p.z);
-    // ふだん: 自分の MONZ のななめ後ろ(2026-11-02 腕が見えるように、少し横へ)
-    const back = 4.9 + sep * 0.25;
-    const side = 3.4;
-    let want = new THREE.Vector3(p.x - Math.cos(dir) * back - Math.sin(dir) * side, 3.1 + sep * 0.12, p.z - Math.sin(dir) * back + Math.cos(dir) * side);
-    let look = new THREE.Vector3(p.x + (q.x - p.x) * 0.6, 0.9 + Math.max(p.y, q.y) * 0.3, p.z + (q.z - p.z) * 0.6);
-    // 自分の MONZ が技を出す時は、カメラが横へ回りこむ(パンチなど腕の動きが見えるように。企画者 2026-11-02「パンチとかまったく動かない」)
-    const a = p.act;
-    if (a.k === 'tech' && ['rush', 'combo', 'shot', 'barrage', 'beam', 'spin'].includes(getTech(a.id).kind)) this.atkCamT = 0.6;
-    else this.atkCamT = Math.max(0, this.atkCamT - dt);
-    if (this.atkCamT > 0) {
-      // ななめ前から(顔とグローブが見える)。自分の MONZ を中心に、相手のほうも少し入れる
-      const px = p.x;
-      const pz = p.z;
-      const d = 3.4;
-      want = new THREE.Vector3(px - Math.sin(dir) * d + Math.cos(dir) * 2.2, 1.5, pz + Math.cos(dir) * d + Math.sin(dir) * 2.2);
-      look = new THREE.Vector3(px + (q.x - px) * 0.25, 0.85, pz + (q.z - pz) * 0.25);
-    }
-    // 技のカメラへは すばやく、もどる時はゆっくり
-    const k = 1 - Math.exp(-dt * (this.atkCamT > 0 ? 12 : 3.5));
-    this.camPos.lerp(want, k);
-    this.camLook.lerp(look, 1 - Math.exp(-dt * (this.atkCamT > 0 ? 12 : 4)));
+    // 2026-11-02 企画者「カメラがガチャガチャ」「若干遠目でもいい」→ 技ごとにカメラを動かすのをやめ、ひとつの落ち着いたカメラに。
+    // 2体のまん中を、自分の MONZ 側のななめうしろ・少し横から、少し遠めに見る。2体が回りこんでも、向きはゆっくりついていく
+    const targetYaw = dir + Math.PI - 0.95;
+    if (this.camYaw === null) this.camYaw = targetYaw;
+    this.camYaw += Math.atan2(Math.sin(targetYaw - this.camYaw), Math.cos(targetYaw - this.camYaw)) * (1 - Math.exp(-dt * 1.2));
+    const mid = new THREE.Vector3(p.x + (q.x - p.x) * 0.45, 0, p.z + (q.z - p.z) * 0.45);
+    const dist = 8.5 + Math.min(sep, 16) * 0.45;
+    const want = new THREE.Vector3(mid.x + Math.cos(this.camYaw) * dist, 3.6 + Math.min(sep, 16) * 0.18, mid.z + Math.sin(this.camYaw) * dist);
+    const look = new THREE.Vector3(mid.x, 0.9 + Math.max(p.y, q.y) * 0.25, mid.z);
+    this.camPos.lerp(want, 1 - Math.exp(-dt * 2));
+    this.camLook.lerp(look, 1 - Math.exp(-dt * 2.5));
     const pos = this.camPos.clone();
     if (this.shakeAmp > 0.002) {
       pos.x += (Math.random() - 0.5) * this.shakeAmp;

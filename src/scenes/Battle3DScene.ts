@@ -35,7 +35,10 @@ const CSS = `
 .b3d .bar>i{display:block;height:100%;background:#3ad070;transition:width .25s}
 .b3d .num{font-size:11px;font-weight:900;text-align:right;margin-top:1px}
 .b3d .timer{font-weight:900;font-size:20px;min-width:36px;text-align:center;text-shadow:0 2px 0 #16101c;padding-top:10px;margin:0 auto}
-.b3d .call{position:absolute;left:50%;top:26%;transform:translateX(-50%);font-weight:900;font-size:26px;white-space:nowrap;padding:8px 22px;border-radius:12px;background:#16101ce0;border:3px solid #fff;opacity:0;pointer-events:none}
+/* 技の名前は小さく、上のHPの下へ(試合が見えるように。企画者 2026-11-02) */
+.b3d .call{position:absolute;top:calc(env(safe-area-inset-top) + 74px);font-weight:900;font-size:15px;white-space:nowrap;padding:4px 12px;border-radius:9px;background:#16101cd0;border:2px solid #fff;opacity:0;pointer-events:none}
+.b3d .call.l{left:calc(env(safe-area-inset-left) + 60px)}
+.b3d .call.r{right:calc(env(safe-area-inset-right) + 12px)}
 .b3d .pop{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);font-weight:900;font-size:30px;color:#fff;text-shadow:0 3px 0 #16101c;pointer-events:none;opacity:0;white-space:nowrap}
 .b3d .big{position:absolute;left:0;right:0;top:36%;text-align:center;font-weight:900;font-size:68px;color:#ffd23a;text-shadow:0 5px 0 #16101c,0 0 24px #f40;pointer-events:none;opacity:0}
 .b3d .cmds{position:absolute;left:0;right:0;bottom:0;padding:0 calc(env(safe-area-inset-right) + 10px) calc(env(safe-area-inset-bottom) + 8px) calc(env(safe-area-inset-left) + 10px);display:grid;grid-template-columns:repeat(2,minmax(84px,150px)) minmax(70px,1fr) repeat(2,minmax(84px,150px));gap:8px;align-items:end}
@@ -274,7 +277,7 @@ export class Battle3DScene extends Phaser.Scene {
         const t = getTech(e.tech);
         const f = b.f[e.side];
         const text = e.side === 0 ? (e.byCommand ? `${f.name}、${t.name}だ！` : `${f.name}の ${t.name}！`) : `あいての ${t.name}！`;
-        this.call(text, hex(ELEMENT_HEX[t.element]), e.side === 0 ? '#3a9cff' : '#ff4a4a');
+        this.call(text, hex(ELEMENT_HEX[t.element]), e.side === 0 ? '#3a9cff' : '#ff4a4a', e.side);
         audio.se(t.kind === 'beam' ? 'mcThunder' : t.kind === 'shot' ? 'mcFire' : 'whoosh', { pitch: 1 });
         break;
       }
@@ -287,12 +290,8 @@ export class Battle3DScene extends Phaser.Scene {
         else if (k === 'rush' || k === 'spin' || k === 'combo') audio.se('whoosh', { pitch: 0.8 });
         else if (k === 'barrier') audio.se('mcMagic', { pitch: 1.3 });
         else audio.se('hop', { pitch: 0.8 });
-        // 大技は、技の名前を大きく出して、カメラが少し寄る
-        if (getTech(e.tech).strength === '大技') {
-          this.big(getTech(e.tech).name);
-          this.zoomT = 0.6;
-          F.shake(0.3);
-        }
+        // 大技は画面が大きくゆれる(名前は上の小さい札だけ。試合が見えるように 2026-11-02)
+        if (getTech(e.tech).strength === '大技') F.shake(0.3);
         break;
       }
       case 'hit':
@@ -363,19 +362,20 @@ export class Battle3DScene extends Phaser.Scene {
     }
   }
 
-  private call(text: string, color: string, border: string): void {
+  private call(text: string, color: string, border: string, side: 0 | 1 = 0): void {
     const el = this.ui.call;
     el.textContent = text;
     el.style.color = color;
     el.style.borderColor = border;
+    el.className = `call ${side === 0 ? 'l' : 'r'}`;
     el.animate(
       [
-        { opacity: 0, transform: 'translateX(-50%) scale(.6)' },
-        { opacity: 1, transform: 'translateX(-50%) scale(1.08)', offset: 0.12 },
-        { opacity: 1, transform: 'translateX(-50%) scale(1)', offset: 0.8 },
-        { opacity: 0, transform: 'translateX(-50%) scale(1)' },
+        { opacity: 0, transform: 'translateY(-6px)' },
+        { opacity: 1, transform: 'translateY(0)', offset: 0.1 },
+        { opacity: 1, transform: 'translateY(0)', offset: 0.8 },
+        { opacity: 0, transform: 'translateY(0)' },
       ],
-      { duration: 1300 },
+      { duration: 1200 },
     );
   }
 
