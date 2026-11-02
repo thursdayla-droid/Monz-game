@@ -60,7 +60,8 @@ const CSS = `
 .b3d .stickBase{position:absolute;width:120px;height:120px;margin:-60px 0 0 -60px;border-radius:50%;background:#ffffff30;border:3px solid #ffffffa0;display:none;pointer-events:none}
 .b3d .stickKnob{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:#ffffffd0;border:3px solid #16101c}
 .b3d .stickHint{position:absolute;left:calc(env(safe-area-inset-left) + 40px);bottom:calc(env(safe-area-inset-bottom) + 40px);width:110px;height:110px;border-radius:50%;border:3px dashed #ffffff80;color:#ffffffc0;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;text-align:center;pointer-events:none}
-.b3d .pad{position:absolute;right:calc(env(safe-area-inset-right) + 10px);bottom:calc(env(safe-area-inset-bottom) + 10px);display:flex;align-items:flex-end;gap:10px}
+.b3d .pad{position:absolute;right:calc(env(safe-area-inset-right) + 10px);bottom:calc(env(safe-area-inset-bottom) + 10px);display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+/* よけるボタンは技のボタンの右上(企画者 2026-11-02) */
 .b3d .grid{display:grid;grid-template-columns:repeat(2,minmax(96px,128px));gap:8px}
 .b3d .pad button{position:relative;height:54px;border-radius:14px;border:3px solid #16101c;color:#16101c;font:900 min(14px,1.9vw) ${UI_FONT};white-space:nowrap;letter-spacing:-.05em;padding:0 4px;overflow:hidden;box-shadow:0 4px 0 #16101c;background:#fff}
 .b3d .pad button .el{display:block;font-size:10px;color:#fff;border-radius:6px;margin:0 auto 2px;width:3.2em}
@@ -70,7 +71,7 @@ const CSS = `
 .b3d .pad button.queued{outline:3px solid #ffd23a}
 .b3d .pad button.cool{filter:grayscale(.8) brightness(.8)}
 .b3d .pad button.lock,.b3d .pad button.empty{background:#3a3040;color:#bfb4c8}
-.b3d .pad .dodge{width:76px;height:76px;border-radius:50%;background:#16101c;color:#fff;border-color:#fff;margin-bottom:16px}
+.b3d .pad .dodge{width:70px;height:70px;border-radius:50%;background:#16101c;color:#fff;border-color:#fff}
 .b3d .setup{position:absolute;inset:0;background:#0d0614e8;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top) + 10px) calc(env(safe-area-inset-right) + 16px) calc(env(safe-area-inset-bottom) + 10px) calc(env(safe-area-inset-left) + 16px);gap:8px;z-index:6}
 .b3d .setup h2{margin:0 0 0 70px;font-size:20px;color:#ffd23a}
 .b3d .setup .row{display:flex;gap:12px;flex:1;min-height:0}
