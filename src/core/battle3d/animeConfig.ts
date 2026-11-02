@@ -14,7 +14,9 @@ export const ANIME = {
   body: { radius: 0.7, minGap: 1.5 },
   timeLimit: 90,
   gravity: 24,
-  stat: { hpBase: 120, perHp: 1, powerDiv: 130, toughDiv: 100, walkBase: 3.5, walkPerSpeed: 0.015, turnRate: 10,
+  stat: { hpBase: 120, perHp: 1, powerDiv: 130, toughDiv: 100, walkBase: 3.5, turnRate: 10,
+    /** 【仮】動く速さ = walkBase × 倍率。倍率はスピード0で0.9倍 → スピード150(上限)で1.8倍(企画者 2026-11-02「動くスピードはすばやさで変えよう」) */
+    moveMin: 0.9, moveMax: 1.8, moveCap: 150,
     /** 【仮】スピード: ためが短い・よけやすい。テクニック: ねらいが正確・クリティカル(1.4倍)・追加効果が付きやすい(2026-11-01 技の表のバランスのため) */
     speedWindupDiv: 300, speedWindupMax: 0.25, speedDodgeDiv: 300, techAim: 100, techCritDiv: 140, techEffectDiv: 150, techCdDiv: 250, techCdMax: 0.2, critMul: 1.4 },
   /** AIが考える間隔・移動の方針を続ける時間 */

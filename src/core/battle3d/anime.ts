@@ -749,7 +749,7 @@ function walk(b: AnimeBattle, f: AnimeMon, dt: number): void {
   const len = Math.hypot(vx, vz);
   // 速さに強弱をつける(いつも同じ速さだと機械みたいなので)
   const sway = 0.75 + 0.35 * Math.sin(b.t * 2.3 + f.side * 1.7) + 0.15 * Math.sin(b.t * 5.1 + f.side);
-  const sp = (C.stat.walkBase + f.stats.speed * C.stat.walkPerSpeed) * sway * (b.t < f.paraUntil ? C.status.paraSpeed : 1) * (b.t < f.slowUntil ? C.gfield.slow : 1) * (b.t < f.dizzyUntil ? 0.6 : 1) * (b.t < f.burstUntil ? C.move.burst : 1);
+  const sp = walkSpeed(f) * sway * (b.t < f.paraUntil ? C.status.paraSpeed : 1) * (b.t < f.slowUntil ? C.gfield.slow : 1) * (b.t < f.dizzyUntil ? 0.6 : 1) * (b.t < f.burstUntil ? C.move.burst : 1);
   const wx = len > 0.01 ? (vx / len) * sp : 0;
   const wz = len > 0.01 ? (vz / len) * sp : 0;
   // 勢い: 少しずつ速さを合わせる
@@ -763,11 +763,17 @@ function walk(b: AnimeBattle, f: AnimeMon, dt: number): void {
   f.face += angDiff(a, f.face) * (1 - Math.exp(-dt * C.stat.turnRate));
 }
 
+/** スピードで決まる歩く速さ【仮】 */
+export function walkSpeed(f: { stats: { speed: number } }): number {
+  const t = Math.max(0, Math.min(1, f.stats.speed / C.stat.moveCap));
+  return C.stat.walkBase * (C.stat.moveMin + (C.stat.moveMax - C.stat.moveMin) * t);
+}
+
 /** スティックで歩く(勢いあり・相手のほうを向いたまま) */
 function padWalk(b: AnimeBattle, f: AnimeMon, dt: number): void {
   const o = other(b, f);
   const len = Math.min(1, Math.hypot(f.pad!.x, f.pad!.z));
-  const sp = (C.stat.walkBase + f.stats.speed * C.stat.walkPerSpeed) * C.pad.speed * len * (b.t < f.paraUntil ? C.status.paraSpeed : 1) * (b.t < f.slowUntil ? C.gfield.slow : 1) * (b.t < f.dizzyUntil ? 0.6 : 1);
+  const sp = walkSpeed(f) * C.pad.speed * len * (b.t < f.paraUntil ? C.status.paraSpeed : 1) * (b.t < f.slowUntil ? C.gfield.slow : 1) * (b.t < f.dizzyUntil ? 0.6 : 1);
   const n = Math.hypot(f.pad!.x, f.pad!.z) || 1;
   const wx = len > 0.05 ? (f.pad!.x / n) * sp : 0;
   const wz = len > 0.05 ? (f.pad!.z / n) * sp : 0;

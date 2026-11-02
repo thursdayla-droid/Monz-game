@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { instinctFor } from '../src/core/autobattle/engine';
 import { ANIME, TECHS } from '../src/core/battle3d/animeConfig';
 import { getTech } from '../src/core/battle3d/techTable';
-import { animeFinished, commandState, giveCommand, newAnimeBattle, stepAnime, type AnimeBattle, type AnimeEntrant, type AnimeEvent } from '../src/core/battle3d/anime';
+import { animeFinished, commandState, giveCommand, walkSpeed, newAnimeBattle, stepAnime, type AnimeBattle, type AnimeEntrant, type AnimeEvent } from '../src/core/battle3d/anime';
 import type { StatBlock } from '../src/core/stats';
 
 const LV30: StatBlock = { hp: 40, power: 40, tough: 35, speed: 20, tech: 22 };
@@ -104,5 +104,15 @@ describe('3D battle (anime monster battle style)', () => {
       if (mode === 'manual') expect(self).toBe(0);
       else expect(self).toBeGreaterThan(5);
     }
+  });
+});
+
+describe('スピードで動く速さが変わる(2026-11-02)', () => {
+  it('スピードが高いほど速く、上限150で止まる', () => {
+    const w = (speed: number) => walkSpeed({ stats: { speed } });
+    expect(w(0)).toBeCloseTo(ANIME.stat.walkBase * 0.9);
+    expect(w(100)).toBeGreaterThan(w(20));
+    expect(w(150)).toBeCloseTo(ANIME.stat.walkBase * 1.8);
+    expect(w(300)).toBeCloseTo(w(150));
   });
 });
