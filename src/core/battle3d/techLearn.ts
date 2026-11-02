@@ -84,7 +84,12 @@ export function autoEquip(species: string, learned: string[], level: number, ins
     for (const n of pool) {
       const t = getTech(n);
       const same = chosen.filter((c) => getTech(c).kind === t.kind).length;
-      const s = rank[t.strength] * 2 + lvOf(n) * 0.04 + like(n) - same * 2.5;
+      // 育て方・進化で覚えた技は、その MONZ らしさなので優先する(2026-11-02 技が16個になり、強い技ばかり選ばれたため)
+      const own = rows.find((r) => r.name === n)?.condition !== 'なし' ? 3 : 0;
+      // 遠くから撃つ技が1つもなければ、1つは入れる(遠距離の選択肢。2026-11-02 ポンポンショット)
+      const far = ['shot', 'barrage', 'beam'];
+      const needFar = far.includes(t.kind) && !chosen.some((c) => far.includes(getTech(c).kind)) ? 1 : 0;
+      const s = rank[t.strength] * 2 + lvOf(n) * 0.04 + like(n) + own + needFar - same * 2.5;
       if (s > bestS) {
         bestS = s;
         best = n;

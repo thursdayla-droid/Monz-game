@@ -27,13 +27,13 @@ export const TYPE_KIND: Record<string, TechKind | null> = {
   ビーム: 'beam',
   衝撃波: 'quake',
   落下: 'drop',
-  設置: null,
+  設置: 'field',
   連続攻撃: 'combo',
   回転: 'spin',
   守り: 'barrier',
   回復: null,
   強化: null,
-  弱体: null,
+  弱体: 'debuff',
   吸収: null,
 };
 
@@ -41,7 +41,7 @@ export const ELEMENTS: Element[] = ['炎', '水', '自然', '雷', '光', '闇',
 export const STRENGTHS = ['弱', '中', '強', '大技'] as const;
 export type Strength = (typeof STRENGTHS)[number];
 export const CONDITIONS = ['なし', 'パワー寄り', 'タフネス寄り', 'スピード寄り', 'テクニック寄り', 'HP寄り', '第1進化', '第2進化'] as const;
-/** 追加効果。【仮】今動くのは ふらつき・まひ だけ(ほかは表に書けるが、まだ効かない) */
+/** 追加効果。【仮】今動くのは ふらつき・まひ・攻撃ダウン(弱体)・遅くする(設置) だけ(ほかは表に書けるが、まだ効かない) */
 export const EFFECTS = ['なし', 'やけど', 'まひ', 'こおり', 'どく', 'ねむり', 'ふらつき', '遅くする', '攻撃ダウン'] as const;
 export type Effect = (typeof EFFECTS)[number];
 
@@ -55,6 +55,9 @@ const BASE: Record<TechKind, Omit<Tech, 'name' | 'element' | 'kind'>> = {
   quake: { power: 13, cooldown: 5, windup: 0.4, recovery: 0.45, speed: 9, range: 6, size: 0.6, duration: 0, launch: 6, knock: 3 },
   drop: { power: 16, cooldown: 5.5, windup: 0.35, recovery: 0.5, speed: 0, range: 12, size: 2.4, duration: 0, launch: 6, knock: 3 },
   combo: { power: 14, cooldown: 4.5, windup: 0.2, recovery: 0.4, speed: 12, range: 7, size: 1.0, duration: 0.15, launch: 4, knock: 2 },
+  // 2026-11-02 追加(ブレイクロア・グラビティプレス)【案・未承認】
+  debuff: { power: 0, cooldown: 8, windup: 0.6, recovery: 0.4, speed: 10, range: 7, size: 0, duration: 0, launch: 0, knock: 0 },
+  field: { power: 0, cooldown: 7, windup: 0.45, recovery: 0.45, speed: 0, range: 14, size: 3.2, duration: 0, launch: 0, knock: 0 },
   barrier: { power: 0, cooldown: 7, windup: 0.15, recovery: 0.2, speed: 0, range: 0, size: 1.7, duration: 2.0, launch: 0, knock: 0 },
 };
 
@@ -92,7 +95,7 @@ export function buildTech(row: TechRow): TableTech {
     cooldown: base.cooldown * m.cooldown,
     windup: base.windup * m.windup,
     range: base.range * (kind === 'quake' || kind === 'drop' ? m.area : 1),
-    size: base.size * (kind === 'beam' || kind === 'drop' || kind === 'barrier' || kind === 'shot' ? m.area : 1),
+    size: base.size * (kind === 'beam' || kind === 'drop' || kind === 'barrier' || kind === 'shot' || kind === 'field' ? m.area : 1),
     duration: base.duration * (kind === 'barrier' ? m.area : 1),
     launch: base.launch * (st === '大技' ? 1.3 : 1),
     knock: base.knock * (st === '強' ? 1.2 : st === '大技' ? 1.5 : 1),

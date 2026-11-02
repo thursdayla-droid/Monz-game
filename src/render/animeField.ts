@@ -714,6 +714,7 @@ export class AnimeField {
     this.drawShots(b, dt);
     this.drawBeams(b);
     this.drawQuakes(b);
+    this.drawRoarsFields(b);
     for (const p of this.bursts) {
       p.t += dt;
       const k = Math.min(1, p.t / p.life);
@@ -807,6 +808,42 @@ export class AnimeField {
       head.scale.setScalar(2.4 * flick * k);
     });
     if (b.beams.length) this.shake(0.08);
+  }
+
+  private roarObjs: THREE.Mesh[] = [];
+  private fieldObjs: THREE.Mesh[] = [];
+  /** 【仮の見た目】ほえる声の輪(紫・立った輪)と、重力の場(紫と黒の円)。くわしい演出は数字の承認のあと */
+  private drawRoarsFields(b: AnimeBattle): void {
+    while (this.roarObjs.length < b.roars.length) {
+      const m = new THREE.Mesh(new THREE.TorusGeometry(1, 0.06, 6, 40), new THREE.MeshBasicMaterial({ color: 0xc070ff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+      this.scene.add(m);
+      this.roarObjs.push(m);
+    }
+    this.roarObjs.forEach((m, i) => {
+      const q = b.roars[i];
+      m.visible = !!q;
+      if (!q) return;
+      m.position.set(q.x, 0.9, q.z);
+      m.rotation.x = Math.PI / 2;
+      m.scale.setScalar(Math.max(0.1, q.r));
+      (m.material as THREE.MeshBasicMaterial).opacity = 0.9 * (1 - q.r / getTech(q.tech).range);
+    });
+    while (this.fieldObjs.length < b.fields.length) {
+      const m = new THREE.Mesh(new THREE.CircleGeometry(1, 40), new THREE.MeshBasicMaterial({ color: 0x5a1a8a, transparent: true, opacity: 0.45, depthWrite: false }));
+      m.rotation.x = -Math.PI / 2;
+      const rim = new THREE.Mesh(new THREE.RingGeometry(0.9, 1, 40), new THREE.MeshBasicMaterial({ color: 0xc070ff, transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide }));
+      m.add(rim);
+      this.scene.add(m);
+      this.fieldObjs.push(m);
+    }
+    this.fieldObjs.forEach((m, i) => {
+      const fl = b.fields[i];
+      m.visible = !!fl;
+      if (!fl) return;
+      m.position.set(fl.x, 0.04, fl.z);
+      m.scale.setScalar(fl.r * (1 + Math.sin(performance.now() / 200) * 0.03));
+      m.rotation.z += 0.01;
+    });
   }
 
   private drawQuakes(b: AnimeBattle): void {

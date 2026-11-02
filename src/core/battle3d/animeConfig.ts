@@ -43,6 +43,14 @@ export const ANIME = {
   spin: { turn: 2.2 },
   combo: { reach: 2.0, stun: 0.3, bonus: 1.15 },
   barrage: { count: 3, gap: 0.15 },
+  /**
+   * 【案・未承認】弱体(ほえる)・設置(重力の場)の数字(2026-11-02 BUNK 追加6技。企画者の承認前なので仮)
+   * debuff: 攻撃ダウンの割合と時間 / field: 遅くなる割合・場の残る時間・場から出たあと遅いままの時間
+   */
+  debuff: { atkDown: 0.75, time: 5 },
+  gfield: { slow: 0.6, time: 5, linger: 0.5 },
+  /** 連続攻撃4発(メガトンラッシュ)の1発ずつの割合。4発目がフィニッシュ【案】 */
+  combo4: [0.2, 0.2, 0.2, 0.4],
   /** 追加効果: ふらつき(技を出せず ふらふら)・まひ(遅くなり、ためが長い)【仮】 */
   status: { dizzy: 1.8, para: 3, paraSpeed: 0.55, paraWindup: 1.4 },
   /** AI習熟度(よけるのがうまくなる) Lv.1 → Lv.5 */
@@ -50,7 +58,7 @@ export const ANIME = {
 };
 
 /** 技の種類(表の「型」から決まる。techTable.ts)。2026-11-01 回転・連射・落下・連続攻撃・守り を追加 */
-export type TechKind = 'rush' | 'shot' | 'beam' | 'quake' | 'spin' | 'barrage' | 'drop' | 'combo' | 'barrier';
+export type TechKind = 'rush' | 'shot' | 'beam' | 'quake' | 'spin' | 'barrage' | 'drop' | 'combo' | 'barrier' | 'debuff' | 'field';
 export type Element = '炎' | '水' | '自然' | '雷' | '光' | '闇' | '無';
 
 export interface Tech {

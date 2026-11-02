@@ -116,4 +116,20 @@ describe('table moves in battle', () => {
     expect(w).toBeGreaterThan(N * 2 * 0.2);
     expect(w).toBeLessThan(N * 2 * 0.8);
   });
+  it('added 6 moves (2026-11-02): learned at Lv.5-50, roar lowers attack, gravity field slows, 4-hit combo', () => {
+    expect(learnAt('bunk', 5, S({}))).toContain('ポンポンショット');
+    expect(learnAt('bunk', 4, S({}))).not.toContain('ポンポンショット');
+    expect(learnAt('bunk', 50, S({}))).toEqual(expect.arrayContaining(['バウンドプレス', 'ブレイクロア', 'メガトンラッシュ', 'グラビティプレス', 'ギガントバースト']));
+    expect(growTechs('bunk', 5, S({}), undefined).state.equipped).toContain('ポンポンショット');
+    expect(getTech('メガトンラッシュ').hits).toBe(4);
+    const b = newAnimeBattle(ent(40, S({})), ent(40, S({})), 1);
+    const [p, q] = b.f;
+    p.x = 0; p.z = 0; q.x = 3; q.z = 0;
+    b.roars.push({ owner: 0, tech: 'ブレイクロア', x: 0, z: 0, r: 0.5, hit: false });
+    b.fields.push({ owner: 0, tech: 'グラビティプレス', x: 3, z: 0, r: 3, until: 5 });
+    for (let i = 0; i < 30; i++) { b.events = []; stepAnime(b, ANIME.dt); }
+    expect(q.atkDownUntil).toBeGreaterThan(b.t);
+    expect(q.slowUntil).toBeGreaterThan(b.t);
+    expect(q.hp).toBe(q.maxHp);
+  });
 });

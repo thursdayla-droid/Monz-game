@@ -49,6 +49,9 @@ export interface AnimeMon {
   /** ふらつき・まひ の終わり */
   dizzyUntil: number;
   paraUntil: number;
+  /** 攻撃ダウン(ほえる)・遅くなる(重力の場) の終わり */
+  atkDownUntil: number;
+  slowUntil: number;
   /** 守りのドームの終わりと大きさ */
   barrierUntil: number;
   barrierR: number;
@@ -127,6 +130,8 @@ export type AnimeEvent =
   | { kind: 'land'; side: Side; hard: boolean }
   | { kind: 'command'; side: Side; cmd: Command; state: 'queued' | 'done' | 'expired' }
   | { kind: 'status'; side: Side; effect: Effect }
+  | { kind: 'roar'; side: Side; x: number; z: number }
+  | { kind: 'field'; side: Side; x: number; z: number; r: number; until: number }
   | { kind: 'blocked'; side: Side; x: number; y: number; z: number }
   | { kind: 'mark'; side: Side; x: number; z: number; r: number; until: number }
   | { kind: 'impact'; side: Side; tech: TechId; x: number; z: number; r: number }
@@ -144,6 +149,10 @@ export interface AnimeBattle {
   shots: Shot[];
   beams: Beam[];
   quakes: Quake[];
+  /** ほえる声の輪(ダメージなし。当たると攻撃ダウン) */
+  roars: Quake[];
+  /** 重力の場(中にいると遅くなる) */
+  fields: { owner: Side; tech: TechId; x: number; z: number; r: number; until: number }[];
   seq: number;
   events: AnimeEvent[];
 }
@@ -169,6 +178,8 @@ function newMon(e: AnimeEntrant, side: Side): AnimeMon {
     techs: e.techs ?? [...TECH_IDS],
     dizzyUntil: 0,
     paraUntil: 0,
+    atkDownUntil: 0,
+    slowUntil: 0,
     barrierUntil: 0,
     barrierR: 0,
     x: side === 0 ? -6 : 6,
@@ -201,7 +212,7 @@ export function newAnimeBattle(a: AnimeEntrant, c: AnimeEntrant, seed: number, p
   f[0].techMode = partnerMode;
   // はじめは少し様子を見る
   for (const m of f) m.thinkT = 0.8 + rng() * 0.6;
-  return { f, t: 0, rng, winner: null, koAt: null, shots: [], beams: [], quakes: [], seq: 0, events: [] };
+  return { f, t: 0, rng, winner: null, koAt: null, shots: [], beams: [], quakes: [], roars: [], fields: [], seq: 0, events: [] };
 }
 
 // ---------------- 指示 ----------------
@@ -290,6 +301,16 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
       f.vx = (tx - f.x) / air;
       f.vz = (tz - f.z) / air;
       b.events.push({ kind: 'mark', side: f.side, x: tx, z: tz, r: tech.size, until: b.t + air });
+    } else if (tech.kind === 'debuff') {
+      // ほえる: 口もとから声の輪が広がる
+      b.roars.push({ owner: f.side, tech: a.id, x: f.x, z: f.z, r: 0.5, hit: false });
+      b.events.push({ kind: 'roar', side: f.side, x: f.x, z: f.z });
+    } else if (tech.kind === 'field') {
+      // 拳を地面にたたきつけ、相手のいる所に重力の場【案: 場所は相手の足もと】
+      const fx = clamp(o.x, -C.field.halfX, C.field.halfX);
+      const fz = clamp(o.z, -C.field.halfZ, C.field.halfZ);
+      b.fields.push({ owner: f.side, tech: a.id, x: fx, z: fz, r: tech.size, until: b.t + C.gfield.time });
+      b.events.push({ kind: 'field', side: f.side, x: fx, z: fz, r: tech.size, until: b.t + C.gfield.time });
     } else if (tech.kind === 'barrier') {
       f.barrierUntil = b.t + tech.duration;
       f.barrierR = tech.size;
@@ -352,7 +373,7 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
           f.face = angleTo(f, o);
           if (dist(f, o) < C.combo.reach + 0.6 && Math.abs(o.y - f.y) < 1.2) {
             b.events.push({ kind: 'comboHit', side: f.side, n: a.n });
-            hit(b, f, o, a.id, (f.x + o.x) / 2, 0.8, (f.z + o.z) / 2, f.face, { last: a.n >= tech.hits, part: 1 / tech.hits });
+            hit(b, f, o, a.id, (f.x + o.x) / 2, 0.8, (f.z + o.z) / 2, f.face, { last: a.n >= tech.hits, part: tech.hits === 4 ? C.combo4[a.n - 1] : 1 / tech.hits });
           } else a.n = tech.hits; // 相手がはなれたら終わり
         }
         return;
@@ -388,7 +409,7 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
   }
   const extra = tech.kind === 'beam' || tech.kind === 'barrier' ? tech.duration : tech.kind === 'barrage' ? C.barrage.gap * C.barrage.count : 0;
   const move = tech.kind === 'rush' ? tech.range / tech.speed : 0;
-  if (a.hit || tech.kind === 'shot' || tech.kind === 'barrage' || tech.kind === 'beam' || tech.kind === 'barrier') {
+  if (a.hit || tech.kind === 'shot' || tech.kind === 'barrage' || tech.kind === 'beam' || tech.kind === 'barrier' || tech.kind === 'debuff' || tech.kind === 'field') {
     if (a.t >= a.windup + extra + tech.recovery + (a.hit ? 0 : move) && f.y <= 0) f.act = { k: 'free' };
     else if (tech.kind === 'rush' && a.hit && run >= tech.recovery && f.y <= 0 && a.t >= a.windup + tech.recovery) f.act = { k: 'free' };
   }
@@ -411,7 +432,9 @@ function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y:
   const part = opt.part ?? 1;
   // テクニックが高いと、クリティカル(1.4倍)が出やすい
   const crit = b.rng() < Math.min(0.3, f.stats.tech / C.stat.techCritDiv);
-  const dmg = Math.max(1, Math.round((crit ? C.stat.critMul : 1) * tech.power * part * (part < 1 ? C.combo.bonus : 1) * (1 + f.stats.power / C.stat.powerDiv) * (C.stat.toughDiv / (C.stat.toughDiv + o.stats.tough)) * (0.9 + b.rng() * 0.2)));
+  // 攻撃ダウン中は、与えるダメージが下がる
+  const down = b.t < f.atkDownUntil ? C.debuff.atkDown : 1;
+  const dmg = Math.max(1, Math.round(down * (crit ? C.stat.critMul : 1) * tech.power * part * (part < 1 ? C.combo.bonus : 1) * (1 + f.stats.power / C.stat.powerDiv) * (C.stat.toughDiv / (C.stat.toughDiv + o.stats.tough)) * (0.9 + b.rng() * 0.2)));
   o.hp = Math.max(0, o.hp - dmg);
   const finish = opt.last ?? true;
   const knock = tech.knock * (finish ? 1 : 0.25);
@@ -523,6 +546,31 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
     }
   }
   b.quakes = b.quakes.filter((q) => q.r < getTech(q.tech).range);
+  // ほえる声の輪: とどいたら攻撃ダウン(よけている間は効かない。輪の外へ出れば当たらない)
+  for (const q of b.roars) {
+    const prev = q.r;
+    q.r += getTech(q.tech).speed * dt;
+    const tgt = b.f[q.owner === 0 ? 1 : 0];
+    const d = dist(q, tgt);
+    if (!q.hit && d >= prev - C.body.radius && d <= q.r + C.body.radius) {
+      q.hit = true;
+      if (tgt.act.k === 'dodge' && tgt.act.t < C.dodge.invincible) b.events.push({ kind: 'evaded', side: tgt.side });
+      else if (tgt.act.k !== 'ko') {
+        tgt.atkDownUntil = b.t + C.debuff.time;
+        b.events.push({ kind: 'status', side: tgt.side, effect: '攻撃ダウン' });
+      }
+    }
+  }
+  b.roars = b.roars.filter((q) => q.r < getTech(q.tech).range);
+  // 重力の場: 中にいる相手は遅くなる(出ても少しのあいだ遅いまま)
+  for (const fl of b.fields) {
+    const tgt = b.f[fl.owner === 0 ? 1 : 0];
+    if (dist(fl, tgt) < fl.r && tgt.y < 0.5) {
+      if (b.t >= tgt.slowUntil) b.events.push({ kind: 'status', side: tgt.side, effect: '遅くする' });
+      tgt.slowUntil = b.t + C.gfield.linger;
+    }
+  }
+  b.fields = b.fields.filter((fl) => b.t < fl.until);
   b.shots = b.shots.filter((s) => s.alive);
 }
 
@@ -577,6 +625,8 @@ function chooseTech(b: AnimeBattle, f: AnimeMon): TechId | null {
     else if (t.kind === 'quake') x = d < t.range * 0.9 ? 1.2 + f.instinct.fight : 0.05;
     else if (t.kind === 'drop') x = d < t.range ? 1 + f.instinct.fight : 0.1;
     else if (t.kind === 'beam') x = 0.8 + f.instinct.fight;
+    else if (t.kind === 'debuff') x = b.t < o.atkDownUntil ? 0.05 : d < t.range ? 0.9 : 0.1;
+    else if (t.kind === 'field') x = b.fields.some((fl) => fl.owner === f.side) ? 0.05 : 0.8;
     return x * (t.strength === '大技' ? 1.6 : 1);
   });
   let r = b.rng() * w.reduce((s, x) => s + x, 0);
@@ -646,7 +696,7 @@ function walk(b: AnimeBattle, f: AnimeMon, dt: number): void {
   const len = Math.hypot(vx, vz);
   // 速さに強弱をつける(いつも同じ速さだと機械みたいなので)
   const sway = 0.75 + 0.35 * Math.sin(b.t * 2.3 + f.side * 1.7) + 0.15 * Math.sin(b.t * 5.1 + f.side);
-  const sp = (C.stat.walkBase + f.stats.speed * C.stat.walkPerSpeed) * sway * (b.t < f.paraUntil ? C.status.paraSpeed : 1) * (b.t < f.dizzyUntil ? 0.6 : 1) * (b.t < f.burstUntil ? C.move.burst : 1);
+  const sp = (C.stat.walkBase + f.stats.speed * C.stat.walkPerSpeed) * sway * (b.t < f.paraUntil ? C.status.paraSpeed : 1) * (b.t < f.slowUntil ? C.gfield.slow : 1) * (b.t < f.dizzyUntil ? 0.6 : 1) * (b.t < f.burstUntil ? C.move.burst : 1);
   const wx = len > 0.01 ? (vx / len) * sp : 0;
   const wz = len > 0.01 ? (vz / len) * sp : 0;
   // 勢い: 少しずつ速さを合わせる
