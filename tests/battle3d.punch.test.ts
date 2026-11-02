@@ -46,3 +46,13 @@ it('ukemi: pressing dodge while knocked into the air or down gets up with a roll
   expect(ev).toContain('ukemi');
   expect(p.act.k).not.toBe('down');
 });
+
+it('while knocked down, buttons are not reserved (only dodge for ukemi)', () => {
+  const b = newAnimeBattle(e(), e(), 3, 'manual');
+  const p = b.f[0];
+  p.pad = { x: 0, z: 0 };
+  p.act = { k: 'down', t: 0, until: 1 };
+  expect(giveCommand(b, 0, 'punch')).toBe(false);
+  expect(giveCommand(b, 0, 'バンクバッシュ')).toBe(false);
+  expect(giveCommand(b, 0, 'dodge')).toBe(true);
+});

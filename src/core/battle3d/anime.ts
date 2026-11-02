@@ -243,6 +243,9 @@ export function giveCommand(b: AnimeBattle, side: Side, cmd: Command): boolean {
   const f = b.f[side];
   if (b.winner !== null || f.act.k === 'ko') return false;
   if ((f.cooldown[cmd] ?? Infinity) > b.t) return false;
+  // 自分で動かしている時: やられている・ふっとんでいる・たおれている間は、ボタンを予約しない(よける = 受け身 だけは受けつける)
+  // 2026-11-02 企画者「倒れている時の予約ボタンいらない」
+  if (f.pad && (f.act.k === 'hurt' || f.act.k === 'air' || f.act.k === 'down') && cmd !== 'dodge') return false;
   f.command = { cmd, until: b.t + C.command.wait };
   b.events.push({ kind: 'command', side, cmd, state: 'queued' });
   return true;
