@@ -89,8 +89,10 @@ const CSS = `
 .b3d .pad button.cool{filter:grayscale(.8) brightness(.8)}
 .b3d .pad button.lock,.b3d .pad button.empty{background:#3a3040;color:#bfb4c8}
 .b3d .pad .acts{display:flex;gap:8px}
-.b3d .pad .dodge,.b3d .pad .jump{width:70px;height:70px;border-radius:50%;background:#16101c;color:#fff;border-color:#fff}
+/* 2026-11-02 企画者「よけるとジャンプと攻撃 少し小さく」 */
+.b3d .pad .dodge,.b3d .pad .jump,.b3d .pad .atk{width:54px;height:54px;border-radius:50%;background:#16101c;color:#fff;border-color:#fff;font-size:11px}
 .b3d .pad .jump{background:#2a6ad8}
+.b3d .pad .atk{background:#d8402a;width:60px;height:60px}
 .b3d .setup{position:absolute;inset:0;background:#0d0614e8;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top) + 10px) calc(env(safe-area-inset-right) + 16px) calc(env(safe-area-inset-bottom) + 10px) calc(env(safe-area-inset-left) + 16px);gap:8px;z-index:6}
 .b3d .setup h2{margin:0 0 0 70px;font-size:20px;color:#ffd23a}
 .b3d .setup .row{display:flex;gap:12px;flex:1;min-height:0}
@@ -235,7 +237,7 @@ export class Battle3DScene extends Phaser.Scene {
        <div class="stickZone"><div class="stickBase"><div class="stickKnob"></div></div></div>
        <div class="stickHint">ここを<br>さわって<br>うごかす</div>
        <button class="mode"></button>
-       <div class="pad"><div class="acts"><button class="jump" data-c="jump"><span class="lb">ジャンプ</span><span class="cd" style="height:0"></span></button><button class="dodge" data-c="dodge"><span class="lb">よける</span><span class="cd" style="height:0"></span></button></div><div class="grid"></div></div>
+       <div class="pad"><div class="acts"><button class="jump" data-c="jump"><span class="lb">ジャンプ</span><span class="cd" style="height:0"></span></button><button class="dodge" data-c="dodge"><span class="lb">よける</span><span class="cd" style="height:0"></span></button><button class="atk" data-c="punch"><span class="lb">こうげき</span><span class="cd" style="height:0"></span></button></div><div class="grid"></div></div>
        <div class="setup"></div>
        ${isPreview() ? `<div class="dev"><button class="devOpen">確認用</button><div class="devPanel"><div>レベル ${[1, 10, 20, 25, 30, 60].map((l) => `<button data-lv="${l}" class="${devPick?.level === l ? 'on' : ''}">${l}</button>`).join('')}</div><div>育て方 ${Object.keys(STYLE_LABEL).map((k) => `<button data-st="${k}" class="${devPick?.style === k ? 'on' : ''}">${STYLE_LABEL[k]}</button>`).join('')}</div><small>今の技: ${p.techs.map(esc).join('・')}</small></div></div>` : ''}
        <div class="result"><h1></h1><button class="again">もう一度</button><button class="leave">もどる</button></div>
@@ -248,6 +250,7 @@ export class Battle3DScene extends Phaser.Scene {
     const btn = {} as Battle3DScene['ui']['btn'];
     this.bindButton($('.pad .dodge') as HTMLButtonElement, 'dodge', btn);
     this.bindButton($('.pad .jump') as HTMLButtonElement, 'jump', btn);
+    this.bindButton($('.pad .atk') as HTMLButtonElement, 'punch', btn);
     // 右の技のボタン4つ(セットした技。開いていない枠は鍵)
     this.techButtons = () => {
       const grid = $('.pad .grid');
@@ -500,6 +503,11 @@ export class Battle3DScene extends Phaser.Scene {
         // 技の名前をさけぶ(アニメ風)。自分の指示 → 「BUNK、○○だ！」
         const t = getTech(e.tech);
         const f = b.f[e.side];
+        // 通常攻撃(パンチ)は名前を出さない(何回も出すので)
+        if (e.tech === 'punch') {
+          audio.se('whoosh', { pitch: 1.4 });
+          break;
+        }
         const text = e.side === 0 ? (e.byCommand ? `${f.name}、${t.name}だ！` : `${f.name}の ${t.name}！`) : `あいての ${t.name}！`;
         this.call(text, hex(ELEMENT_HEX[t.element]), e.side === 0 ? '#3a9cff' : '#ff4a4a', e.side);
         audio.se(t.kind === 'beam' ? 'mcThunder' : t.kind === 'shot' ? 'mcFire' : 'whoosh', { pitch: 1 });
@@ -675,7 +683,7 @@ export class Battle3DScene extends Phaser.Scene {
     });
     this.ui.timer.textContent = String(Math.max(0, Math.ceil(ANIME.timeLimit - b.t)));
     const me = b.f[0];
-    for (const c of [...me.techs, 'dodge', 'jump'] as Command[]) {
+    for (const c of [...me.techs, 'dodge', 'jump', 'punch'] as Command[]) {
       const s = commandState(b, 0, c);
       const btn = this.ui.btn[c];
       if (!btn) continue;

@@ -195,7 +195,7 @@ function newMon(e: AnimeEntrant, side: Side): AnimeMon {
     hp: maxHp,
     maxHp,
     act: { k: 'free' },
-    cooldown: Object.fromEntries([...(e.techs ?? TECH_IDS), 'dodge', 'jump'].map((k) => [k, 0])),
+    cooldown: Object.fromEntries([...(e.techs ?? TECH_IDS), 'dodge', 'jump', 'punch'].map((k) => [k, 0])),
     command: null,
     plan: 'hold',
     planT: 0,
@@ -251,7 +251,8 @@ function startTech(b: AnimeBattle, f: AnimeMon, id: TechId, byCommand: boolean):
   const windup = tech.windup * (1 - Math.min(C.stat.speedWindupMax, f.stats.speed / C.stat.speedWindupDiv)) * (b.t < f.paraUntil ? C.status.paraWindup : 1);
   f.act = { k: 'tech', id, t: 0, dir, fired: false, hit: false, tx: o.x, tz: o.z, windup, n: 0, next: 0 };
   f.face = dir;
-  f.cooldown[id] = b.t + tech.cooldown;
+  // テクニックが高いと、技の待ち時間が少し短い(最大2割。2026-11-02 バランス)
+  f.cooldown[id] = b.t + tech.cooldown * (1 - Math.min(C.stat.techCdMax, f.stats.tech / C.stat.techCdDiv));
   b.events.push({ kind: 'call', side: f.side, tech: id, byCommand });
 }
 

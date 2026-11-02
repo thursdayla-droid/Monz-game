@@ -14,9 +14,9 @@ export const ANIME = {
   body: { radius: 0.7, minGap: 1.5 },
   timeLimit: 90,
   gravity: 24,
-  stat: { hpBase: 120, perHp: 1, powerDiv: 100, toughDiv: 100, walkBase: 3.0, walkPerSpeed: 0.015, turnRate: 10,
+  stat: { hpBase: 120, perHp: 1, powerDiv: 130, toughDiv: 100, walkBase: 3.5, walkPerSpeed: 0.015, turnRate: 10,
     /** 【仮】スピード: ためが短い・よけやすい。テクニック: ねらいが正確・クリティカル(1.4倍)・追加効果が付きやすい(2026-11-01 技の表のバランスのため) */
-    speedWindupDiv: 300, speedWindupMax: 0.25, speedDodgeDiv: 300, techAim: 100, techCritDiv: 200, techEffectDiv: 200, critMul: 1.4 },
+    speedWindupDiv: 300, speedWindupMax: 0.25, speedDodgeDiv: 300, techAim: 100, techCritDiv: 140, techEffectDiv: 150, techCdDiv: 250, techCdMax: 0.2, critMul: 1.4 },
   /** AIが考える間隔・移動の方針を続ける時間 */
   thinkEvery: 0.25,
   moveHold: 0.4,
@@ -26,7 +26,8 @@ export const ANIME = {
   /** ジャンプ(プレイヤーのボタン)【仮】高さ 約1.7m・待ち時間 */
   jump: { speed: 9, cooldown: 1.0 },
   /** プレイヤーが動かすときの速さ(AI の歩きより少し速く。2026-11-02)【仮】 */
-  pad: { speed: 1.35 },
+  // 2026-11-02 企画者「動きもうすこし早く」→ 1.35 → 1.6、歩く速さも 3.0 → 3.5
+  pad: { speed: 1.6 },
   /** 遠くから撃ち合う間合い */
   spacing: { ideal: 7, near: 4.5, far: 10 },
   /** よける(横へ飛ぶ)。無敵の時間 */
@@ -90,6 +91,8 @@ export interface Tech {
  * 色違いのライバルも同じ技(仮)。
  */
 export const TECHS = {
+  /** 通常攻撃(2026-11-02 企画者「通常攻撃もいれよう」)。近くでパンチ1発。待ち時間ほぼなし・威力は弱い【仮】。技の枠には入れない */
+  punch: { name: 'パンチ', element: '無', kind: 'combo', power: 4, cooldown: 0.45, windup: 0.06, recovery: 0.14, speed: 9, range: 2.2, size: 1.0, duration: 0.12, launch: 0, knock: 1.2 },
   dash: { name: 'ダッシュアタック', element: '無', kind: 'rush', power: 13, cooldown: 3.5, windup: 0.25, recovery: 0.4, speed: 13, range: 9, size: 1.0, duration: 0, launch: 5, knock: 4 },
   fire: { name: 'ファイアショット', element: '炎', kind: 'shot', power: 11, cooldown: 2.8, windup: 0.3, recovery: 0.25, speed: 15, range: 20, size: 0.6, duration: 0, launch: 0, knock: 3 },
   beam: { name: 'ライトニングビーム', element: '雷', kind: 'beam', power: 20, cooldown: 7, windup: 0.75, recovery: 0.5, speed: 0, range: 22, size: 0.7, duration: 0.55, launch: 4, knock: 6 },
