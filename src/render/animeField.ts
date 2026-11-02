@@ -630,6 +630,10 @@ export class AnimeField {
         const tr = this.sprite(0xffe0a0);
         tr.position.copy(this.tmpV);
         this.add(tr, 0.18, -0.5, 0.55);
+        // 進化したパンチ: グローブから火の粉(2026-11-02 企画者「パンチから火が少し飛ぶ」)
+        const fire = f.jab?.fire ?? 0;
+        if (fire > 0 && pg.ext > 0.4 && Math.random() < dt * (fire > 1 ? 90 : 55)) this.flame(this.tmpV.x, this.tmpV.y, this.tmpV.z, fire > 1 ? 0.5 : 0.35, fire > 1 ? 2 : 1);
+        if (fire > 0 && pg.ext > 0.9 && this.punchLit[i] < 0.9) this.flameBurst(this.tmpV.x, this.tmpV.y, this.tmpV.z);
         if (pg.ext > 0.9 && this.punchLit[i] < 0.9) {
           const st = this.sprite(0xffffff, true, this.star);
           st.position.copy(this.tmpV);

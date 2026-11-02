@@ -65,10 +65,14 @@ export const ANIME = {
    * parts: 1発ずつの割合(合計が 威力の倍率)。range: 届く長さ
    */
   jabByForm: [
-    { parts: [0.3, 0.3, 0.4], range: 1.9 },
-    { parts: [0.25, 0.25, 0.3, 0.5], range: 2.2 },
-    { parts: [0.22, 0.22, 0.26, 0.3, 0.6], range: 2.5 },
-  ],
+    { parts: [0.3, 0.3, 0.4], range: 1.9, step: 0, fire: 0 },
+    // 2026-11-02 企画者「進化した時の通常攻撃もう少し強く」「少し前にでてパンチ」「パンチから火が少し飛ぶ」→
+    // step: 1発ごとに前へ出る長さ。fire: 1 = グローブから火の粉、2 = さいごの1発(か外れた1発)で小さい火の玉が飛ぶ【仮】
+    { parts: [0.3, 0.3, 0.4, 0.6], range: 2.2, step: 0.35, fire: 1 },
+    { parts: [0.28, 0.28, 0.32, 0.4, 0.72], range: 2.5, step: 0.45, fire: 2 },
+  ] as { parts: number[]; range: number; step: number; fire: number }[],
+  /** 最終進化のパンチから飛ぶ火の玉が消えるまでの時間(15×0.27 ≒ 4m)【仮】 */
+  punchFire: { life: 0.27 },
   /** 受け身(倒れる時に よける)。起きた後の無敵の時間【仮】 */
   ukemi: { safe: 0.4 },
   /** 追加効果: ふらつき(技を出せず ふらふら)・まひ(遅くなり、ためが長い)【仮】 */
@@ -108,6 +112,7 @@ export interface Tech {
 export const TECHS = {
   /** 通常攻撃(2026-11-02 企画者「通常攻撃もいれよう」)。近くでパンチ1発。待ち時間ほぼなし・威力は弱い【仮】。技の枠には入れない */
   // 2026-11-02 企画者「連打はやめ・クールタイム0.5秒」「その場でパンチ。ヒットしたら3連ぐらい」「空中でも」→ 型 jab。1発目が当たったら3連(合計 power)。待ち時間は攻撃が終わってから0.5秒
+  punchFire: { name: 'パンチの火', element: '炎', kind: 'shot', power: 5, cooldown: 0, windup: 0, recovery: 0, speed: 15, range: 4, size: 0.45, duration: 0, launch: 0, knock: 2 },
   punch: { name: 'パンチ', element: '無', kind: 'jab', power: 7, cooldown: 0.5, windup: 0.06, recovery: 0.16, speed: 0, range: 1.9, size: 0.9, duration: 0.14, launch: 0, knock: 2 },
   /** ガンジョウドームの爆発(反撃)。ドームが攻撃を受けると広がる衝撃波【仮】威力10・届く長さ4.5 */
   domeBurst: { name: 'ガンジョウドーム', element: '無', kind: 'quake', power: 10, cooldown: 0, windup: 0, recovery: 0, speed: 14, range: 4.5, size: 0.6, duration: 0, launch: 5, knock: 5 },
@@ -119,4 +124,5 @@ export const TECHS = {
 
 /** 技の id = 技の名前(表の技)。前の試作の4つは dash・fire・beam・quake */
 export type TechId = string;
-export const TECH_IDS = Object.keys(TECHS);
+/** 技として使えるもの(ドームの爆発・パンチの火は ほかの技から出るだけ) */
+export const TECH_IDS = Object.keys(TECHS).filter((k) => k !== 'domeBurst' && k !== 'punchFire');

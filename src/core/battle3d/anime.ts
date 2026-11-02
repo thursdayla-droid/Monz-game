@@ -91,7 +91,7 @@ export interface AnimeMon {
    */
   pad: { x: number; z: number } | null;
   /** 通常攻撃(形態で変わる) */
-  jab: { parts: number[]; range: number };
+  jab: { parts: number[]; range: number; step: number; fire: number };
   /** 受け身の予約(空中で よける を押した) */
   ukemi: boolean;
 }
@@ -407,6 +407,12 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
     }
     case 'jab': {
       // 通常攻撃: その場で前へパンチ。当たったら続けて3連まで(外れたら そこで終わり)。空中でも出せる
+      // 進化した通常攻撃: 打ちながら少し前へ出る(近すぎるときは出ない)
+      if (!a.hit && f.jab.step > 0 && f.y <= 0 && dist(f, o) > C.body.minGap + 0.1) {
+        const v = (f.jab.step / tech.duration) * dt;
+        f.x += Math.cos(f.face) * v;
+        f.z += Math.sin(f.face) * v;
+      }
       if (!a.hit && a.t >= a.next) {
         const reach = f.jab.range + C.body.radius;
         const ok = dist(f, o) < reach && Math.abs(angDiff(angleTo(f, o), f.face)) < 0.9 && Math.abs(o.y - f.y) < 1.3;
@@ -415,7 +421,15 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
         b.events.push({ kind: 'comboHit', side: f.side, n: a.n });
         const parts = f.jab.parts;
         const landed = ok && hit(b, f, o, a.id, (f.x + o.x) / 2, f.y + 0.8, (f.z + o.z) / 2, f.face, { last: a.n >= parts.length, part: parts[a.n - 1] });
-        if (!landed || a.n >= parts.length) a.hit = true;
+        if (!landed || a.n >= parts.length) {
+          a.hit = true;
+          // 最終進化: さいごの1発(か外れた1発)で、グローブから小さい火の玉が飛ぶ
+          if (f.jab.fire >= 2) {
+            const ft = getTech('punchFire');
+            b.seq++;
+            b.shots.push({ id: b.seq, owner: f.side, tech: 'punchFire', x: f.x + Math.cos(f.face) * 1.0, y: f.y + 0.8, z: f.z + Math.sin(f.face) * 1.0, vx: Math.cos(f.face) * ft.speed, vz: Math.sin(f.face) * ft.speed, r: ft.size, t: 0, alive: true });
+          }
+        }
       }
       if (a.hit && a.t >= a.next + tech.recovery) f.act = { k: 'free' };
       return;
@@ -544,7 +558,7 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
         b.events.push({ kind: 'explode', x: s.x, y: s.y, z: s.z, tech: s.tech, big: false });
       }
     }
-    if (Math.abs(s.x) > H.halfX + 3 || Math.abs(s.z) > H.halfZ + 3 || s.t > 4) s.alive = false;
+    if (Math.abs(s.x) > H.halfX + 3 || Math.abs(s.z) > H.halfZ + 3 || s.t > (s.tech === 'punchFire' ? C.punchFire.life : 4)) s.alive = false;
   }
   // 弾どうしがぶつかる → 両方爆発
   for (const s of b.shots)
