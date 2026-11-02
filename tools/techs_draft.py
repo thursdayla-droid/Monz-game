@@ -31,6 +31,8 @@ BASE = {
     # 設置: BUNK のグラビティプレスはダメージなし(そのまま)。新しい種族の設置は「ふむと1回ダメージ＋追加効果」【案】
     '設置': dict(power=9, cd=7, windup=0.45, range=14, size=3.2, dur=5),
     '守り': dict(power=0, cd=7, windup=0.15, range=0, size=1.7, dur=2.0),
+    # 火柱(BUNK のレンゴクホウケン。2026-11-02 企画者「15で」→ 15番目の型)
+    '火柱': dict(power=16, cd=6, windup=0.5, range=14, size=1.0, dur=0.4),
     # 【案】まだゲームに無い型
     '回復': dict(power=18, cd=10, windup=0.6, range=0, size=0, dur=0.8),   # power = 最大HPの何%を回復するか
     '強化': dict(power=20, cd=12, windup=0.4, range=0, size=0, dur=6),     # power = 何%上がるか(攻撃・守り・速さ)
@@ -43,7 +45,7 @@ MUL = {
     '大技': dict(power=2.2, cd=3.2, windup=1.6, area=1.6),
 }
 AREA_RANGE = {'衝撃波', '落下'}
-AREA_SIZE = {'ビーム', '落下', '守り', '弾', '設置'}
+AREA_SIZE = {'ビーム', '落下', '守り', '弾', '設置', '火柱'}
 HITS = {'弱': 2, '中': 3, '強': 4, '大技': 4}
 
 # ---- 9種族の技(企画者の指示の技名・型のまま。属性・強さ・追加効果・見た目は【案】) ----
@@ -235,8 +237,6 @@ def load_bunk():
 
 def calc(typ, st):
     """型と強さから、技の数字(BUNK と同じ決め方)。火柱(BUNK のレンゴクホウケン)は ゲームの数字を使う"""
-    if typ == '火柱':
-        return dict(power=21.6, cd=8.1, windup=0.58, range=14, size=1.15, dur=0.4, hits=1, label='21.6')
     b = BASE[typ]
     m = MUL[st]
     power = b['power'] * m['power']
@@ -313,7 +313,7 @@ def area_text(typ, d):
     if typ == '守り':
         return f'ドーム 半径{d["size"]:.1f}'
     if typ == '火柱':
-        return '柱 4本(太さ 1.15)'
+        return f'柱 4本(太さ {d["size"]:.2f})'
     return '体の大きさ' if typ in ('突進', '回転', '連続攻撃', '吸収') else '―'
 
 

@@ -21,5 +21,5 @@ export const TECH_ROWS: TechRow[] = [
   {"species": "bunk", "name": "メガトンラッシュ", "type": "連続攻撃", "element": "無", "strength": "強", "level": 40, "condition": "なし", "effect": "なし", "memo": "両グローブで4連続攻撃。4発目は強力なフィニッシュで吹き飛ばす"},
   {"species": "bunk", "name": "グラビティプレス", "type": "設置", "element": "闇", "strength": "強", "level": 45, "condition": "なし", "effect": "遅くする", "memo": "地面に拳を叩きつけ、紫と黒の重力フィールド（魔法陣）を展開する"},
   {"species": "bunk", "name": "ギガントバースト", "type": "ビーム", "element": "光", "strength": "強", "level": 50, "condition": "なし", "effect": "なし", "memo": "両グローブの間に光の粒子を集め、太い光線を放つ（テンチゴウサイより控えめ）"},
-  {"species": "bunk", "name": "レンゴクホウケン", "type": "火柱", "element": "炎", "strength": "強", "level": 70, "condition": "なし", "effect": "なし", "memo": "自分の前の地面を拳でなぐり、使った時に相手がいた足もととそのまわり3か所から炎の柱が下から噴き出す（2026-11-02 企画者。名前も企画者）"},
+  {"species": "bunk", "name": "レンゴクホウケン", "type": "火柱", "element": "炎", "strength": "大技", "level": 70, "condition": "第2進化", "effect": "なし", "memo": "自分の前の地面を拳でなぐり、使った時に相手がいた足もととそのまわり3か所から炎の柱が下から噴き出す（2026-11-02 企画者。名前も企画者。2026-11-02 企画者「大技にします」で 強→大技）"},
 ];

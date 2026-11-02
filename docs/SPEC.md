@@ -20,7 +20,7 @@
 | `docs/MYTHCLASH.md` | カードゲーム MYTHCLASH の仕様・カード表の確認・作った所（バトルの計算と特性28種類・タイトル・パック・バインダー・デッキ編成・バトル・ストーリーモード・バトルモード）・暫定で決めた所 |
 | `docs/BATTLE.md` | バトルの仕様書（2026-10-30 から自律型オートバトル。いちばん上が最新。下に旧アクションバトルの記録） |
 | `docs/TECH_TYPES.md` | 3Dバトルの技の型（14種類の案）と、ChatGPTに渡す技・種族の表の書き方（見本は `docs/templates/`）。2026-11-01 |
-| `docs/TECHS_ALL_DRAFT.md` | 全10種族・170技の設計案（BUNK 以外の9種族×17技。【案】・ゲームには未反映）。一覧は `data/monz_techs_draft.csv`（`tools/techs_draft.py` で作る）。キャラクターの絵（RIOT・SNEK・GRIT・VYBE・SHELLZ）は `design/species/`。2026-11-02 |
+| `docs/TECHS_ALL_DRAFT.md` | 全10種族・170技の設計案（BUNK 以外の9種族×17技。【案】・ゲームには未反映。企画者の答えは 2026-11-02 に記録）。一覧は `data/monz_techs_draft.csv`（`tools/techs_draft.py` で作る）。キャラクターの絵（RIOT・SNEK・GRIT・VYBE・SHELLZ）は `design/species/`。2026-11-02 |
 | `design/bunk/README.md` | BUNKの絵の作り方（元の絵を切り出す・描き直さない） |
 
 ---
@@ -180,7 +180,7 @@
 - ミニゲーム④⑤、ランキング
 - 分岐進化（`docs/EVOLUTION.md`）
 - CPUオートバトル（下の「バトル」ボタン）、コスチューム、設定の中身
-- ほかのMONZ（MOFU・ZIPP・PUNI・KLAK、黒いモンズ）
+- ほかのMONZ（MOFU・ZIPP・PUNI・KLAK と、2026-11-02 に絵が決まった RIOT・SNEK・GRIT・VYBE・SHELLZ〔名前は【仮】・絵は `design/species/`〕、黒いモンズ）。3Dモデル・技はまだ
 - オンライン対戦・冒険・協力ダンジョン・MOBA（長期構想）
 - 公開（main への反映）：企画者が「一旦いいや」（2026-10-21）。公開前に開発用ボタンを外す
 

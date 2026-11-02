@@ -9,7 +9,7 @@ import { ALL_PLACES, SECRET_PLACE, type HomePlace } from './home';
 import { drawPrize, furniture, isFurniture, itemPrice, MOVE_TICKET, MYSTERY_ITEMS } from './furniture';
 import { catchUp, dayKey, expToNext, levelUpCoins, newNeeds, NEEDS_RULES, stepNeeds, isNight, type Needs } from './needs';
 import type { KeyValueStore } from './save';
-import { isSpecies, type SpeciesId } from './species';
+import { isSpecies, RENAMED_SPECIES, type SpeciesId } from './species';
 import type { CpuLevel } from './mythclash/cpu';
 import { battleReward, TOWER_FLOORS, towerReward } from './mythclash/modes';
 import { addCards, deckOwned, fixCollection, newCollection, openPacks, PACK_PRICE, type MythCollection } from './mythclash/packs';
@@ -193,6 +193,8 @@ export function migrateLife(raw: unknown, now = Date.now()): LifeData | null {
   if (d.version !== 4) return null;
   const block = (v: unknown): StatBlock => Object.fromEntries(STAT_KEYS.map((k) => [k, Math.round(num((v as StatBlock | undefined)?.[k], 0))])) as StatBlock;
   const monz = (Array.isArray(d.monz) ? (d.monz as Partial<MonzData>[]) : [])
+    // 前の入れ物の名前(monz6〜monz10)は、今の種族の名前にする(2026-11-02)
+    .map((m) => (m && typeof m.species === 'string' && RENAMED_SPECIES[m.species] ? { ...m, species: RENAMED_SPECIES[m.species] } : m))
     .filter((m) => m && typeof m.uid === 'string' && isSpecies(String(m.species)))
     .map((m) => {
       const fresh = newMonz(m.species as SpeciesId, m.uid as string, now);

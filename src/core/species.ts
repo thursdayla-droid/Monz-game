@@ -11,13 +11,17 @@ export const SPECIES = {
   zipp: { name: 'ZIPP', ready: false },
   puni: { name: 'PUNI', ready: false },
   klak: { name: 'KLAK', ready: false },
-  // 2026-11-01 企画者「キャラ全部いったん作っちゃおう」→ まだ決まっていない5種族の入れ物(名前・姿は企画者が決める)
-  monz6: { name: '？？？', ready: false },
-  monz7: { name: '？？？', ready: false },
-  monz8: { name: '？？？', ready: false },
-  monz9: { name: '？？？', ready: false },
-  monz10: { name: '？？？', ready: false },
+  // 2026-11-01 企画者「キャラ全部いったん作っちゃおう」→ まだ決まっていない5種族の入れ物(monz6〜monz10)
+  // 2026-11-02 企画者の絵(design/species/)で 5種族が決まった → 入れ物に入れた(企画者「お願いします」)。名前は変わるかもしれない【仮】
+  riot: { name: 'RIOT', ready: false },
+  snek: { name: 'SNEK', ready: false },
+  grit: { name: 'GRIT', ready: false },
+  vybe: { name: 'VYBE', ready: false },
+  shellz: { name: 'SHELLZ', ready: false },
 } as const;
+
+/** 前の入れ物の名前 → 今の種族(古い保存データを読むため。2026-11-02) */
+export const RENAMED_SPECIES: Record<string, SpeciesId> = { monz6: 'riot', monz7: 'snek', monz8: 'grit', monz9: 'vybe', monz10: 'shellz' };
 
 export type SpeciesId = keyof typeof SPECIES;
 
