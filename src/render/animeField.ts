@@ -314,7 +314,7 @@ export class AnimeField {
     const done = (g: { scene: THREE.Object3D }) => {
       try {
         // 同じモデルの2体目は色違い
-        sides.forEach((i, n) => this.rigs[i].useModel(g.scene, this.models[i]?.height ?? MODEL.height, n > 0 ? MODEL.rivalHue : 0, this.models[i]?.bones ?? true));
+        sides.forEach((i, n) => this.rigs[i].useModel(g.scene, this.models[i]?.height ?? MODEL.height, n > 0 ? MODEL.rivalHue : 0, this.models[i]?.bones ?? true, this.models[i]?.amp ?? 1));
       } catch (e) {
         this.modelError = `使えない: ${String(e)}`;
       }
@@ -664,14 +664,17 @@ export class AnimeField {
     if (a.k === 'tech' && ['rush', 'combo', 'shot', 'barrage', 'beam', 'spin'].includes(getTech(a.id).kind)) this.atkCamT = 0.6;
     else this.atkCamT = Math.max(0, this.atkCamT - dt);
     if (this.atkCamT > 0) {
-      const focus = new THREE.Vector3(p.x + (q.x - p.x) * 0.3, 0.85, p.z + (q.z - p.z) * 0.3);
-      const d = 2.6 + Math.min(sep, 8) * 0.3;
-      want = new THREE.Vector3(focus.x - Math.sin(dir) * d - Math.cos(dir) * 1.2, 1.7, focus.z + Math.cos(dir) * d - Math.sin(dir) * 1.2);
-      look = focus;
+      // ななめ前から(顔とグローブが見える)。自分の MONZ を中心に、相手のほうも少し入れる
+      const px = p.x;
+      const pz = p.z;
+      const d = 3.4;
+      want = new THREE.Vector3(px - Math.sin(dir) * d + Math.cos(dir) * 2.2, 1.5, pz + Math.cos(dir) * d + Math.sin(dir) * 2.2);
+      look = new THREE.Vector3(px + (q.x - px) * 0.25, 0.85, pz + (q.z - pz) * 0.25);
     }
-    const k = 1 - Math.exp(-dt * (this.atkCamT > 0 ? 6 : 3.5));
+    // 技のカメラへは すばやく、もどる時はゆっくり
+    const k = 1 - Math.exp(-dt * (this.atkCamT > 0 ? 12 : 3.5));
     this.camPos.lerp(want, k);
-    this.camLook.lerp(look, 1 - Math.exp(-dt * (this.atkCamT > 0 ? 6 : 4)));
+    this.camLook.lerp(look, 1 - Math.exp(-dt * (this.atkCamT > 0 ? 12 : 4)));
     const pos = this.camPos.clone();
     if (this.shakeAmp > 0.002) {
       pos.x += (Math.random() - 0.5) * this.shakeAmp;

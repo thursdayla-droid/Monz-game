@@ -33,15 +33,17 @@ export const MODEL_FILES: Record<string, string> = {
 };
 /** 骨がずれていて、骨を動かすと形がくずれるモデル(体全体だけで動かす)。今はなし */
 export const MODEL_NO_BONES = new Set<string>();
+/** 腕の攻撃の動きの大きさ(肩が高い・上着があるモデルは、大きく回すとくずれるので小さく)【仮】 */
+export const MODEL_ATTACK_AMP: Record<string, number> = { bunk: 1, 'bunk:2': 0.8, 'bunk:3': 0.65 };
 /** 【仮】形態ごとのゲームの中の高さ(進化すると大きくなる) */
 export const MODEL_HEIGHT = [1.55, 1.8, 2.0];
 
 /** そのレベルで使う3Dモデル(今の形態のモデルがなければ、1つ前の形態のモデル)。なければ null(仮のモンスター) */
-export function modelFor(species: string, level: number): { file: string; form: number; height: number; bones: boolean } | null {
+export function modelFor(species: string, level: number): { file: string; form: number; height: number; bones: boolean; amp: number } | null {
   for (let f = formAt(level); f >= 1; f--) {
     const key = f === 1 ? species : `${species}:${f}`;
     const file = MODEL_FILES[key];
-    if (file) return { file, form: f, height: MODEL_HEIGHT[f - 1], bones: !MODEL_NO_BONES.has(key) };
+    if (file) return { file, form: f, height: MODEL_HEIGHT[f - 1], bones: !MODEL_NO_BONES.has(key), amp: MODEL_ATTACK_AMP[key] ?? 1 };
   }
   return null;
 }

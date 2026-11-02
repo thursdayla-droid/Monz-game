@@ -21,6 +21,9 @@ export const SAFE: Record<string, number> = {
   L_Upperarm: 0.25,
   R_Upperarm: 0.25,
   /** 前の腕(待機・移動では動かさない。攻撃だけ) */
+  /** 肩(攻撃だけ。肩ごと前へ出す) */
+  L_Clavicle: 0.02,
+  R_Clavicle: 0.02,
   L_Forearm: 0.5,
   R_Forearm: 0.5,
   L_Thigh: 0.4,
@@ -32,7 +35,9 @@ export const SAFE: Record<string, number> = {
  * 攻撃のときだけの上限(右腕の骨を直したあと、パンチ・フック・体のひねりで顔と体がくずれないことを確かめた角度。2026-11-01)。
  * 腕を真横に 0.9 ラジアンくらい上げると、肩の骨が胴体を広く動かして のびるので、それより小さくする
  */
-export const SAFE_ATTACK: Record<string, number> = { L_Upperarm: 0.8, R_Upperarm: 0.8, L_Forearm: 0.45, R_Forearm: 0.45, Spine01: 0.3, Spine02: 0.3, Head: 0.15 };
+// 2026-11-02 企画者「全然パンチ出してない」→ パンチを大きく(腕だけでなく、肩・体のひねり・体ごと前へ出る で見せる)。
+// BUNKER・BUNKLORD は肩が高く、腕を大きく回すとグローブが顔の前へ上がる・上着がのびるので、モデルごとに大きさ(amp)を下げる
+export const SAFE_ATTACK: Record<string, number> = { L_Upperarm: 1.0, R_Upperarm: 1.0, L_Forearm: 0.6, R_Forearm: 0.6, L_Clavicle: 0.3, R_Clavicle: 0.3, Spine01: 0.35, Spine02: 0.3, Head: 0.15 };
 
 /** 攻撃の動きに要るもの(MonsterRig から) */
 export interface AttackPose {
@@ -74,7 +79,11 @@ export class BunkBones {
   /** 頭・腕の遅れ(ぷるんとした揺れ) */
   private lag = { head: 0, headV: 0, arm: 0, armV: 0 };
 
-  constructor(modelRoot: THREE.Object3D) {
+  /** 体ごと前へ出る量(0〜1。MonsterRig が体を前へ動かす) */
+  lunge = 0;
+
+  /** amp: 腕の動きの大きさ(モデルごと。肩が高い・上着があるモデルは小さく) */
+  constructor(modelRoot: THREE.Object3D, private amp = 1) {
     modelRoot.updateMatrixWorld(true);
     const rootInv = modelRoot.getWorldQuaternion(new THREE.Quaternion()).invert();
     for (const name of Object.keys(SAFE)) {
@@ -179,18 +188,28 @@ export class BunkBones {
       const ext = p < 0 ? -0.35 * -p : ease(p);
       const up = side > 0 ? 'R_Upperarm' : 'L_Upperarm';
       const fo = side > 0 ? 'R_Forearm' : 'L_Forearm';
-      this.rot(up, 'side', 0.7 * ext * w);
+      const am = this.amp;
+      this.rot(up, 'side', 0.95 * am * ext * w);
       // 腕は下へたれているので、前へ回すと外へ開く → 内へ寄せて、胸の前へ突き出す
-      this.rot(up, 'up', side * 0.4 * Math.max(0, ext) * w);
-      this.rot(fo, 'side', 0.25 * ext * w);
+      this.rot(up, 'up', side * 0.3 * Math.max(0, ext) * w);
+      this.rot(fo, 'side', 0.5 * am * ext * w);
+      // 肩ごと前へ
+      this.rot(side > 0 ? 'R_Clavicle' : 'L_Clavicle', 'up', side * 0.25 * Math.max(0, ext) * w);
       // 体をひねって肩を前へ
-      this.rot('Spine01', 'up', side * 0.22 * ext * w);
-      this.rot('Spine02', 'up', side * 0.12 * ext * w);
+      this.rot('Spine01', 'up', side * 0.32 * ext * w);
+      this.rot('Spine02', 'up', side * 0.15 * ext * w);
+      this.lunge = Math.max(this.lunge, Math.max(0, ext) * w);
       // 反対の腕は少し引く(ガード)
       this.rot(side > 0 ? 'L_Upperarm' : 'R_Upperarm', 'side', -0.15 * ext * w);
     };
+    this.lunge = 0;
     if (a.kind === 'rush') {
-      // 突進: 体を前にかたむけ、グローブ2つを前に突き出して飛びこむ
+      // 突進: 体を前にかたむけ、グローブ2つを前に突き出して飛びこむ。ぶつかった(走り終わった)瞬間に、右のストレート
+      if (!a.active && a.wind === 0 && a.recover < 0.7) {
+        punch(1, a.recover < 0.15 ? a.recover / 0.15 : 1 - ((a.recover - 0.15) / 0.55) * 0.8);
+        this.rot('Spine01', 'side', -0.1 * w);
+        return;
+      }
       const ext = a.active ? 1 : a.wind > 0 ? -0.4 * a.wind : 1 - a.recover;
       this.rot('Spine01', 'side', -0.14 * Math.abs(ext) * w);
       this.rot('Spine02', 'side', -0.12 * Math.abs(ext) * w);

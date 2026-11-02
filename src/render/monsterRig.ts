@@ -42,6 +42,7 @@ export class MonsterRig {
   private model: THREE.Object3D | null = null;
   /** 骨で動かす(骨入りのモデルのとき) */
   private bones: BunkBones | null = null;
+  private lungeNow = 0;
   /** 技を撃つ口の場所(光をためる所) */
   readonly mouth = new THREE.Object3D();
   private armL: THREE.Group;
@@ -151,7 +152,7 @@ export class MonsterRig {
    * hue: 色違い(色相を回す角度・ラジアン)。0 = そのまま。
    * 骨入りのモデル(2026-11-01)は、待機・移動を骨で動かす(bunkBones.ts)。骨がないモデルは体全体だけで動かす
    */
-  useModel(src: THREE.Object3D, height: number, hue = 0, useBones = true): void {
+  useModel(src: THREE.Object3D, height: number, hue = 0, useBones = true, amp = 1): void {
     // 骨入りのモデルは、骨ごと写す(ふつうの写し方だと骨とのつながりが切れる)
     const model = SkeletonUtils.clone(src);
     const box = new THREE.Box3().setFromObject(model);
@@ -176,7 +177,7 @@ export class MonsterRig {
     this.body.add(model);
     this.model = model;
     // 骨がずれているモデルは、骨を動かさない(形がくずれないように。体全体だけで動かす)
-    const bones = useBones ? new BunkBones(model) : null;
+    const bones = useBones ? new BunkBones(model, amp) : null;
     this.bones = bones?.ok ? bones : null;
     // 口(技を撃つ所)を、モデルの顔の前に
     this.mouth.position.set(size.x * k * 0.55, height * 0.42, 0);
@@ -353,6 +354,8 @@ export class MonsterRig {
         }
       }
       this.bones.update(mode, this.hop, f.speed, now, dt, f.side * 1.3, atk);
+      // パンチに合わせて、体ごと前へ出る(腕だけだと小さく見えるため。2026-11-02)
+      this.lungeNow += ((atk ? this.bones.lunge : 0) - this.lungeNow) * Math.min(1, dt * 25);
     }
     // 企画者のモデルは、形をゆがめないことを最優先(つぶす・のばすを小さくする)
     if (this.model) {
@@ -370,7 +373,7 @@ export class MonsterRig {
     }
     b.rotation.set(rx, rotY, rz);
     b.position.y = this.spring('lift', lift, dt, 400, 18);
-    if (a.k !== 'tech' || getTech(a.id).kind !== 'beam') b.position.x = 0;
+    if (a.k !== 'tech' || getTech(a.id).kind !== 'beam') b.position.x = this.lungeNow * 0.35 * (this.model ? this.model.scale.x / 1.8 : 1);
     this.armL.rotation.set(0, 0, arm * 0.9 + Math.sin(now * 9) * 0.05);
     this.armR.rotation.set(0, 0, arm * 0.9 - Math.sin(now * 9) * 0.05);
     this.legL.rotation.set(0, 0, legSwing);
