@@ -26,7 +26,20 @@ export const FAVORITES = ['パワー', 'タフネス', 'スピード', 'テク�
 /** 3Dモデル(企画者が用意したもの。軽くしたもの)。ない種族は仮のモンスター */
 export const MODEL_FILES: Record<string, string> = {
   bunk: 'assets/battle3d/bunk.glb',
+  // BUNKER(BUNK の第1進化。企画者の Tripo モデル・骨入り 2026-11-02。左右の骨はそろっていて、直しはいらなかった)
+  'bunk:2': 'assets/battle3d/bunker.glb',
 };
+/** 【仮】形態ごとのゲームの中の高さ(進化すると大きくなる) */
+export const MODEL_HEIGHT = [1.55, 1.8, 2.0];
+
+/** そのレベルで使う3Dモデル(今の形態のモデルがなければ、1つ前の形態のモデル)。なければ null(仮のモンスター) */
+export function modelFor(species: string, level: number): { file: string; form: number; height: number } | null {
+  for (let f = formAt(level); f >= 1; f--) {
+    const file = MODEL_FILES[f === 1 ? species : `${species}:${f}`];
+    if (file) return { file, form: f, height: MODEL_HEIGHT[f - 1] };
+  }
+  return null;
+}
 
 /** 種族の一覧(表の順) */
 export const rosterSpecies = (): string[] => [...new Set(ROSTER_ROWS.map((r) => r.species))];

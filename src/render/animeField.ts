@@ -11,7 +11,9 @@ import type { AnimeBattle } from '../core/battle3d/anime';
 import { getTech } from '../core/battle3d/techTable';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { assetUrl } from '../assetUrl';
-import { MODEL_FILES } from '../core/roster';
+import type { modelFor } from '../core/roster';
+
+type ModelPick = ReturnType<typeof modelFor>;
 import { MonsterRig } from './monsterRig';
 
 /** 企画者の BUNK の3Dモデル(軽くしたもの。design/battle3d/README.md) */
@@ -169,7 +171,8 @@ export class AnimeField {
   private gradient = toonGradient();
 
   /** species: 2体の種族(モデルを選ぶ。モデルのない種族は仮のモンスター) */
-  constructor(canvas: HTMLCanvasElement, private species: [string, string] = ['bunk', 'bunk']) {
+  /** models: 2体の3Dモデル(roster.ts の modelFor。null なら仮のモンスター) */
+  constructor(canvas: HTMLCanvasElement, private models: [ModelPick, ModelPick] = [null, null]) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.shadowMap.enabled = true;
@@ -295,9 +298,8 @@ export class AnimeField {
   private loadModel(): void {
     // 種族ごとのモデル(roster.ts。2026-11-01 全キャラの入れ物)。同じ種族の2体目は色違い
     const files = new Map<string, number[]>();
-    this.species.forEach((sp, i) => {
-      const f = MODEL_FILES[sp];
-      if (f) files.set(f, [...(files.get(f) ?? []), i]);
+    this.models.forEach((m, i) => {
+      if (m) files.set(m.file, [...(files.get(m.file) ?? []), i]);
     });
     let left = files.size;
     if (!left) this.ready = true;
@@ -309,7 +311,8 @@ export class AnimeField {
   private loadOne(file: string, sides: number[], finish: () => void): void {
     const done = (g: { scene: THREE.Object3D }) => {
       try {
-        sides.forEach((i, n) => this.rigs[i].useModel(g.scene, MODEL.height, n > 0 || (i === 1 && this.species[0] === this.species[1]) ? MODEL.rivalHue : 0));
+        // 同じモデルの2体目は色違い
+        sides.forEach((i, n) => this.rigs[i].useModel(g.scene, this.models[i]?.height ?? MODEL.height, n > 0 ? MODEL.rivalHue : 0));
       } catch (e) {
         this.modelError = `使えない: ${String(e)}`;
       }

@@ -10,6 +10,7 @@ import { addStats, autoGrowthAt, speciesStats, type StatKey } from '../core/stat
 import { instinctFor } from '../core/autobattle/engine';
 import { animeFinished, commandState, giveCommand, newAnimeBattle, stepAnime, type AnimeBattle, type AnimeEntrant, type AnimeEvent, type Command } from '../core/battle3d/anime';
 import { AnimeField, ELEMENT_HEX } from '../render/animeField';
+import { modelFor } from '../core/roster';
 import { UI_FONT } from '../ui/paint';
 import { partnerEntrant, rivalEntrant } from './AutoBattleScene';
 
@@ -204,7 +205,8 @@ export class Battle3DScene extends Phaser.Scene {
       audio.se('tap');
       this.scene.restart();
     });
-    this.field = new AnimeField(canvas, [this.battle.f[0].species, this.battle.f[1].species]);
+    // レベルで形態が変わる(Lv.30 で BUNKER など)。相手も同じレベル
+    this.field = new AnimeField(canvas, [modelFor(this.battle.f[0].species, this.level), modelFor(this.battle.f[1].species, this.level)]);
     this.resize();
     window.addEventListener('resize', this.onResize);
   }

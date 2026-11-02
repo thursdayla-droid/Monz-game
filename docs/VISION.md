@@ -237,3 +237,4 @@
 - 2026-11-01：全キャラ（10種族×3形態）の入れ物を作った（企画者「先に入れ物だけ作る」）。種族の表 data/monz_species.csv・roster.ts。まだ決まっていない5種族は「？？？」。見た目は企画者の絵・モデルが届いたら入れる
 - 2026-11-01：BUNK の第1進化（Lv.30）は BUNKER（バンカー）。企画者の絵 design/bunk/evolution/bunker_form2.png（トラのしま・胸の×と縫い目・グローブの×・紫のとさか）
 - 2026-11-01：BUNK の第2進化（Lv.60）は BUNKLORD（バンクロード）。企画者の絵 design/bunk/evolution/bunklord_form3_original.png（元のまま）と、背景の市松模様だけ透明にした bunklord_form3.png（毛皮の上着・とげのついた腕輪・胸の×の傷・紫のグローブ）
+- 2026-11-02：BUNKER の3Dモデル（骨入り）を3Dバトルに入れた。Lv.30 から BUNKER の姿で戦う（第2進化のモデルが来るまでは Lv.60 でも BUNKER）。骨の直しはいらなかった

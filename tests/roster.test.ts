@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkRoster, formOf, MODEL_FILES, rosterSpecies } from '../src/core/roster';
+import { checkRoster, formOf, MODEL_FILES, modelFor, rosterSpecies } from '../src/core/roster';
 import { isSpecies, SPECIES } from '../src/core/species';
 
 describe('roster (all characters: 10 species x 3 forms)', () => {
@@ -15,6 +15,11 @@ describe('roster (all characters: 10 species x 3 forms)', () => {
     expect(formOf('bunk', 60)?.form).toBe(3);
   });
   it('only species with a 3D model use one (others are the placeholder monster)', () => {
-    expect(Object.keys(MODEL_FILES)).toEqual(['bunk']);
+    expect(Object.keys(MODEL_FILES)).toEqual(['bunk', 'bunk:2']);
+    expect(modelFor('bunk', 1)?.file).toContain('bunk.glb');
+    expect(modelFor('bunk', 30)?.file).toContain('bunker.glb');
+    // 第2進化のモデルがまだないので、Lv.60 は BUNKER のまま
+    expect(modelFor('bunk', 60)?.form).toBe(2);
+    expect(modelFor('mofu', 1)).toBeNull();
   });
 });
