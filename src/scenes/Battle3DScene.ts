@@ -20,6 +20,25 @@ const START_PROFICIENCY: Proficiency = { attack: 2, defense: 2, evasion: 2, coun
 let devPick: { level: number; style: StatKey } | null = null;
 const isPreview = () => (window as { __MONZ_START?: string }).__MONZ_START === 'Battle3D';
 const STYLE_LABEL: Record<string, string> = { power: 'パワー', tough: 'タフネス', speed: 'スピード', tech: 'テクニック' };
+/**
+ * オート / 手動(2026-11-02 企画者「オート手動は邪魔にならないところに」)。この端末に覚える。
+ * オート = MONZ が自分で動いて技も出す(技のボタンで指示もできる) / 手動 = 左のスティックで動かし、技は自分で押す
+ */
+const MODE_KEY = 'monz:b3d:control';
+const loadControl = (): 'auto' | 'manual' => {
+  try {
+    return localStorage.getItem(MODE_KEY) === 'auto' ? 'auto' : 'manual';
+  } catch {
+    return 'manual';
+  }
+};
+const saveControl = (m: 'auto' | 'manual') => {
+  try {
+    localStorage.setItem(MODE_KEY, m);
+  } catch {
+    /* 保存できなくても続ける */
+  }
+};
 /** 確認用ページで、試合前にえらんだ技(保存データには入れない) */
 let devTechs: string[] | null = null;
 const real0 = (delta: number) => Math.min(delta / 1000, 0.1) * 0.05;
@@ -53,8 +72,6 @@ const CSS = `
 .b3d .cmds button.queued{outline:3px solid #ffd23a;animation:b3p .35s infinite alternate}
 .b3d .cmds button.cool{filter:grayscale(.8) brightness(.8)}
 .b3d .cmds button.lock,.b3d .cmds button.empty{background:#3a3040;color:#bfb4c8;box-shadow:0 4px 0 #16101c}
-.b3d .mode{position:absolute;left:calc(env(safe-area-inset-left) + 10px);bottom:calc(env(safe-area-inset-bottom) + 76px);font:900 14px ${UI_FONT};padding:6px 14px;border-radius:10px;border:3px solid #16101c;background:#ffd23a;color:#16101c;box-shadow:0 3px 0 #16101c}
-.b3d .mode.manual{background:#3a9cff;color:#fff}
 /* 2026-11-02 企画者「左に移動スティック・右に技4つ・よけるボタン」 */
 .b3d .stickZone{position:absolute;left:0;top:70px;bottom:0;width:45%;touch-action:none}
 .b3d .stickBase{position:absolute;width:120px;height:120px;margin:-60px 0 0 -60px;border-radius:50%;background:#ffffff30;border:3px solid #ffffffa0;display:none;pointer-events:none}
@@ -87,6 +104,8 @@ const CSS = `
 .b3d .setup .go{align-self:flex-end;font:900 18px ${UI_FONT};padding:8px 26px;border-radius:12px;border:3px solid #16101c;background:#ffd23a;color:#16101c}
 .b3d .setup .go:disabled{opacity:.4}
 .b3d .setup .note{font-size:11px;color:#c8bcd8}
+.b3d .mode{position:absolute;left:50%;top:calc(env(safe-area-inset-top) + 40px);transform:translateX(-50%);font:900 11px ${UI_FONT};padding:3px 10px;border-radius:9px;border:2px solid #16101c;background:#ffffffd8;color:#16101c;opacity:.85}
+.b3d .mode.auto{background:#ffd23a}
 .b3d .dev{z-index:7;position:absolute;left:calc(env(safe-area-inset-left) + 10px);top:calc(env(safe-area-inset-top) + 66px);font-size:12px;font-weight:900}
 .b3d .dev button{font:900 12px ${UI_FONT};border:2px solid #16101c;border-radius:8px;background:#fff;color:#16101c;padding:3px 7px;margin:2px}
 .b3d .dev button.on{background:#ffd23a}
@@ -139,6 +158,8 @@ export class Battle3DScene extends Phaser.Scene {
   private learned: string[] = [];
   /** 試合前のセッティングが終わったか */
   private setupDone = false;
+  /** オート / 手動 */
+  private control: 'auto' | 'manual' = 'manual';
   /** スティックの向き(画面の右・下が +。長さ0〜1) */
   private stick = { x: 0, y: 0 };
   private waitT = 0;
@@ -176,7 +197,8 @@ export class Battle3DScene extends Phaser.Scene {
     if (devPick && isPreview() && devTechs) me.techs = devTechs.filter((n) => me.techs!.includes(n) || growTechs('bunk', level, me.stats, undefined, me.instinct).state.learned.includes(n));
     this.learned = devPick && isPreview() ? growTechs('bunk', level, me.stats, undefined, me.instinct).state.learned : mon.techs?.learned ?? me.techs ?? [];
     this.battle = newAnimeBattle(me, foe, seed, 'manual');
-    this.battle.f[0].pad = { x: 0, z: 0 };
+    this.control = loadControl();
+    this.applyControl();
     this.buildDom();
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.cleanup());
     audio.playBgm('dash');
@@ -210,6 +232,7 @@ export class Battle3DScene extends Phaser.Scene {
        <div class="call"></div><div class="pop"></div><div class="big"></div>
        <div class="stickZone"><div class="stickBase"><div class="stickKnob"></div></div></div>
        <div class="stickHint">ここを<br>さわって<br>うごかす</div>
+       <button class="mode"></button>
        <div class="pad"><button class="dodge" data-c="dodge"><span class="lb">よける</span><span class="cd" style="height:0"></span></button><div class="grid"></div></div>
        <div class="setup"></div>
        ${isPreview() ? `<div class="dev"><button class="devOpen">確認用</button><div class="devPanel"><div>レベル ${[1, 10, 20, 25, 30, 60].map((l) => `<button data-lv="${l}" class="${devPick?.level === l ? 'on' : ''}">${l}</button>`).join('')}</div><div>育て方 ${Object.keys(STYLE_LABEL).map((k) => `<button data-st="${k}" class="${devPick?.style === k ? 'on' : ''}">${STYLE_LABEL[k]}</button>`).join('')}</div><small>今の技: ${p.techs.map(esc).join('・')}</small></div></div>` : ''}
@@ -243,6 +266,23 @@ export class Battle3DScene extends Phaser.Scene {
     };
     $('.back').addEventListener('click', () => this.leave());
     this.openSetup($('.setup'));
+    const modeBtn = $('.mode');
+    const paint = () => {
+      modeBtn.textContent = this.control === 'auto' ? 'オート' : '手動';
+      modeBtn.classList.toggle('auto', this.control === 'auto');
+      ($('.stickZone') as HTMLElement).style.display = this.control === 'auto' ? 'none' : '';
+      if (this.control === 'auto') ($('.stickHint') as HTMLElement).style.display = 'none';
+    };
+    paint();
+    modeBtn.addEventListener('click', () => {
+      this.control = this.control === 'auto' ? 'manual' : 'auto';
+      saveControl(this.control);
+      this.applyControl();
+      this.stick = { x: 0, y: 0 };
+      paint();
+      audio.se('tap');
+      this.pop(this.control === 'auto' ? 'オート：自分で動いて技も出す' : '手動：スティックで動かす', '#ffffff');
+    });
     // 確認用: レベル・育て方を切りかえて、やり直す
     if (isPreview()) {
       $('.devOpen').addEventListener('click', () => $('.dev').classList.toggle('open'));
@@ -268,6 +308,13 @@ export class Battle3DScene extends Phaser.Scene {
   }
 
   private techButtons: () => void = () => undefined;
+
+  /** オート / 手動 を MONZ に反映 */
+  private applyControl(): void {
+    const f = this.battle.f[0];
+    f.techMode = this.control === 'auto' ? 'auto' : 'manual';
+    f.pad = this.control === 'auto' ? null : { x: 0, z: 0 };
+  }
 
   private bindButton(el: HTMLButtonElement, c: Command, btn: Battle3DScene['ui']['btn']): void {
     btn[c] = { el, cd: el.querySelector('.cd') as HTMLElement };
@@ -421,8 +468,8 @@ export class Battle3DScene extends Phaser.Scene {
       dt *= 0.3;
     }
     const b = this.battle;
-    // スティックの向き(画面)→ 床の上の向き(カメラから見て、上 = 奥)
-    {
+    // スティックの向き(画面)→ 床の上の向き(カメラから見て、上 = 奥)。オートのときは AI が動かす
+    if (this.control === 'manual') {
       const f = this.field.camForward;
       const sx = this.stick.x;
       const sy = -this.stick.y;
