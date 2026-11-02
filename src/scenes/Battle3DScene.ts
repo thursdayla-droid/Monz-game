@@ -207,6 +207,8 @@ export class Battle3DScene extends Phaser.Scene {
     });
     // レベルで形態が変わる(Lv.30 で BUNKER など)。相手も同じレベル
     this.field = new AnimeField(canvas, [modelFor(this.battle.f[0].species, this.level), modelFor(this.battle.f[1].species, this.level)]);
+    // 確認用ページだけ: 調べるために外から見られるようにする
+    if (isPreview()) Object.assign(window, { __b3d: { field: this.field, battle: this.battle } });
     this.resize();
     window.addEventListener('resize', this.onResize);
   }

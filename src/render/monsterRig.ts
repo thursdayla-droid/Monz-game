@@ -345,7 +345,7 @@ export class MonsterRig {
         if (kind) {
           const wind = a.fired ? 0 : Math.min(1, a.t / a.windup);
           const run = a.t - a.windup;
-          const activeT = kind === 'shot' ? (tech.kind === 'beam' ? tech.duration : 0.18) : 0;
+          const activeT = kind === 'shot' ? (tech.kind === 'beam' ? tech.duration : 0.35) : 0;
           const active = a.fired && (kind === 'rush' ? !a.hit : kind === 'combo' ? a.n < tech.hits || run < 0.1 : run < activeT);
           const recover = a.fired && !active ? Math.min(1, (run - activeT) / Math.max(0.1, tech.recovery)) : 0;
           const punch = kind === 'combo' && a.n > 0 ? Math.min(1, Math.max(0, 1 - (a.next - a.t) / Math.max(0.05, tech.duration))) : 0;

@@ -211,8 +211,8 @@ export class BunkBones {
         this.rot('Spine01', 'side', -0.1 * w);
       } else {
         const side = a.n % 2 === 1 ? 1 : -1;
-        // 前半でのばし、後半でもどす
-        const p = a.punch < 0.5 ? a.punch * 2 : 1 - (a.punch - 0.5) * 2 * 0.6;
+        // すばやくのばし、のばしきりで少し止めて(見えるように)、少しもどす
+        const p = a.punch < 0.3 ? a.punch / 0.3 : a.punch < 0.8 ? 1 : 1 - ((a.punch - 0.8) / 0.2) * 0.5;
         punch(side, p);
         this.rot('Spine01', 'side', -0.08 * w);
       }
