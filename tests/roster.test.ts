@@ -19,8 +19,8 @@ describe('roster (all characters: 10 species x 3 forms)', () => {
     expect(modelFor('bunk', 1)?.file).toContain('bunk.glb');
     expect(modelFor('bunk', 30)?.file).toContain('bunker.glb');
     expect(modelFor('bunk', 60)?.file).toContain('bunklord.glb');
-    // BUNKLORD は骨がずれているので、骨は動かさない
-    expect(modelFor('bunk', 60)?.bones).toBe(false);
+    // BUNKLORD は骨を直したので、骨で動かす
+    expect(modelFor('bunk', 60)?.bones).toBe(true);
     expect(modelFor('bunk', 30)?.bones).toBe(true);
     expect(modelFor('mofu', 1)).toBeNull();
   });

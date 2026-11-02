@@ -28,11 +28,11 @@ export const MODEL_FILES: Record<string, string> = {
   bunk: 'assets/battle3d/bunk.glb',
   // BUNKER(BUNK の第1進化。企画者の Tripo モデル・骨入り 2026-11-02。左右の骨はそろっていて、直しはいらなかった)
   'bunk:2': 'assets/battle3d/bunker.glb',
-  // BUNKLORD(第2進化。企画者の Tripo モデル 2026-11-02)。右側の骨が大きくずれている(右腕の骨が頭を、右足の骨が右のグローブを動かす)ので、骨は動かさない
+  // BUNKLORD(第2進化。企画者の Tripo モデル 2026-11-02)。骨が大きくずれていたので、こちらで骨の場所とウェイトを直した(企画者「こちらでお願いします」)
   'bunk:3': 'assets/battle3d/bunklord.glb',
 };
-/** 骨がずれていて、骨を動かすと形がくずれるモデル(体全体だけで動かす) */
-export const MODEL_NO_BONES = new Set(['bunk:3']);
+/** 骨がずれていて、骨を動かすと形がくずれるモデル(体全体だけで動かす)。今はなし */
+export const MODEL_NO_BONES = new Set<string>();
 /** 【仮】形態ごとのゲームの中の高さ(進化すると大きくなる) */
 export const MODEL_HEIGHT = [1.55, 1.8, 2.0];
 
