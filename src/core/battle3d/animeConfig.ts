@@ -14,14 +14,15 @@ export const ANIME = {
   body: { radius: 0.7, minGap: 1.5 },
   timeLimit: 90,
   gravity: 24,
-  stat: { hpBase: 120, perHp: 1, powerDiv: 100, toughDiv: 100, walkBase: 4.2, walkPerSpeed: 0.015, turnRate: 10,
+  stat: { hpBase: 120, perHp: 1, powerDiv: 100, toughDiv: 100, walkBase: 3.0, walkPerSpeed: 0.015, turnRate: 10,
     /** 【仮】スピード: ためが短い・よけやすい。テクニック: ねらいが正確・クリティカル(1.4倍)・追加効果が付きやすい(2026-11-01 技の表のバランスのため) */
     speedWindupDiv: 300, speedWindupMax: 0.25, speedDodgeDiv: 300, techAim: 100, techCritDiv: 200, techEffectDiv: 200, critMul: 1.4 },
   /** AIが考える間隔・移動の方針を続ける時間 */
   thinkEvery: 0.25,
   moveHold: 0.4,
   /** 動きの勢い(企画者 2026-11-01「もっさりしてロボみたい」→ 生き物らしく)【仮】 */
-  move: { accel: 7, stop: 9, burst: 2.1, burstTime: 0.35, burstChance: 0.1, hop: 5.5, hopChance: 0.04 },
+  // 2026-11-02 企画者「横移動サッじゃなくて歩いてる感じ」→ 急に横へダッシュするのをやめ(burstChance 0)、歩く速さを下げた
+  move: { accel: 7, stop: 9, burst: 2.1, burstTime: 0.35, burstChance: 0, hop: 5.5, hopChance: 0.04 },
   /** 遠くから撃ち合う間合い */
   spacing: { ideal: 7, near: 4.5, far: 10 },
   /** よける(横へ飛ぶ)。無敵の時間 */

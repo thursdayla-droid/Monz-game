@@ -41,7 +41,7 @@ const CSS = `
 .b3d .call.r{right:calc(env(safe-area-inset-right) + 12px)}
 .b3d .pop{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);font-weight:900;font-size:30px;color:#fff;text-shadow:0 3px 0 #16101c;pointer-events:none;opacity:0;white-space:nowrap}
 .b3d .big{position:absolute;left:0;right:0;top:36%;text-align:center;font-weight:900;font-size:68px;color:#ffd23a;text-shadow:0 5px 0 #16101c,0 0 24px #f40;pointer-events:none;opacity:0}
-.b3d .cmds{position:absolute;left:0;right:0;bottom:0;padding:0 calc(env(safe-area-inset-right) + 10px) calc(env(safe-area-inset-bottom) + 8px) calc(env(safe-area-inset-left) + 10px);display:grid;grid-template-columns:repeat(2,minmax(84px,150px)) minmax(70px,1fr) repeat(2,minmax(84px,150px));gap:8px;align-items:end}
+.b3d .cmds{position:absolute;left:0;right:0;bottom:0;padding:0 calc(env(safe-area-inset-right) + 10px) calc(env(safe-area-inset-bottom) + 8px) calc(env(safe-area-inset-left) + 10px);display:grid;grid-template-columns:repeat(2,minmax(84px,150px)) minmax(8px,1fr) repeat(2,minmax(84px,150px)) minmax(70px,96px);gap:8px;align-items:end}
 .b3d .cmds button{position:relative;height:58px;border-radius:14px;border:3px solid #16101c;color:#16101c;font:900 min(15px,2.1vw) ${UI_FONT};white-space:nowrap;letter-spacing:-.05em;padding:0 4px;overflow:hidden;box-shadow:0 4px 0 #16101c;background:#fff}
 .b3d .cmds button .el{display:block;font-size:10px;color:#fff;border-radius:6px;margin:0 auto 2px;width:3.2em}
 .b3d .cmds button .cd{position:absolute;left:0;bottom:0;right:0;background:#16101c99;pointer-events:none}
@@ -159,7 +159,7 @@ export class Battle3DScene extends Phaser.Scene {
       'beforeend',
       `<div class="top"><button class="back">◀</button>${card(p, '')}<div class="timer">90</div>${card(q, 'r')}</div>
        <div class="call"></div><div class="pop"></div><div class="big"></div>
-       <div class="cmds">${slot(0)}${slot(1)}<div class="mid"><button class="dodge" data-c="dodge"><span class="lb">よけろ！</span><span class="cd" style="height:0"></span></button></div>${slot(2)}${slot(3)}</div>
+       <div class="cmds">${slot(0)}${slot(1)}<div class="gap"></div>${slot(2)}${slot(3)}<div class="mid"><button class="dodge" data-c="dodge"><span class="lb">よけろ！</span><span class="cd" style="height:0"></span></button></div></div>
        ${isPreview() ? `<div class="dev"><button class="devOpen">確認用</button><div class="devPanel"><div>レベル ${[1, 10, 20, 25, 30, 60].map((l) => `<button data-lv="${l}" class="${devPick?.level === l ? 'on' : ''}">${l}</button>`).join('')}</div><div>育て方 ${Object.keys(STYLE_LABEL).map((k) => `<button data-st="${k}" class="${devPick?.style === k ? 'on' : ''}">${STYLE_LABEL[k]}</button>`).join('')}</div><small>今の技: ${p.techs.map(esc).join('・')}</small></div></div>` : ''}
        <div class="result"><h1></h1><button class="again">もう一度</button><button class="leave">もどる</button></div>
        <div class="turn"><div>スマホを 横にしてね<small>横にすると バトルが始まります</small></div></div>`,
@@ -296,6 +296,10 @@ export class Battle3DScene extends Phaser.Scene {
       }
       case 'hit':
         F.flash(e.target);
+        // 当たった所から光の輪(技の色)。大きい当たりは画面が白く光る(2026-11-02 企画者「技しょぼい」)
+        F.shockRing(e.x, e.y, e.z, ELEMENT_HEX[getTech(e.tech).element] === 0xe0e0f0 ? 0xffd080 : ELEMENT_HEX[getTech(e.tech).element], e.big ? 1.8 : 1.1);
+        if (e.big) this.screenFlash(0.55);
+        F.shake(e.big ? 0.45 : 0.2);
         audio.se(e.big ? 'punchHeavy' : 'punch', { pitch: 0.9 + Math.random() * 0.2 });
         this.hitStop = Math.max(this.hitStop, e.big ? 0.1 : 0.05);
         if (!e.big) F.explode(e.x, e.y, e.z, e.tech, false);
@@ -312,6 +316,7 @@ export class Battle3DScene extends Phaser.Scene {
         break;
       case 'quake':
         F.rocks(e.x, e.z);
+        F.crack(e.x, e.z, getTech(b.f[e.side].act.k === 'tech' ? (b.f[e.side].act as { id: string }).id : 'quake').range * 0.35);
         audio.se('slam');
         break;
       case 'mark':
@@ -319,6 +324,8 @@ export class Battle3DScene extends Phaser.Scene {
         break;
       case 'impact':
         F.impact(e.x, e.z, e.r, getTech(e.tech).strength === '大技');
+        F.crack(e.x, e.z, e.r);
+        this.screenFlash(0.4);
         audio.se('slam');
         break;
       case 'blocked':
@@ -360,6 +367,15 @@ export class Battle3DScene extends Phaser.Scene {
         audio.se(e.side === 0 ? 'cheer' : 'back');
         break;
     }
+  }
+
+  /** 画面が白く光る(大きい当たり) */
+  private screenFlash(strength: number): void {
+    if (!this.root) return;
+    const el = document.createElement('div');
+    el.style.cssText = `position:absolute;inset:0;background:#fff;opacity:${strength};pointer-events:none;z-index:4`;
+    this.root.appendChild(el);
+    el.animate([{ opacity: strength }, { opacity: 0 }], { duration: 220 }).onfinish = () => el.remove();
   }
 
   private call(text: string, color: string, border: string, side: 0 | 1 = 0): void {

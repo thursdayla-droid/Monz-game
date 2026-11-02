@@ -115,7 +115,7 @@ export class BunkBones {
    * 毎フレーム。mode: 待機・移動・そのほか(そのほかの動きは まだ作らない → 骨は休んだ形にもどす)。
    * hop: 歩きの調子(MonsterRig の跳ねる調子と同じ)。speed: 歩く速さ。t: 時間(秒)
    */
-  update(mode: 'idle' | 'move' | 'other', hop: number, speed: number, t: number, dt: number, seed = 0, atk: AttackPose | null = null): void {
+  update(mode: 'idle' | 'move' | 'other', hop: number, speed: number, t: number, dt: number, seed = 0, atk: AttackPose | null = null, sideways = 0): void {
     const k = 1 - Math.exp(-dt * 8);
     this.wIdle += ((mode === 'idle' && !atk ? 1 : 0) - this.wIdle) * k;
     this.wMove += ((mode === 'move' && !atk ? 1 : 0) - this.wMove) * k;
@@ -156,13 +156,17 @@ export class BunkBones {
       const lift = Math.max(0, s);
       const liftR = Math.max(0, -s);
       const amp = wm * Math.min(1, 0.4 + speed / 6);
-      // 足: 前後に小さく、上げるときは ひざを曲げる
-      this.rot('L_Thigh', 'side', s * 0.38 * amp);
-      this.rot('R_Thigh', 'side', -s * 0.38 * amp);
+      // 足: 前後に小さく、上げるときは ひざを曲げる。横へ歩くときは、足を横へ開いて 一歩ずつ(2026-11-02 企画者「歩いてる感じ」)
+      const fw = 1 - Math.min(1, Math.abs(sideways));
+      const sw = Math.max(-1, Math.min(1, sideways));
+      this.rot('L_Thigh', 'side', s * 0.38 * amp * fw);
+      this.rot('R_Thigh', 'side', -s * 0.38 * amp * fw);
+      this.rot('L_Thigh', 'front', -lift * 0.32 * amp * sw);
+      this.rot('R_Thigh', 'front', -liftR * 0.32 * amp * sw);
       this.rot('L_Calf', 'side', -lift * 0.32 * amp);
       this.rot('R_Calf', 'side', -liftR * 0.32 * amp);
       // 体を左右にゆらす(よちよち)・少し前のめり
-      this.rot('Spine01', 'front', s * 0.1 * amp);
+      this.rot('Spine01', 'front', s * (0.1 + 0.06 * Math.abs(sw)) * amp);
       this.rot('Spine02', 'side', -0.08 * amp);
       // 腕(グローブ)は足と反対に、小さく前後
       this.rot('L_Upperarm', 'side', -this.lag.arm * amp);

@@ -23,7 +23,7 @@ const MODEL = { height: 1.55, rivalHue: 2.4 };
 
 export const ELEMENT_HEX: Record<Element, number> = { 炎: 0xff6a2a, 水: 0x3aa8ff, 自然: 0x6ad04a, 雷: 0xffd23a, 光: 0xfff2a0, 闇: 0xa05aff, 無: 0xe0e0f0 };
 /** 力の光の色(無属性は白だと見えにくいので、あたたかい色) */
-const auraColor = (e: Element) => (e === '無' ? 0xffb04a : ELEMENT_HEX[e]);
+const auraColor = (e: Element) => (e === '無' ? 0xff7a2a : ELEMENT_HEX[e]);
 
 interface Burst {
   obj: THREE.Object3D;
@@ -98,6 +98,37 @@ function skyTexture(): THREE.CanvasTexture {
   return t;
 }
 
+/** 地面のひび割れの絵(放射状の割れ目) */
+function crackTexture(): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const g = c.getContext('2d')!;
+  g.strokeStyle = 'rgba(40,24,10,0.9)';
+  g.lineCap = 'round';
+  for (let k = 0; k < 9; k++) {
+    let a = (k / 9) * Math.PI * 2 + Math.random() * 0.4;
+    let x = 128;
+    let y = 128;
+    g.lineWidth = 7;
+    g.beginPath();
+    g.moveTo(x, y);
+    for (let s = 0; s < 6; s++) {
+      a += (Math.random() - 0.5) * 0.7;
+      x += Math.cos(a) * 20;
+      y += Math.sin(a) * 20;
+      g.lineTo(x, y);
+      g.lineWidth = Math.max(1.5, 7 - s);
+    }
+    g.stroke();
+  }
+  const grad = g.createRadialGradient(128, 128, 0, 128, 128, 60);
+  grad.addColorStop(0, 'rgba(60,40,20,0.6)');
+  grad.addColorStop(1, 'rgba(60,40,20,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 256, 256);
+  return new THREE.CanvasTexture(c);
+}
+
 function glowTexture(): THREE.CanvasTexture {
   const c = document.createElement('canvas');
   c.width = c.height = 64;
@@ -160,6 +191,9 @@ export class AnimeField {
   private quakeObjs: THREE.Mesh[] = [];
   private charge: THREE.Sprite[] = [];
   private domes: THREE.Group[] = [];
+  /** 体で行く技の、力の光(体をつつむ) */
+  private auras: THREE.Mesh[] = [];
+  private crackTex = crackTexture();
   private stars: THREE.Group[] = [];
   private markers: { obj: THREE.Group; r: number; until: number }[] = [];
   private camPos = new THREE.Vector3(-12, 5, 6);
@@ -263,6 +297,10 @@ export class AnimeField {
     // 企画者の BUNK のモデル(2体とも BUNK。相手は色違い)
     this.loadModel();
     for (let i = 0; i < 2; i++) {
+      const aura = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), new THREE.MeshBasicMaterial({ color: 0xffb04a, transparent: true, opacity: 0.3, depthWrite: false, blending: THREE.AdditiveBlending }));
+      aura.visible = false;
+      this.scene.add(aura);
+      this.auras.push(aura);
       // 守りのドーム(半透明の球と、光る網)
       const dome = new THREE.Group();
       dome.add(new THREE.Mesh(new THREE.IcosahedronGeometry(1, 2), new THREE.MeshBasicMaterial({ color: 0xbfe8ff, wireframe: true, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending })));
@@ -421,6 +459,25 @@ export class AnimeField {
     this.shake(0.4);
   }
 
+  /** 当たった所から広がる、立った光の輪(カメラのほうを向く) */
+  shockRing(x: number, y: number, z: number, color: number, size = 1): void {
+    for (const [r0, life, grow] of [[0.4, 0.28, 5], [0.25, 0.4, 7]] as const) {
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 40), new THREE.MeshBasicMaterial({ color, transparent: true, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
+      ring.position.set(x, y, z);
+      ring.lookAt(this.camera.position);
+      this.add(ring, life, grow, r0 * size);
+    }
+  }
+
+  /** 地面のひび割れ(衝撃波・落下)。少しのあいだ残る */
+  crack(x: number, z: number, r: number): void {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: this.crackTex, transparent: true, depthWrite: false, opacity: 0.9 }));
+    m.rotation.x = -Math.PI / 2;
+    m.rotation.z = Math.random() * Math.PI * 2;
+    m.position.set(x, 0.03, z);
+    this.add(m, 2.6, 0.15, r * 2.4);
+  }
+
   /** 落下技: 落ちてくる所に赤い印 */
   mark(x: number, z: number, r: number, until: number): void {
     const g = new THREE.Group();
@@ -480,6 +537,19 @@ export class AnimeField {
           this.add(p, 0.25, -0.9, 0.25, { vx: -Math.cos(ang) * r * 4, vz: -Math.sin(ang) * r * 4, vy: 0 });
         }
       } else ch.visible = false;
+      // 体で行く技(突進・回転・連続攻撃・落下・衝撃波): 体を力の光がつつむ(ためから、技が終わるまで)
+      const aura = this.auras[i];
+      const at = a.k === 'tech' ? getTech(a.id) : null;
+      const auraOn = !!at && ['rush', 'spin', 'combo', 'drop', 'quake'].includes(at.kind) && !(a.k === 'tech' && a.hit && at.kind !== 'combo');
+      aura.visible = auraOn;
+      if (auraOn && at) {
+        const pulse = 1 + Math.sin(performance.now() / 45) * 0.08;
+        const big = at.strength === '大技' ? 1.5 : at.strength === '強' ? 1.2 : 1;
+        aura.position.set(f.x, f.y + 0.85, f.z);
+        aura.scale.set(1.1 * pulse * big, 1.25 * pulse * big, 1.1 * pulse * big);
+        (aura.material as THREE.MeshBasicMaterial).color.setHex(auraColor(at.element));
+        (aura.material as THREE.MeshBasicMaterial).opacity = 0.28 + Math.sin(performance.now() / 30) * 0.06;
+      }
       // 体で行く技(突進・回転・連続攻撃): 体に光の尾と土けむり
       if (a.k === 'tech' && a.fired && !a.hit && dt > 0) {
         const kind = getTech(a.id).kind;

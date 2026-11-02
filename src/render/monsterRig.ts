@@ -318,7 +318,8 @@ export class MonsterRig {
         this.hop += dt * (6 + sp * 2.4);
         const h = Math.abs(Math.sin(this.hop));
         const big = Math.min(1, sp / 4);
-        lift = h * 0.26 * big;
+        // 骨で動くモデルは、足で歩くので跳ねを小さく(歩いている感じ。2026-11-02)
+        lift = h * (this.bones ? 0.09 : 0.26) * big;
         // 着地でつぶれ、空中でのびる
         sy += (h - 0.5) * 0.16 * big;
         sx -= (h - 0.5) * 0.1 * big;
@@ -353,7 +354,7 @@ export class MonsterRig {
           atk = { kind, wind, active, recover, n: a.n, punch };
         }
       }
-      this.bones.update(mode, this.hop, f.speed, now, dt, f.side * 1.3, atk);
+      this.bones.update(mode, this.hop, f.speed, now, dt, f.side * 1.3, atk, f.speed > 0.3 ? side / f.speed : 0);
       // パンチに合わせて、体ごと前へ出る(腕だけだと小さく見えるため。2026-11-02)
       this.lungeNow += ((atk ? this.bones.lunge : 0) - this.lungeNow) * Math.min(1, dt * 25);
     }
