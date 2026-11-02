@@ -599,7 +599,7 @@ export class Battle3DScene extends Phaser.Scene {
         audio.se('koBlast', { pitch: 1.2 });
         break;
       case 'ukemi':
-        this.pop(e.side === 0 ? '受け身！' : 'あいての受け身！', '#7dd8ff');
+        // 2026-11-02 企画者「受け身をとった表示いらない」→ 文字は出さない(音だけ)
         audio.se('whoosh', { pitch: 1.6 });
         break;
       case 'evaded':
