@@ -47,7 +47,7 @@ const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
 const CSS = `
 .b3d{position:fixed;inset:0;z-index:50;background:#8ac8f5;font-family:${UI_FONT};color:#fff;user-select:none;-webkit-user-select:none;touch-action:none;overflow:hidden}
 .b3d canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
-.b3d .top{position:absolute;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top) + 8px) calc(env(safe-area-inset-right) + 10px) 0 calc(env(safe-area-inset-left) + 10px);display:flex;gap:10px;align-items:flex-start;pointer-events:none}
+.b3d .top{position:absolute;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top) + 8px) calc(env(safe-area-inset-right) + 10px) 0 calc(env(safe-area-inset-left) + 10px);display:flex;gap:10px;align-items:flex-start;pointer-events:none;z-index:3}
 .b3d .back{pointer-events:auto;background:#16101ccc;border:0;color:#fff;font:900 15px ${UI_FONT};padding:8px 12px;border-radius:10px}
 .b3d .card{flex:0 1 260px;min-width:0;background:#fffffff0;color:#16101c;border-radius:12px;padding:5px 10px 7px;border:3px solid #16101c;box-shadow:0 3px 0 #16101c}
 .b3d .card.r{margin-left:auto}
@@ -109,9 +109,12 @@ const CSS = `
 .b3d .setup .go{align-self:flex-end;font:900 18px ${UI_FONT};padding:8px 26px;border-radius:12px;border:3px solid #16101c;background:#ffd23a;color:#16101c}
 .b3d .setup .go:disabled{opacity:.4}
 .b3d .setup .note{font-size:11px;color:#c8bcd8}
-.b3d .mode{position:absolute;left:50%;top:calc(env(safe-area-inset-top) + 40px);transform:translateX(-50%);font:900 11px ${UI_FONT};padding:3px 10px;border-radius:9px;border:2px solid #16101c;background:#ffffffd8;color:#16101c;opacity:.85}
+/* 2026-11-02 企画者「手動オート切り替えの位置邪魔」→ 自分の体力の左下 */
+.b3d .me{flex:0 1 260px;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:5px}
+.b3d .me .card{flex:none;width:100%;box-sizing:border-box}
+.b3d .mode{pointer-events:auto;font:900 11px ${UI_FONT};padding:3px 10px;border-radius:9px;border:2px solid #16101c;background:#ffffffd8;color:#16101c;opacity:.85}
 .b3d .mode.auto{background:#ffd23a}
-.b3d .dev{z-index:7;position:absolute;left:calc(env(safe-area-inset-left) + 10px);top:calc(env(safe-area-inset-top) + 66px);font-size:12px;font-weight:900}
+.b3d .dev{z-index:7;position:absolute;left:calc(env(safe-area-inset-left) + 10px);top:calc(env(safe-area-inset-top) + 100px);font-size:12px;font-weight:900}
 .b3d .dev button{font:900 12px ${UI_FONT};border:2px solid #16101c;border-radius:8px;background:#fff;color:#16101c;padding:3px 7px;margin:2px}
 .b3d .dev button.on{background:#ffd23a}
 .b3d .devPanel{display:none;background:#16101ce8;border-radius:10px;padding:6px 8px;margin-top:4px;max-width:360px}
@@ -236,11 +239,10 @@ export class Battle3DScene extends Phaser.Scene {
     };
     root.insertAdjacentHTML(
       'beforeend',
-      `<div class="top"><button class="back">◀</button>${card(p, '')}<div class="timer">90</div>${card(q, 'r')}</div>
+      `<div class="top"><button class="back">◀</button><div class="me">${card(p, '')}<button class="mode"></button></div><div class="timer">90</div>${card(q, 'r')}</div>
        <div class="call"></div><div class="pop"></div><div class="big"></div>
        <div class="stickZone"><div class="stickBase"><div class="stickKnob"></div></div></div>
        <div class="stickHint">ここを<br>さわって<br>うごかす</div>
-       <button class="mode"></button>
        <div class="pad"><div class="acts"><button class="jump" data-c="jump"><span class="lb">ジャンプ</span><span class="cd" style="height:0"></span></button><button class="dodge" data-c="dodge"><span class="lb">よける</span><span class="cd" style="height:0"></span></button><button class="atk" data-c="punch"><span class="lb">こうげき</span><span class="cd" style="height:0"></span></button></div><div class="grid"></div></div>
        <div class="setup"></div>
        ${isPreview() ? `<div class="dev"><button class="devOpen">確認用</button><div class="devPanel"><div>レベル ${[1, 10, 20, 25, 30, 60, 70].map((l) => `<button data-lv="${l}" class="${devPick?.level === l ? 'on' : ''}">${l}</button>`).join('')}</div><div>育て方 ${Object.keys(STYLE_LABEL).map((k) => `<button data-st="${k}" class="${devPick?.style === k ? 'on' : ''}">${STYLE_LABEL[k]}</button>`).join('')}</div><small>今の技: ${p.techs.map(esc).join('・')}</small></div></div>` : ''}
