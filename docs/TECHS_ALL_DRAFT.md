@@ -12,6 +12,7 @@
 | `docs/techs_draft_tables.md` | 種族の比べ・重なりの検出（自動） |
 | `tools/techs_draft.py` | 上の3つを作るもの（技を直したら これを動かす） |
 | `design/species/{riot,snek,grit,vybe,shellz}/sheet_2026-11-02.png` | 企画者のキャラクターの絵（5体） |
+| 確認用ページ（技リスト案） | https://claude.ai/artifact/QyoKjMWhR66ywyFfZ5WKvP（`python3 tools/techs_page/build.py 出す場所.html` で作る） |
 
 ## 1. 決め方
 

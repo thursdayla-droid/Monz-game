@@ -1,0 +1,162 @@
+<title>MONZ 技リスト案</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap">
+<style>
+/* 夜の街の落書き: 濃い紫の地・ネオンの黄色1色・技は行ごとの札。スマホで縦に読む */
+:root{
+  --bg:#17101f; --panel:#221830; --line:#3a2c4c; --fg:#f3ecff; --mute:#b6a8cc; --accent:#ffd23a; --accent-ink:#1a1020;
+  --fire:#ff6a2a; --water:#3aa8ff; --nature:#4fd07a; --thunder:#ffd84a; --light:#fff3b0; --dark:#a565ff; --none:#d8d0e4;
+  --display:"Dela Gothic One","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+  --body:"M PLUS Rounded 1c","Hiragino Maru Gothic ProN","Hiragino Sans",system-ui,sans-serif;
+  color-scheme:dark;
+}
+html{background:var(--bg)}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.6;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+main{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+h1{font-family:var(--display);font-weight:400;font-size:30px;line-height:1.2;margin:0;text-wrap:balance}
+h1 span{color:var(--accent)}
+h2{font-family:var(--display);font-weight:400;font-size:20px;margin:0 0 10px;text-wrap:balance}
+.lead{color:var(--mute);margin:6px 0 0}
+.tag{display:inline-block;background:var(--accent);color:var(--accent-ink);font-weight:800;font-size:12px;padding:1px 8px;border-radius:4px;letter-spacing:.05em}
+.tabs{display:flex;flex-wrap:wrap;gap:6px}
+.tabs button{font:800 14px var(--body);color:var(--fg);background:var(--panel);border:2px solid var(--line);border-radius:999px;padding:5px 12px;cursor:pointer}
+.tabs button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.tabs button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.spec{display:flex;flex-direction:column;gap:12px}
+.sp-head{display:flex;flex-direction:column;gap:4px}
+.sp-head b{font-family:var(--display);font-weight:400;font-size:26px;letter-spacing:.02em}
+.sp-head span{color:var(--mute)}
+.sheet{border-radius:10px;border:2px solid var(--line)}
+.moves{display:flex;flex-direction:column;gap:8px}
+.mv{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;grid-template-columns:54px 1fr;gap:4px 10px}
+.mv .lv{grid-row:span 3;font-family:var(--display);font-size:15px;color:var(--accent);line-height:1.2}
+.mv .lv small{display:block;font-family:var(--body);font-size:11px;color:var(--mute);font-weight:700}
+.mv .nm{font-weight:800;font-size:16px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-width:0}
+.chip{font-size:11px;font-weight:800;border-radius:4px;padding:0 6px;border:1px solid currentColor;white-space:nowrap}
+.big{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.nums{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--mute);font-variant-numeric:tabular-nums}
+.nums b{color:var(--fg);font-weight:800}
+.memo{font-size:13px;color:var(--mute)}
+.el-炎{color:var(--fire)}.el-水{color:var(--water)}.el-自然{color:var(--nature)}.el-雷{color:var(--thunder)}.el-光{color:var(--light)}.el-闇{color:var(--dark)}.el-無{color:var(--none)}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+ol,ul{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums;min-width:640px}
+th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;white-space:nowrap}
+th{color:var(--mute);font-weight:700}
+td:first-child{font-weight:800}
+.note{font-size:12px;color:var(--mute)}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+<main>
+  <header>
+    <span class="tag">案・まだ決まっていない</span>
+    <h1>MONZ <span>技リスト案</span></h1>
+    <p class="lead">BUNK 以外の9種族×17技＝153技。数字は今の BUNK と同じ計算。ゲームにはまだ入れていません。</p>
+  </header>
+
+  <section class="box">
+    <h2>まず決めてほしいこと</h2>
+    <ol>
+      <li><b>技をえらぶ人</b>：指示は「AIが自動」。今は「試合前に自分で4つセット」。→ 案：手動は自分で、オート・相手は AI。</li>
+      <li><b>BUNK の Lv.70 レンゴクホウケン</b>は「強」。大技にする？（待ち 約8秒→約19秒・威力 約22→約35）</li>
+      <li><b>型が15種類</b>になっている（BUNK のために「火柱」を足した）。→ 案：「設置」の1つにまとめる。</li>
+      <li><b>SHELLZ の「地」</b>は属性の一覧に無い。→ 案：技は「水」にした。</li>
+      <li><b>新しい効果が要る技</b>：アーマーブレイク音波（防御ダウン）・ノイズジャマー（ためが長くなる）。</li>
+      <li><b>RIOT・SNEK・GRIT・VYBE・SHELLZ</b>を、名前の無い5つの種族（？？？）に入れてよい？</li>
+      <li><b>絵のつづり</b>：SHELLZ の第1進化が「SHEILKER」。SHELLKER？</li>
+      <li><b>似ていないかの確認</b>：SHELLBOSS（トゲの甲羅・つの・トゲの腕輪のカメ）は有名なゲームのカメの王さまに かなり近い。VYBE の いなずまの形のしっぽ も有名な電気ネズミに近い。描き直しを考えてほしい。</li>
+    </ol>
+  </section>
+
+  <section class="spec" aria-labelledby="list-h">
+    <h2 id="list-h">種族ごとの17技</h2>
+    <div class="tabs" id="tabs" role="group" aria-label="種族"></div>
+    <div class="sp-head" id="sphead"></div>
+    <img class="sheet" id="sheet" alt="" hidden>
+    <div class="moves" id="moves"></div>
+    <p class="note">威力：連射は「1発×3発」。回復は最大HPの割合、強化は上がる割合と時間。待ち時間は秒。Lv.25 の4つは育て方で1つだけ覚える。</p>
+  </section>
+
+  <section>
+    <h2>種族のくらべ</h2>
+    <div class="scroll box"><table id="cmp"><thead><tr><th>種族</th><th>攻撃の技</th><th>遠くから</th><th>守り・回復・吸収</th><th>強化・弱体・設置</th><th>状態異常つき</th><th>型と効果が今あるもの</th><th>Lv.1 の強さ</th><th>Lv.30</th><th>Lv.60</th><th>Lv.70</th></tr></thead><tbody></tbody></table></div>
+    <p class="note">強さ＝覚えている攻撃の技のうち「ダメージ÷待ち時間」が大きい4つの平均（Lv.25 の4つはのぞく）。当たりやすさや回復は入っていない目安。</p>
+  </section>
+
+  <section class="box">
+    <h2>重なっている所と直し方の案</h2>
+    <ul>
+      <li>同じ型が多い：KLAK 設置4・GRIT 守り4・RIOT 突進4・MOFU 守り3と回復3。→ トラップチェインを連射に、かたまりガードを強化に、アバレダッシュを回転に、わたぐもカーテンを設置に。</li>
+      <li>型・属性・強さが同じ：ジグザグスピン／電光スパイラル、ぷるんガード／ぷにぷにウォール、爆牙クラッシュ／灼熱猛進、ポイズンドロップ／毒霧迷路、バブルフィールド／水流トラップ。→ 動き方か強さを変える。</li>
+      <li>弱体の効果が同じ：ナイトウィスパー／ナイトブラインド、ノイズパルス／ノイズジャマー。</li>
+      <li>Lv.70 は 設置4・守り2。万象ぷにドームは BUNK のガンジョウドーム（反撃）に似ている → ためた分だけ大きく返す・大きいドームで分ける。</li>
+    </ul>
+  </section>
+
+  <section class="box">
+    <h2>名前がほかの作品とぶつかるかも</h2>
+    <ul>
+      <li>いやしのしずく → いやしのつゆ</li>
+      <li>帯電フィールド・バブルフィールド（「〇〇フィールド」の技がある）→ 放電じゅうたん・あわのじゅうたん</li>
+      <li>影縫いの波（よく使われる言葉）→ 影からめの波</li>
+      <li>ベノムドレイン → どくがみドレイン</li>
+      <li>鉄壁ドーム・アイアンボディ → かたまりドーム・くろがねボディ</li>
+      <li>シェルリフレクト → こうらはねかえし</li>
+      <li>「帯電」が ZIPP と VYBE で3つ、「千」が4種族、「〇〇陣」が5つ → 種族ごとに言葉のくせを分ける</li>
+    </ul>
+    <p class="note">わたしの知っている範囲での確認です。確実ではありません。</p>
+  </section>
+
+  <section class="box">
+    <h2>バランスの心配と案</h2>
+    <ul>
+      <li><b>MOFU</b> 回復：1試合の回復は最大HPの60%まで。回復中は0.8秒動けない。</li>
+      <li><b>ZIPP</b> 速さ：スピードの倍率と残光ステップを合わせて2倍まで。</li>
+      <li><b>PUNI</b> 吸収・はね返し：吸収は半分。はね返し・反撃は1回で終わる。</li>
+      <li><b>KLAK</b> 置く技：1つの技は1つ・全部で3つまで。</li>
+      <li><b>RIOT</b> やけど：1秒に最大HPの1%を4秒。重ならない。</li>
+      <li><b>SNEK</b> 毒・弱体：同じ効果は重ならない（時間がのびるだけ）。</li>
+      <li><b>GRIT</b> 守り：守り中も少し通る。守りの技どうしで待ち時間を分け合う。</li>
+      <li><b>VYBE</b> まひ：今のまひは動けなくはならない。終わって2秒は再びかからない。</li>
+      <li><b>SHELLZ</b> はね返し：弾だけ・半分の威力で。</li>
+    </ul>
+    <p class="note">状態異常のかかりやすさ・時間・重なり方は、決まるまで作りません。</p>
+  </section>
+
+  <section class="box">
+    <h2>作る順番の案</h2>
+    <ol>
+      <li>企画者の確認（数字・名前・上の「まず決めてほしいこと」）</li>
+      <li>共通の仕組み：種族のデータと仮の人形 → 回復・強化・吸収 → ダメージのある設置と置ける数 → 予告して出る技・時間差の爆発 → 守りの種類（前だけ・はね返し・反撃）→ 状態異常（決まってから）</li>
+      <li>絵がある5体から1体ずつ：GRIT → VYBE → SHELLZ → SNEK → RIOT</li>
+      <li>MOFU・ZIPP・PUNI・KLAK は絵が届いてから</li>
+      <li>30体の総当たりの自動テストで数字を調整</li>
+    </ol>
+  </section>
+</main>
+<script>
+/*DATA*/
+const ORDER=['BUNK','MOFU','ZIPP','PUNI','KLAK','RIOT','SNEK','GRIT','VYBE','SHELLZ'];
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const tabs=document.getElementById('tabs');
+let cur='RIOT';
+try{const s=localStorage.getItem('monz-tech-tab');if(s&&DATA[s])cur=s}catch(e){}
+function show(sp){
+  cur=sp;
+  try{localStorage.setItem('monz-tech-tab',sp)}catch(e){}
+  for(const b of tabs.children)b.setAttribute('aria-pressed',String(b.dataset.sp===sp));
+  document.getElementById('sphead').innerHTML=`<b>${esc(sp)}</b><span>${esc(STYLE[sp]||'')}</span>`;
+  const img=document.getElementById('sheet');
+  if(IMG[sp]){img.src=IMG[sp];img.alt=sp+' のキャラクターの絵';img.hidden=false}else img.hidden=true;
+  document.getElementById('moves').innerHTML=DATA[sp].map(m=>{
+    const cond=m.c==='なし'?'':`<small>${esc(m.c.replace('寄り',''))}</small>`;
+    return `<div class="mv"><div class="lv">Lv.${m.lv}${cond}</div>
+      <div class="nm">${esc(m.n)} <span class="chip">${esc(m.t)}</span><span class="chip el-${esc(m.e)}">${esc(m.e)}</span><span class="chip ${m.s==='大技'?'big':''}">${esc(m.s)}</span>${m.x!=='なし'?`<span class="chip">${esc(m.x)}</span>`:''}</div>
+      <div class="nums"><span>威力 <b>${esc(m.p)}</b></span><span>待ち <b>${esc(m.cd)}</b>秒</span><span>ため ${esc(m.w)}秒</span><span>${esc(m.r)}</span></div>
+      <div class="memo">${esc(m.m)}</div></div>`}).join('');
+}
+for(const sp of ORDER){const b=document.createElement('button');b.type='button';b.textContent=sp;b.dataset.sp=sp;b.addEventListener('click',()=>show(sp));tabs.appendChild(b)}
+show(cur);
+document.querySelector('#cmp tbody').innerHTML=CMP.map(r=>'<tr>'+r.map(c=>`<td>${esc(c)}</td>`).join('')+'</tr>').join('');
+</script>
