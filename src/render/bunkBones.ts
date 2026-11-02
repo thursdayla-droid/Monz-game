@@ -41,7 +41,7 @@ export const SAFE_ATTACK: Record<string, number> = { L_Upperarm: 1.0, R_Upperarm
 
 /** 攻撃の動きに要るもの(MonsterRig から) */
 export interface AttackPose {
-  kind: 'rush' | 'combo' | 'shot';
+  kind: 'rush' | 'combo' | 'shot' | 'slam';
   /** ため(0〜1)・出している(true)・もどり(0〜1) */
   wind: number;
   active: boolean;
@@ -301,6 +301,44 @@ export class BunkBones {
         const p = a.punch < 0.3 ? a.punch / 0.3 : a.punch < 0.8 ? 1 : 1 - ((a.punch - 0.8) / 0.2) * 0.5;
         punch(side, p);
         this.rot('Spine01', 'side', -0.08 * w);
+      }
+    } else if (a.kind === 'slam') {
+      // 地面なぐり(火柱。2026-11-02 企画者「自分の下のちゃんと地面を殴って」):
+      // ため の前半で右のグローブを高く振り上げ → ため の終わりに 自分の足もとの地面へ一気に振り下ろす → そのまま地面に当てて止める → もどる
+      const am = this.amp;
+      let raise = 0;
+      let down = 0;
+      if (!a.active && a.recover === 0) {
+        if (a.wind < 0.75) raise = ease(a.wind / 0.75);
+        else {
+          const d = (a.wind - 0.75) / 0.25;
+          raise = 1 - d;
+          down = ease(d);
+        }
+      } else if (a.active) down = 1;
+      else down = 1 - ease(a.recover);
+      // 振り上げ: 腕を前から上へ・ひじを曲げる・体を少し反らす
+      this.rot('R_Upperarm', 'side', (1.0 * raise + 0.35 * down) * am * w);
+      this.rot('R_Forearm', 'side', (0.6 * raise - 0.2 * down) * am * w);
+      this.rot('R_Clavicle', 'up', 0.2 * raise * w);
+      this.rot('Spine01', 'side', (0.15 * raise - 0.35 * down) * w);
+      this.rot('Spine02', 'side', (0.08 * raise - 0.3 * down) * w);
+      this.rot('Spine01', 'up', (0.2 * raise + 0.25 * down) * w);
+      this.rot('Head', 'side', -0.1 * down * w);
+      // 振り下ろし: グローブを下へ(足もとの地面まで)押し下げる
+      this.push('R_Upperarm', 'up', -0.06 * down * w);
+      this.push('R_Forearm', 'up', -0.16 * down * w);
+      this.push('R_Forearm', 'front', 0.1 * down * w);
+      this.push('R_Clavicle', 'up', -0.03 * down * w);
+      // 左手は引いて構える・ひざを曲げて ぐっと沈む
+      this.rot('L_Upperarm', 'side', (0.25 * raise - 0.2 * down) * w);
+      this.rot('L_Thigh', 'side', 0.3 * down * w);
+      this.rot('R_Thigh', 'side', 0.3 * down * w);
+      this.rot('L_Calf', 'side', -0.35 * down * w);
+      this.rot('R_Calf', 'side', -0.35 * down * w);
+      if (down > 0.6) {
+        this.punchExt = down * w;
+        this.punchSide = 1;
       }
     } else {
       // 弾: 両手を胸の前に寄せて光をため(ため)、前へ押し出して撃つ(反動で少し反る)

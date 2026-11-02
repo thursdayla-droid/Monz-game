@@ -607,6 +607,7 @@ export class Battle3DScene extends Phaser.Scene {
         break;
       case 'impact':
         F.impact(e.x, e.z, e.r, getTech(e.tech).strength === '大技');
+        if (getTech(e.tech).element === '炎') F.flameBurst(e.x, 0.3, e.z);
         F.crack(e.x, e.z, e.r);
         this.screenFlash(0.4);
         audio.se('slam');

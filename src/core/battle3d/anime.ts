@@ -366,7 +366,8 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
         const pz = clamp(cz + Math.sin(ang) * P.ring, -C.field.halfZ, C.field.halfZ);
         b.pillars.push({ owner: f.side, tech: a.id, g, x: px, z: pz, r: tech.size, at: b.t + P.warn + P.gap * (i + 1), up: false });
       }
-      b.events.push({ kind: 'impact', side: f.side, tech: a.id, x: f.x + Math.cos(a.dir) * 0.9, z: f.z + Math.sin(a.dir) * 0.9, r: 0.8 });
+      // なぐった所(自分の足もとの すぐ前)にヒビと火
+      b.events.push({ kind: 'impact', side: f.side, tech: a.id, x: f.x + Math.cos(a.dir) * 0.55, z: f.z + Math.sin(a.dir) * 0.55, r: 0.9 });
     } else if (tech.kind === 'barrier') {
       f.barrierUntil = b.t + tech.duration;
       f.barrierR = tech.size;

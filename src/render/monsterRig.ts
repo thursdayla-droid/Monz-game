@@ -235,6 +235,13 @@ export class MonsterRig {
         arm = w * 1.2;
         if (tech.kind === 'beam') b.position.x = Math.sin(now * 70) * 0.025 * w;
         // 突進・回転のため: ぐっと しゃがむ(企画者のモデルは形をくずさず、体ごと下げる)
+        // 地面なぐりのため: 振り上げて少し反り、さいごに前へ振り下ろす
+        if (tech.kind === 'pillar') {
+          rotZ = w < 0.75 ? 0.25 * (w / 0.75) : 0.25 - 0.75 * ((w - 0.75) / 0.25);
+          sy = 1;
+          sx = 1;
+          arm = 0;
+        }
         if (this.model && (tech.kind === 'rush' || tech.kind === 'spin')) {
           lift = -0.12 * w;
           rotZ = tech.kind === 'spin' ? w * 0.6 : rotZ;
@@ -293,11 +300,12 @@ export class MonsterRig {
           sy = 0.92;
           legSwing = Math.sin(k * 30) * 0.9;
         } else if (tech.kind === 'pillar') {
-          // 火柱: 前の地面を なぐる(前へかがんで、ぐっと つぶれる)
-          const p = Math.max(0, 1 - k / 0.35);
-          rotZ = -0.55 * p;
-          sy = 1 - 0.25 * p;
-          sx = 1 + 0.18 * p;
+          // 火柱: 自分の足もとの地面を なぐる(前へかがんで、ぐっと沈む。0.3秒 地面に当てたまま → もどる)
+          const p = k < 0.3 ? 1 : Math.max(0, 1 - (k - 0.3) / 0.3);
+          rotZ = -0.5 * p;
+          lift = -0.12 * p;
+          sy = 1 - 0.2 * p;
+          sx = 1 + 0.15 * p;
           arm = -1.2 * p;
         } else if (tech.kind === 'barrier') {
           // 守り: 体を丸める
@@ -368,11 +376,11 @@ export class MonsterRig {
       let atk: AttackPose | null = null;
       if (a.k === 'tech') {
         const tech = getTech(a.id);
-        const kind = tech.kind === 'rush' ? 'rush' : tech.kind === 'combo' || tech.kind === 'jab' ? 'combo' : tech.kind === 'shot' || tech.kind === 'barrage' || tech.kind === 'beam' ? 'shot' : null;
+        const kind = tech.kind === 'rush' ? 'rush' : tech.kind === 'combo' || tech.kind === 'jab' ? 'combo' : tech.kind === 'shot' || tech.kind === 'barrage' || tech.kind === 'beam' ? 'shot' : tech.kind === 'pillar' ? 'slam' : null;
         if (kind) {
           const wind = a.fired ? 0 : Math.min(1, a.t / a.windup);
           const run = a.t - a.windup;
-          const activeT = kind === 'shot' ? (tech.kind === 'beam' ? tech.duration : 0.35) : 0;
+          const activeT = kind === 'shot' ? (tech.kind === 'beam' ? tech.duration : 0.35) : kind === 'slam' ? 0.3 : 0;
           const active = a.fired && (kind === 'rush' ? !a.hit : tech.kind === 'jab' ? !a.hit || a.t < a.next : kind === 'combo' ? a.n < tech.hits || run < 0.1 : run < activeT);
           const recover = a.fired && !active ? Math.min(1, (run - activeT) / Math.max(0.1, tech.recovery)) : 0;
           const punch = kind === 'combo' && a.n > 0 ? Math.min(1, Math.max(0, 1 - (a.next - a.t) / Math.max(0.05, tech.duration))) : 0;
