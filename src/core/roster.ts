@@ -34,6 +34,16 @@ export const MODEL_FILES: Record<string, string> = {
   mofu: 'assets/battle3d/mofu.glb',
   'mofu:2': 'assets/battle3d/mofur.glb',
   'mofu:3': 'assets/battle3d/mofugard.glb',
+  // ZIPP・PUNI・KLAK(企画者の Tripo モデル・骨入り 2026-11-03。PUNISHROOM だけ骨が入っていなかった → 体全体で動く)。元は design/battle3d/<種族>/
+  zipp: 'assets/battle3d/zipp.glb',
+  'zipp:2': 'assets/battle3d/zipro.glb',
+  'zipp:3': 'assets/battle3d/ziprax.glb',
+  puni: 'assets/battle3d/puni.glb',
+  'puni:2': 'assets/battle3d/punish.glb',
+  'puni:3': 'assets/battle3d/punishroom.glb',
+  klak: 'assets/battle3d/klak.glb',
+  'klak:2': 'assets/battle3d/klaker.glb',
+  'klak:3': 'assets/battle3d/klaktrap.glb',
 };
 /** 骨がずれていて、骨を動かすと形がくずれるモデル(体全体だけで動かす)。今はなし */
 export const MODEL_NO_BONES = new Set<string>();

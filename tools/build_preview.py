@@ -49,6 +49,17 @@ for p in paths:
             if 'bufferView' in im:
                 bv = gj['bufferViews'][im.pop('bufferView')]
                 data = binc[bv.get('byteOffset', 0):bv.get('byteOffset', 0) + bv['byteLength']]
+                # 2026-11-03: 15体のモデルで上限(15MB)をこえるので、確認用ページだけ モデルの絵を 512 にする(ゲーム本体はそのまま)
+                try:
+                    pim = Image.open(io.BytesIO(data))
+                    if max(pim.size) > 512:
+                        pim.thumbnail((512, 512), Image.LANCZOS)
+                        bb = io.BytesIO()
+                        pim.save(bb, 'WEBP', quality=82, method=6)
+                        data = bb.getvalue()
+                        im['mimeType'] = 'image/webp'
+                except Exception:
+                    pass
                 im['uri'] = f"data:{im.pop('mimeType', 'image/webp')};base64," + base64.b64encode(data).decode()
         gjs = json.dumps(gj, separators=(',', ':')).encode()
         gjs += b' ' * ((4 - len(gjs) % 4) % 4)

@@ -269,3 +269,4 @@
 - 2026-11-03：KLAK・KLAKER・KLAKTRAP のお世話画面用の絵（企画者）。`design/species/klak/`（care_main_2026-11-03.png・klaker_form2.png・klaktrap_form3.png。白い背景と足もとの影を消した。お世話画面は自分で影を出すため。元は *_original.png）
 - 2026-11-03：企画者の答え：①お世話画面で 進化した姿も出す（Lv.30・Lv.60 で絵が変わる）。要る絵（表情・姿など）は あとで企画者が作る。まずは MONZ RUMBLE の完成をめざす ②PUNI の属性は 自然
 - 2026-11-03：BUNKER・BUNKLORD の3D骨入りモデルを、企画者の新しいものに差しかえ（前のものは `unused/battle3d/`）
+- 2026-11-03：ZIPP・PUNI・KLAK の3D骨入りモデル9体（企画者）を入れた。PUNISHROOM は骨なし。最初のマップ「ロストテンプル」の指示（企画者）→ 計画を出して承認待ち

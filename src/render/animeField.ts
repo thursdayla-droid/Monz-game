@@ -10,6 +10,7 @@ import { ANIME, type Element, type TechId } from '../core/battle3d/animeConfig';
 import { isInvincible, type AnimeBattle } from '../core/battle3d/anime';
 import { getTech } from '../core/battle3d/techTable';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { assetUrl } from '../assetUrl';
 import type { modelFor } from '../core/roster';
 
@@ -581,6 +582,8 @@ export class AnimeField {
     };
     const url = assetUrl(file);
     const loader = new GLTFLoader();
+    // モデルは meshopt で小さくしてある(2026-11-03 15体になり、確認用ページの上限をこえるため)。ほどく道具はプログラムの中にある(ネットから読まない)
+    loader.setMeshoptDecoder(MeshoptDecoder);
     try {
       if (url.startsWith('data:')) {
         const bin = atob(url.slice(url.indexOf(',') + 1));

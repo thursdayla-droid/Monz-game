@@ -28,7 +28,8 @@ export interface RumbleParams {
 /** 【仮】AI習熟度。まだ育てる仕組み・保存がないので、自分も相手も Lv.2 */
 const START_PROFICIENCY: Proficiency = { attack: 2, defense: 2, evasion: 2, counter: 2, spacing: 2 };
 /** 確認用ページだけ: レベルと育て方を切りかえて、技枠と覚える技を見る(ゲーム本体には出さない) */
-let devPick: { level: number; style: StatKey; species?: 'bunk' | 'mofu' } | null = null;
+let devPick: { level: number; style: StatKey; species?: DevSpecies } | null = null;
+type DevSpecies = 'bunk' | 'mofu' | 'zipp' | 'puni' | 'klak';
 const isPreview = () => ['Battle3D', 'RumbleMode'].includes((window as { __MONZ_START?: string }).__MONZ_START ?? '');
 const STYLE_LABEL: Record<string, string> = { power: 'パワー', tough: 'タフネス', speed: 'スピード', tech: 'テクニック' };
 /**
@@ -222,7 +223,7 @@ export class Battle3DScene extends Phaser.Scene {
       const dsp = devPick.species ?? 'bunk';
       const stats = addStats(addStats(speciesStats(dsp).base, autoGrowthAt(dsp, 'dev', level)), { hp: 0, power: 0, tough: 0, speed: 0, tech: 0, [devPick.style]: level - 1 } as StatBlock);
       const inst = instinctFor(dsp, stats);
-      me = { ...me, species: dsp, name: dsp === 'mofu' ? 'MOFU' : me.name, stats, instinct: inst, techs: growTechs(dsp, level, stats, undefined, inst).state.equipped };
+      me = { ...me, species: dsp, name: dsp === 'bunk' ? me.name : dsp.toUpperCase(), stats, instinct: inst, techs: growTechs(dsp, level, stats, undefined, inst).state.equipped };
     }
     this.level = level;
     // 相手: ストーリーはマスの敵・バトルモードは選んだ強さ(レベルの差と戦いのうまさ)・それ以外は同じレベル
@@ -239,7 +240,11 @@ export class Battle3DScene extends Phaser.Scene {
       techs: growTechs(rival.species, foeLevel, rival.stats as StatBlock, undefined, rival.instinct).state.equipped,
     };
     // 自分で動かす(左のスティック)・技は自分で押す(2026-11-02 企画者)
-    if (devPick && isPreview() && devTechs) me.techs = devTechs.filter((n) => me.techs!.includes(n) || growTechs(me.species, level, me.stats, undefined, me.instinct).state.learned.includes(n));
+    if (devPick && isPreview() && devTechs) {
+      const keep = devTechs.filter((n) => me.techs!.includes(n) || growTechs(me.species, level, me.stats, undefined, me.instinct).state.learned.includes(n));
+      // 種族を切りかえて、前の技が1つも使えない時は、その種族の自動の技にする
+      if (keep.length) me.techs = keep;
+    }
     this.learned = devPick && isPreview() ? growTechs(me.species, level, me.stats, undefined, me.instinct).state.learned : mon.techs?.learned ?? me.techs ?? [];
     // 形態で通常攻撃が変わる(Lv.30 で4連・Lv.60 で5連)
     me.form = formAt(level);
@@ -289,7 +294,7 @@ export class Battle3DScene extends Phaser.Scene {
        <div class="stickHint">ここを<br>さわって<br>うごかす</div>
        <div class="pad"><div class="acts"><button class="jump" data-c="jump"><span class="lb">ジャンプ</span><span class="cd" style="height:0"></span></button><button class="dodge" data-c="dodge"><span class="lb">よける</span><span class="cd" style="height:0"></span></button><button class="atk" data-c="punch"><span class="lb">こうげき</span><span class="cd" style="height:0"></span></button></div><div class="grid"></div></div>
        <div class="setup"></div>
-       ${isPreview() ? `<div class="dev"><button class="devOpen">確認用</button><div class="devPanel"><div>レベル ${[1, 10, 20, 25, 30, 60, 70].map((l) => `<button data-lv="${l}" class="${devPick?.level === l ? 'on' : ''}">${l}</button>`).join('')}</div><div>育て方 ${Object.keys(STYLE_LABEL).map((k) => `<button data-st="${k}" class="${devPick?.style === k ? 'on' : ''}">${STYLE_LABEL[k]}</button>`).join('')}</div><div>種族 ${(['bunk', 'mofu'] as const).map((k) => `<button data-sp="${k}" class="${(devPick?.species ?? 'bunk') === k ? 'on' : ''}">${k.toUpperCase()}</button>`).join('')}</div><small>今の技: ${p.techs.map(esc).join('・')}</small></div></div>` : ''}
+       ${isPreview() ? `<div class="dev"><button class="devOpen">確認用</button><div class="devPanel"><div>レベル ${[1, 10, 20, 25, 30, 60, 70].map((l) => `<button data-lv="${l}" class="${devPick?.level === l ? 'on' : ''}">${l}</button>`).join('')}</div><div>育て方 ${Object.keys(STYLE_LABEL).map((k) => `<button data-st="${k}" class="${devPick?.style === k ? 'on' : ''}">${STYLE_LABEL[k]}</button>`).join('')}</div><div>種族 ${(['bunk', 'mofu', 'zipp', 'puni', 'klak'] as const).map((k) => `<button data-sp="${k}" class="${(devPick?.species ?? 'bunk') === k ? 'on' : ''}">${k.toUpperCase()}</button>`).join('')}</div><small>今の技: ${p.techs.map(esc).join('・')}</small></div></div>` : ''}
        <div class="result"><h1></h1><button class="again">もう一度</button><button class="leave">もどる</button></div>
        <div class="turn"><div>スマホを 横にしてね<small>横にすると バトルが始まります</small></div></div>`,
     );
@@ -344,7 +349,7 @@ export class Battle3DScene extends Phaser.Scene {
       $('.devOpen').addEventListener('click', () => $('.dev').classList.toggle('open'));
       for (const el of all('.devPanel button')) {
         el.addEventListener('click', () => {
-          devPick = { level: Number(el.dataset.lv ?? devPick?.level ?? 1), style: (el.dataset.st ?? devPick?.style ?? 'power') as StatKey, species: (el.dataset.sp ?? devPick?.species ?? 'bunk') as 'bunk' | 'mofu' };
+          devPick = { level: Number(el.dataset.lv ?? devPick?.level ?? 1), style: (el.dataset.st ?? devPick?.style ?? 'power') as StatKey, species: (el.dataset.sp ?? devPick?.species ?? 'bunk') as DevSpecies };
           audio.se('tap');
           this.scene.restart(this.params);
         });
