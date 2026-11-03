@@ -75,7 +75,8 @@ for p in paths:
         # 2026-10-29: MYTHCLASH の確認用ページは分けたので、MYTHCLASH の絵は 60KBより大きいものを quality 55 に(前のとおり)
         elif len(data) > (60_000 if MYTH else 30_000):
             bb = io.BytesIO()
-            Image.open(pub + p).save(bb, 'WEBP', quality=55 if MYTH else 38, method=6)
+            # 2026-11-03: MOFU の絵を足して15MBをこえたので、ゲームの確認用ページは quality 34 に
+            Image.open(pub + p).save(bb, 'WEBP', quality=55 if MYTH else 34, method=6)
             data = bb.getvalue()
         assets[p] = 'data:image/webp;base64,' + base64.b64encode(data).decode()
         continue
