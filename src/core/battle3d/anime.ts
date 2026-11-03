@@ -137,7 +137,7 @@ export type AnimeEvent =
   | { kind: 'clash'; x: number; y: number; z: number }
   | { kind: 'dodge'; side: Side; jump: boolean }
   | { kind: 'evaded'; side: Side }
-  | { kind: 'quake'; side: Side; x: number; z: number }
+  | { kind: 'quake'; side: Side; x: number; z: number; tech: TechId }
   | { kind: 'land'; side: Side; hard: boolean }
   | { kind: 'command'; side: Side; cmd: Command; state: 'queued' | 'done' | 'expired' }
   | { kind: 'status'; side: Side; effect: Effect }
@@ -481,7 +481,7 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
         a.hit = true;
         if (tech.kind === 'quake') {
           b.quakes.push({ owner: f.side, tech: a.id, x: f.x, z: f.z, r: 0.3, hit: false });
-          b.events.push({ kind: 'quake', side: f.side, x: f.x, z: f.z });
+          b.events.push({ kind: 'quake', side: f.side, x: f.x, z: f.z, tech: a.id });
         } else {
           f.vx = f.vz = 0;
           b.events.push({ kind: 'impact', side: f.side, tech: a.id, x: f.x, z: f.z, r: tech.size });

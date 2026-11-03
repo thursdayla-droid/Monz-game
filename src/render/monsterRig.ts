@@ -49,6 +49,19 @@ export class MonsterRig {
     if (!b || b.punchSide === 0 || b.punchExt < 0.2) return null;
     return b.glove(b.punchSide, out) ? { ext: b.punchExt } : null;
   }
+  /** 両方のグローブのまん中(骨入りのモデルだけ。両手で撃つ技の光が出る所)。なければ false */
+  gloves(out: THREE.Vector3): boolean {
+    const b = this.bones;
+    if (!b) return false;
+    const t = new THREE.Vector3();
+    if (!b.glove(1, out) || !b.glove(-1, t)) return false;
+    out.add(t).multiplyScalar(0.5);
+    return true;
+  }
+  /** 右のグローブ(片手で撃つ技)。なければ false */
+  glove(out: THREE.Vector3): boolean {
+    return !!this.bones && !!this.bones.glove(1, out);
+  }
   /** 技を撃つ口の場所(光をためる所) */
   readonly mouth = new THREE.Object3D();
   private armL: THREE.Group;
@@ -238,11 +251,18 @@ export class MonsterRig {
         if (tech.kind === 'beam') b.position.x = Math.sin(now * 70) * 0.025 * w;
         // 突進・回転のため: ぐっと しゃがむ(企画者のモデルは形をくずさず、体ごと下げる)
         // 地面なぐりのため: 振り上げて少し反り、さいごに前へ振り下ろす
-        if (tech.kind === 'pillar') {
+        if (tech.kind === 'pillar' || tech.kind === 'field') {
           rotZ = w < 0.75 ? 0.25 * (w / 0.75) : 0.25 - 0.75 * ((w - 0.75) / 0.25);
           sy = 1;
           sx = 1;
           arm = 0;
+        }
+        // ほえるため: 大きく息を吸って ふくらみ、少し反る
+        if (tech.kind === 'debuff') {
+          sy = 1 + w * 0.12;
+          sx = 1 + w * 0.08;
+          rotZ = w * 0.2;
+          arm = w * 0.8;
         }
         if (this.model && (tech.kind === 'rush' || tech.kind === 'spin')) {
           lift = -0.12 * w;
@@ -272,8 +292,13 @@ export class MonsterRig {
             sx = 1.32;
           }
           arm = 1.2;
+        } else if (tech.kind === 'drop' && tech.strength !== '中' && f.y > 0) {
+          // 強い落下(バンクブレイカーなど): 回らずに、のぼる間は両こぶしを構え、落ちる時は体を前へかたむけて こぶしから急降下
+          rotZ = f.vy > 0 ? 0.25 : -0.7;
+          sx = f.vy > 0 ? 0.95 : 1.1;
+          sy = f.vy > 0 ? 1.08 : 0.95;
         } else if (tech.kind === 'drop') {
-          // 落下: 高く跳んで回り、落ちてつぶれる
+          // 落下: 高く跳んで回り(体を丸める)、落ちてつぶれる
           if (f.y > 0) {
             rotZ = -k * 9;
             direct = true;
@@ -294,6 +319,8 @@ export class MonsterRig {
           rotZ = 0.06;
           sx = 1;
           sy = 1;
+          // 中の連続攻撃(ハネツキラッシュ): 近づく間は 小きざみに跳ねる(企画者の演出指示)
+          if (tech.kind === 'combo' && tech.strength === '中') lift = Math.abs(Math.sin(k * (a.n === 0 ? 18 : 12))) * (a.n === 0 ? 0.32 : 0.12);
         } else if (tech.kind === 'combo') {
           // 連続攻撃: 小きざみに跳ねて、何回もぶつかる
           lift = Math.abs(Math.sin(k * 22)) * 0.35;
@@ -301,7 +328,14 @@ export class MonsterRig {
           sx = 1.1;
           sy = 0.92;
           legSwing = Math.sin(k * 30) * 0.9;
-        } else if (tech.kind === 'pillar') {
+        } else if (tech.kind === 'debuff') {
+          // ほえる: 前へ乗り出して ふるえる
+          const p = Math.max(0, 1 - k / 0.6);
+          rotZ = -0.3 * p;
+          sx = 1 + 0.12 * p;
+          sy = 1 - 0.06 * p;
+          rotY = Math.sin(now * 60) * 0.03 * p;
+        } else if (tech.kind === 'pillar' || tech.kind === 'field') {
           // 火柱: 自分の足もとの地面を なぐる(前へかがんで、ぐっと沈む。0.3秒 地面に当てたまま → もどる)
           const p = k < 0.3 ? 1 : Math.max(0, 1 - (k - 0.3) / 0.3);
           rotZ = -0.5 * p;
@@ -378,12 +412,20 @@ export class MonsterRig {
       let atk: AttackPose | null = null;
       if (a.k === 'tech') {
         const tech = getTech(a.id);
-        const kind = tech.kind === 'rush' ? 'rush' : tech.kind === 'combo' || tech.kind === 'jab' ? 'combo' : tech.kind === 'shot' || tech.kind === 'barrage' || tech.kind === 'beam' ? 'shot' : tech.kind === 'pillar' ? 'slam' : null;
+        const bigDrop = tech.kind === 'drop' && tech.strength !== '中';
+        const kind =
+          tech.kind === 'rush' || (bigDrop && a.fired && f.y > 0) ? 'rush'
+          : tech.kind === 'combo' || tech.kind === 'jab' ? 'combo'
+          : tech.kind === 'shot' && tech.strength === '弱' ? 'shot1'
+          : tech.kind === 'shot' || tech.kind === 'barrage' || tech.kind === 'beam' ? 'shot'
+          : tech.kind === 'pillar' || tech.kind === 'field' ? 'slam'
+          : tech.kind === 'debuff' ? 'roar'
+          : null;
         if (kind) {
-          const wind = a.fired ? 0 : Math.min(1, a.t / a.windup);
+          const wind = bigDrop && kind === 'rush' ? (f.vy > 0 ? 1 : 0) : a.fired ? 0 : Math.min(1, a.t / a.windup);
           const run = a.t - a.windup;
-          const activeT = kind === 'shot' ? (tech.kind === 'beam' ? tech.duration : 0.35) : kind === 'slam' ? 0.3 : 0;
-          const active = a.fired && (kind === 'rush' ? !a.hit : tech.kind === 'jab' ? !a.hit || a.t < a.next : kind === 'combo' ? a.n < tech.hits || run < 0.1 : run < activeT);
+          const activeT = kind === 'shot' || kind === 'shot1' ? (tech.kind === 'beam' ? tech.duration : 0.35) : kind === 'slam' ? 0.3 : kind === 'roar' ? 0.6 : 0;
+          const active = bigDrop && kind === 'rush' ? f.vy <= 0 : a.fired && (kind === 'rush' ? !a.hit : tech.kind === 'jab' ? !a.hit || a.t < a.next : kind === 'combo' ? a.n < tech.hits || run < 0.1 : run < activeT);
           const recover = a.fired && !active ? Math.min(1, (run - activeT) / Math.max(0.1, tech.recovery)) : 0;
           const punch = kind === 'combo' && a.n > 0 ? Math.min(1, Math.max(0, 1 - (a.next - a.t) / Math.max(0.05, tech.duration))) : 0;
           atk = { kind, wind, active, recover, n: a.n, punch };

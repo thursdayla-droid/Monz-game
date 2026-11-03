@@ -499,6 +499,8 @@ export class Battle3DScene extends Phaser.Scene {
     }
     let dt = Math.min(delta / 1000, 0.1);
     const real = dt;
+    // 確認用ページだけ: 動きをゆっくりにして確かめる(window.__b3dSlow。ふだんは使わない)
+    if (isPreview()) dt *= (window as unknown as { __b3dSlow?: number }).__b3dSlow ?? 1;
     if (this.hitStop > 0) {
       this.hitStop -= dt;
       dt = 0;
@@ -555,6 +557,29 @@ export class Battle3DScene extends Phaser.Scene {
           F.launch(fa.x, fa.z, fd);
           F.shake(0.12);
         }
+        // 2026-11-03 企画者の演出指示: 撃つ技は発射の光の輪
+        if (k === 'shot' || k === 'barrage' || k === 'beam') F.muzzle(e.side, e.tech);
+        // 落下: 跳ぶ時に足もとから砂けむり
+        if (k === 'drop') {
+          const fa = b.f[e.side];
+          F.dust(fa.x, fa.z, true);
+          F.launch(fa.x, fa.z, fa.face + Math.PI);
+        }
+        // 設置(グラビティプレス): 拳を地面にたたきつけた所にヒビと砂けむり・紫の輪
+        if (k === 'field') {
+          const fa = b.f[e.side];
+          const gx = fa.x + Math.cos(fa.face) * 0.6;
+          const gz = fa.z + Math.sin(fa.face) * 0.6;
+          F.crack(gx, gz, 0.8);
+          F.dust(gx, gz, true);
+          F.groundRing(gx, gz, 0.8, 0xb060ff, 0.4, 2.5);
+          F.shake(0.3);
+        }
+        // ほえる(ブレイクロア): 画面が ゆれる
+        if (k === 'debuff') {
+          F.shake(0.35);
+          audio.se('koBlast', { pitch: 0.6 });
+        }
         if (k === 'beam') {
           audio.se('mcMagic');
           F.shake(0.25);
@@ -575,6 +600,13 @@ export class Battle3DScene extends Phaser.Scene {
         // 型ごとの命中の光(2026-11-02 企画者の技演出イメージ)
         if (ht.kind === 'rush') F.rushHit(e.x, e.y, e.z, hdir, hcol, ht.strength === '強' || ht.strength === '大技');
         else if (ht.kind === 'spin') F.spinHit(e.x, e.y, e.z, hcol);
+        else if (ht.kind === 'combo') {
+          // 連続攻撃: 1発ごとにちがう光、さいごは派手に(2026-11-03 企画者の演出指示)
+          const n = atk.act.k === 'tech' ? atk.act.n : 1;
+          F.comboHit(e.x, e.y, e.z, hdir, n, n >= ht.hits, ht.strength === '強' || ht.strength === '大技');
+        } else if (ht.kind === 'beam') F.explode(e.x, e.y, e.z, e.tech, true);
+        // 雷の技: 短い放電
+        if (ht.element === '雷') F.zap(e.x, e.y, e.z);
         if (ht.element === '炎') F.flameBurst(e.x, e.y, e.z);
         // 当たった所から光の輪(技の色)。大きい当たりは画面が白く光る(2026-11-02 企画者「技しょぼい」)
         F.shockRing(e.x, e.y, e.z, ELEMENT_HEX[getTech(e.tech).element] === 0xe0e0f0 ? 0xffd080 : ELEMENT_HEX[getTech(e.tech).element], e.big ? 1.8 : 1.1);
@@ -599,23 +631,40 @@ export class Battle3DScene extends Phaser.Scene {
         audio.se('koBlast', { pitch: 1.3 });
         this.pop('ぶつかった！', '#ffffff');
         break;
-      case 'quake':
+      case 'quake': {
+        const qt = getTech(e.tech);
         F.rocks(e.x, e.z);
-        F.crack(e.x, e.z, getTech(b.f[e.side].act.k === 'tech' ? (b.f[e.side].act as { id: string }).id : 'quake').range * 0.35);
+        F.crack(e.x, e.z, qt.range * 0.35);
+        F.groundRing(e.x, e.z, 0.8, 0xffffff, 0.3, 3);
+        // 大技(テンチゴウサイ): 紫の光の柱・岩・画面の光(企画者の演出指示)
+        if (qt.strength === '大技') {
+          F.lightPillar(e.x, e.z, qt.element === '無' ? 0xa040ff : ELEMENT_HEX[qt.element]);
+          F.rocks(e.x, e.z);
+          this.screenFlash(0.5);
+          F.shake(0.7);
+        }
         audio.se('slam');
         break;
+      }
       case 'mark':
         F.mark(e.x, e.z, e.r, e.until);
         break;
-      case 'impact':
-        F.impact(e.x, e.z, e.r, getTech(e.tech).strength === '大技');
-        if (getTech(e.tech).element === '炎') F.flameBurst(e.x, 0.3, e.z);
-        F.crack(e.x, e.z, e.r);
-        this.screenFlash(0.4);
+      case 'impact': {
+        const it = getTech(e.tech);
+        // 落下の強さで着地を変える(バウンドプレスは控えめ・バンクブレイカーは強い。企画者の演出指示)
+        const lvl = it.kind === 'drop' && it.strength === '中' ? 0 : it.strength === '大技' ? 2 : 1;
+        F.impact(e.x, e.z, e.r, it.strength === '大技', lvl);
+        if (it.element === '炎') F.flameBurst(e.x, 0.3, e.z);
+        if (lvl > 0) {
+          F.crack(e.x, e.z, e.r);
+          this.screenFlash(0.4);
+        }
         audio.se('slam');
         break;
+      }
       case 'blocked':
         F.explode(e.x, e.y, e.z, null, false);
+        F.domeHit(e.x, e.y, e.z);
         audio.se('guard');
         this.pop('ふせいだ！', e.side === 0 ? '#7ad0ff' : '#ffb070');
         break;

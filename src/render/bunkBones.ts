@@ -41,7 +41,7 @@ export const SAFE_ATTACK: Record<string, number> = { L_Upperarm: 1.0, R_Upperarm
 
 /** 攻撃の動きに要るもの(MonsterRig から) */
 export interface AttackPose {
-  kind: 'rush' | 'combo' | 'shot' | 'slam';
+  kind: 'rush' | 'combo' | 'shot' | 'slam' | 'shot1' | 'roar';
   /** ため(0〜1)・出している(true)・もどり(0〜1) */
   wind: number;
   active: boolean;
@@ -302,6 +302,23 @@ export class BunkBones {
         punch(side, p);
         this.rot('Spine01', 'side', -0.08 * w);
       }
+    } else if (a.kind === 'shot1') {
+      // 片手で撃つ(ポンポンショット。2026-11-03 企画者の演出指示「片方のグローブを前に出し」): 右のグローブを前へ突き出して撃つ
+      const p = a.active ? 1 : a.wind > 0 ? -0.5 * a.wind : 1 - a.recover;
+      punch(1, p);
+    } else if (a.kind === 'roar') {
+      // ほえる(ブレイクロア): ためで大きく息を吸う(胸を反らし、頭を上げ、腕を広げる) → 前へ乗り出して ほえる
+      const inhale = a.active || a.recover > 0 ? 0 : a.wind;
+      const out = a.active ? 1 : a.recover > 0 ? 1 - a.recover : 0;
+      this.rot('Spine01', 'side', (0.18 * inhale - 0.25 * out) * w);
+      this.rot('Spine02', 'side', (0.12 * inhale - 0.2 * out) * w);
+      this.rot('Head', 'side', (0.12 * inhale - 0.12 * out) * w);
+      for (const s of [1, -1] as const) {
+        this.rot(s > 0 ? 'R_Upperarm' : 'L_Upperarm', 'front', s * (0.2 * inhale + 0.25 * out) * w);
+        this.rot(s > 0 ? 'R_Upperarm' : 'L_Upperarm', 'side', -0.2 * out * w);
+      }
+      // ほえている間は小さく ふるえる
+      if (a.active) this.rot('Spine02', 'up', Math.sin(performance.now() / 22) * 0.04 * w);
     } else if (a.kind === 'slam') {
       // 地面なぐり(火柱。2026-11-02 企画者「自分の下のちゃんと地面を殴って」):
       // ため の前半で右のグローブを高く振り上げ → ため の終わりに 自分の足もとの地面へ一気に振り下ろす → そのまま地面に当てて止める → もどる

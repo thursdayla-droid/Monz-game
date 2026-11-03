@@ -25,6 +25,8 @@ export const ELEMENT_HEX: Record<Element, number> = { 炎: 0xff6a2a, 水: 0x3aa8
 /** 力の光の色(無属性は白だと見えにくいので、あたたかい色) */
 /** 一度に出せる光の粒の数(iPhone の負担を おさえる) */
 const MAX_BURSTS = 320;
+/** 場が出てからの時間 */
+const getTechAge = (fl: { until: number }, t: number) => ANIME.gfield.time - (fl.until - t);
 const auraColor = (e: Element) => (e === '無' ? 0xff7a2a : ELEMENT_HEX[e]);
 
 interface Burst {
@@ -39,6 +41,10 @@ interface Burst {
   fade?: boolean;
   /** 形を使い回している(消すときに形を捨てない) */
   shared?: boolean;
+  /** 色(material)も使い回している(消すときに捨てない) */
+  sharedMat?: boolean;
+  /** 大事な演出(粒の数の上限でも消さない) */
+  must?: boolean;
 }
 
 function toonGradient(): THREE.DataTexture {
@@ -133,6 +139,88 @@ function crackTexture(): THREE.CanvasTexture {
   return new THREE.CanvasTexture(c);
 }
 
+/** 重力の魔法陣(グラビティプレス): 二重の円・六芒星・文字のような印。紫と黒(2026-11-03 企画者の演出指示「紫と黒の重力フィールド」「円形の魔法陣」) */
+function magicCircleTexture(): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = c.height = 512;
+  const g = c.getContext('2d')!;
+  const C = 256;
+  const grad = g.createRadialGradient(C, C, 20, C, C, 250);
+  grad.addColorStop(0, 'rgba(20,0,40,0.85)');
+  grad.addColorStop(0.7, 'rgba(70,10,120,0.55)');
+  grad.addColorStop(1, 'rgba(120,40,200,0)');
+  g.fillStyle = grad;
+  g.beginPath();
+  g.arc(C, C, 250, 0, Math.PI * 2);
+  g.fill();
+  g.strokeStyle = 'rgba(214,150,255,0.95)';
+  g.lineWidth = 8;
+  for (const r of [238, 200, 120]) {
+    g.beginPath();
+    g.arc(C, C, r, 0, Math.PI * 2);
+    g.stroke();
+  }
+  // 六芒星
+  g.lineWidth = 5;
+  for (const off of [0, Math.PI / 3]) {
+    g.beginPath();
+    for (let k = 0; k <= 3; k++) {
+      const a = off + (k / 3) * Math.PI * 2 - Math.PI / 2;
+      const x = C + Math.cos(a) * 200;
+      const y = C + Math.sin(a) * 200;
+      if (k === 0) g.moveTo(x, y);
+      else g.lineTo(x, y);
+    }
+    g.stroke();
+  }
+  // 円のあいだの印(文字のような短い線)
+  g.lineWidth = 4;
+  for (let k = 0; k < 24; k++) {
+    const a = (k / 24) * Math.PI * 2;
+    const x = C + Math.cos(a) * 219;
+    const y = C + Math.sin(a) * 219;
+    g.save();
+    g.translate(x, y);
+    g.rotate(a);
+    g.beginPath();
+    g.moveTo(-6, -9);
+    g.lineTo(6, k % 2 ? 9 : -2);
+    g.moveTo(-6, 6);
+    g.lineTo(k % 3 ? 6 : 0, 9);
+    g.stroke();
+    g.restore();
+  }
+  return new THREE.CanvasTexture(c);
+}
+
+/** 守りのドームの六角形のもよう(2026-11-03 企画者の演出指示「バリア表面に六角形の模様」) */
+function hexTexture(): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = 256;
+  c.height = 256;
+  const g = c.getContext('2d')!;
+  g.strokeStyle = 'rgba(255,255,255,0.95)';
+  g.lineWidth = 3;
+  const r = 16;
+  const h = Math.sqrt(3) * r;
+  for (let row = -1; row < 256 / h + 1; row++)
+    for (let col = -1; col < 256 / (r * 1.5) + 1; col++) {
+      const x = col * r * 1.5;
+      const y = row * h + (col % 2 ? h / 2 : 0);
+      g.beginPath();
+      for (let k = 0; k <= 6; k++) {
+        const a = (k / 6) * Math.PI * 2;
+        if (k === 0) g.moveTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
+        else g.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
+      }
+      g.stroke();
+    }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(4, 2);
+  return t;
+}
+
 function glowTexture(): THREE.CanvasTexture {
   const c = document.createElement('canvas');
   c.width = c.height = 64;
@@ -202,6 +290,8 @@ export class AnimeField {
   /** 体で行く技の、力の光(体をつつむ) */
   private auras: THREE.Mesh[] = [];
   private crackTex = crackTexture();
+  private hexTex = hexTexture();
+  private circleTex = magicCircleTexture();
   private tmpV = new THREE.Vector3();
   /** パンチの光を出したか(のばしきりで1回) */
   private punchLit = [0, 0];
@@ -325,7 +415,7 @@ export class AnimeField {
       this.auras.push(aura);
       // 守りのドーム(半透明の球と、光る網)
       const dome = new THREE.Group();
-      dome.add(new THREE.Mesh(new THREE.IcosahedronGeometry(1, 2), new THREE.MeshBasicMaterial({ color: 0xbfe8ff, wireframe: true, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending })));
+      dome.add(new THREE.Mesh(new THREE.SphereGeometry(1, 32, 20), new THREE.MeshBasicMaterial({ map: this.hexTex, color: 0xbfe8ff, transparent: true, opacity: 0.7, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })));
       dome.add(new THREE.Mesh(new THREE.SphereGeometry(0.98, 24, 16), new THREE.MeshBasicMaterial({ color: 0x8ad0ff, transparent: true, opacity: 0.22, depthWrite: false })));
       dome.visible = false;
       this.scene.add(dome);
@@ -415,8 +505,8 @@ export class AnimeField {
 
   private add(obj: THREE.Object3D, life: number, grow: number, base: number, extra: Partial<Burst> = {}): void {
     // iPhone の負担を おさえるため、光の粒は一度に出す数に上限(2026-11-02)
-    if (this.bursts.length > MAX_BURSTS) {
-      ((obj as THREE.Mesh).material as THREE.Material | undefined)?.dispose?.();
+    if (this.bursts.length > MAX_BURSTS && !extra.must) {
+      if (!extra.sharedMat) ((obj as THREE.Mesh).material as THREE.Material | undefined)?.dispose?.();
       if (!extra.shared && !(obj instanceof THREE.Sprite)) (obj as THREE.Mesh).geometry?.dispose?.();
       return;
     }
@@ -579,15 +669,122 @@ export class AnimeField {
     this.markers.push({ obj: g, r, until });
   }
 
-  /** 落下技・大技の着地: 岩・輪・大きなゆれ */
-  impact(x: number, z: number, r: number, big: boolean): void {
-    this.rocks(x, z);
-    const ring = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 48), new THREE.MeshBasicMaterial({ color: 0xffe8a0, transparent: true, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
+  /** 地面と平行に広がる光の輪 */
+  groundRing(x: number, z: number, r: number, color: number, life = 0.4, grow = 1.2): void {
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 48), new THREE.MeshBasicMaterial({ color, transparent: true, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
     ring.rotation.x = -Math.PI / 2;
     ring.position.set(x, 0.08, z);
-    this.add(ring, 0.4, 1.2, r);
+    this.add(ring, life, grow, r, { must: true });
+  }
+
+  /**
+   * 落下技・大技の着地: 岩・輪・大きなゆれ。
+   * level(2026-11-03 企画者の演出指示): 0 = 控えめ(バウンドプレス: 土けむりと小さな輪)・1 = 強い(バンクブレイカー: 岩・強い輪2つ)・2 = 大技
+   */
+  impact(x: number, z: number, r: number, big: boolean, level = big ? 2 : 1): void {
+    if (level === 0) {
+      this.dust(x, z, true);
+      this.dust(x, z, false);
+      this.groundRing(x, z, r * 0.8, 0xfff0c0, 0.35, 1);
+      this.explode(x, 0.3, z, null, false);
+      this.shake(0.25);
+      return;
+    }
+    this.rocks(x, z);
+    if (level >= 2) this.rocks(x, z);
+    this.groundRing(x, z, r, 0xffe8a0);
+    this.groundRing(x, z, r * 0.6, 0xffffff, 0.55, 3.2);
     this.explode(x, 0.4, z, null, big);
-    this.shake(big ? 0.6 : 0.4);
+    this.shake(big ? 0.6 : 0.45);
+  }
+
+  /** 光の柱(大技の着地。テンチゴウサイ) */
+  lightPillar(x: number, z: number, color: number): void {
+    for (const [w, c, life] of [[1.6, color, 0.7], [0.7, 0xffffff, 0.5]] as const) {
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(w, w, 14, 20, 1, true), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+      m.position.set(x, 7, z);
+      this.add(m, life, -0.6, 1, { must: true });
+    }
+    for (let i = 0; i < 16; i++) {
+      const p = this.sprite(i % 2 ? color : 0xffffff);
+      p.position.set(x + (Math.random() - 0.5) * 2, Math.random() * 3, z + (Math.random() - 0.5) * 2);
+      this.add(p, 0.8, -0.3, 0.7, { vx: 0, vz: 0, vy: 6 + Math.random() * 6 });
+    }
+  }
+
+  /** 撃つ技の発射: 撃った所に小さな光の輪(企画者の演出指示「発射時に小さな光のリング」) */
+  muzzle(side: number, tech: TechId): void {
+    const t = getTech(tech);
+    const rig = this.rigs[side];
+    const p = this.tmpV;
+    const ok = t.kind === 'shot' && t.strength === '弱' ? rig.glove(p) : rig.gloves(p);
+    if (!ok) rig.mouth.getWorldPosition(p);
+    const col = t.element === '無' ? 0xffd080 : ELEMENT_HEX[t.element];
+    const big = t.kind === 'beam' ? 1.8 : t.strength === '弱' ? 0.6 : 1;
+    this.shockRing(p.x, p.y, p.z, col, big);
+    const f = this.sprite(0xffffff, true, this.star);
+    f.position.copy(p);
+    this.add(f, 0.15, 2, 0.6 * big);
+  }
+
+  /**
+   * 連続攻撃の1発ごとの命中(企画者の演出指示「各攻撃に異なる軌跡とヒットエフェクト・最後の一撃を派手に」)。
+   * n: 何発目。奇数は右から・偶数は左からの弧、さいごは大きな星と光の輪
+   */
+  comboHit(x: number, y: number, z: number, dir: number, n: number, last: boolean, strong: boolean): void {
+    const col = [0xffe060, 0xff9a3a, 0xffffff, 0xff6aa0][(n - 1) % 4];
+    if (!last) {
+      const arc = new THREE.Mesh(new THREE.TorusGeometry(0.8, 0.07, 6, 24, Math.PI * 0.9), new THREE.MeshBasicMaterial({ color: col, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+      arc.position.set(x, y, z);
+      arc.lookAt(this.camera.position);
+      arc.rotateZ(n % 2 ? -0.6 : Math.PI + 0.6);
+      this.add(arc, 0.2, 0.6, 1);
+      for (let i = 0; i < 6; i++) {
+        const s = this.sprite(col, true, this.star);
+        s.position.set(x, y, z);
+        const a = dir + (n % 2 ? 1 : -1) * (0.4 + Math.random() * 0.9);
+        this.add(s, 0.22, -0.5, 0.3, { vx: Math.cos(a) * 5, vz: Math.sin(a) * 5, vy: 1 + Math.random() * 3 });
+      }
+      this.shockRing(x, y, z, col, 0.7);
+      return;
+    }
+    // さいごの1発
+    const st = this.sprite(0xffffff, true, this.star);
+    st.position.set(x, y, z);
+    this.add(st, 0.3, 3.5, strong ? 1.6 : 1.1);
+    this.shockRing(x, y, z, 0xffd060, strong ? 2 : 1.4);
+    this.rushHit(x, y, z, dir, 0xff9a3a, strong);
+    this.shake(strong ? 0.5 : 0.3);
+  }
+
+  /** 雷の命中: 短い放電(ぎざぎざの線) */
+  zap(x: number, y: number, z: number): void {
+    for (let k = 0; k < 5; k++) {
+      const pts: THREE.Vector3[] = [];
+      let px = x;
+      let py = y;
+      let pz = z;
+      const a = Math.random() * Math.PI * 2;
+      const up = (Math.random() - 0.3) * 1.2;
+      for (let s = 0; s < 5; s++) {
+        pts.push(new THREE.Vector3(px, py, pz));
+        px += Math.cos(a) * 0.35 + (Math.random() - 0.5) * 0.3;
+        pz += Math.sin(a) * 0.35 + (Math.random() - 0.5) * 0.3;
+        py += up * 0.3 + (Math.random() - 0.5) * 0.3;
+      }
+      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: k % 2 ? 0xffffff : 0xfff060, transparent: true, depthWrite: false }));
+      this.add(line, 0.16, 0, 1);
+    }
+  }
+
+  /** ドームに当たった所が光る(六角形の光) */
+  domeHit(x: number, y: number, z: number): void {
+    const s = this.sprite(0x9ae0ff, true, this.hexTex);
+    s.position.set(x, y, z);
+    this.add(s, 0.3, 1.2, 1.2);
+    const c = this.sprite(0xffffff);
+    c.position.set(x, y, z);
+    this.add(c, 0.2, 1, 0.8);
   }
 
   flash(side: number): void {
@@ -610,17 +807,20 @@ export class AnimeField {
         const tech = getTech(a.id);
         const k = Math.min(1, a.t / a.windup);
         // 撃つ技は口に光が集まる。体で行く技は、体に力の光をまとう
-        const mouth = tech.kind === 'shot' || tech.kind === 'barrage' || tech.kind === 'beam';
-        if (mouth) rig.mouth.getWorldPosition(ch.position);
-        else ch.position.set(f.x, f.y + 0.8, f.z);
+        const mouth = tech.kind === 'shot' || tech.kind === 'barrage' || tech.kind === 'beam' || tech.kind === 'debuff';
+        // 2026-11-03 企画者の演出指示: 撃つ技はグローブから(片手の弱い弾は右のグローブ、ほかは両手のあいだ)。ほえる技は口
+        const fromGlove = tech.kind !== 'debuff' && mouth && (tech.kind === 'shot' && tech.strength === '弱' ? rig.glove(ch.position) : rig.gloves(ch.position));
+        if (mouth && !fromGlove) rig.mouth.getWorldPosition(ch.position);
+        else if (!mouth) ch.position.set(f.x, f.y + 0.8, f.z);
         ch.visible = true;
-        ch.material.color.setHex(auraColor(tech.element));
-        ch.scale.setScalar((tech.kind === 'beam' ? 1.6 : mouth ? 0.9 : 2.4) * k * (tech.strength === '大技' ? 1.6 : 1) * (1 + Math.sin(performance.now() / 30) * 0.12));
-        // まわりから光の粒が集まる
-        if (Math.random() < dt * 30) {
-          const p = this.sprite(auraColor(tech.element));
+        const chCol = tech.kind === 'debuff' ? 0xb060ff : tech.strength === '大技' && tech.element === '無' ? 0xa040ff : auraColor(tech.element);
+        ch.material.color.setHex(chCol);
+        ch.scale.setScalar((tech.kind === 'beam' ? (tech.strength === '強' ? 2.4 : 1.6) : mouth ? 0.9 : 2.4) * k * (tech.strength === '大技' ? 1.6 : 1) * (1 + Math.sin(performance.now() / 30) * 0.12));
+        // まわりから光の粒が集まる(ビームは多く・遠くから)
+        if (Math.random() < dt * (tech.kind === 'beam' ? 70 : 30)) {
+          const p = this.sprite(chCol);
           const ang = Math.random() * Math.PI * 2;
-          const r = 1.2;
+          const r = tech.kind === 'beam' ? 2.2 : 1.2;
           p.position.set(ch.position.x + Math.cos(ang) * r, ch.position.y + (Math.random() - 0.5) * r, ch.position.z + Math.sin(ang) * r);
           this.add(p, 0.25, -0.9, 0.25, { vx: -Math.cos(ang) * r * 4, vz: -Math.sin(ang) * r * 4, vy: 0 });
         }
@@ -654,7 +854,16 @@ export class AnimeField {
         const big = at.strength === '大技' ? 1.5 : at.strength === '強' ? 1.2 : 1;
         aura.position.set(f.x, f.y + 0.85, f.z);
         aura.scale.set(1.1 * pulse * big, 1.25 * pulse * big, 1.1 * pulse * big);
-        (aura.material as THREE.MeshBasicMaterial).color.setHex(auraColor(at.element));
+        // 大技(無)は大きな紫の力(テンチゴウサイ。企画者の演出指示)
+        (aura.material as THREE.MeshBasicMaterial).color.setHex(at.strength === '大技' && at.element === '無' ? 0xa040ff : auraColor(at.element));
+        // 強い突進(ゴウリキクラッシュ): オレンジの光に、紫の粒をまぜる(企画者「紫とオレンジのエネルギー」)
+        if ((at.kind === 'rush' && at.strength === '強') || at.strength === '大技') {
+          if (dt > 0 && Math.random() < dt * 40) {
+            const p = this.sprite(0xa040ff);
+            p.position.set(f.x + (Math.random() - 0.5) * 1.4, f.y + 0.2 + Math.random() * 1.4, f.z + (Math.random() - 0.5) * 1.4);
+            this.add(p, 0.35, -0.5, 0.45, { vx: 0, vz: 0, vy: 2 });
+          }
+        }
         (aura.material as THREE.MeshBasicMaterial).opacity = 0.28 + Math.sin(performance.now() / 30) * 0.06;
       }
       // 炎の技: ためから技が終わるまで、体から火の粉が のぼる(2026-11-02 企画者「技炎少しほしい」)
@@ -747,7 +956,7 @@ export class AnimeField {
     this.drawShots(b, dt);
     this.drawBeams(b);
     this.drawQuakes(b);
-    this.drawRoarsFields(b);
+    this.drawRoarsFields(b, dt);
     this.drawPillars(b, dt);
     for (const p of this.bursts) {
       p.t += dt;
@@ -769,7 +978,7 @@ export class AnimeField {
       this.scene.remove(p.obj);
       const m = p.obj as THREE.Mesh;
       if (!(p.obj instanceof THREE.Sprite) && !p.shared) m.geometry?.dispose();
-      (m.material as THREE.Material)?.dispose?.();
+      if (!p.sharedMat) (m.material as THREE.Material)?.dispose?.();
       return false;
     });
     this.follow(b, dt);
@@ -828,7 +1037,8 @@ export class AnimeField {
       const col = ELEMENT_HEX[tech.element];
       const owner = this.rigs[beam.owner];
       const start = new THREE.Vector3();
-      owner.mouth.getWorldPosition(start);
+      // 両手のグローブのあいだから(企画者の演出指示)。骨がなければ口から
+      if (!owner.gloves(start)) owner.mouth.getWorldPosition(start);
       const len = tech.range;
       const flick = 1 + Math.sin(performance.now() / 18) * 0.15;
       const k = Math.min(1, beam.t / 0.08) * (beam.t > tech.duration - 0.12 ? Math.max(0, (tech.duration - beam.t) / 0.12) : 1);
@@ -843,42 +1053,108 @@ export class AnimeField {
       head.position.set(0, 0, 0);
       head.scale.setScalar(2.4 * flick * k);
     });
+    // 光線のまわりを光の粒が流れる
+    for (const beam of b.beams) {
+      if (Math.random() < 0.6) {
+        const tech = getTech(beam.tech);
+        const d = Math.random() * tech.range;
+        const p = this.sprite(Math.random() < 0.5 ? 0xffffff : ELEMENT_HEX[tech.element]);
+        const o = this.rigs[beam.owner].root.position;
+        p.position.set(o.x + Math.cos(beam.dir) * d + (Math.random() - 0.5) * tech.size * 2, 0.9 + (Math.random() - 0.5) * tech.size * 2, o.z + Math.sin(beam.dir) * d + (Math.random() - 0.5) * tech.size * 2);
+        this.add(p, 0.25, -0.6, 0.4, { vx: Math.cos(beam.dir) * 12, vz: Math.sin(beam.dir) * 12, vy: 0 });
+      }
+    }
     if (b.beams.length) this.shake(0.08);
   }
 
-  private roarObjs: THREE.Mesh[] = [];
-  private fieldObjs: THREE.Mesh[] = [];
-  /** 【仮の見た目】ほえる声の輪(紫・立った輪)と、重力の場(紫と黒の円)。くわしい演出は数字の承認のあと */
-  private drawRoarsFields(b: AnimeBattle): void {
+  private roarObjs: THREE.Group[] = [];
+  private fieldObjs: THREE.Group[] = [];
+  /**
+   * ほえる声の輪(ブレイクロア)と、重力の場(グラビティプレス)。2026-11-03 企画者の演出指示:
+   * ブレイクロア「口元から円形の音波・紫色の空気の揺らぎ」→ 紫の輪が3重に広がり、前に立った音の輪、紫のゆらぎの粒
+   * グラビティプレス「紫と黒の重力フィールド・円形の魔法陣」→ 回る魔法陣・逆に回る輪・上から押しつける紫の粒
+   */
+  private drawRoarsFields(b: AnimeBattle, dt: number): void {
     while (this.roarObjs.length < b.roars.length) {
-      const m = new THREE.Mesh(new THREE.TorusGeometry(1, 0.06, 6, 40), new THREE.MeshBasicMaterial({ color: 0xc070ff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
-      this.scene.add(m);
-      this.roarObjs.push(m);
+      const g = new THREE.Group();
+      for (let k = 0; k < 3; k++) g.add(new THREE.Mesh(new THREE.TorusGeometry(1, k === 0 ? 0.08 : 0.05, 6, 48), new THREE.MeshBasicMaterial({ color: k === 1 ? 0xffffff : 0xc070ff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })));
+      // 前に立った音の輪(口から出る)
+      for (let k = 0; k < 3; k++) g.add(new THREE.Mesh(new THREE.TorusGeometry(1, 0.05, 6, 40, Math.PI * 1.2), new THREE.MeshBasicMaterial({ color: 0xd890ff, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })));
+      this.scene.add(g);
+      this.roarObjs.push(g);
     }
-    this.roarObjs.forEach((m, i) => {
+    this.roarObjs.forEach((g, i) => {
       const q = b.roars[i];
-      m.visible = !!q;
+      g.visible = !!q;
       if (!q) return;
-      m.position.set(q.x, 0.9, q.z);
-      m.rotation.x = Math.PI / 2;
-      m.scale.setScalar(Math.max(0.1, q.r));
-      (m.material as THREE.MeshBasicMaterial).opacity = 0.9 * (1 - q.r / getTech(q.tech).range);
+      const range = getTech(q.tech).range;
+      const fade = Math.max(0, 1 - q.r / range);
+      const owner = b.f[q.owner];
+      const dir = owner.face;
+      g.position.set(q.x, 0, q.z);
+      g.children.forEach((m, k) => {
+        const mat = (m as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        if (k < 3) {
+          // 地面と平行に広がる輪(少しずつ遅れて3重)
+          const r = Math.max(0.1, q.r - k * 0.9);
+          m.position.set(0, 0.9 - k * 0.25, 0);
+          m.rotation.set(Math.PI / 2, 0, 0);
+          m.scale.setScalar(r);
+          mat.opacity = (k === 1 ? 0.6 : 0.9) * fade * (q.r - k * 0.9 > 0 ? 1 : 0);
+        } else {
+          // 口の前に立つ音の輪(前へ進みながら大きくなる)
+          const j = k - 3;
+          const d = ((q.r * 0.8 + j * 1.2) % (range * 0.9)) + 0.6;
+          m.position.set(Math.cos(dir) * d, 1.0, Math.sin(dir) * d);
+          m.rotation.set(0, -dir + Math.PI / 2, Math.PI * 0.4);
+          m.scale.setScalar(0.4 + d * 0.28);
+          mat.opacity = 0.75 * fade * (1 - d / range);
+        }
+      });
+      // 紫の空気のゆらぎ
+      if (dt > 0 && Math.random() < dt * 60 * fade) {
+        const a = Math.random() * Math.PI * 2;
+        const p = this.sprite(Math.random() < 0.3 ? 0xffffff : 0xb060ff);
+        p.position.set(q.x + Math.cos(a) * q.r, 0.4 + Math.random() * 1.2, q.z + Math.sin(a) * q.r);
+        this.add(p, 0.35, 0.8, 0.5, { vx: Math.cos(a) * 3, vz: Math.sin(a) * 3, vy: 0.5 });
+      }
     });
     while (this.fieldObjs.length < b.fields.length) {
-      const m = new THREE.Mesh(new THREE.CircleGeometry(1, 40), new THREE.MeshBasicMaterial({ color: 0x5a1a8a, transparent: true, opacity: 0.45, depthWrite: false }));
-      m.rotation.x = -Math.PI / 2;
-      const rim = new THREE.Mesh(new THREE.RingGeometry(0.9, 1, 40), new THREE.MeshBasicMaterial({ color: 0xc070ff, transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide }));
-      m.add(rim);
-      this.scene.add(m);
-      this.fieldObjs.push(m);
+      const g = new THREE.Group();
+      const disc = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ map: this.circleTex, transparent: true, depthWrite: false }));
+      disc.rotation.x = -Math.PI / 2;
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.68, 6), new THREE.MeshBasicMaterial({ color: 0xe0a0ff, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.y = 0.02;
+      // 円のふちから立ちのぼる、うすい紫の壁
+      const wall = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1.2, 40, 1, true), new THREE.MeshBasicMaterial({ color: 0x6a20b0, transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+      wall.position.y = 0.6;
+      g.add(disc, ring, wall);
+      this.scene.add(g);
+      this.fieldObjs.push(g);
     }
-    this.fieldObjs.forEach((m, i) => {
+    this.fieldObjs.forEach((g, i) => {
       const fl = b.fields[i];
-      m.visible = !!fl;
+      g.visible = !!fl;
       if (!fl) return;
-      m.position.set(fl.x, 0.04, fl.z);
-      m.scale.setScalar(fl.r * (1 + Math.sin(performance.now() / 200) * 0.03));
-      m.rotation.z += 0.01;
+      const [disc, ring, wall] = g.children as THREE.Mesh[];
+      const left = fl.until - b.t;
+      // 出てすぐは広がり、消える前はしぼむ
+      const age = getTechAge(fl, b.t);
+      const open = Math.min(1, age / 0.25) * (left < 0.3 ? Math.max(0, left / 0.3) : 1);
+      g.position.set(fl.x, 0.04, fl.z);
+      g.scale.setScalar(fl.r * open * (1 + Math.sin(performance.now() / 200) * 0.02));
+      disc.rotation.z += dt * 0.6;
+      ring.rotation.z -= dt * 1.4;
+      (wall.material as THREE.MeshBasicMaterial).opacity = 0.08 + Math.sin(performance.now() / 150) * 0.03;
+      // 上から押しつける紫と黒の粒
+      if (dt > 0 && Math.random() < dt * 40) {
+        const a = Math.random() * Math.PI * 2;
+        const r = Math.random() * fl.r;
+        const p = this.sprite(Math.random() < 0.35 ? 0x200030 : 0xb060ff, Math.random() >= 0.35);
+        p.position.set(fl.x + Math.cos(a) * r, 2.6, fl.z + Math.sin(a) * r);
+        this.add(p, 0.5, -0.4, 0.4, { vx: 0, vz: 0, vy: -5 });
+      }
     });
   }
 
@@ -949,6 +1225,11 @@ export class AnimeField {
     while (this.quakeObjs.length < b.quakes.length) {
       const m = new THREE.Mesh(new THREE.RingGeometry(0.85, 1, 48), new THREE.MeshBasicMaterial({ color: 0xffe8a0, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
       m.rotation.x = -Math.PI / 2;
+      // 外側に土の壁(波が地面をもり上げて進む)
+      const wall = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.5, 48, 1, true), new THREE.MeshBasicMaterial({ color: 0xd8c8a8, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false }));
+      wall.rotation.x = Math.PI / 2;
+      wall.position.z = -0.25;
+      m.add(wall);
       this.scene.add(m);
       this.quakeObjs.push(m);
     }
@@ -956,12 +1237,28 @@ export class AnimeField {
       const q = b.quakes[i];
       m.visible = !!q;
       if (!q) return;
+      const tech = getTech(q.tech);
+      const fade = Math.max(0, 1 - q.r / tech.range);
       m.position.set(q.x, 0.08, q.z);
       m.scale.setScalar(Math.max(0.1, q.r));
-      (m.material as THREE.MeshBasicMaterial).opacity = 0.9 * (1 - q.r / getTech(q.tech).range);
-      if (Math.random() < 0.5) this.dust(q.x + Math.cos(Math.random() * 7) * q.r, q.z + Math.sin(Math.random() * 7) * q.r, false);
+      const big = tech.strength === '大技';
+      (m.material as THREE.MeshBasicMaterial).color.setHex(big && tech.element === '無' ? 0xc080ff : 0xffe8a0);
+      (m.material as THREE.MeshBasicMaterial).opacity = 0.9 * fade;
+      const wall = m.children[0] as THREE.Mesh;
+      wall.scale.set(1, 1, big ? 2.4 : 1.4);
+      (wall.material as THREE.MeshBasicMaterial).opacity = 0.45 * fade;
+      // 波のふちで 小石と砂けむりが はね上がる(企画者の演出指示「小石と砂煙が跳ね上がる」)
+      if (Math.random() < 0.6) this.dust(q.x + Math.cos(Math.random() * 7) * q.r, q.z + Math.sin(Math.random() * 7) * q.r, false);
+      if (Math.random() < (big ? 0.9 : 0.5)) {
+        const a = Math.random() * Math.PI * 2;
+        const r = new THREE.Mesh(this.pebbleGeo, this.pebbleMat);
+        r.position.set(q.x + Math.cos(a) * q.r, 0.15, q.z + Math.sin(a) * q.r);
+        this.add(r, 0.6, 0, 0.6 + Math.random() * 0.8, { vx: Math.cos(a) * 1.5, vz: Math.sin(a) * 1.5, vy: 3 + Math.random() * 3, fade: false, shared: true, sharedMat: true });
+      }
     });
   }
+  private pebbleGeo = new THREE.DodecahedronGeometry(0.15, 0);
+  private pebbleMat = new THREE.MeshToonMaterial({ color: 0x8a6a4a });
 
   /**
    * カメラ: 自分のMONZのななめ後ろ・少し上から、相手のほうを見る(アニメ・ゲームのモンスターバトル風)【仮】。
