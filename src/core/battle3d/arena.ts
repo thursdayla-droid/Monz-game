@@ -62,28 +62,11 @@ export const LOST_TEMPLE: ArenaMap = {
     { x: 7, z: 0 },
   ],
   obstacles: [
-    // まん中の近く: くずれた柱2本(低い・体と低い攻撃を止める)と、柱2本
-    { kind: 'circle', ...ring(5, 90), r: 0.9, h: 1.3, look: 'broken' },
-    { kind: 'circle', ...ring(5, 270), r: 0.9, h: 1.3, look: 'broken' },
-    { kind: 'circle', ...ring(8.5, 40), r: 0.85, h: 5, look: 'pillar' },
-    { kind: 'circle', ...ring(8.5, 220), r: 0.85, h: 5, look: 'pillar' },
-    // 外まわり: 柱6本・切りかぶのような低い柱2本
-    { kind: 'circle', ...ring(12.5, 0), r: 0.9, h: 5, look: 'pillar' },
-    { kind: 'circle', ...ring(12.5, 180), r: 0.9, h: 5, look: 'pillar' },
-    { kind: 'circle', ...ring(13, 100), r: 0.9, h: 5, look: 'pillar' },
-    { kind: 'circle', ...ring(13, 280), r: 0.9, h: 5, look: 'pillar' },
-    { kind: 'circle', ...ring(12, 140), r: 0.9, h: 3.2, look: 'broken' },
-    { kind: 'circle', ...ring(12, 320), r: 0.9, h: 3.2, look: 'broken' },
-    { kind: 'circle', ...ring(11, 60), r: 0.7, h: 0.9, look: 'stump' },
-    { kind: 'circle', ...ring(11, 240), r: 0.7, h: 0.9, look: 'stump' },
-    // 石の壁(古い遺跡の壁)
-    { kind: 'box', ...ring(14, 25), hw: 2.6, hd: 0.55, rot: deg(25 + 90), h: 2.4, look: 'wall' },
-    { kind: 'box', ...ring(14, 205), hw: 2.6, hd: 0.55, rot: deg(205 + 90), h: 2.4, look: 'wall' },
-    { kind: 'box', ...ring(14.5, 160), hw: 2.2, hd: 0.55, rot: deg(160 + 90), h: 1.6, look: 'wall' },
-    { kind: 'box', ...ring(14.5, 340), hw: 2.2, hd: 0.55, rot: deg(340 + 90), h: 1.6, look: 'wall' },
-    // 四角い石のかたまり
-    { kind: 'box', ...ring(9.5, 120), hw: 0.9, hd: 0.9, rot: deg(20), h: 1.1, look: 'block' },
-    { kind: 'box', ...ring(9.5, 300), hw: 0.9, hd: 0.9, rot: deg(-15), h: 1.1, look: 'block' },
+    // 2026-11-03 企画者「障害物多すぎて見えにくい。3個ぐらいでいい」→ 3つに(三角に置く。はじめの2体のあいだは あけておく)
+    // 前の18個の置き方は git の記録にある
+    { kind: 'circle', ...ring(6, 90), r: 0.9, h: 5, look: 'pillar' },
+    { kind: 'circle', ...ring(6.5, 215), r: 0.9, h: 3.2, look: 'broken' },
+    { kind: 'circle', ...ring(6.5, 325), r: 0.9, h: 3.2, look: 'broken' },
   ],
 };
 

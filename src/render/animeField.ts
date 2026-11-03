@@ -1692,24 +1692,31 @@ export class AnimeField {
       const A = this.arena;
       // 体の下のほう(0.6)まで見えるか で調べる(低い柱で体が半分かくれるのも さける)
       const me = new THREE.Vector3(p.x, 0.6, p.z);
-      const blockAt = (x: number, y: number, z: number) => {
-        const h = rayHit(A, me.x, me.z, x, z, 0, 0.45);
+      const blockFrom = (m: { x: number; y: number; z: number }, x: number, y: number, z: number) => {
+        const h = rayHit(A, m.x, m.z, x, z, 0, 0.45);
         if (!h) return null;
-        return h.o.h + 0.3 > me.y + (y - me.y) * h.t ? { t: h.t, h: h.o.h } : null;
+        return h.o.h + 0.3 > m.y + (y - m.y) * h.t ? { t: h.t, h: h.o.h } : null;
       };
+      const blockAt = (x: number, y: number, z: number) => blockFrom(me, x, y, z);
+      // 2026-11-03 相手も かくれないように(まずは2体とも見える向き → だめなら自分だけ見える向き)
+      const foe = { x: q.x, y: 0.6, z: q.z };
+      const blockBoth = (x: number, y: number, z: number) => blockAt(x, y, z) ?? blockFrom(foe, x, y, z);
       let hit = blockAt(want.x, want.y, want.z);
-      if (hit) {
+      if (hit || blockBoth(want.x, want.y, want.z)) {
         // 少しずつ横へ回して、さえぎられない向きをさがす(近い向きから)
-        for (const off of [0.35, -0.35, 0.7, -0.7, 1.05, -1.05, 1.4, -1.4]) {
-          const yaw = this.camYaw + off;
-          const x = mid.x + Math.cos(yaw) * dist;
-          const z = mid.z + Math.sin(yaw) * dist;
-          if (!blockAt(x, camH, z)) {
-            want.set(x, camH, z);
-            this.camYaw += off * (1 - Math.exp(-dt * 3));
-            hit = null;
-            break;
+        search: for (const test of [blockBoth, blockAt]) {
+          for (const off of [0.35, -0.35, 0.7, -0.7, 1.05, -1.05, 1.4, -1.4]) {
+            const yaw = this.camYaw + off;
+            const x = mid.x + Math.cos(yaw) * dist;
+            const z = mid.z + Math.sin(yaw) * dist;
+            if (!test(x, camH, z)) {
+              want.set(x, camH, z);
+              this.camYaw += off * (1 - Math.exp(-dt * 3));
+              hit = null;
+              break search;
+            }
           }
+          if (!hit) break;
         }
       }
       if (hit) {
