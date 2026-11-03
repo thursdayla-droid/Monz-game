@@ -17,6 +17,7 @@ import { DASH_BG_FILE, DASH_BG_KEY, DASH_LOGO_FILE, DASH_LOGO_KEY, DASH_JUMP_FIL
 import { MYTH_CPU_FILE, MYTH_CPU_IMAGE, MYTH_MODE_FILE, MYTH_MODE_IMAGE } from '../scenes/MythModeScene';
 import { BATTLE_MENU_FILE, BATTLE_MENU_IMAGE } from '../scenes/BattleMenuScene';
 import { loadBunk } from './bunkView';
+import { mofuFiles } from './mofuView';
 import { HOME_PLACES } from '../core/home';
 
 /**
@@ -35,7 +36,7 @@ import { HOME_PLACES } from '../core/home';
  * - mythclash: MYTHCLASH(タイトルの絵・パックの絵・タワーの絵)
  * - battlemenu: バトルセレクト画面の絵(企画者 2026-11-01)
  */
-export type PackName = 'title' | 'bunk' | 'birth' | 'home' | 'rooms' | 'compare' | 'minigame' | 'card' | 'dash' | 'slugger' | 'mythclash' | 'battlemenu';
+export type PackName = 'title' | 'bunk' | 'mofu' | 'birth' | 'home' | 'rooms' | 'compare' | 'minigame' | 'card' | 'dash' | 'slugger' | 'mythclash' | 'battlemenu';
 
 interface PackFile {
   key: string;
@@ -62,6 +63,8 @@ function packFiles(name: Exclude<PackName, 'bunk'>): PackFile[] {
       ];
     case 'battlemenu':
       return [{ key: BATTLE_MENU_IMAGE, url: BATTLE_MENU_FILE }];
+    case 'mofu':
+      return mofuFiles();
     case 'title':
       return [{ key: TITLE_IMAGE, url: TITLE_FILE }];
     case 'birth':

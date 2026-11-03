@@ -337,6 +337,13 @@ export class LifeRecord {
     if (no > now) this.update({ rumble: { cleared: no } });
   }
 
+  /** 今のMONZの種族を変える(生まれたとき・確認用)。技は その種族の表から作り直す(表がなければ無し) */
+  setSpecies(species: SpeciesId): void {
+    if (this.monz.species === species) return;
+    const m = { ...this.monz, species } as MonzData;
+    this.update({}, { species, techs: fixTechs({ ...m, techs: undefined }) });
+  }
+
   /** 今のMONZの名前を決める(生まれたとき) */
   setName(name: string): void {
     this.update({}, { name });

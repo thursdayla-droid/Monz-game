@@ -13,6 +13,7 @@ import { mulberry32 } from '../core/rng';
 import { currentStats, LOVE_RULES, shownLove, STAT_KEYS, STAT_LABELS, STAT_MAX, type StatBlock, type StatKey } from '../core/stats';
 import { clearSave, loadSave } from '../core/save';
 import { BUNK_MOTION, BunkView, cutoutKey, TEST_PERSONALITY } from '../render/bunkView';
+import { MOFU_CUTOUT_KEY, MofuView } from '../render/mofuView';
 import { drawCoin, drawHeart, drawIcon, drawMeat, drawMeatImage, drawMenuButton, drawPanel } from '../ui/homeArt';
 import { canvasTexture, canvasTextureOnce, drawPaper, UI_FONT } from '../ui/paint';
 import { openSoundSettings } from '../ui/soundButton';
@@ -76,7 +77,9 @@ export const MEAT_FILE = 'meat.webp';
  * 上: 名前・レベル【仮】・コイン。下: ごはん・ミニゲーム・なでる・バトル・ショップ・設定。
  */
 export class HomeScene extends Phaser.Scene {
-  private view?: BunkView;
+  /** お世話しているMONZの姿(種族で変わる。2026-11-03 MOFU) */
+  private view?: BunkView | MofuView;
+  private species = 'bunk';
   private life?: MonzLife;
   private shadow?: Phaser.GameObjects.Ellipse;
   private zText?: Phaser.GameObjects.Text;
@@ -117,7 +120,10 @@ export class HomeScene extends Phaser.Scene {
   }
 
   preload(): void {
-    preloadPacks(this, ['bunk', 'home']);
+    // MOFU のときは MOFU の絵も読む(2026-11-03)。BUNK の絵は ほかの画面でも使うので いつも読む
+    const life0 = loadLife();
+    const sp = (life0.monz.find((m) => m.uid === life0.activeMonz) ?? life0.monz[0])?.species;
+    preloadPacks(this, sp === 'mofu' ? ['bunk', 'mofu', 'home'] : ['bunk', 'home']);
     preloadFurniture(this, loadLife().inventory.owned);
   }
 
@@ -160,7 +166,8 @@ export class HomeScene extends Phaser.Scene {
     const life = new MonzLife(brain, this.floor, mulberry32((Date.now() >>> 3) & 0xffffffff), (y) => this.depthOf(y), undefined, () => record.needs);
     this.life = life;
     this.shadow = this.add.ellipse(life.x, life.y, 300, 46, 0x000000, 0.28);
-    const view = new BunkView(this, life.x, life.y, this.scaleRange[0]);
+    this.species = record.monz.species;
+    const view = this.species === 'mofu' ? new MofuView(this, life.x, life.y, this.scaleRange[0]) : new BunkView(this, life.x, life.y, this.scaleRange[0]);
     view.still = false;
     this.view = view;
     this.poseImg = this.add.image(life.x, life.y, '__DEFAULT').setOrigin(0.5, 1).setVisible(false);
@@ -267,7 +274,8 @@ export class HomeScene extends Phaser.Scene {
     card.add(this.add.image(0, 0, 'home:card').setOrigin(0, 0));
     // 顔(正式なBUNKの絵から切り抜く)
     canvasTexture(this, 'home:portrait', 116, 116, (ctx) => {
-      const src = this.textures.get(cutoutKey('guard')).getSourceImage() as HTMLImageElement;
+      const mofu = this.species === 'mofu' && this.textures.exists(MOFU_CUTOUT_KEY);
+      const src = this.textures.get(mofu ? MOFU_CUTOUT_KEY : cutoutKey('guard')).getSourceImage() as HTMLImageElement;
       const r = 54;
       ctx.save();
       ctx.beginPath();
@@ -276,10 +284,9 @@ export class HomeScene extends Phaser.Scene {
       ctx.fill();
       ctx.clip();
       // 顔のあたり(元の絵の 1278x1230 のうち)
-      const fx = 300;
-      const fy = 210;
-      const fs = 680;
-      ctx.drawImage(src, (fx * src.width) / 1278, (fy * src.height) / 1230, (fs * src.width) / 1278, (fs * src.height) / 1230, 2, 6, 112, 112);
+      // MOFU は 顔のまわりだけの絵(mofu_face.webp)をそのまま
+      const [fx, fy, fs, W, H] = mofu ? [0, 0, 240, 240, 240] : [300, 210, 680, 1278, 1230];
+      ctx.drawImage(src, (fx * src.width) / W, (fy * src.height) / H, (fs * src.width) / W, (fs * src.height) / H, 2, 6, 112, 112);
       ctx.restore();
       ctx.lineWidth = 6;
       ctx.strokeStyle = '#16101c';
@@ -396,6 +403,8 @@ export class HomeScene extends Phaser.Scene {
 
   /** 今の行動に合う姿の絵(なければ null = ふつうのBUNKを動かす) */
   private poseFor(): BunkPoseImage | null {
+    // 姿の絵(座る・眠るなど)は BUNK だけ(MOFU の絵は まだない)
+    if (this.species !== 'bunk') return null;
     const life = this.life!;
     // 眠っているときは、なでられていても眠った姿のまま
     if (life.act === 'sleep' && this.textures.exists(bunkPoseKey('sleep'))) return 'sleep';
@@ -546,6 +555,11 @@ export class HomeScene extends Phaser.Scene {
     // 【仮】部屋を変えるのは、いずれショップでコインを使う(企画者決定)。ショップができるまでの確認用
     button(498, '部屋を選び直す', () => this.scene.start('RoomSelect'));
     button(414, '+1000コイン', () => this.record?.add(1000));
+    // 確認用(2026-11-03): BUNK と MOFU を切りかえて、お世話画面の動きを見る
+    button(540, this.species === 'mofu' ? 'BUNKにする' : 'MOFUにする', () => {
+      this.record?.setSpecies(this.species === 'mofu' ? 'bunk' : 'mofu');
+      this.scene.restart();
+    });
     // 時間を進めて、お腹がすいたり眠くなったりするのを確かめる
     button(456, '6時間すすめる', () => {
       this.record?.advance(6);

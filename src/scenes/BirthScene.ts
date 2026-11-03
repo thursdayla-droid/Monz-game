@@ -6,6 +6,8 @@ import { loadSave } from '../core/save';
 import { mulberry32, range } from '../core/rng';
 import LAYOUT from '../render/birthLayout.json';
 import { BUNK_MOTION, BunkView, TEST_PERSONALITY } from '../render/bunkView';
+import { MofuView } from '../render/mofuView';
+import { isSpecies } from '../core/species';
 import { SHELL_PIECES, drawCracks, drawGlow, drawRays, drawShell } from '../ui/birthArt';
 import { canvasTexture, UI_FONT } from '../ui/paint';
 import { createNameplate } from '../ui/nameplate';
@@ -58,7 +60,7 @@ const FLAP = 0.95;
  * MONZの正体は卵が割れるまで見せない。MONZの絵は元の画像のまま。
  */
 export class BirthScene extends Phaser.Scene {
-  private view?: BunkView;
+  private view?: BunkView | MofuView;
   private brain?: BunkBrain;
   private t = 0;
   private alive = false;
@@ -68,7 +70,8 @@ export class BirthScene extends Phaser.Scene {
   }
 
   preload(): void {
-    preloadPacks(this, ['bunk', 'birth']);
+    // 生まれるMONZ(最初の質問で決まる。2026-11-03 MOFU の絵ができた)
+    preloadPacks(this, loadSave()?.firstMonz === 'mofu' ? ['bunk', 'mofu', 'birth'] : ['bunk', 'birth']);
   }
 
   create(data: { intro?: boolean }): void {
@@ -297,7 +300,7 @@ export class BirthScene extends Phaser.Scene {
 
   /** 籠の中にMONZを出す(目を閉じている → 目を開ける → 少し体を動かす → 名前) */
   private spawn(monz: string): void {
-    const view = new BunkView(this, NEST_X, MONZ_FEET, MONZ_SCALE);
+    const view = monz === 'mofu' ? new MofuView(this, NEST_X, MONZ_FEET, MONZ_SCALE) : new BunkView(this, NEST_X, MONZ_FEET, MONZ_SCALE);
     view.setDepth(5);
     view.still = false;
     const brain = new BunkBrain(BUNK_MOTION.behavior, Date.now() & 0xffff, TEST_PERSONALITY);
@@ -321,6 +324,8 @@ export class BirthScene extends Phaser.Scene {
         askName(speciesName(monz), (input) => {
           const name = cleanName(input, speciesName(monz));
           const record = new LifeRecord(loadLife());
+          // 生まれたMONZの種族にする(最初の質問で決まった MONZ)
+          if (isSpecies(monz)) record.setSpecies(monz);
           record.setName(name);
           audio.se('select');
           this.revealName(name, brain);
