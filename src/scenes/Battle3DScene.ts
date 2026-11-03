@@ -28,7 +28,7 @@ export interface RumbleParams {
 /** 【仮】AI習熟度。まだ育てる仕組み・保存がないので、自分も相手も Lv.2 */
 const START_PROFICIENCY: Proficiency = { attack: 2, defense: 2, evasion: 2, counter: 2, spacing: 2 };
 /** 確認用ページだけ: レベルと育て方を切りかえて、技枠と覚える技を見る(ゲーム本体には出さない) */
-let devPick: { level: number; style: StatKey } | null = null;
+let devPick: { level: number; style: StatKey; species?: 'bunk' | 'mofu' } | null = null;
 const isPreview = () => ['Battle3D', 'RumbleMode'].includes((window as { __MONZ_START?: string }).__MONZ_START ?? '');
 const STYLE_LABEL: Record<string, string> = { power: 'パワー', tough: 'タフネス', speed: 'スピード', tech: 'テクニック' };
 /**
@@ -218,9 +218,11 @@ export class Battle3DScene extends Phaser.Scene {
     if (devPick && isPreview()) {
       // 確認用: 選んだレベル・育て方の BUNK(自由ポイントを全部その能力に)
       level = devPick.level;
-      const stats = addStats(addStats(speciesStats('bunk').base, autoGrowthAt('bunk', 'dev', level)), { hp: 0, power: 0, tough: 0, speed: 0, tech: 0, [devPick.style]: level - 1 } as StatBlock);
-      const inst = instinctFor('bunk', stats);
-      me = { ...me, stats, instinct: inst, techs: growTechs('bunk', level, stats, undefined, inst).state.equipped };
+      // 種族も えらべる(2026-11-03 MOFU の3Dモデルを見るため。MOFU の技は まだないので、パンチだけ)
+      const dsp = devPick.species ?? 'bunk';
+      const stats = addStats(addStats(speciesStats(dsp).base, autoGrowthAt(dsp, 'dev', level)), { hp: 0, power: 0, tough: 0, speed: 0, tech: 0, [devPick.style]: level - 1 } as StatBlock);
+      const inst = instinctFor(dsp, stats);
+      me = { ...me, species: dsp, name: dsp === 'mofu' ? 'MOFU' : me.name, stats, instinct: inst, techs: growTechs(dsp, level, stats, undefined, inst).state.equipped };
     }
     this.level = level;
     // 相手: ストーリーはマスの敵・バトルモードは選んだ強さ(レベルの差と戦いのうまさ)・それ以外は同じレベル
@@ -237,8 +239,8 @@ export class Battle3DScene extends Phaser.Scene {
       techs: growTechs(rival.species, foeLevel, rival.stats as StatBlock, undefined, rival.instinct).state.equipped,
     };
     // 自分で動かす(左のスティック)・技は自分で押す(2026-11-02 企画者)
-    if (devPick && isPreview() && devTechs) me.techs = devTechs.filter((n) => me.techs!.includes(n) || growTechs('bunk', level, me.stats, undefined, me.instinct).state.learned.includes(n));
-    this.learned = devPick && isPreview() ? growTechs('bunk', level, me.stats, undefined, me.instinct).state.learned : mon.techs?.learned ?? me.techs ?? [];
+    if (devPick && isPreview() && devTechs) me.techs = devTechs.filter((n) => me.techs!.includes(n) || growTechs(me.species, level, me.stats, undefined, me.instinct).state.learned.includes(n));
+    this.learned = devPick && isPreview() ? growTechs(me.species, level, me.stats, undefined, me.instinct).state.learned : mon.techs?.learned ?? me.techs ?? [];
     // 形態で通常攻撃が変わる(Lv.30 で4連・Lv.60 で5連)
     me.form = formAt(level);
     foe.form = formAt(foeLevel);
@@ -287,7 +289,7 @@ export class Battle3DScene extends Phaser.Scene {
        <div class="stickHint">ここを<br>さわって<br>うごかす</div>
        <div class="pad"><div class="acts"><button class="jump" data-c="jump"><span class="lb">ジャンプ</span><span class="cd" style="height:0"></span></button><button class="dodge" data-c="dodge"><span class="lb">よける</span><span class="cd" style="height:0"></span></button><button class="atk" data-c="punch"><span class="lb">こうげき</span><span class="cd" style="height:0"></span></button></div><div class="grid"></div></div>
        <div class="setup"></div>
-       ${isPreview() ? `<div class="dev"><button class="devOpen">確認用</button><div class="devPanel"><div>レベル ${[1, 10, 20, 25, 30, 60, 70].map((l) => `<button data-lv="${l}" class="${devPick?.level === l ? 'on' : ''}">${l}</button>`).join('')}</div><div>育て方 ${Object.keys(STYLE_LABEL).map((k) => `<button data-st="${k}" class="${devPick?.style === k ? 'on' : ''}">${STYLE_LABEL[k]}</button>`).join('')}</div><small>今の技: ${p.techs.map(esc).join('・')}</small></div></div>` : ''}
+       ${isPreview() ? `<div class="dev"><button class="devOpen">確認用</button><div class="devPanel"><div>レベル ${[1, 10, 20, 25, 30, 60, 70].map((l) => `<button data-lv="${l}" class="${devPick?.level === l ? 'on' : ''}">${l}</button>`).join('')}</div><div>育て方 ${Object.keys(STYLE_LABEL).map((k) => `<button data-st="${k}" class="${devPick?.style === k ? 'on' : ''}">${STYLE_LABEL[k]}</button>`).join('')}</div><div>種族 ${(['bunk', 'mofu'] as const).map((k) => `<button data-sp="${k}" class="${(devPick?.species ?? 'bunk') === k ? 'on' : ''}">${k.toUpperCase()}</button>`).join('')}</div><small>今の技: ${p.techs.map(esc).join('・')}</small></div></div>` : ''}
        <div class="result"><h1></h1><button class="again">もう一度</button><button class="leave">もどる</button></div>
        <div class="turn"><div>スマホを 横にしてね<small>横にすると バトルが始まります</small></div></div>`,
     );
@@ -342,7 +344,7 @@ export class Battle3DScene extends Phaser.Scene {
       $('.devOpen').addEventListener('click', () => $('.dev').classList.toggle('open'));
       for (const el of all('.devPanel button')) {
         el.addEventListener('click', () => {
-          devPick = { level: Number(el.dataset.lv ?? devPick?.level ?? 1), style: (el.dataset.st ?? devPick?.style ?? 'power') as StatKey };
+          devPick = { level: Number(el.dataset.lv ?? devPick?.level ?? 1), style: (el.dataset.st ?? devPick?.style ?? 'power') as StatKey, species: (el.dataset.sp ?? devPick?.species ?? 'bunk') as 'bunk' | 'mofu' };
           audio.se('tap');
           this.scene.restart(this.params);
         });
@@ -454,7 +456,7 @@ export class Battle3DScene extends Phaser.Scene {
         .join('');
       el.innerHTML = `<h2>わざを セットしよう（${count()}/${slots}）</h2>
         <div class="row"><div><div class="slots">${slotHtml}</div><div class="note">${sel >= 0 ? `わざ ${sel + 1} に入れる わざを さわってね<br>ほかの枠をさわると 入れかえ` : 'わざをさわると入る・もう一度で外れる<br>枠をさわると 入れかえできる'}</div></div><div class="list">${list}</div></div>
-        <button class="go" ${count() ? '' : 'disabled'}>バトルスタート！</button>`;
+        <button class="go" ${count() || !this.learned.length ? '' : 'disabled'}>バトルスタート！</button>`;
       (el.querySelector('.list') as HTMLElement).scrollTop = scroll;
       for (const d of [...el.querySelectorAll('.slot[data-s]')] as HTMLElement[]) {
         d.addEventListener('click', () => {
@@ -490,7 +492,7 @@ export class Battle3DScene extends Phaser.Scene {
       }
       (el.querySelector('.go') as HTMLElement).addEventListener('click', () => {
         const set = picked.filter((n): n is string => !!n);
-        if (!set.length) return;
+        if (!set.length && this.learned.length) return;
         audio.unlock();
         audio.se('select');
         me.techs = [...set];

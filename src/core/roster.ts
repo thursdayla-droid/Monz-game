@@ -30,6 +30,10 @@ export const MODEL_FILES: Record<string, string> = {
   'bunk:2': 'assets/battle3d/bunker.glb',
   // BUNKLORD(第2進化。企画者の Tripo モデル 2026-11-02)。骨が大きくずれていたので、こちらで骨の場所とウェイトを直した(企画者「こちらでお願いします」)
   'bunk:3': 'assets/battle3d/bunklord.glb',
+  // MOFU・MOFUR・MOFUGARD(企画者の Tripo モデル・骨入り 2026-11-03)。元は design/battle3d/mofu/
+  mofu: 'assets/battle3d/mofu.glb',
+  'mofu:2': 'assets/battle3d/mofur.glb',
+  'mofu:3': 'assets/battle3d/mofugard.glb',
 };
 /** 骨がずれていて、骨を動かすと形がくずれるモデル(体全体だけで動かす)。今はなし */
 export const MODEL_NO_BONES = new Set<string>();
