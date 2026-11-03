@@ -12,6 +12,9 @@ import { playSe, playTechSe, type SeName, type TechPhase } from './sfx';
  * - 効果音は、企画者のファイルがあればそれを鳴らす(seFiles.ts)。無ければプログラムで作った音
  * - 全部の音は最後にリミッター(DynamicsCompressor)を通す。たくさん同時に鳴っても音が割れないように(2026-10-26)
  */
+/** 企画者の音のファイルを使う技(技の名前 → 効果音)。2026-11-03 */
+const TECH_SE_FILES: Record<string, SeName> = { ギガントバースト: 'b3dGigant' };
+
 class AudioEngine {
   private ctx: AudioContext | null = null;
   private bgmBus: GainNode | null = null;
@@ -118,6 +121,15 @@ class AudioEngine {
   /** 3Dバトルの技ごとの音(2026-11-03)。鳴らす音があれば true(なければ呼んだ側が ふつうの音を鳴らす) */
   techSe(name: string, kind: string, phase: TechPhase): boolean {
     if (!this.ctx || !this.seBus || this.ctx.state !== 'running') return false;
+    // 企画者の音のファイルがある技は、技を出した(さけんだ)時にファイルを鳴らし、出した時の作った音は鳴らさない
+    const file = TECH_SE_FILES[name];
+    if (file) {
+      if (phase === 'call') {
+        this.se(file);
+        return true;
+      }
+      if (phase === 'fire') return true;
+    }
     return playTechSe(this.ctx, this.seBus, name, kind, phase);
   }
 

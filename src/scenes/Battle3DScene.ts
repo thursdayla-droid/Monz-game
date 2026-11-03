@@ -585,6 +585,8 @@ export class Battle3DScene extends Phaser.Scene {
           audio.se('whoosh', { pitch: 1.4 });
           break;
         }
+        // 企画者の音のファイルがある技は、ここで鳴らす(ギガントバースト)
+        audio.techSe(e.tech, t.kind, 'call');
         // 大技: 横から顔と技の名前の帯が出る(止めない・じゃまにならない。2026-11-03 企画者)
         if (t.strength === '大技') this.cutin(e.side, t.name, formAt(this.level));
         const text = e.side === 0 ? (e.byCommand ? `${f.name}、${t.name}だ！` : `${f.name}の ${t.name}！`) : `あいての ${t.name}！`;

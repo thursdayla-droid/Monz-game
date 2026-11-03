@@ -52,7 +52,8 @@ export type SeName =
   | 'mcBuff'
   | 'mcBurn'
   | 'mcSelect'
-  | 'b3dPunchHit';
+  | 'b3dPunchHit'
+  | 'b3dGigant';
 
 let noise: AudioBuffer | null = null;
 function noiseBuf(ctx: BaseAudioContext): AudioBuffer {
@@ -268,7 +269,8 @@ export function playSe(ctx: AudioContext, out: AudioNode, name: SeName, pitch: n
       if (p > 1.05) for (const d of [0.07, 0.14]) tone(ctx, out, t + d, 'sine', [[0, 1720]], [[0, 0.1 / (d * 14)], [ring * 0.8, 0.0001]], ring);
       break;
     }
-    case 'b3dPunchHit': // ファイルが読めなかったときの代わり
+    case 'b3dGigant': // ファイルが読めなかったときの代わり
+    case 'b3dPunchHit':
     case 'punch': {
       // バトル: パンチが当たった「バシッ」。p: 強さ(1 ふつう)【仮】
       const o = crunch(ctx, out, 2.5);
@@ -477,7 +479,7 @@ export function playSe(ctx: AudioContext, out: AudioNode, name: SeName, pitch: n
  * phase: fire = 技を出した時 / hit = 当たった時 / land = 着地・地面に当たった時(衝撃波・落下・火柱・設置)
  * 企画者の音のファイルができたら、技ごとに差しかえる(audio/engine.ts の techSe)
  */
-export type TechPhase = 'fire' | 'hit' | 'land';
+export type TechPhase = 'call' | 'fire' | 'hit' | 'land';
 
 const boom = (ctx: AudioContext, out: AudioNode, t: number, size: number) => {
   const o = heavy(ctx, out, 0.5 + size * 0.15, 4 + size);
