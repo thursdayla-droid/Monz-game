@@ -6,16 +6,16 @@ import manifest from './mofuParts.json';
 
 /**
  * MOFU のお世話画面の姿(2026-11-03 企画者「BUNKと同じにする」)。
- * 企画者の絵(design/species/mofu/care_main_2026-11-03.png)を、tools/split_mofu.py でパーツに分けて動かす。絵は描き直さない。
+ * 企画者の絵(design/species/mofu/care_main_v2_2026-11-03.png。2026-11-03 に差しかえ)を、tools/split_mofu.py でパーツに分けて動かす。絵は描き直さない。
  * - 体: 息をする(ふくらむ)
  * - 触角(左右): ゆらゆら。歩くと大きく
  * - しっぽ: ふりふり
  * - まばたき: まぶた(紫)を下へのばして目をおおう。眠っている時は閉じたまま
- * 表情・姿の絵は、企画者が作ったら足す(今は無い)。座標は元の絵の px(1301x1209)。【仮】動きの数字
+ * 表情・姿の絵は、企画者が作ったら足す(今は無い)。座標は元の絵の px(1266x1242)。【仮】動きの数字
  */
 export const MOFU_PARTS = manifest as { width: number; height: number; parts: Record<string, { x: number; y: number; w: number; h: number; z: number; pivot?: number[] }> };
 export const mofuPartKey = (name: string) => `mofu:part:${name}`;
-/** 顔のまわりだけの小さい絵(お世話画面の左上の顔に使う。元の絵の (330,300) から 640x640 を 240x240 に) */
+/** 顔のまわりだけの小さい絵(お世話画面の左上の顔に使う。元の絵の (320,330) から 620x620 を 240x240 に) */
 export const MOFU_CUTOUT_KEY = 'mofu:face';
 export const MOFU_CUTOUT_FILE = 'assets/mofu/mofu_face.webp';
 
@@ -28,11 +28,11 @@ export const mofuFiles = (): { key: string; url: string }[] => [
 /** 動きの数字【仮】 */
 const M = {
   /** 足もと(元の絵の px)。BUNK と同じく、ここが立っている所 */
-  anchor: [650, 1185],
-  breath: { period: 3.2, scaleY: 0.022, scaleX: 0.01, pivot: [650, 1150] },
+  anchor: [633, 1218],
+  breath: { period: 3.2, scaleY: 0.022, scaleX: 0.01, pivot: [633, 1180] },
   antenna: { idle: 4, walk: 9, period: 2.2 },
   tail: { idle: 8, walk: 16, period: 1.4 },
-  blink: { min: 2.2, max: 5, duration: 0.14, close: 2.08 },
+  blink: { min: 2.2, max: 5, duration: 0.14, close: 1.95 },
   walk: { hopPeriod: 0.42, hopHeight: 28, tilt: 3 },
   idleTilt: { period: 5, deg: 1.2 },
   react: { time: 0.9, happyHop: 60, angryShake: 10 },

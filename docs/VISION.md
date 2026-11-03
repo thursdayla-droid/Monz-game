@@ -255,3 +255,4 @@
 - 2026-11-03：9種族のはじめのステータスと育ちやすさ（Claude の案・`docs/TECHS_ALL_DRAFT.md` の8）
 - 2026-11-03：MOFU のお世話画面の絵（基本の絵）が届いた（企画者）。`design/species/mofu/care_main_2026-11-03.png`（背景は透明・1301×1209）。使い方は企画者に確認中
 - 2026-11-03：MOFU は「生まれる時にきまる」・動かし方は「BUNKと同じ」（企画者）。MOFU の絵をパーツ（体・触角2・しっぽ・まぶた2）に分けた（`tools/split_mofu.py`・`design/species/mofu/split.json`・`public/assets/mofu/`）。お世話画面で 息・触角とゆれ・しっぽ・まばたき（まぶたを下へのばす）・歩くと跳ねる・反応。どのMONZが生まれるかは最初の質問の答えで決める（`decideFirstMonz`。決め方は企画者が決める。今はいつも BUNK）。確認用：お世話画面の右の「MOFUにする」ボタン。表情・姿の絵（座る・眠る など）は まだない
+- 2026-11-03：MOFU の進化ラインと名前（企画者）：Lv.1 MOFU（モフ・モフモフした可愛さ）→ Lv.30 MOFUR（モファー・モフ＋Fur）→ Lv.60 MOFUGARD（モフガルド・モフ＋Guard）。絵 `design/species/mofu/`。お世話画面の絵を2枚めに差しかえ（1枚めは `unused/mofu/`）
