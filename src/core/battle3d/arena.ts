@@ -176,6 +176,21 @@ export function insideObstacle(map: ArenaMap, x: number, z: number, pad = 0): bo
   return false;
 }
 
+/** x,z の上にある物の いちばん高いところ(なければ 0)。カメラが物の中に入らないように使う */
+export function obstacleTop(map: ArenaMap, x: number, z: number, pad = 0): number {
+  let top = 0;
+  for (const o of map.obstacles) {
+    let inside: boolean;
+    if (o.kind === 'circle') inside = Math.hypot(x - o.x, z - o.z) < o.r + pad;
+    else {
+      const [lx, lz] = toLocal(o, x, z);
+      inside = Math.abs(lx) < o.hw + pad && Math.abs(lz) < o.hd + pad;
+    }
+    if (inside) top = Math.max(top, o.h);
+  }
+  return top;
+}
+
 /**
  * 攻撃の当たり: a → b の線が、高さ y で さえぎる物に当たるか。当たれば いちばん手前の点(t は 0〜1)。
  * pad: 弾の太さなど(物を少し大きく見る)

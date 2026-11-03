@@ -27,6 +27,8 @@ export interface StoryStage {
   image: string | null;
   /** 敵のレベル・戦いのうまさ(1〜5)・ボスか(HP が多い) */
   enemy: { name: string; level: number; prof: number; boss: boolean };
+  /** そのマスで戦うマップ(arena.ts の ARENAS。2026-11-03 企画者「ストーリーモードでは指定マップ」) */
+  map: string;
 }
 
 export const STORY_COUNT = 20;
@@ -46,6 +48,7 @@ export const STORY_STAGES: StoryStage[] = Array.from({ length: STORY_COUNT }, (_
     title: last ? 'さいごのボス' : mid ? `${no}マスめ（中ボス）` : `${no}マスめ`,
     text: '（ここに話が入ります。企画者が一枚絵と文を作ります）',
     image: null,
+    map: 'lostTemple',
     enemy: {
       name: last ? 'ボス' : mid ? '中ボス' : 'ライバル',
       level: last ? 70 : Math.max(1, Math.round(1 + (no - 1) * 3.4)),
@@ -54,6 +57,9 @@ export const STORY_STAGES: StoryStage[] = Array.from({ length: STORY_COUNT }, (_
     },
   };
 });
+
+/** バトルモードのマップ(マップが増えたら ランダムに。今はロストテンプルだけ) */
+export const pickFreeMap = (rng: () => number, ids: string[]): string => ids[Math.floor(rng() * ids.length)] ?? 'lostTemple';
 
 /** 戦いのうまさ(1〜5)を、5つの全部に同じだけ */
 export const profOf = (n: number): Proficiency => ({ attack: n, defense: n, evasion: n, counter: n, spacing: n });

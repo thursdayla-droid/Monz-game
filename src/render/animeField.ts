@@ -16,6 +16,8 @@ import type { modelFor } from '../core/roster';
 
 type ModelPick = ReturnType<typeof modelFor>;
 import { MonsterRig } from './monsterRig';
+import { buildArena } from './arenaView';
+import { obstacleTop, rayHit, type ArenaMap } from '../core/battle3d/arena';
 
 /** 企画者の BUNK の3Dモデル(軽くしたもの。design/battle3d/README.md) */
 export const BUNK_MODEL_FILE = 'assets/battle3d/bunk.glb';
@@ -417,7 +419,7 @@ export class AnimeField {
 
   /** species: 2体の種族(モデルを選ぶ。モデルのない種族は仮のモンスター) */
   /** models: 2体の3Dモデル(roster.ts の modelFor。null なら仮のモンスター) */
-  constructor(canvas: HTMLCanvasElement, private models: [ModelPick, ModelPick] = [null, null]) {
+  constructor(canvas: HTMLCanvasElement, private models: [ModelPick, ModelPick] = [null, null], private arena: ArenaMap | null = null) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.shadowMap.enabled = true;
@@ -433,10 +435,12 @@ export class AnimeField {
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
     const sc = sun.shadow.camera;
-    sc.left = -16;
-    sc.right = 16;
-    sc.top = 12;
-    sc.bottom = -12;
+    // マップがある時は広いので、影の範囲も広く
+    const shR = arena ? arena.radius + 2 : 16;
+    sc.left = -shR;
+    sc.right = shR;
+    sc.top = arena ? shR : 12;
+    sc.bottom = arena ? -shR : -12;
     this.scene.add(sun);
     // 地面(コートの外は草原)
     const ground = new THREE.Mesh(new THREE.CircleGeometry(140, 48), new THREE.MeshLambertMaterial({ color: 0x6aa84a }));
@@ -445,6 +449,10 @@ export class AnimeField {
     ground.receiveShadow = true;
     this.scene.add(ground);
     const F = ANIME.field;
+    // マップ(2026-11-03 ロストテンプル): 石だたみ・柱・壁・外の遺跡。前のコート・木・岩は出さない
+    if (arena) this.scene.add(buildArena(arena, this.gradient).group);
+    const rnd = (a: number, b: number) => a + Math.random() * (b - a);
+    if (!arena) {
     const court = new THREE.Mesh(new THREE.PlaneGeometry(F.halfX * 2 + 2, F.halfZ * 2 + 2), new THREE.MeshLambertMaterial({ map: courtTexture() }));
     court.rotation.x = -Math.PI / 2;
     court.receiveShadow = true;
@@ -454,7 +462,6 @@ export class AnimeField {
     const leaf = new THREE.MeshToonMaterial({ color: 0x3a8a3a, gradientMap: this.gradient });
     const leaf2 = new THREE.MeshToonMaterial({ color: 0x4aa040, gradientMap: this.gradient });
     const rock = new THREE.MeshToonMaterial({ color: 0x9a96a0, gradientMap: this.gradient });
-    const rnd = (a: number, b: number) => a + Math.random() * (b - a);
     for (let i = 0; i < 46; i++) {
       const ang = (i / 46) * Math.PI * 2 + rnd(-0.05, 0.05);
       const r = rnd(20, 30);
@@ -477,6 +484,7 @@ export class AnimeField {
       m.rotation.set(rnd(0, 3), rnd(0, 3), 0);
       m.castShadow = true;
       this.scene.add(m);
+    }
     }
     const mtn = new THREE.MeshLambertMaterial({ color: 0x7a9ab8 });
     for (let i = 0; i < 9; i++) {
@@ -852,6 +860,22 @@ export class AnimeField {
       this.add(p, 0.5, -0.4, 0.35, { vx: (t.x - a.x) * k, vz: (t.z - a.z) * k, vy: 0 });
     }
   }
+
+  /** 攻撃が柱・壁に当たった: 石のかけらと土けむり */
+  wallHit(x: number, y: number, z: number): void {
+    for (let i = 0; i < 8; i++) {
+      const r = new THREE.Mesh(this.pebbleGeo, this.stoneChipMat);
+      r.position.set(x, y, z);
+      const a = Math.random() * Math.PI * 2;
+      const sp = 2 + Math.random() * 3;
+      this.add(r, 0.7, 0, 0.5 + Math.random() * 0.6, { vx: Math.cos(a) * sp, vz: Math.sin(a) * sp, vy: 2 + Math.random() * 3, fade: false, shared: true, sharedMat: true });
+    }
+    const d = this.sprite(0xe8dcc0, false);
+    d.material.opacity = 0.8;
+    d.position.set(x, y, z);
+    this.add(d, 0.5, 1.6, 0.8);
+  }
+  private stoneChipMat = new THREE.MeshToonMaterial({ color: 0xcdb27a });
 
   /** 光の柱(大技の着地。テンチゴウサイ) */
   lightPillar(x: number, z: number, color: number): void {
@@ -1360,7 +1384,8 @@ export class AnimeField {
       const start = new THREE.Vector3();
       // 両手のグローブのあいだから(企画者の演出指示)。骨がなければ口から
       if (!owner.gloves(start)) owner.mouth.getWorldPosition(start);
-      const len = tech.range;
+      // 柱で止まった所まで(2026-11-03 ロストテンプル)
+      const len = beam.len ?? tech.range;
       const flick = 1 + Math.sin(performance.now() / 18) * 0.15;
       const k = Math.min(1, beam.t / 0.08) * (beam.t > tech.duration - 0.12 ? Math.max(0, (tech.duration - beam.t) / 0.12) : 1);
       const [outer, core, head] = g.children as [THREE.Mesh, THREE.Mesh, THREE.Sprite];
@@ -1658,10 +1683,63 @@ export class AnimeField {
     this.camYaw += Math.atan2(Math.sin(targetYaw - this.camYaw), Math.cos(targetYaw - this.camYaw)) * (1 - Math.exp(-dt * 1.2));
     const mid = new THREE.Vector3(p.x + (q.x - p.x) * 0.45, 0, p.z + (q.z - p.z) * 0.45);
     const dist = 7.5 + Math.min(sep, 16) * 0.45;
-    const want = new THREE.Vector3(mid.x + Math.cos(this.camYaw) * dist, 3.6 + Math.min(sep, 16) * 0.18, mid.z + Math.sin(this.camYaw) * dist);
+    const camH = 3.6 + Math.min(sep, 16) * 0.18;
+    const want = new THREE.Vector3(mid.x + Math.cos(this.camYaw) * dist, camH, mid.z + Math.sin(this.camYaw) * dist);
     const look = new THREE.Vector3(mid.x, 0.9 + Math.max(p.y, q.y) * 0.25, mid.z);
+    // マップ: 柱・壁で 自分の MONZ が かくれる時は、カメラを 見える向きへ回す。だめなら前へ・上へ。
+    // 壁や柱の中・外の壁の外へも出ない(2026-11-03 ロストテンプル)
+    if (this.arena) {
+      const A = this.arena;
+      // 体の下のほう(0.6)まで見えるか で調べる(低い柱で体が半分かくれるのも さける)
+      const me = new THREE.Vector3(p.x, 0.6, p.z);
+      const blockAt = (x: number, y: number, z: number) => {
+        const h = rayHit(A, me.x, me.z, x, z, 0, 0.45);
+        if (!h) return null;
+        return h.o.h + 0.3 > me.y + (y - me.y) * h.t ? { t: h.t, h: h.o.h } : null;
+      };
+      let hit = blockAt(want.x, want.y, want.z);
+      if (hit) {
+        // 少しずつ横へ回して、さえぎられない向きをさがす(近い向きから)
+        for (const off of [0.35, -0.35, 0.7, -0.7, 1.05, -1.05, 1.4, -1.4]) {
+          const yaw = this.camYaw + off;
+          const x = mid.x + Math.cos(yaw) * dist;
+          const z = mid.z + Math.sin(yaw) * dist;
+          if (!blockAt(x, camH, z)) {
+            want.set(x, camH, z);
+            this.camYaw += off * (1 - Math.exp(-dt * 3));
+            hit = null;
+            break;
+          }
+        }
+      }
+      if (hit) {
+        // どこからも見えない時: さえぎる物より 手前(自分の MONZ 側)へ寄せて、上から見る
+        const len = Math.hypot(want.x - me.x, want.z - me.z) || 1;
+        const k = Math.max(0.12, Math.min(hit.t - 0.9 / len, 1));
+        want.set(me.x + (want.x - me.x) * k, Math.max(camH, 4.5, Math.min(hit.h, 6) + 1.2), me.z + (want.z - me.z) * k);
+      }
+      // 外の壁より内側に置く(壁の外へ出ると 壁が画面をふさぐ)。はしに近いほど 上から見る
+      const R = A.radius - 0.6;
+      const dd = Math.hypot(want.x, want.z);
+      if (dd > R) {
+        want.x *= R / dd;
+        want.z *= R / dd;
+        want.y = Math.max(want.y, 4.2 + (dd - R) * 0.35);
+      }
+      want.y = Math.max(want.y, obstacleTop(A, want.x, want.z, 0.6) + 1.2, 1.2);
+    }
     this.camPos.lerp(want, 1 - Math.exp(-dt * 2));
     this.camLook.lerp(look, 1 - Math.exp(-dt * 2.5));
+    if (this.arena) {
+      // なめらかに動く とちゅうでも、柱・壁の中や 外の壁の外には入らない
+      const R = this.arena.radius - 0.4;
+      const dd = Math.hypot(this.camPos.x, this.camPos.z);
+      if (dd > R) {
+        this.camPos.x *= R / dd;
+        this.camPos.z *= R / dd;
+      }
+      this.camPos.y = Math.max(this.camPos.y, obstacleTop(this.arena, this.camPos.x, this.camPos.z, 0.5) + 0.8);
+    }
     {
       const fx = this.camLook.x - this.camPos.x;
       const fz = this.camLook.z - this.camPos.z;

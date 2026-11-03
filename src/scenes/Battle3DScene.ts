@@ -14,7 +14,8 @@ import { modelFor } from '../core/roster';
 import { UI_FONT } from '../ui/paint';
 import { assetUrl } from '../assetUrl';
 import { partnerEntrant, rivalEntrant } from './AutoBattleScene';
-import { BOSS_HP, CPU_LEVELS, profOf, STORY_STAGES } from '../core/rumble';
+import { BOSS_HP, CPU_LEVELS, pickFreeMap, profOf, STORY_STAGES } from '../core/rumble';
+import { ARENAS } from '../core/battle3d/arena';
 
 /** どのモードで戦うか(2026-11-03 企画者: ストーリーモードとバトルモード)。なければ 自分と同じレベルの相手(確認用) */
 export interface RumbleParams {
@@ -249,7 +250,9 @@ export class Battle3DScene extends Phaser.Scene {
     // 形態で通常攻撃が変わる(Lv.30 で4連・Lv.60 で5連)
     me.form = formAt(level);
     foe.form = formAt(foeLevel);
-    this.battle = newAnimeBattle(me, foe, seed, 'manual');
+    // マップ: ストーリーはマスのマップ・ほかはランダム(今はロストテンプルだけ)
+    const mapId = stage ? stage.map : pickFreeMap(Math.random, Object.keys(ARENAS));
+    this.battle = newAnimeBattle(me, foe, seed, 'manual', ARENAS[mapId] ?? null);
     // ボス(中ボス・さいごのボス)は HP が多い【仮】
     if (stage?.enemy.boss) {
       const q = this.battle.f[1];
@@ -361,7 +364,7 @@ export class Battle3DScene extends Phaser.Scene {
       this.scene.restart(this.params);
     });
     // レベルで形態が変わる(Lv.30 で BUNKER など)。相手も同じレベル
-    this.field = new AnimeField(canvas, [modelFor(this.battle.f[0].species, this.level), modelFor(this.battle.f[1].species, this.foeLevel)]);
+    this.field = new AnimeField(canvas, [modelFor(this.battle.f[0].species, this.level), modelFor(this.battle.f[1].species, this.foeLevel)], this.battle.arena);
     // 確認用ページだけ: 調べるために外から見られるようにする
     if (isPreview()) Object.assign(window, { __b3d: { field: this.field, battle: this.battle } });
     this.resize();
@@ -576,7 +579,31 @@ export class Battle3DScene extends Phaser.Scene {
     } else this.field.zoom += (1 - this.field.zoom) * Math.min(1, real * 6);
     this.field.render(b, dt > 0 ? dt : real * 0.05);
     this.drawHud();
+    if (isPreview()) this.drawFps(real);
     if (animeFinished(b) && !this.ended) this.showResult();
+  }
+
+  private fpsEl: HTMLDivElement | null = null;
+  private fpsT = 0;
+  private fpsN = 0;
+  /** 確認用ページだけ: 重さの目安(1秒ごとの こま数・描く回数・三角の数)。目標は30以上 */
+  private drawFps(real: number): void {
+    this.fpsT += real;
+    this.fpsN++;
+    if (this.fpsT < 1) return;
+    if (!this.fpsEl) {
+      this.fpsEl = document.createElement('div');
+      this.fpsEl.className = 'fps';
+      this.fpsEl.style.cssText = 'position:absolute;left:50%;transform:translateX(-50%);top:46px;font:10px monospace;color:#fff;background:#0008;padding:1px 5px;border-radius:4px;pointer-events:none;z-index:5';
+      this.root?.appendChild(this.fpsEl);
+    }
+    const info = this.field!.renderer.info.render;
+    const fps = Math.round(this.fpsN / this.fpsT);
+    this.fpsEl.textContent = `${fps}fps  描画${info.calls}  三角${Math.round(info.triangles / 1000)}k`;
+    this.fpsEl.style.color = fps >= 30 ? '#fff' : '#ff8';
+    (window as unknown as { __fps?: unknown }).__fps = { fps, calls: info.calls, tris: info.triangles };
+    this.fpsT = 0;
+    this.fpsN = 0;
   }
 
   private onEvent(e: AnimeEvent): void {
@@ -744,6 +771,10 @@ export class Battle3DScene extends Phaser.Scene {
         F.domeHit(e.x, e.y, e.z);
         audio.se('guard');
         this.pop('ふせいだ！', e.side === 0 ? '#7ad0ff' : '#ffb070');
+        break;
+      case 'wallHit':
+        // 攻撃が柱・壁に当たった
+        F.wallHit(e.x, e.y, e.z);
         break;
       case 'comboHit': {
         // ツルのムチ(MOFU の通常攻撃): 1発ごとに ツルがのびる
