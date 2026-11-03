@@ -291,6 +291,21 @@ export class AnimeField {
   private auras: THREE.Mesh[] = [];
   private crackTex = crackTexture();
   private hexTex = hexTexture();
+  /** ねむりの Z */
+  private zTex = (() => {
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const g = c.getContext('2d')!;
+    g.font = '900 52px sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.lineWidth = 8;
+    g.strokeStyle = '#1a1030';
+    g.strokeText('Z', 32, 34);
+    g.fillStyle = '#9ad0ff';
+    g.fillText('Z', 32, 34);
+    return new THREE.CanvasTexture(c);
+  })();
   private circleTex = magicCircleTexture();
   private tmpV = new THREE.Vector3();
   /** パンチの光を出したか(のばしきりで1回) */
@@ -934,6 +949,20 @@ export class AnimeField {
       if (stars.visible) {
         stars.position.set(f.x, f.y + 1.75, f.z);
         stars.rotation.y += dt * 5;
+      }
+      // やけど(体から火)・どく(紫のあわ)・ねむり(Z が のぼる)
+      if (f.act.k !== 'ko' && dt > 0) {
+        if (b.t < f.burnUntil && Math.random() < dt * 25) this.flame(f.x, f.y + 0.4, f.z, 1.0, 1);
+        if (b.t < f.poisonUntil && Math.random() < dt * 10) {
+          const p = this.sprite(Math.random() < 0.5 ? 0xa040ff : 0x60d040);
+          p.position.set(f.x + (Math.random() - 0.5) * 1.1, f.y + 0.3 + Math.random() * 0.8, f.z + (Math.random() - 0.5) * 1.1);
+          this.add(p, 0.6, 0.6, 0.3, { vx: 0, vz: 0, vy: 1.2 });
+        }
+        if (b.t < f.sleepUntil && Math.random() < dt * 3) {
+          const z = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.zTex, transparent: true, depthWrite: false }));
+          z.position.set(f.x + 0.3, f.y + 1.7, f.z);
+          this.add(z, 1.2, 0.6, 0.45, { vx: 0.3, vz: 0, vy: 0.6 });
+        }
       }
       if (b.t < f.paraUntil && f.act.k !== 'ko' && Math.random() < dt * 14) {
         const p = this.sprite(0xffe040, true, this.star);

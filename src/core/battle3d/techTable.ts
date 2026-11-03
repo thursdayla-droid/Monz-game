@@ -42,7 +42,7 @@ export const ELEMENTS: Element[] = ['炎', '水', '自然', '雷', '光', '闇',
 export const STRENGTHS = ['弱', '中', '強', '大技'] as const;
 export type Strength = (typeof STRENGTHS)[number];
 export const CONDITIONS = ['なし', 'パワー寄り', 'タフネス寄り', 'スピード寄り', 'テクニック寄り', 'HP寄り', '第1進化', '第2進化'] as const;
-/** 追加効果。【仮】今動くのは ふらつき・まひ・攻撃ダウン(弱体)・遅くする(設置) だけ(ほかは表に書けるが、まだ効かない) */
+/** 追加効果。今動くのは ふらつき・まひ・攻撃ダウン(弱体)・遅くする(設置)・やけど・どく・ねむり(2026-11-03)。こおりは まだ効かない */
 export const EFFECTS = ['なし', 'やけど', 'まひ', 'こおり', 'どく', 'ねむり', 'ふらつき', '遅くする', '攻撃ダウン'] as const;
 export type Effect = (typeof EFFECTS)[number];
 
@@ -58,7 +58,8 @@ const BASE: Record<TechKind, Omit<Tech, 'name' | 'element' | 'kind'>> = {
   combo: { power: 14, cooldown: 4.5, windup: 0.2, recovery: 0.4, speed: 12, range: 7, size: 1.0, duration: 0.15, launch: 4, knock: 2 },
   // 2026-11-02 追加(ブレイクロア・グラビティプレス)【案・未承認】
   debuff: { power: 0, cooldown: 8, windup: 0.6, recovery: 0.4, speed: 10, range: 7, size: 0, duration: 0, launch: 0, knock: 0 },
-  field: { power: 0, cooldown: 7, windup: 0.45, recovery: 0.45, speed: 0, range: 14, size: 3.2, duration: 0, launch: 0, knock: 0 },
+  // 設置の power は「場の中にいる間、1秒ごとのダメージ」(2026-11-03 企画者「グラビティプレスにもダメージを少し」)【案】
+  field: { power: 2.5, cooldown: 7, windup: 0.45, recovery: 0.45, speed: 0, range: 14, size: 3.2, duration: 0, launch: 0, knock: 0 },
   // 通常攻撃(パンチ。animeConfig の TECHS.punch。表の技には使わない)
   jab: { power: 7, cooldown: 0.5, windup: 0.06, recovery: 0.16, speed: 0, range: 1.9, size: 0.9, duration: 0.14, launch: 0, knock: 2 },
   // 2026-11-02 火柱(地面から柱が出る。相手の足もと＋まわり3本・当たるのは1回)【案・未承認】

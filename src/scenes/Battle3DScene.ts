@@ -668,8 +668,16 @@ export class Battle3DScene extends Phaser.Scene {
         audio.se('guard');
         this.pop('ふせいだ！', e.side === 0 ? '#7ad0ff' : '#ffb070');
         break;
+      case 'chip':
+        // 少しのダメージ(やけど・どく・グラビティプレスの場)。よろけないので、数字だけ小さく
+        this.pop(`-${e.damage}`, e.why === 'やけど' ? '#ff9a4a' : e.why === 'どく' ? '#c070ff' : '#b080ff');
+        F.flash(e.target);
+        break;
       case 'status':
-        this.pop(e.effect === 'ふらつき' ? 'ふらふら！' : e.effect === 'まひ' ? 'しびれた！' : e.effect, '#ffe040');
+        this.pop(
+          e.effect === 'ふらつき' ? 'ふらふら！' : e.effect === 'まひ' ? 'しびれた！' : e.effect === 'やけど' ? 'やけどした！' : e.effect === 'どく' ? 'どくを うけた！' : e.effect === 'ねむり' ? 'ねむった…' : e.effect,
+          '#ffe040',
+        );
         break;
       case 'dodge':
         audio.se('whoosh', { pitch: 1.5 });
