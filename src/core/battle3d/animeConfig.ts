@@ -111,6 +111,12 @@ export const ANIME = {
   selfField: { healPct: 0.03, guard: 0.6 },
   /** AI習熟度(よけるのがうまくなる) Lv.1 → Lv.5 */
   skill: { dodge: [0.25, 0.8], aim: [0.35, 0.05] },
+  /**
+   * マップ(柱・壁)での AI(2026-11-03 ロストテンプル)【仮】。[うまさ★1, ★5] の あいだ
+   * blockedShoot: 柱で見通せない時、遠くから撃つ技を えらぶ重さの倍率 / flank: 回りこむ確率 / cover: 弾が来た時 柱へにげる確率
+   * coverDist: にげる柱の遠さ(これより遠い柱は使わない) / coverHold: かくれている時間
+   */
+  arenaAi: { blockedShoot: [0.6, 0.05], flank: [0.25, 0.9], cover: [0.03, 0.45], coverDist: 6, coverHold: 1.4, flankFlip: 1.6 },
 };
 
 /** 技の種類(表の「型」から決まる。techTable.ts)。2026-11-01 回転・連射・落下・連続攻撃・守り を追加 */
