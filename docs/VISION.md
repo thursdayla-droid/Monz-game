@@ -263,3 +263,4 @@
 - 2026-11-03：タイトルの絵を、企画者の新しい絵（新しい ZIPP・MOFU 入り・941×1671）に差しかえ。前の絵は `design/title/unused/`
 - 2026-11-03：ZIPP の進化ラインの名前（企画者）：Lv.1 ZIPP（ジップ）→ Lv.30 ZIPRO（ジプロ）→ Lv.60 ZIPRAX（ジップラックス）
 - 2026-11-03：PUNI の進化ラインの名前（企画者）：Lv.1 PUNI（プニ）→ Lv.30 PUNISH（プニッシュ）→ Lv.60 PUNISHROOM（プニシュルーム）
+- 2026-11-03：KLAK の進化ラインの名前（企画者）：Lv.1 KLAK（クラック）→ Lv.30 KLAKER（クラッカー）→ Lv.60 KLAKTRAP（クラクトラップ）
