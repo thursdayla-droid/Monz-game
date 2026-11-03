@@ -1,0 +1,39 @@
+import { describe, expect, it } from 'vitest';
+import { canPlay, CPU_LEVELS, nextStage, STORY_COUNT, STORY_STAGES } from '../src/core/rumble';
+import { LifeRecord, migrateLife, newLife } from '../src/core/lifeSave';
+
+describe('MONZ RUMBLE のモード (2026-11-03)', () => {
+  it('ストーリーは20マス。敵はだんだん強く、さいごはボス(Lv.70・うまさ5)', () => {
+    expect(STORY_STAGES).toHaveLength(STORY_COUNT);
+    for (let i = 1; i < STORY_STAGES.length; i++) {
+      expect(STORY_STAGES[i].enemy.level).toBeGreaterThan(STORY_STAGES[i - 1].enemy.level);
+      expect(STORY_STAGES[i].enemy.prof).toBeGreaterThanOrEqual(STORY_STAGES[i - 1].enemy.prof - 1);
+    }
+    const last = STORY_STAGES[STORY_COUNT - 1];
+    expect(last.enemy).toMatchObject({ level: 70, prof: 5, boss: true });
+  });
+  it('遊べるのは クリアしたマスと次のマスだけ', () => {
+    expect(nextStage(0)).toBe(1);
+    expect(canPlay(1, 0)).toBe(true);
+    expect(canPlay(2, 0)).toBe(false);
+    expect(canPlay(3, 5)).toBe(true);
+    expect(canPlay(6, 5)).toBe(true);
+    expect(canPlay(20, 20)).toBe(true);
+  });
+  it('CPU の強さは5つ。強いほど レベルとうまさが上', () => {
+    expect(CPU_LEVELS).toHaveLength(5);
+    for (let i = 1; i < CPU_LEVELS.length; i++) expect(CPU_LEVELS[i].prof).toBeGreaterThan(CPU_LEVELS[i - 1].prof);
+  });
+  it('クリアは保存され、古いデータ(記録なし)も読める', () => {
+    const store = new Map<string, string>();
+    const kv = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v), removeItem: (k: string) => void store.delete(k) };
+    const rec = new LifeRecord(newLife(0), kv);
+    rec.clearStage(3);
+    rec.clearStage(2);
+    expect(rec.snapshot.rumble?.cleared).toBe(3);
+    const back = migrateLife(JSON.parse(JSON.stringify(rec.snapshot)), 0)!;
+    expect(back.rumble?.cleared).toBe(3);
+    const old = migrateLife(JSON.parse(JSON.stringify(newLife(0))), 0)!;
+    expect(old.rumble).toBeUndefined();
+  });
+});

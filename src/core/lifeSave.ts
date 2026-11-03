@@ -100,6 +100,8 @@ export interface LifeData {
   records: Record<string, MinigameRecord>;
   /** MYTHCLASH の持っているカード(はじめてパックを買ったときにできる。古いデータには無い = 0枚) */
   mythclash?: MythCollection;
+  /** MONZ RUMBLE のストーリーモード: クリアした いちばん先のマス(2026-11-03。古いデータには無い = 0) */
+  rumble?: { cleared: number };
 }
 
 export interface MinigameRecord {
@@ -227,6 +229,7 @@ export function migrateLife(raw: unknown, now = Date.now()): LifeData | null {
     claimed: Array.isArray(d.claimed) ? (d.claimed as unknown[]).map(String).slice(-CLAIMED_KEEP) : [],
     records: d.records && typeof d.records === 'object' ? (d.records as Record<string, MinigameRecord>) : {},
     ...(d.mythclash ? { mythclash: fixCollection(d.mythclash) } : {}),
+    ...(d.rumble && typeof d.rumble === 'object' ? { rumble: { cleared: Math.max(0, Math.min(99, Math.floor(num((d.rumble as { cleared?: unknown }).cleared, 0)))) } } : {}),
   };
 }
 
@@ -326,6 +329,12 @@ export class LifeRecord {
     const t = this.monz.techs;
     if (!t) return;
     this.update({}, { techs: { learned: t.learned, equipped: setEquip(t.learned, equipped, this.monz.level), manual: true } });
+  }
+
+  /** MONZ RUMBLE のストーリーで、そのマスをクリアした(先のマスなら記録をのばす) */
+  clearStage(no: number): void {
+    const now = this.data.rumble?.cleared ?? 0;
+    if (no > now) this.update({ rumble: { cleared: no } });
   }
 
   /** 今のMONZの名前を決める(生まれたとき) */

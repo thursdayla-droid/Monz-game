@@ -25,7 +25,8 @@ const ART_ZONES: Record<(typeof ENTRIES)[number]['id'], readonly [number, number
 const ENTRIES = [
   // 企画者の指示書(2026-10-30): 旧アクションバトル(Battle)は使わない。MONZが自分で戦うオートバトルに置きかえ。旧バトルのコードは残してある
   // 企画者 2026-11-01「2Dバトルはいらない」→ 3Dバトル(アニメのモンスターバトル風)へ。2D のオートバトル(AutoBattle)のコードは残す(メニューからは外した)
-  { id: 'action', scene: 'Battle3D', title: 'バトル', sub: 'MONZが じぶんで たたかう', color: '#ff8a1f', pic: { key: DASH_BG_KEY, crop: [900, 250, 2150, 1020] } },
+  // 2026-11-03 企画者: MONZ RUMBLE はストーリーモードとバトルモードを選ぶ → モードえらびへ
+  { id: 'action', scene: 'RumbleMode', title: 'バトル', sub: 'MONZが じぶんで たたかう', color: '#ff8a1f', pic: { key: DASH_BG_KEY, crop: [900, 250, 2150, 1020] } },
   { id: 'mythclash', scene: 'MythTitle', title: 'MYTHCLASH', sub: 'カードを集めて 3対3でたたかう', color: '#c0182a', pic: { key: MYTH_TITLE_IMAGE, crop: [20, 385, 832, 880] } },
 ] as const;
 

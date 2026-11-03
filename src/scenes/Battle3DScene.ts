@@ -14,12 +14,22 @@ import { modelFor } from '../core/roster';
 import { UI_FONT } from '../ui/paint';
 import { assetUrl } from '../assetUrl';
 import { partnerEntrant, rivalEntrant } from './AutoBattleScene';
+import { BOSS_HP, CPU_LEVELS, profOf, STORY_STAGES } from '../core/rumble';
+
+/** どのモードで戦うか(2026-11-03 企画者: ストーリーモードとバトルモード)。なければ 自分と同じレベルの相手(確認用) */
+export interface RumbleParams {
+  mode?: 'free' | 'story';
+  /** バトルモードの CPU の強さ(CPU_LEVELS の id) */
+  cpu?: number;
+  /** ストーリーのマス(1〜20) */
+  stage?: number;
+}
 
 /** 【仮】AI習熟度。まだ育てる仕組み・保存がないので、自分も相手も Lv.2 */
 const START_PROFICIENCY: Proficiency = { attack: 2, defense: 2, evasion: 2, counter: 2, spacing: 2 };
 /** 確認用ページだけ: レベルと育て方を切りかえて、技枠と覚える技を見る(ゲーム本体には出さない) */
 let devPick: { level: number; style: StatKey } | null = null;
-const isPreview = () => (window as { __MONZ_START?: string }).__MONZ_START === 'Battle3D';
+const isPreview = () => ['Battle3D', 'RumbleMode'].includes((window as { __MONZ_START?: string }).__MONZ_START ?? '');
 const STYLE_LABEL: Record<string, string> = { power: 'パワー', tough: 'タフネス', speed: 'スピード', tech: 'テクニック' };
 /**
  * オート / 手動(2026-11-02 企画者「オート手動は邪魔にならないところに」)。この端末に覚える。
@@ -179,8 +189,16 @@ export class Battle3DScene extends Phaser.Scene {
   private waitT = 0;
   private onResize = () => this.resize();
 
+  private params: RumbleParams = {};
+  /** 相手のレベル */
+  private foeLevel = 1;
+
   constructor() {
     super('Battle3D');
+  }
+
+  init(data: RumbleParams): void {
+    this.params = data && typeof data === 'object' ? { ...data } : {};
   }
 
   create(): void {
@@ -205,15 +223,32 @@ export class Battle3DScene extends Phaser.Scene {
       me = { ...me, stats, instinct: inst, techs: growTechs('bunk', level, stats, undefined, inst).state.equipped };
     }
     this.level = level;
-    const rival = rivalEntrant(level, seed);
-    const foe: AnimeEntrant = { ...rival, stats: rival.stats as StatBlock, proficiency: { ...START_PROFICIENCY }, techs: growTechs(rival.species, level, rival.stats as StatBlock, undefined, rival.instinct).state.equipped };
+    // 相手: ストーリーはマスの敵・バトルモードは選んだ強さ(レベルの差と戦いのうまさ)・それ以外は同じレベル
+    const stage = this.params.mode === 'story' ? STORY_STAGES[(this.params.stage ?? 1) - 1] : undefined;
+    const cpu = this.params.mode === 'free' ? CPU_LEVELS.find((c) => c.id === this.params.cpu) ?? CPU_LEVELS[1] : undefined;
+    const foeLevel = stage ? stage.enemy.level : cpu ? Math.max(1, Math.min(100, level + cpu.level)) : level;
+    this.foeLevel = foeLevel;
+    const rival = rivalEntrant(foeLevel, seed);
+    const foe: AnimeEntrant = {
+      ...rival,
+      name: stage ? stage.enemy.name : rival.name,
+      stats: rival.stats as StatBlock,
+      proficiency: stage ? profOf(stage.enemy.prof) : cpu ? profOf(cpu.prof) : { ...START_PROFICIENCY },
+      techs: growTechs(rival.species, foeLevel, rival.stats as StatBlock, undefined, rival.instinct).state.equipped,
+    };
     // 自分で動かす(左のスティック)・技は自分で押す(2026-11-02 企画者)
     if (devPick && isPreview() && devTechs) me.techs = devTechs.filter((n) => me.techs!.includes(n) || growTechs('bunk', level, me.stats, undefined, me.instinct).state.learned.includes(n));
     this.learned = devPick && isPreview() ? growTechs('bunk', level, me.stats, undefined, me.instinct).state.learned : mon.techs?.learned ?? me.techs ?? [];
     // 形態で通常攻撃が変わる(Lv.30 で4連・Lv.60 で5連)
     me.form = formAt(level);
-    foe.form = formAt(level);
+    foe.form = formAt(foeLevel);
     this.battle = newAnimeBattle(me, foe, seed, 'manual');
+    // ボス(中ボス・さいごのボス)は HP が多い【仮】
+    if (stage?.enemy.boss) {
+      const q = this.battle.f[1];
+      q.maxHp = Math.round(q.maxHp * BOSS_HP);
+      q.hp = q.maxHp;
+    }
     this.control = loadControl();
     this.applyControl();
     this.buildDom();
@@ -309,17 +344,17 @@ export class Battle3DScene extends Phaser.Scene {
         el.addEventListener('click', () => {
           devPick = { level: Number(el.dataset.lv ?? devPick?.level ?? 1), style: (el.dataset.st ?? devPick?.style ?? 'power') as StatKey };
           audio.se('tap');
-          this.scene.restart();
+          this.scene.restart(this.params);
         });
       }
     }
     $('.leave').addEventListener('click', () => this.leave());
     $('.again').addEventListener('click', () => {
       audio.se('tap');
-      this.scene.restart();
+      this.scene.restart(this.params);
     });
     // レベルで形態が変わる(Lv.30 で BUNKER など)。相手も同じレベル
-    this.field = new AnimeField(canvas, [modelFor(this.battle.f[0].species, this.level), modelFor(this.battle.f[1].species, this.level)]);
+    this.field = new AnimeField(canvas, [modelFor(this.battle.f[0].species, this.level), modelFor(this.battle.f[1].species, this.foeLevel)]);
     // 確認用ページだけ: 調べるために外から見られるようにする
     if (isPreview()) Object.assign(window, { __b3d: { field: this.field, battle: this.battle } });
     this.resize();
@@ -838,12 +873,17 @@ export class Battle3DScene extends Phaser.Scene {
     this.ended = true;
     const w = this.battle.winner;
     this.ui.resultTitle.textContent = w === 0 ? 'WIN!' : w === 1 ? 'LOSE…' : 'DRAW';
+    // ストーリー: 勝ったら そのマスをクリア(保存)
+    if (this.params.mode === 'story' && w === 0 && this.params.stage) new LifeRecord(loadLife()).clearStage(this.params.stage);
+    const leaveBtn = this.root?.querySelector('.leave') as HTMLElement | null;
+    if (leaveBtn) leaveBtn.textContent = this.params.mode === 'story' ? (w === 0 ? 'すすむ' : 'すごろくへ') : 'もどる';
     this.ui.result.style.display = 'flex';
   }
 
   private leave(): void {
     audio.se('back');
-    this.scene.start('BattleMenu');
+    // ストーリーは すごろくへ・バトルモードは モードえらびへ
+    this.scene.start(this.params.mode === 'story' ? 'RumbleStory' : this.params.mode === 'free' ? 'RumbleMode' : 'BattleMenu', this.params.mode === 'story' ? { justPlayed: this.params.stage, won: this.battle.winner === 0 } : undefined);
   }
 
   private cleanup(): void {
