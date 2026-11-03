@@ -14,6 +14,7 @@
 
 ## MOFU の3Dモデル（2026-11-03 企画者）
 - MOFU・MOFUR・MOFUGARD の Tripo モデル（骨入り）を軽くして入れた（約0.8MB ずつ・元は `design/battle3d/mofu/`）。`roster.ts` の MODEL_FILES（mofu・mofu:2・mofu:3）
+- 2026-11-03 企画者「骨入りモフ」→ MOFU を入れ直した（前のものは `design/battle3d/mofu/mofu_tripo_creature_rig_old.glb`）。新しいものも Tripo の生き物用の骨（50本）だったので、生き物用の骨を動かす仕組みを作った（`src/render/creatureBones.ts`）：上へのびる骨のつながり＝触角は ゆらゆら（歩くと大きく）、下の骨＝足は 歩くと左右交互に。形がくずれないように小さく回すだけ。腕のパンチの動きは無い（体全体で動く）
 - MOFUR・MOFUGARD は BUNK と同じ人の形の骨（78本）→ 腕の動き・パンチは骨で動く。MOFU（Lv.1）は Tripo の生き物用の骨（45本・名前がちがう）→ 今は体全体だけで動く（骨はそのまま）
 - MOFU の技は まだゲームに入っていない（技リスト案だけ）。確認用ページの「確認用」→ 種族 MOFU で、パンチだけで戦える
 

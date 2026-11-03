@@ -5,6 +5,7 @@
  */
 import * as THREE from 'three';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { CreatureBones } from './creatureBones';
 import { BunkBones, type AttackPose } from './bunkBones';
 import { getTech } from '../core/battle3d/techTable';
 import type { AnimeMon } from '../core/battle3d/anime';
@@ -42,6 +43,8 @@ export class MonsterRig {
   private model: THREE.Object3D | null = null;
   /** 骨で動かす(骨入りのモデルのとき) */
   private bones: BunkBones | null = null;
+  /** 生き物用の骨(人の形でない骨。MOFU 2026-11-03) */
+  private creature: CreatureBones | null = null;
   private lungeNow = 0;
   /** パンチのグローブの場所(のばしている時だけ。光の演出用) */
   punch(out: THREE.Vector3): { ext: number } | null {
@@ -200,6 +203,9 @@ export class MonsterRig {
     // 骨がずれているモデルは、骨を動かさない(形がくずれないように。体全体だけで動かす)
     const bones = useBones ? new BunkBones(model, amp) : null;
     this.bones = bones?.ok ? bones : null;
+    // 人の形の骨でなければ、生き物用の骨として動かす(触角・足)
+    const cb = useBones && !this.bones ? new CreatureBones(model) : null;
+    this.creature = cb?.ok ? cb : null;
     // 口(技を撃つ所)を、モデルの顔の前に
     this.mouth.position.set(size.x * k * 0.55, height * 0.42, 0);
   }
@@ -437,6 +443,7 @@ export class MonsterRig {
       const jabbing = a.k === 'tech' && (getTech(a.id).kind === 'jab' || getTech(a.id).kind === 'combo');
       this.lungeNow += ((atk && !jabbing ? this.bones.lunge : 0) - this.lungeNow) * Math.min(1, dt * 25);
     }
+    if (this.creature) this.creature.update(now, Math.min(1, f.speed / 4), a.k === 'down' || a.k === 'ko', a.k === 'tech');
     // 企画者のモデルは、形をゆがめないことを最優先(つぶす・のばすを小さくする)
     if (this.model) {
       const q = this.bones ? 0.3 : 0.6;
