@@ -42,8 +42,8 @@ export const ELEMENTS: Element[] = ['炎', '水', '自然', '雷', '光', '闇',
 export const STRENGTHS = ['弱', '中', '強', '大技'] as const;
 export type Strength = (typeof STRENGTHS)[number];
 export const CONDITIONS = ['なし', 'パワー寄り', 'タフネス寄り', 'スピード寄り', 'テクニック寄り', 'HP寄り', '第1進化', '第2進化'] as const;
-/** 追加効果。今動くのは ふらつき・まひ・攻撃ダウン(弱体)・遅くする(設置)・やけど・どく・ねむり(2026-11-03)。こおりは まだ効かない */
-export const EFFECTS = ['なし', 'やけど', 'まひ', 'こおり', 'どく', 'ねむり', 'ふらつき', '遅くする', '攻撃ダウン'] as const;
+/** 追加効果。今動くのは ふらつき・まひ・攻撃ダウン(弱体)・遅くする(設置)・やけど・どく・ねむり・防御ダウン(2026-11-03)。こおりは まだ効かない */
+export const EFFECTS = ['なし', 'やけど', 'まひ', 'こおり', 'どく', 'ねむり', 'ふらつき', '遅くする', '攻撃ダウン', '防御ダウン'] as const;
 export type Effect = (typeof EFFECTS)[number];
 
 /** 型ごとの「中」の強さの数字【仮】。威力 × 当たりやすさ ÷ 待ち時間 が、だいたいそろうように */

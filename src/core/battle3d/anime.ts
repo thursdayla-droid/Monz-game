@@ -69,6 +69,8 @@ export interface AnimeMon {
   defUp: number;
   /** 攻撃ダウン(ほえる)・遅くなる(重力の場) の終わり */
   atkDownUntil: number;
+  /** 防御ダウンの終わり(受けるダメージが上がる) */
+  defDownUntil: number;
   slowUntil: number;
   /** 守りのドームの終わりと大きさ */
   barrierUntil: number;
@@ -271,6 +273,7 @@ function newMon(e: AnimeEntrant, side: Side): AnimeMon {
     defUpUntil: 0,
     defUp: 0,
     atkDownUntil: 0,
+    defDownUntil: 0,
     slowUntil: 0,
     barrierUntil: 0,
     barrierR: 0,
@@ -630,6 +633,7 @@ function setEffect(b: AnimeBattle, o: AnimeMon, effect: Effect, big = false): bo
   else if (effect === 'まひ') o.paraUntil = b.t + C.status.para;
   else if (effect === '遅くする') o.slowUntil = b.t + C.gfield.time;
   else if (effect === '攻撃ダウン') o.atkDownUntil = b.t + C.debuff.time;
+  else if (effect === '防御ダウン') o.defDownUntil = b.t + C.defDown.time;
   else if (effect === 'やけど') {
     if (b.t >= o.burnUntil) o.burnTick = b.t + C.burn.every;
     o.burnUntil = b.t + C.burn.time;
@@ -677,7 +681,7 @@ function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y:
   // テクニックが高いと、クリティカル(1.4倍)が出やすい
   const crit = b.rng() < Math.min(0.3, f.stats.tech / C.stat.techCritDiv);
   // 攻撃ダウン中は、与えるダメージが下がる
-  const down = b.t < f.atkDownUntil ? C.debuff.atkDown : 1;
+  const down = (b.t < f.atkDownUntil ? C.debuff.atkDown : 1) * (b.t < o.defDownUntil ? C.defDown.mul : 1);
   // 強化(攻撃アップ・守りアップ)と、自分の場(千花天幕)の中
   const up = (b.t < f.atkUpUntil ? 1 + f.atkUp : 1) * (b.t < o.defUpUntil ? 1 - o.defUp : 1) * (b.fields.some((fl) => fl.self && fl.owner === o.side && dist(fl, o) < fl.r) ? C.selfField.guard : 1);
   const dmg = Math.max(1, Math.round(up * down * (crit ? C.stat.critMul : 1) * tech.power * part * (part < 1 ? C.combo.bonus : 1) * (1 + f.stats.power / C.stat.powerDiv) * (C.stat.toughDiv / (C.stat.toughDiv + o.stats.tough)) * (0.9 + b.rng() * 0.2)));
@@ -827,6 +831,10 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
         // 弱体の効果は技の表の追加効果(攻撃ダウン・ねむり・遅くする)
         const eff = getTech(q.tech).effect;
         if (eff === 'ねむり' || eff === '遅くする') applyEffect(b, tgt, getTech(q.tech), 1);
+        else if (eff === '防御ダウン') {
+          tgt.defDownUntil = b.t + C.defDown.time;
+          b.events.push({ kind: 'status', side: tgt.side, effect: '防御ダウン' });
+        }
         else {
           tgt.atkDownUntil = b.t + C.debuff.time;
           b.events.push({ kind: 'status', side: tgt.side, effect: '攻撃ダウン' });
@@ -948,7 +956,7 @@ function chooseTech(b: AnimeBattle, f: AnimeMon): TechId | null {
     else if (t.kind === 'quake') x = d < t.range * 0.9 ? 1.2 + f.instinct.fight : 0.05;
     else if (t.kind === 'drop') x = d < t.range ? 1 + f.instinct.fight : 0.1;
     else if (t.kind === 'beam') x = 0.8 + f.instinct.fight;
-    else if (t.kind === 'debuff') x = b.t < o.atkDownUntil ? 0.05 : d < t.range ? 0.9 : 0.1;
+    else if (t.kind === 'debuff') x = (t.effect === '防御ダウン' ? b.t < o.defDownUntil : b.t < o.atkDownUntil) ? 0.05 : d < t.range ? 0.9 : 0.1;
     else if (t.kind === 'pillar') x = d < t.range ? 1 + f.instinct.fight : 0.1;
     else if (t.kind === 'field') x = b.fields.some((fl) => fl.owner === f.side) ? 0.05 : 0.8;
     // 回復: HPがへってきたら(上限まで)。強化: かかっていない時。吸収: 近めの相手に

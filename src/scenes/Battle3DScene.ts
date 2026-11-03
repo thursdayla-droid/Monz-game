@@ -458,7 +458,7 @@ export class Battle3DScene extends Phaser.Scene {
         .map((n) => {
           const t = getTech(n);
           const k = picked.indexOf(n);
-          const info = t.kind === 'barrier' ? '守り' : t.power ? `威力 ${t.power.toFixed(1)}` : t.kind === 'debuff' ? '攻撃ダウン' : '遅くする';
+          const info = t.kind === 'barrier' ? '守り' : t.power ? `威力 ${t.power.toFixed(1)}` : t.kind === 'debuff' ? (t.effect === '防御ダウン' ? '防御ダウン' : t.effect === '遅くする' ? '遅くする' : t.effect === 'ねむり' ? 'ねむり' : '攻撃ダウン') : '遅くする';
           return `<button class="t ${k >= 0 ? 'on' : ''}" data-n="${esc(n)}">${esc(n)}${k >= 0 ? `<i>${k + 1}</i>` : ''}<small>${t.element}・${t.strength}・${info}・待ち ${t.cooldown.toFixed(1)}秒</small></button>`;
         })
         .join('');
@@ -803,7 +803,7 @@ export class Battle3DScene extends Phaser.Scene {
         break;
       case 'status':
         this.pop(
-          e.effect === 'ふらつき' ? 'ふらふら！' : e.effect === 'まひ' ? 'しびれた！' : e.effect === 'やけど' ? 'やけどした！' : e.effect === 'どく' ? 'どくを うけた！' : e.effect === 'ねむり' ? 'ねむった…' : e.effect,
+          e.effect === 'ふらつき' ? 'ふらふら！' : e.effect === 'まひ' ? 'しびれた！' : e.effect === 'やけど' ? 'やけどした！' : e.effect === 'どく' ? 'どくを うけた！' : e.effect === 'ねむり' ? 'ねむった…' : e.effect === '防御ダウン' ? 'まもりが下がった！' : e.effect,
           '#ffe040',
         );
         break;
