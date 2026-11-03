@@ -264,3 +264,4 @@
 - 2026-11-03：ZIPP の進化ラインの名前（企画者）：Lv.1 ZIPP（ジップ）→ Lv.30 ZIPRO（ジプロ）→ Lv.60 ZIPRAX（ジップラックス）
 - 2026-11-03：PUNI の進化ラインの名前（企画者）：Lv.1 PUNI（プニ）→ Lv.30 PUNISH（プニッシュ）→ Lv.60 PUNISHROOM（プニシュルーム）
 - 2026-11-03：KLAK の進化ラインの名前（企画者）：Lv.1 KLAK（クラック）→ Lv.30 KLAKER（クラッカー）→ Lv.60 KLAKTRAP（クラクトラップ）
+- 2026-11-03：ZIPP・ZIPRO・ZIPRAX のお世話画面用の絵（企画者）。`design/species/zipp/`（care_main_2026-11-03.png・zipro_form2.png・ziprax_form3.png。ZIPRO と ZIPRAX は うしろの市松もようを消した。元は *_original.png）
