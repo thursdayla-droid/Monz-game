@@ -36,6 +36,26 @@ export const SPECIES_STATS: Partial<Record<SpeciesId, { base: StatBlock; weight:
     base: { hp: 10, power: 8, tough: 8, speed: 4, tech: 5 },
     weight: { hp: 6, power: 9, tough: 8, speed: 3, tech: 4 },
   },
+  // 2026-11-03 企画者「はじめのステータスと育ちやすさは考えてください」→ Claude の案【仮】。
+  // BUNK と同じく、はじめの合計35・入りやすさの合計30。得意なものを高く、苦手なものを低く(docs/TECHS_ALL_DRAFT.md の種族の性格に合わせた)
+  /** MOFU: 回復・守り。HPが高く、ねばる */
+  mofu: { base: { hp: 12, power: 5, tough: 8, speed: 4, tech: 6 }, weight: { hp: 9, power: 3, tough: 8, speed: 4, tech: 6 } },
+  /** ZIPP: 速さ。いちばん速いが、打たれ弱い */
+  zipp: { base: { hp: 8, power: 6, tough: 5, speed: 10, tech: 6 }, weight: { hp: 5, power: 5, tough: 4, speed: 9, tech: 7 } },
+  /** PUNI: 弾力・吸収。HPがいちばん高い */
+  puni: { base: { hp: 13, power: 6, tough: 6, speed: 5, tech: 5 }, weight: { hp: 10, power: 5, tough: 5, speed: 4, tech: 6 } },
+  /** KLAK: 罠・ねらい。テクニックが高く、かたさも少しある */
+  klak: { base: { hp: 8, power: 7, tough: 7, speed: 5, tech: 8 }, weight: { hp: 5, power: 6, tough: 6, speed: 5, tech: 8 } },
+  /** RIOT: 暴れる力。パワーがいちばん高いが、かたさは低い */
+  riot: { base: { hp: 8, power: 10, tough: 5, speed: 7, tech: 5 }, weight: { hp: 5, power: 10, tough: 4, speed: 7, tech: 4 } },
+  /** SNEK: 速さ・毒。速くて、テクニック(追加効果)も高い */
+  snek: { base: { hp: 7, power: 7, tough: 6, speed: 8, tech: 7 }, weight: { hp: 5, power: 6, tough: 4, speed: 8, tech: 7 } },
+  /** GRIT: 重い守り。かたくてHPも高いが、とても遅い */
+  grit: { base: { hp: 11, power: 7, tough: 11, speed: 2, tech: 4 }, weight: { hp: 7, power: 7, tough: 10, speed: 2, tech: 4 } },
+  /** VYBE: 雷・妨害。テクニックが高く、速さもある */
+  vybe: { base: { hp: 7, power: 7, tough: 6, speed: 7, tech: 8 }, weight: { hp: 5, power: 6, tough: 5, speed: 6, tech: 8 } },
+  /** SHELLZ: 甲羅。いちばんかたいが、遅い */
+  shellz: { base: { hp: 10, power: 6, tough: 12, speed: 3, tech: 4 }, weight: { hp: 7, power: 5, tough: 11, speed: 2, tech: 5 } },
 };
 
 /** 決まっていないMONZは、5種に同じだけ(仮) */
