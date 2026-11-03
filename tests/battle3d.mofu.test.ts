@@ -88,7 +88,15 @@ describe('MOFU の技 (2026-11-03)', () => {
     p.x = 0; q.x = 3; p.z = q.z = 0; p.face = 0;
     giveCommand(b, 0, 'punch');
     const ev = run(b, 1);
-    expect(ev.filter((x) => x.kind === 'hit').length).toBe(2);
+    expect(ev.filter((x) => x.kind === 'hit').length).toBe(1);
+    // MOFUR は2発・MOFUGARD は3発
+    for (const [form, want] of [[2, 2], [3, 3]] as const) {
+      const bf = newAnimeBattle(e('mofu', [], form), e('bunk', [], 1), 4, 'manual');
+      quiet(bf);
+      bf.f[0].x = 0; bf.f[1].x = 3; bf.f[0].z = bf.f[1].z = 0; bf.f[0].face = 0;
+      giveCommand(bf, 0, 'punch');
+      expect(run(bf, 1.2).filter((x) => x.kind === 'hit').length).toBe(want);
+    }
     const b2 = newAnimeBattle(e('bunk', [], 1), e('bunk', [], 1), 4, 'manual');
     quiet(b2);
     b2.f[0].x = 0; b2.f[1].x = 3; b2.f[0].z = b2.f[1].z = 0; b2.f[0].face = 0;
