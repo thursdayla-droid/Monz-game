@@ -26,9 +26,9 @@ export const FAVORITES = ['パワー', 'タフネス', 'スピード', 'テク�
 /** 3Dモデル(企画者が用意したもの。軽くしたもの)。ない種族は仮のモンスター */
 export const MODEL_FILES: Record<string, string> = {
   bunk: 'assets/battle3d/bunk.glb',
-  // BUNKER(BUNK の第1進化。企画者の Tripo モデル・骨入り 2026-11-02。左右の骨はそろっていて、直しはいらなかった)
+  // BUNKER(BUNK の第1進化。企画者の Tripo モデル・骨入り。2026-11-03 新しいものに差しかえ)
   'bunk:2': 'assets/battle3d/bunker.glb',
-  // BUNKLORD(第2進化。企画者の Tripo モデル 2026-11-02)。骨が大きくずれていたので、こちらで骨の場所とウェイトを直した(企画者「こちらでお願いします」)
+  // BUNKLORD(第2進化)。2026-11-03 企画者の新しい Tripo モデルに差しかえ(骨はそろっている。前の、骨を直したモデルは unused/battle3d/)
   'bunk:3': 'assets/battle3d/bunklord.glb',
   // MOFU・MOFUR・MOFUGARD(企画者の Tripo モデル・骨入り 2026-11-03)。元は design/battle3d/mofu/
   mofu: 'assets/battle3d/mofu.glb',
