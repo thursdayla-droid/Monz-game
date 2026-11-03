@@ -53,3 +53,65 @@ describe('ZIPP・PUNI・KLAK の技', () => {
     expect(b.f[1].defDownUntil).toBeGreaterThan(b.t);
   });
 });
+
+describe('ZIPP らしい動き (2026-11-03 企画者)', () => {
+  const setup = (form = 1) => {
+    const b = newAnimeBattle(e('zipp', ['ジップタックル', '閃走ラッシュ', 'ジグザグスピン'], form), e('bunk', [], 1), 7, 'manual');
+    b.f[0].pad = { x: 0, z: 0 };
+    b.f[0].techMode = 'manual';
+    b.f[1].thinkT = 1e9; b.f[1].cooldown.dodge = 1e9; b.f[1].pad = { x: 0, z: 0 };
+    return b;
+  };
+  it('電撃ダッシュ: ためた分 遠くへ走る・ためるほど強い', () => {
+    const go = (hold: number) => {
+      const b = setup();
+      b.f[0].x = -12; b.f[1].x = 12; b.f[0].z = b.f[1].z = 0;
+      b.f[0].hold = true;
+      giveCommand(b, 0, 'punch');
+      run(b, hold);
+      b.f[0].hold = false;
+      const x0 = b.f[0].x;
+      run(b, 1);
+      return b.f[0].x - x0;
+    };
+    const tap = go(0.05);
+    const full = go(1.2);
+    expect(tap).toBeGreaterThan(2);
+    expect(tap).toBeLessThan(3.5);
+    expect(full).toBeGreaterThan(5.5);
+  });
+  it('電撃ダッシュ: 当たる・ためたほうがダメージが大きい', () => {
+    const dmg = (hold: number) => {
+      const b = setup();
+      b.f[0].x = -1.6; b.f[1].x = 1.6; b.f[0].z = b.f[1].z = 0; b.f[0].z = b.f[1].z = 0;
+      b.f[0].hold = true;
+      giveCommand(b, 0, 'punch');
+      run(b, hold);
+      b.f[0].hold = false;
+      const ev = run(b, 1);
+      const h = ev.find((x) => x.kind === 'hit');
+      return h && h.kind === 'hit' ? h.damage : 0;
+    };
+    const a = dmg(0.05);
+    const c = dmg(1.2);
+    expect(a).toBeGreaterThan(0);
+    expect(c).toBeGreaterThan(a);
+  });
+  it('ジグザグ: 突進は 左右にぶれながら進む', () => {
+    const b = setup();
+    b.f[0].x = -6; b.f[1].x = 6; b.f[0].z = b.f[1].z = 0;
+    giveCommand(b, 0, 'ジップタックル');
+    let maxZ = 0, minZ = 0;
+    for (let i = 0; i < 1.2 / ANIME.dt; i++) { b.events = []; stepAnime(b, ANIME.dt); maxZ = Math.max(maxZ, b.f[0].z); minZ = Math.min(minZ, b.f[0].z); }
+    expect(maxZ).toBeGreaterThan(0.3);
+    expect(minZ).toBeLessThan(-0.3);
+  });
+  it('連続攻撃: 1発ごとに 相手のまわりへ 回りこむ', () => {
+    const b = setup();
+    b.f[0].x = -1.6; b.f[1].x = 1.6; b.f[0].z = b.f[1].z = 0;
+    giveCommand(b, 0, '閃走ラッシュ');
+    const ev = run(b, 2.5);
+    expect(ev.filter((x) => x.kind === 'blink').length).toBeGreaterThanOrEqual(2);
+    expect(ev.filter((x) => x.kind === 'hit').length).toBeGreaterThanOrEqual(2);
+  });
+});

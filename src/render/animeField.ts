@@ -403,6 +403,10 @@ export class AnimeField {
   private tmpV = new THREE.Vector3();
   /** パンチの光を出したか(のばしきりで1回) */
   private punchLit = [0, 0];
+  /** ZIPP: 稲妻の線の形(使い回し)・前のフレームの場所(速く動いたら稲妻の線を引く)・ダッシュの長さの目じるし */
+  private boltGeo = new THREE.BoxGeometry(1, 1, 1);
+  private zLast: ({ x: number; y: number; z: number } | null)[] = [null, null];
+  private dashGuide: THREE.Mesh[] = [];
   private stars: THREE.Group[] = [];
   private markers: { obj: THREE.Group; r: number; until: number }[] = [];
   private camPos = new THREE.Vector3(-12, 5, 6);
@@ -1040,6 +1044,59 @@ export class AnimeField {
     this.shake(last ? 0.3 : 0.18);
   }
 
+  /** 稲妻の線(ぎざぎざ。白いしんと 黄色い光)。ZIPP の電撃ダッシュ・ジグザグ・回りこみ(2026-11-03) */
+  bolt(x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, w = 1, life = 0.22): void {
+    const len = Math.hypot(x1 - x0, y1 - y0, z1 - z0);
+    if (len < 0.05) return;
+    const n = Math.max(2, Math.min(9, Math.round(len / 0.6)));
+    const pts: THREE.Vector3[] = [];
+    for (let i = 0; i <= n; i++) {
+      const k = i / n;
+      const j = i === 0 || i === n ? 0 : 0.28 * w;
+      pts.push(new THREE.Vector3(x0 + (x1 - x0) * k + (Math.random() - 0.5) * j, y0 + (y1 - y0) * k + (Math.random() - 0.5) * j, z0 + (z1 - z0) * k + (Math.random() - 0.5) * j));
+    }
+    const g = new THREE.Group();
+    const core = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false });
+    const glow = new THREE.MeshBasicMaterial({ color: 0xffd23a, transparent: true, opacity: 0.75, depthWrite: false, blending: THREE.AdditiveBlending });
+    for (let i = 0; i < n; i++) {
+      const a = pts[i];
+      const c = pts[i + 1];
+      const l = a.distanceTo(c);
+      for (const [mat, th] of [[core, 0.05 * w], [glow, 0.16 * w]] as const) {
+        const m = new THREE.Mesh(this.boltGeo, mat);
+        m.position.copy(a).lerp(c, 0.5);
+        m.scale.set(th, th, l + th);
+        m.lookAt(c);
+        g.add(m);
+      }
+    }
+    this.add(g, life, 0, 1, {
+      fade: false,
+      shared: true,
+      sharedMat: true,
+      tick: (k) => {
+        core.opacity = 1 - k;
+        glow.opacity = 0.75 * (1 - k);
+        if (k >= 1) {
+          core.dispose();
+          glow.dispose();
+        }
+      },
+    });
+  }
+
+  /** ZIPP の電撃ダッシュの 走り出し(ためたほど 大きい) */
+  zdashStart(side: number, x: number, z: number, dir: number, c: number): void {
+    this.zap(x, 0.7, z);
+    this.groundRing(x, z, 0.8 + c, 0xffd23a, 0.3, 1.5);
+    for (let k = 0; k < 2 + Math.round(c * 3); k++) {
+      const a = dir + Math.PI + (Math.random() - 0.5) * 1.6;
+      const r = 0.6 + Math.random() * (0.6 + c);
+      this.bolt(x, 0.3 + Math.random() * 0.8, z, x + Math.cos(a) * r, 0.2 + Math.random(), z + Math.sin(a) * r, 0.7, 0.18);
+    }
+    void side;
+  }
+
   /** 雷の命中: 短い放電(ぎざぎざの線) */
   zap(x: number, y: number, z: number): void {
     for (let k = 0; k < 5; k++) {
@@ -1108,6 +1165,55 @@ export class AnimeField {
           this.add(p, 0.25, -0.9, 0.25, { vx: -Math.cos(ang) * r * 4, vz: -Math.sin(ang) * r * 4, vy: 0 });
         }
       } else ch.visible = false;
+      // ZIPP(2026-11-03 企画者「電撃のエフェクトで前に…貯めることができて」):
+      // 電撃ダッシュを ためている間: 体が光って 火花が散り、地面に どこまで走るかの線が のびる
+      if (f.species === 'zipp') {
+        const dashing = a.k === 'tech' && a.id === 'punch' && !!f.jab?.dash;
+        const charging = dashing && !a.fired && a.t >= a.windup;
+        let guide = this.dashGuide[i];
+        if (!guide) {
+          guide = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0xffe060, transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending }));
+          guide.rotation.x = -Math.PI / 2;
+          this.scene.add(guide);
+          this.dashGuide[i] = guide;
+        }
+        guide.visible = charging;
+        if (charging && a.k === 'tech') {
+          const Z = ANIME.zdash;
+          const P = Z.byForm[(f.jab.dash ?? 1) - 1];
+          const c = (a.charge ?? 0) / Z.charge;
+          const len = P.min + (P.max - P.min) * c;
+          const d = f.pad && Math.hypot(f.pad.x, f.pad.z) > 0.3 ? Math.atan2(f.pad.z, f.pad.x) : f.face;
+          guide.position.set(f.x + Math.cos(d) * len * 0.5, 0.04, f.z + Math.sin(d) * len * 0.5);
+          guide.rotation.set(-Math.PI / 2, 0, -d);
+          guide.scale.set(len, 0.35 + c * 0.35, 1);
+          (guide.material as THREE.MeshBasicMaterial).opacity = 0.25 + c * 0.4 + Math.sin(performance.now() / 40) * 0.08;
+          ch.visible = true;
+          ch.position.set(f.x, f.y + 0.95, f.z);
+          ch.material.color.setHex(0xffd23a);
+          ch.scale.setScalar((0.9 + c * 1.3) * (1 + Math.sin(performance.now() / 25) * 0.15));
+          if (dt > 0 && Math.random() < dt * (8 + c * 30)) {
+            const an = Math.random() * Math.PI * 2;
+            const r = 0.5 + Math.random() * 0.6;
+            this.bolt(f.x + Math.cos(an) * 0.2, f.y + 0.3 + Math.random() * 0.9, f.z + Math.sin(an) * 0.2, f.x + Math.cos(an) * r, f.y + Math.random() * 1.4, f.z + Math.sin(an) * r, 0.5, 0.1);
+          }
+        }
+        // 速く動いた時(ダッシュ・ジグザグ・よける): 通ったあとに稲妻の線と 黄色い残像
+        const last = this.zLast[i];
+        if (last && dt > 0) {
+          const mv = Math.hypot(f.x - last.x, f.z - last.z);
+          const fast = mv / dt > 9 && mv < 4 && (a.k === 'tech' || a.k === 'dodge');
+          if (fast) {
+            this.bolt(last.x, last.y + 0.7, last.z, f.x, f.y + 0.7, f.z, 1, 0.26);
+            if (Math.random() < 0.5) {
+              const ghost = this.sprite(0xffe060);
+              ghost.position.set(last.x, last.y + 0.75, last.z);
+              this.add(ghost, 0.2, -0.3, 1.6);
+            }
+          }
+        }
+        this.zLast[i] = { x: f.x, y: f.y, z: f.z };
+      }
       // パンチ: グローブのあとに光の尾、のばしきりで星の光(2026-11-02 企画者「パンチ出してるの分からない」)
       const pg = rig.punch(this.tmpV);
       if (pg && dt > 0) {

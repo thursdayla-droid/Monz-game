@@ -386,9 +386,19 @@ export class Battle3DScene extends Phaser.Scene {
       ev.preventDefault();
       ev.stopPropagation();
       audio.unlock();
+      // ZIPP の電撃ダッシュ: 押している間 ためる(はなすと走る)
+      if (c === 'punch') this.battle.f[0].hold = true;
       if (giveCommand(this.battle, 0, c)) audio.se('select');
       else audio.se('beep');
     });
+    if (c === 'punch') {
+      const up = () => {
+        this.battle.f[0].hold = false;
+      };
+      el.addEventListener('pointerup', up);
+      el.addEventListener('pointercancel', up);
+      el.addEventListener('pointerleave', up);
+    }
   }
 
   /** 左の移動スティック: さわった所に出て、指の向きへ動く(はなすと止まる) */
@@ -809,6 +819,16 @@ export class Battle3DScene extends Phaser.Scene {
         break;
       case 'dodge':
         audio.se('whoosh', { pitch: 1.5 });
+        break;
+      case 'zdash':
+        // ZIPP の電撃ダッシュ: 走り出しに 放電と音(ためたほど大きい)
+        F.zdashStart(e.side, e.x, e.z, e.dir, e.c);
+        audio.se('whoosh', { pitch: 1.9 - e.c * 0.5 });
+        if (e.c > 0.5) F.shake(0.12 + e.c * 0.12);
+        break;
+      case 'blink':
+        F.bolt(e.x0, 0.8, e.z0, e.x, 0.8, e.z, 1);
+        audio.se('whoosh', { pitch: 2.2 });
         break;
       case 'pillar':
         // 火柱が地面から噴き出す

@@ -12,7 +12,7 @@ import type { StatBlock } from '../stats';
 import type { Instinct } from '../autobattle/config';
 import type { Proficiency } from './config';
 import { ANIME as C, TECH_IDS, type TechId } from './animeConfig';
-import { coverSpot, lineOfSight, rayHit, resolveBody, steerAround, type ArenaMap } from './arena';
+import { coverSpot, insideObstacle, lineOfSight, rayHit, resolveBody, steerAround, type ArenaMap } from './arena';
 import { EFFECT_CHANCE, getTech, SELF_FIELD_TECHS, type Effect } from './techTable';
 
 export type Side = 0 | 1;
@@ -32,7 +32,7 @@ export interface AnimeEntrant {
 
 export type AnimeAct =
   | { k: 'free' }
-  | { k: 'tech'; id: TechId; t: number; dir: number; fired: boolean; hit: boolean; tx: number; tz: number; windup: number; n: number; next: number }
+  | { k: 'tech'; id: TechId; t: number; dir: number; fired: boolean; hit: boolean; tx: number; tz: number; windup: number; n: number; next: number; charge?: number; len?: number; zig?: number }
   | { k: 'dodge'; t: number; dx: number; dz: number; jump: boolean }
   | { k: 'hurt'; t: number; until: number }
   | { k: 'air'; t: number }
@@ -114,7 +114,9 @@ export interface AnimeMon {
    */
   pad: { x: number; z: number } | null;
   /** 通常攻撃(形態で変わる) */
-  jab: { parts: number[]; range: number; step: number; fire: number; whip?: boolean };
+  jab: { parts: number[]; range: number; step: number; fire: number; whip?: boolean; dash?: number };
+  /** ZIPP の電撃ダッシュ: こうげきボタンを押している間 true(画面が入れる。AI は使わない) */
+  hold?: boolean;
   /** 受け身の予約(空中で よける を押した) */
   ukemi: boolean;
 }
@@ -131,6 +133,8 @@ export interface Shot {
   r: number;
   t: number;
   alive: boolean;
+  /** ZIPP の弾: 左右にジグザグにゆれる(1 = する) */
+  zig?: number;
 }
 
 export interface Beam {
@@ -157,6 +161,10 @@ export interface Quake {
 export type AnimeEvent =
   | { kind: 'call'; side: Side; tech: TechId; byCommand: boolean }
   | { kind: 'fire'; side: Side; tech: TechId }
+  /** ZIPP の電撃ダッシュが出た(c = ためた割合 0〜1) */
+  | { kind: 'zdash'; side: Side; x: number; z: number; dir: number; len: number; c: number }
+  /** ZIPP が 連続攻撃で 一瞬で回りこんだ(元の場所 → 新しい場所) */
+  | { kind: 'blink'; side: Side; x0: number; z0: number; x: number; z: number }
   | { kind: 'hit'; side: Side; target: Side; tech: TechId; damage: number; x: number; y: number; z: number; big: boolean; crit?: boolean }
   | { kind: 'explode'; x: number; y: number; z: number; tech: TechId; big: boolean }
   /** 攻撃が柱・壁に当たった(石のかけら) */
@@ -349,7 +357,9 @@ function startTech(b: AnimeBattle, f: AnimeMon, id: TechId, byCommand: boolean):
   f.act = { k: 'tech', id, t: 0, dir, fired: false, hit: false, tx: o.x, tz: o.z, windup, n: 0, next: 0 };
   f.face = dir;
   // テクニックが高いと、技の待ち時間が少し短い(最大2割。2026-11-02 バランス)
-  f.cooldown[id] = tech.kind === 'jab'
+  f.cooldown[id] = tech.kind === 'jab' && f.jab.dash
+    ? b.t + 99 // 電撃ダッシュ: 走り終わってから決める
+    : tech.kind === 'jab'
     ? b.t + tech.windup + tech.duration * f.jab.parts.length + tech.recovery + tech.cooldown // 通常攻撃: 連打が終わってから0.5秒
     : b.t + tech.cooldown * (1 - Math.min(C.stat.techCdMax, f.stats.tech / C.stat.techCdDiv));
   b.events.push({ kind: 'call', side: f.side, tech: id, byCommand });
@@ -374,16 +384,66 @@ function startDodge(b: AnimeBattle, f: AnimeMon, jump: boolean): void {
   b.events.push({ kind: 'dodge', side: f.side, jump });
 }
 
+/**
+ * ZIPP の通常攻撃「電撃ダッシュ」(2026-11-03 企画者)。ためる → はなすと前へ走る(ためた分 遠くへ・強く)。
+ * 自分で動かしている時は ボタンを はなすまで ためる(f.hold)。オートの時は 相手までの距離に合わせて ためる
+ */
+function updateDash(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech' }>, dt: number): void {
+  const Z = C.zdash;
+  const P = Z.byForm[(f.jab.dash ?? 1) - 1];
+  const o = other(b, f);
+  const tech = getTech(a.id);
+  if (!a.fired) {
+    a.charge = a.charge ?? 0;
+    if (a.t < a.windup) return;
+    a.charge = Math.min(Z.charge, a.charge + dt);
+    f.face = angleTo(f, o);
+    const want = f.pad ? (f.hold ? Z.charge + 1 : 0) : clamp((dist(f, o) - C.body.minGap - P.min + 0.6) / (P.max - P.min), 0, 1) * Z.charge;
+    if (a.charge < want && a.t < a.windup + Z.hold) return;
+    // 出す
+    const c = a.charge / Z.charge;
+    a.fired = true;
+    a.len = P.min + (P.max - P.min) * c;
+    a.dir = f.pad && Math.hypot(f.pad.x, f.pad.z) > 0.3 ? Math.atan2(f.pad.z, f.pad.x) : angleTo(f, o);
+    a.tx = 0; // 走った長さ
+    a.n = c; // ためた割合(威力に使う)
+    f.face = a.dir;
+    b.events.push({ kind: 'zdash', side: f.side, x: f.x, z: f.z, dir: a.dir, len: a.len, c });
+    return;
+  }
+  if (!a.hit && a.tx < (a.len ?? 0)) {
+    const step = Math.min(Z.speed * dt, (a.len ?? 0) - a.tx);
+    f.x += Math.cos(a.dir) * step;
+    f.z += Math.sin(a.dir) * step;
+    a.tx += step;
+    a.next = a.t;
+    if (dist(f, o) < C.body.minGap + 0.35 && Math.abs(o.y - f.y) < 1.3) {
+      a.hit = true;
+      hit(b, f, o, a.id, (f.x + o.x) / 2, f.y + 0.7, (f.z + o.z) / 2, a.dir, { last: true, part: P.p0 + (P.p1 - P.p0) * a.n });
+    }
+    if (a.tx >= (a.len ?? 0)) a.hit = true;
+    return;
+  }
+  if (a.t >= a.next + Z.recover) {
+    f.act = { k: 'free' };
+    f.cooldown[a.id] = b.t + Z.cool + tech.windup * 0;
+  }
+}
+
 /** 技のため・発射 */
 function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech' }>, dt: number): void {
   const tech = getTech(a.id);
   const o = other(b, f);
   a.t += dt;
+  if (tech.kind === 'jab' && f.jab.dash) return updateDash(b, f, a, dt);
   const run = a.t - a.windup;
   const shoot = (dir: number) => {
     b.seq++;
-    b.shots.push({ id: b.seq, owner: f.side, tech: a.id, x: f.x + Math.cos(dir) * 0.9, y: 0.8, z: f.z + Math.sin(dir) * 0.9, vx: Math.cos(dir) * tech.speed, vz: Math.sin(dir) * tech.speed, r: tech.size, t: 0, alive: true });
+    b.shots.push({ id: b.seq, owner: f.side, tech: a.id, x: f.x + Math.cos(dir) * 0.9, y: 0.8, z: f.z + Math.sin(dir) * 0.9, vx: Math.cos(dir) * tech.speed, vz: Math.sin(dir) * tech.speed, r: tech.size, t: 0, alive: true, zig: f.species === 'zipp' && tech.kind !== 'drain' ? 1 : 0 });
   };
+  // ZIPP: 左右にジグザグ(はじめの半分は片側へ)。ZZ = 今の向き(+1/-1)
+  const zz = (seg: number) => (Math.floor(run / seg + 0.5) % 2 ? -1 : 1);
+  const zippy = f.species === 'zipp';
   if (!a.fired && a.t >= a.windup) {
     a.fired = true;
     b.events.push({ kind: 'fire', side: f.side, tech: a.id });
@@ -458,8 +518,14 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
     case 'rush': {
       // 突進: まっすぐ走る(とちゅうで曲がらない)
       if (run * tech.speed < tech.range && !a.hit) {
-        f.x += Math.cos(a.dir) * tech.speed * dt;
-        f.z += Math.sin(a.dir) * tech.speed * dt;
+        // ZIPP: ぎざぎざに曲がりながら 相手へ(雷走ブレイカーだけは 一直線)【仮】
+        const zr = zippy && a.id !== '雷走ブレイカー';
+        if (zr) a.dir += clamp(angDiff(angleTo(f, o), a.dir), -2.5 * dt, 2.5 * dt);
+        const md = zr ? a.dir + zz(C.zipp.zig) * C.zipp.zigAng : a.dir;
+        const ms = zr ? tech.speed / Math.cos(C.zipp.zigAng) : tech.speed;
+        if (zr) f.face = md;
+        f.x += Math.cos(md) * ms * dt;
+        f.z += Math.sin(md) * ms * dt;
         if (dist(f, o) < C.body.minGap + 0.2 && Math.abs(o.y - f.y) < 1.2) {
           a.hit = true;
           hit(b, f, o, a.id, (f.x + o.x) / 2, 0.8, (f.z + o.z) / 2, a.dir);
@@ -473,9 +539,12 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
       // 回転: 転がって、少しずつ相手のほうへ曲がる
       if (run < tech.duration && !a.hit) {
         a.dir += clamp(angDiff(angleTo(f, o), a.dir), -C.spin.turn * dt, C.spin.turn * dt);
-        f.face = a.dir;
-        f.x += Math.cos(a.dir) * tech.speed * dt;
-        f.z += Math.sin(a.dir) * tech.speed * dt;
+        // ZIPP: 回りながら、ぎざぎざに曲がる
+        const md = zippy ? a.dir + zz(C.zipp.spinZig) * C.zipp.zigAng : a.dir;
+        const ms = zippy ? tech.speed / Math.cos(C.zipp.zigAng) : tech.speed;
+        f.face = md;
+        f.x += Math.cos(md) * ms * dt;
+        f.z += Math.sin(md) * ms * dt;
         if (dist(f, o) < C.body.minGap + 0.3 && Math.abs(o.y - f.y) < 1.2) {
           a.hit = true;
           hit(b, f, o, a.id, (f.x + o.x) / 2, 0.6, (f.z + o.z) / 2, a.dir);
@@ -491,9 +560,11 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
         const near = dist(f, o) < C.combo.reach;
         if (!near && run * tech.speed < tech.range) {
           a.dir = angleTo(f, o);
-          f.face = a.dir;
-          f.x += Math.cos(a.dir) * tech.speed * dt;
-          f.z += Math.sin(a.dir) * tech.speed * dt;
+          const md = zippy ? a.dir + zz(C.zipp.zig) * C.zipp.zigAng : a.dir;
+          const ms = zippy ? tech.speed / Math.cos(C.zipp.zigAng) : tech.speed;
+          f.face = md;
+          f.x += Math.cos(md) * ms * dt;
+          f.z += Math.sin(md) * ms * dt;
           return;
         }
         if (!near) {
@@ -506,7 +577,18 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
       if (a.n < tech.hits) {
         if (a.t >= a.next) {
           a.n++;
-          a.next = a.t + tech.duration;
+          a.next = a.t + tech.duration * (zippy ? 1.6 : 1);
+          // ZIPP: 1発ごとに 相手のまわりへ 一瞬で回りこむ(右・左・正面・うしろ)【仮】
+          if (zippy && o.act.k !== 'ko' && dist(f, o) < C.combo.reach + 0.6) {
+            const side = [1.25, -1.25, 0, Math.PI][(a.n - 1) % 4];
+            const ang = angleTo(o, f) + side;
+            const [nx, nz] = clampField(b, o.x + Math.cos(ang) * C.zipp.blink, o.z + Math.sin(ang) * C.zipp.blink);
+            if (!b.arena || !insideObstacle(b.arena, nx, nz, C.body.radius)) {
+              b.events.push({ kind: 'blink', side: f.side, x0: f.x, z0: f.z, x: nx, z: nz });
+              f.x = nx;
+              f.z = nz;
+            }
+          }
           f.face = angleTo(f, o);
           if (dist(f, o) < C.combo.reach + 0.6 && Math.abs(o.y - f.y) < 1.2) {
             b.events.push({ kind: 'comboHit', side: f.side, n: a.n });
@@ -593,6 +675,8 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
 function jabFor(e: AnimeEntrant): AnimeMon['jab'] {
   const form = Math.max(1, Math.min(3, e.form ?? 1));
   if (e.species === 'mofu') return { ...C.whipByForm[form - 1], step: 0, fire: 0, whip: true };
+  // ZIPP は ためる電撃ダッシュ(2026-11-03 企画者)
+  if (e.species === 'zipp') return { parts: [1], range: 1.2, step: 0, fire: 0, dash: form };
   const j = { ...C.jabByForm[form - 1] };
   if (e.species !== 'bunk') j.fire = 0;
   return j;
@@ -728,6 +812,13 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
     const pz = s.z;
     s.x += s.vx * dt;
     s.z += s.vz * dt;
+    if (s.zig) {
+      // ZIPP の弾: 進む向きの横へ、ぎざぎざに ゆれる(はじめの半分は片側へ)
+      const sg = Math.floor(s.t / C.zipp.shotZigT + 0.5) % 2 ? -1 : 1;
+      const n = Math.hypot(s.vx, s.vz) || 1;
+      s.x += (-s.vz / n) * sg * C.zipp.shotZig * dt;
+      s.z += (s.vx / n) * sg * C.zipp.shotZig * dt;
+    }
     // 柱・壁に当たったら、そこで はじける(2026-11-03 ロストテンプル)
     const wh = b.arena ? rayHit(b.arena, px, pz, s.x, s.z, s.y, s.r * 0.6) : null;
     if (wh) {
@@ -1072,14 +1163,24 @@ function walk(b: AnimeBattle, f: AnimeMon, dt: number): void {
     if (Math.abs(f.x) > H.halfX - 2 && Math.sign(vx) === Math.sign(f.x)) vx = -Math.sign(f.x) * 0.6;
     if (Math.abs(f.z) > H.halfZ - 2 && Math.sign(vz) === Math.sign(f.z)) vz = -Math.sign(f.z) * 0.6;
   }
+  // ZIPP: 「さっと走って、ぴたっと止まる」をくり返す。走るたびに 少し左右へ ずれる(ジグザグ)【仮】
+  let dart = 1;
+  if (f.species === 'zipp') {
+    const [go, stop] = C.zipp.dart;
+    const tt = b.t + f.side * 0.37;
+    const k = Math.floor(tt / (go + stop));
+    dart = tt - k * (go + stop) < go ? C.zipp.dartSpeed[0] : C.zipp.dartSpeed[1];
+    const off = (k % 2 ? 1 : -1) * 0.5;
+    [vx, vz] = [vx * Math.cos(off) - vz * Math.sin(off), vx * Math.sin(off) + vz * Math.cos(off)];
+  }
   const len = Math.hypot(vx, vz);
   // 速さに強弱をつける(いつも同じ速さだと機械みたいなので)
-  const sway = 0.75 + 0.35 * Math.sin(b.t * 2.3 + f.side * 1.7) + 0.15 * Math.sin(b.t * 5.1 + f.side);
+  const sway = f.species === 'zipp' ? dart : 0.75 + 0.35 * Math.sin(b.t * 2.3 + f.side * 1.7) + 0.15 * Math.sin(b.t * 5.1 + f.side);
   const sp = walkSpeed(f) * sway * (b.t < f.paraUntil ? C.status.paraSpeed : 1) * (b.t < f.slowUntil ? C.gfield.slow : 1) * (b.t < f.dizzyUntil ? 0.6 : 1) * (b.t < f.burstUntil ? C.move.burst : 1);
   const wx = len > 0.01 ? (vx / len) * sp : 0;
   const wz = len > 0.01 ? (vz / len) * sp : 0;
-  // 勢い: 少しずつ速さを合わせる
-  const k = 1 - Math.exp(-dt * C.move.accel);
+  // 勢い: 少しずつ速さを合わせる(ZIPP は すぐ止まる・すぐ走る)
+  const k = 1 - Math.exp(-dt * C.move.accel * (f.species === 'zipp' ? 3 : 1));
   f.vx += (wx - f.vx) * k;
   f.vz += (wz - f.vz) * k;
   f.x += f.vx * dt;
@@ -1151,8 +1252,10 @@ function updateMon(b: AnimeBattle, f: AnimeMon, dt: number): void {
       break;
     case 'dodge':
       a.t += dt;
-      f.x += a.dx * (C.dodge.distance / C.dodge.time) * dt * (a.t < C.dodge.time ? 1 : 0);
-      f.z += a.dz * (C.dodge.distance / C.dodge.time) * dt * (a.t < C.dodge.time ? 1 : 0);
+      // ZIPP は 速く遠くへ よける(しゅっと消えるように)
+      const zd = f.species === 'zipp' ? C.zipp.dodge : 1;
+      f.x += a.dx * ((C.dodge.distance * zd) / C.dodge.time) * dt * (a.t < C.dodge.time ? 1 : 0);
+      f.z += a.dz * ((C.dodge.distance * zd) / C.dodge.time) * dt * (a.t < C.dodge.time ? 1 : 0);
       if (a.t >= C.dodge.time && f.y <= 0) f.act = { k: 'free' };
       break;
     case 'hurt':
