@@ -12,6 +12,7 @@ import { animeFinished, commandState, giveCommand, newAnimeBattle, stepAnime, ty
 import { AnimeField, ELEMENT_HEX } from '../render/animeField';
 import { modelFor } from '../core/roster';
 import { UI_FONT } from '../ui/paint';
+import { assetUrl } from '../assetUrl';
 import { partnerEntrant, rivalEntrant } from './AutoBattleScene';
 
 /** 【仮】AI習熟度。まだ育てる仕組み・保存がないので、自分も相手も Lv.2 */
@@ -58,6 +59,11 @@ const CSS = `
 .b3d .num{font-size:11px;font-weight:900;text-align:right;margin-top:1px}
 .b3d .timer{font-weight:900;font-size:20px;min-width:36px;text-align:center;text-shadow:0 2px 0 #16101c;padding-top:10px;margin:0 auto}
 /* 技の名前は小さく、上のHPの下へ(試合が見えるように。企画者 2026-11-02) */
+.b3d .cutin{position:absolute;top:calc(env(safe-area-inset-top) + 82px);height:62px;width:min(62%,460px);display:flex;align-items:center;gap:10px;pointer-events:none;z-index:2;opacity:0;background:linear-gradient(90deg,#3a0a6ae6,#a040ffcc 70%,#a040ff00);border-top:3px solid #ffd23a;border-bottom:3px solid #ffd23a;overflow:hidden}
+.b3d .cutin.l{left:0;padding-left:env(safe-area-inset-left);clip-path:polygon(0 0,100% 0,88% 100%,0 100%)}
+.b3d .cutin.r{right:0;flex-direction:row-reverse;padding-right:env(safe-area-inset-right);clip-path:polygon(12% 0,100% 0,100% 100%,0 100%);background:linear-gradient(270deg,#5a0a1ae6,#ff4a6acc 70%,#ff4a6a00)}
+.b3d .cutin img{height:100%;width:auto;flex:none}
+.b3d .cutin b{font:900 19px ${UI_FONT};color:#fff;-webkit-text-stroke:1px #16101c;text-shadow:0 3px 0 #16101c;white-space:nowrap}
 .b3d .call{position:absolute;top:calc(env(safe-area-inset-top) + 74px);font-weight:900;font-size:15px;white-space:nowrap;padding:4px 12px;border-radius:9px;background:#16101cd0;border:2px solid #fff;opacity:0;pointer-events:none}
 .b3d .call.l{left:calc(env(safe-area-inset-left) + 60px)}
 .b3d .call.r{right:calc(env(safe-area-inset-right) + 12px)}
@@ -240,6 +246,7 @@ export class Battle3DScene extends Phaser.Scene {
     root.insertAdjacentHTML(
       'beforeend',
       `<div class="top"><button class="back">◀</button><div class="me">${card(p, '')}<button class="mode"></button></div><div class="timer">90</div>${card(q, 'r')}</div>
+       <div class="cutin"><img alt=""><b></b></div>
        <div class="call"></div><div class="pop"></div><div class="big"></div>
        <div class="stickZone"><div class="stickBase"><div class="stickKnob"></div></div></div>
        <div class="stickHint">ここを<br>さわって<br>うごかす</div>
@@ -543,6 +550,8 @@ export class Battle3DScene extends Phaser.Scene {
           audio.se('whoosh', { pitch: 1.4 });
           break;
         }
+        // 大技: 横から顔と技の名前の帯が出る(止めない・じゃまにならない。2026-11-03 企画者)
+        if (t.strength === '大技') this.cutin(e.side, t.name, formAt(this.level));
         const text = e.side === 0 ? (e.byCommand ? `${f.name}、${t.name}だ！` : `${f.name}の ${t.name}！`) : `あいての ${t.name}！`;
         this.call(text, hex(ELEMENT_HEX[t.element]), e.side === 0 ? '#3a9cff' : '#ff4a4a', e.side);
         audio.se(t.kind === 'beam' ? 'mcThunder' : t.kind === 'shot' ? 'mcFire' : 'whoosh', { pitch: 1 });
@@ -736,6 +745,25 @@ export class Battle3DScene extends Phaser.Scene {
     el.style.cssText = `position:absolute;inset:0;background:#fff;opacity:${strength};pointer-events:none;z-index:4`;
     this.root.appendChild(el);
     el.animate([{ opacity: strength }, { opacity: 0 }], { duration: 220 }).onfinish = () => el.remove();
+  }
+
+  /** 大技の帯(約1秒。試合は止めない) */
+  private cutin(side: 0 | 1, name: string, form: number): void {
+    const el = this.root?.querySelector('.cutin') as HTMLElement | null;
+    if (!el) return;
+    (el.querySelector('img') as HTMLImageElement).src = assetUrl(`assets/battle3d/cutin_bunk_${Math.max(1, Math.min(3, form))}.webp`);
+    (el.querySelector('b') as HTMLElement).textContent = name;
+    el.className = `cutin ${side === 0 ? 'l' : 'r'}`;
+    const out = side === 0 ? 'translateX(-105%)' : 'translateX(105%)';
+    el.animate(
+      [
+        { opacity: 1, transform: out },
+        { opacity: 1, transform: 'translateX(0)', offset: 0.15 },
+        { opacity: 1, transform: 'translateX(0)', offset: 0.8 },
+        { opacity: 0, transform: 'translateX(0)' },
+      ],
+      { duration: 950, easing: 'ease-out' },
+    );
   }
 
   private call(text: string, color: string, border: string, side: 0 | 1 = 0): void {
