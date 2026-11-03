@@ -601,7 +601,8 @@ export class Battle3DScene extends Phaser.Scene {
         if (k === 'rush' || k === 'spin') {
           const fa = b.f[e.side];
           const fd = fa.act.k === 'tech' ? fa.act.dir : fa.face;
-          F.launch(fa.x, fa.z, fd);
+          if (fa.species === 'mofu') F.cotton(fa.x, 0.3, fa.z, 6, 0.8, 1.5);
+          else F.launch(fa.x, fa.z, fd);
           F.shake(0.12);
         }
         // 2026-11-03 企画者の演出指示: 撃つ技は発射の光の輪
@@ -609,8 +610,11 @@ export class Battle3DScene extends Phaser.Scene {
         // 落下: 跳ぶ時に足もとから砂けむり
         if (k === 'drop') {
           const fa = b.f[e.side];
-          F.dust(fa.x, fa.z, true);
-          F.launch(fa.x, fa.z, fa.face + Math.PI);
+          if (fa.species === 'mofu') F.cotton(fa.x, 0.3, fa.z, 8, 1, 2);
+          else {
+            F.dust(fa.x, fa.z, true);
+            F.launch(fa.x, fa.z, fa.face + Math.PI);
+          }
         }
         // 設置(グラビティプレス): 拳を地面にたたきつけた所にヒビと砂けむり・紫の輪
         if (k === 'field') {
@@ -647,7 +651,12 @@ export class Battle3DScene extends Phaser.Scene {
         const hdir = Math.atan2(b.f[e.target].z - atk.z, b.f[e.target].x - atk.x);
         const hcol = ht.element === '無' ? 0xff8a2a : ELEMENT_HEX[ht.element];
         // 型ごとの命中の光(2026-11-02 企画者の技演出イメージ)
-        if (ht.kind === 'rush') F.rushHit(e.x, e.y, e.z, hdir, hcol, ht.strength === '強' || ht.strength === '大技');
+        const mofuHit = atk.species === 'mofu' && ht.kind !== 'jab';
+        if (mofuHit) {
+          // MOFU の技が当たった: 綿毛と花びらが はじける(岩・火花は出さない)
+          F.cotton(e.x, e.y, e.z, e.big ? 12 : 7, 0.8, 3);
+          F.petals(e.x, e.y, e.z, e.big ? 10 : 5, 3.5);
+        } else if (ht.kind === 'rush') F.rushHit(e.x, e.y, e.z, hdir, hcol, ht.strength === '強' || ht.strength === '大技');
         else if (ht.kind === 'spin') F.spinHit(e.x, e.y, e.z, hcol);
         else if (ht.kind === 'combo') {
           // 連続攻撃: 1発ごとにちがう光、さいごは派手に(2026-11-03 企画者の演出指示)
@@ -671,7 +680,7 @@ export class Battle3DScene extends Phaser.Scene {
         else if (ht.kind === 'jab') audio.se('b3dPunchHit');
         else if (!audio.techSe(e.tech, ht.kind, 'hit')) audio.se(e.big ? 'punchHeavy' : 'punch', { pitch: 0.9 + Math.random() * 0.2 });
         this.hitStop = Math.max(this.hitStop, [0.06, 0.08, 0.11, 0.15][lvS]);
-        if (!e.big && !whip) F.explode(e.x, e.y, e.z, e.tech, false);
+        if (!e.big && !whip && !mofuHit) F.explode(e.x, e.y, e.z, e.tech, false);
         this.pop(e.crit ? `クリティカル！ -${e.damage}` : `-${e.damage}`, e.target === 0 ? '#ff8a8a' : '#ffd23a');
         break;
       }
@@ -686,6 +695,15 @@ export class Battle3DScene extends Phaser.Scene {
         break;
       case 'quake': {
         const qt = getTech(e.tech);
+        if (b.f[e.side].species === 'mofu') {
+          // MOFU: ふくらんで しぼむ風(岩・ヒビなし)
+          F.cotton(e.x, 0.5, e.z, 14, 1.2, 3);
+          F.petals(e.x, 0.6, e.z, 10, 3.5);
+          F.groundRing(e.x, e.z, 0.8, 0xffffff, 0.35, 3);
+          if (qt.strength === '大技') F.lightPillar(e.x, e.z, 0xffb0e0);
+          if (!audio.techSe(e.tech, qt.kind, 'land')) audio.se('slam');
+          break;
+        }
         F.rocks(e.x, e.z);
         F.crack(e.x, e.z, qt.range * 0.35);
         F.groundRing(e.x, e.z, 0.8, 0xffffff, 0.3, 3);
@@ -706,9 +724,10 @@ export class Battle3DScene extends Phaser.Scene {
         const it = getTech(e.tech);
         // 落下の強さで着地を変える(バウンドプレスは控えめ・バンクブレイカーは強い。企画者の演出指示)
         const lvl = it.kind === 'drop' && it.strength === '中' ? 0 : it.strength === '大技' ? 2 : 1;
-        F.impact(e.x, e.z, e.r, it.strength === '大技', lvl);
+        const soft = b.f[e.side].species === 'mofu';
+        F.impact(e.x, e.z, e.r, it.strength === '大技', lvl, soft);
         if (it.element === '炎') F.flameBurst(e.x, 0.3, e.z);
-        if (lvl > 0) {
+        if (lvl > 0 && !soft) {
           F.crack(e.x, e.z, e.r);
           this.screenFlash(0.4);
         }

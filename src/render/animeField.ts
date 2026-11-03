@@ -360,6 +360,23 @@ export class AnimeField {
   })();
   private circleTex = magicCircleTexture();
   private flowerTex = flowerCircleTexture();
+  /** 綿毛(ふわふわの丸い かたまり) */
+  private puffTex = (() => {
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const g = c.getContext('2d')!;
+    for (const [x, y, r] of [[32, 34, 18], [20, 30, 13], [44, 30, 13], [26, 20, 12], [40, 20, 12], [32, 44, 12]]) {
+      const gr = g.createRadialGradient(x, y, 0, x, y, r);
+      gr.addColorStop(0, 'rgba(255,255,255,1)');
+      gr.addColorStop(0.7, 'rgba(255,255,255,0.85)');
+      gr.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = gr;
+      g.beginPath();
+      g.arc(x, y, r, 0, Math.PI * 2);
+      g.fill();
+    }
+    return new THREE.CanvasTexture(c);
+  })();
   /** 葉っぱの形 */
   private leafTex = (() => {
     const c = document.createElement('canvas');
@@ -769,7 +786,15 @@ export class AnimeField {
    * 落下技・大技の着地: 岩・輪・大きなゆれ。
    * level(2026-11-03 企画者の演出指示): 0 = 控えめ(バウンドプレス: 土けむりと小さな輪)・1 = 強い(バンクブレイカー: 岩・強い輪2つ)・2 = 大技
    */
-  impact(x: number, z: number, r: number, big: boolean, level = big ? 2 : 1): void {
+  impact(x: number, z: number, r: number, big: boolean, level = big ? 2 : 1, soft = false): void {
+    // MOFU の着地(もふどっかん など): 岩ではなく、綿毛と花びらが ぶわっと
+    if (soft) {
+      this.cotton(x, 0.3, z, 10 + level * 6, r, 3);
+      this.petals(x, 0.5, z, 8 + level * 6, 4);
+      this.groundRing(x, z, r, 0xfff0fa, 0.45, 1.4);
+      this.shake(0.25 + level * 0.1);
+      return;
+    }
     if (level === 0) {
       this.dust(x, z, true);
       this.dust(x, z, false);
@@ -947,6 +972,30 @@ export class AnimeField {
     }
   }
 
+  /** MOFU らしさ(2026-11-03 企画者「モフっぽいのに」): ふわふわの綿毛のかたまり */
+  cotton(x: number, y: number, z: number, n: number, spread = 1, speed = 2): void {
+    for (let i = 0; i < n; i++) {
+      const p = this.sprite(i % 4 ? 0xffffff : 0xe8dcff, false, this.puffTex);
+      p.material.opacity = 0.9;
+      p.position.set(x + (Math.random() - 0.5) * spread, y + (Math.random() - 0.5) * spread * 0.5, z + (Math.random() - 0.5) * spread);
+      const a = Math.random() * Math.PI * 2;
+      const sp = speed * (0.4 + Math.random());
+      this.add(p, 0.6 + Math.random() * 0.4, 0.6, 0.35 + Math.random() * 0.3, { vx: Math.cos(a) * sp, vz: Math.sin(a) * sp, vy: 0.4 + Math.random() * 1.2 });
+    }
+  }
+
+  /** 花びら(ピンク・白)が ひらひら */
+  petals(x: number, y: number, z: number, n: number, speed = 3): void {
+    for (let i = 0; i < n; i++) {
+      const p = this.sprite(i % 3 ? 0xff9ad0 : 0xffffff, false, this.leafTex);
+      p.position.set(x, y, z);
+      const a = Math.random() * Math.PI * 2;
+      const sp = speed * (0.4 + Math.random());
+      const spin = (Math.random() - 0.5) * 14;
+      this.add(p, 0.7 + Math.random() * 0.3, -0.2, 0.22 + Math.random() * 0.12, { vx: Math.cos(a) * sp, vz: Math.sin(a) * sp, vy: 1 + Math.random() * 2.5, tick: () => { p.material.rotation += spin / 60; } });
+    }
+  }
+
   /** ツルのムチが当たった: 葉っぱが くるくる回りながら はじける・緑の光の輪 */
   whipHit(x: number, y: number, z: number, last: boolean): void {
     for (let i = 0; i < (last ? 16 : 10); i++) {
@@ -1062,7 +1111,7 @@ export class AnimeField {
         aura.position.set(f.x, f.y + 0.85, f.z);
         aura.scale.set(1.1 * pulse * big, 1.25 * pulse * big, 1.1 * pulse * big);
         // 大技(無)は大きな紫の力(テンチゴウサイ。企画者の演出指示)
-        (aura.material as THREE.MeshBasicMaterial).color.setHex(at.strength === '大技' && at.element === '無' ? 0xa040ff : auraColor(at.element));
+        (aura.material as THREE.MeshBasicMaterial).color.setHex(f.species === 'mofu' ? 0xfff0fa : at.strength === '大技' && at.element === '無' ? 0xa040ff : auraColor(at.element));
         // 強い突進(ゴウリキクラッシュ): オレンジの光に、紫の粒をまぜる(企画者「紫とオレンジのエネルギー」)
         if ((at.kind === 'rush' && at.strength === '強') || at.strength === '大技') {
           if (dt > 0 && Math.random() < dt * 40) {
@@ -1082,7 +1131,11 @@ export class AnimeField {
       sr.visible = false;
       if (a.k === 'tech' && a.fired && !a.hit && dt > 0) {
         const t2 = getTech(a.id);
-        if (t2.kind === 'rush') {
+        if (t2.kind === 'rush' && f.species === 'mofu') {
+          // MOFU の突進(ふわっとダッシュ): うしろに綿毛の帯と花びら
+          if (Math.random() < 0.7) this.cotton(f.x - Math.cos(a.dir) * 0.8, f.y + 0.6, f.z - Math.sin(a.dir) * 0.8, 1, 0.8, 0.5);
+          if (Math.random() < 0.3) this.petals(f.x, f.y + 0.6, f.z, 1, 1);
+        } else if (t2.kind === 'rush') {
           for (let n = 0; n < 2; n++) {
             const m = new THREE.Mesh(this.streakGeo, new THREE.MeshBasicMaterial({ color: n ? 0xffd080 : 0xff8a2a, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
             const side = (Math.random() - 0.5) * 1.3;
@@ -1092,14 +1145,17 @@ export class AnimeField {
             m.scale.set(1.2 + Math.random() * 1.2, 1, 1);
           }
         } else if (t2.kind === 'spin') {
-          const col = t2.element === '無' ? 0xff8a2a : ELEMENT_HEX[t2.element];
+          const col = f.species === 'mofu' ? 0xffb0e0 : t2.element === '無' ? 0xff8a2a : ELEMENT_HEX[t2.element];
           sr.visible = true;
+          ((sr.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial).color.setHex(f.species === 'mofu' ? 0xffffff : 0xa040ff);
           sr.position.set(f.x, f.y + 0.75, f.z);
           sr.rotation.set(0, -a.dir, 0);
           ((sr.children[1] as THREE.Mesh).material as THREE.MeshBasicMaterial).color.setHex(col);
           for (const c of sr.children) c.rotation.z -= dt * 22;
           // 回転の軌跡(紫と属性の色を交互に)
-          const tr = this.sprite(Math.random() < 0.5 ? 0xa040ff : col);
+          // MOFU の回転(ふわころ)は綿毛が舞う
+          if (f.species === 'mofu' && Math.random() < 0.6) this.cotton(f.x, f.y + 0.4, f.z, 1, 0.8, 1.5);
+          const tr = this.sprite(Math.random() < 0.5 ? (f.species === 'mofu' ? 0xffffff : 0xa040ff) : col);
           tr.position.set(f.x + (Math.random() - 0.5) * 0.6, f.y + 0.3 + Math.random() * 0.9, f.z + (Math.random() - 0.5) * 0.6);
           this.add(tr, 0.35, -0.4, 0.75);
           // 雷の回転は、火花が飛ぶ
@@ -1118,7 +1174,10 @@ export class AnimeField {
           const p = this.sprite(col);
           p.position.set(f.x, f.y + 0.7, f.z);
           this.add(p, 0.3, 0.4, kind === 'spin' ? 1.5 : 1.2);
-          if (Math.random() < 0.5) this.dust(f.x, f.z, false);
+          if (Math.random() < 0.5) {
+            if (f.species === 'mofu') this.cotton(f.x, 0.2, f.z, 1, 0.6, 0.6);
+            else this.dust(f.x, f.z, false);
+          }
         }
         if (kind === 'drop' && f.y > 0 && Math.random() < dt * 30) {
           const p = this.sprite(col);
@@ -1130,6 +1189,17 @@ export class AnimeField {
       const dome = this.domes[i];
       dome.visible = b.t < f.barrierUntil;
       if (dome.visible) {
+        // MOFU の守りは綿雲のドーム(六角形ではなく、ふわふわ)
+        const dm = (dome.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        const wantMap = f.species === 'mofu' ? this.puffTex : this.hexTex;
+        if (dm.map !== wantMap) {
+          dm.map = wantMap;
+          dm.color.setHex(f.species === 'mofu' ? 0xffffff : 0xbfe8ff);
+          dm.blending = f.species === 'mofu' ? THREE.NormalBlending : THREE.AdditiveBlending;
+          dm.opacity = f.species === 'mofu' ? 0.55 : 0.7;
+          dm.needsUpdate = true;
+        }
+        if (f.species === 'mofu' && dt > 0 && Math.random() < dt * 12) this.cotton(f.x + (Math.random() - 0.5) * f.barrierR * 1.6, f.y + 0.3 + Math.random() * f.barrierR, f.z + (Math.random() - 0.5) * f.barrierR * 1.6, 1, 0.3, 0.3);
         dome.position.set(f.x, f.y + 0.6, f.z);
         const left = f.barrierUntil - b.t;
         dome.scale.setScalar(f.barrierR * (left < 0.2 ? Math.max(0.05, left / 0.2) : 1));
@@ -1220,6 +1290,25 @@ export class AnimeField {
       alive.add(s.id);
       let g = this.shotObjs.get(s.id);
       const col = ELEMENT_HEX[getTech(s.tech).element];
+      const fluffy = b.f[s.owner].species === 'mofu' && getTech(s.tech).kind !== 'drain';
+      if (!g && fluffy) {
+        // MOFU の弾(わたげだま・わたげちらし): ふわふわの綿毛の玉
+        g = new THREE.Group();
+        const puff = this.sprite(0xffffff, false, this.puffTex);
+        puff.scale.setScalar(s.r * 3.6);
+        const core = this.sprite(0xfff0fa, true);
+        core.scale.setScalar(s.r * 2);
+        g.add(puff, core);
+        this.scene.add(g);
+        this.shotObjs.set(s.id, g);
+      }
+      if (fluffy && g) {
+        // ゆらゆら回りながら飛ぶ・綿毛をこぼす
+        g.position.set(s.x, s.y + Math.sin(s.t * 14) * 0.08, s.z);
+        (g.children[0] as THREE.Sprite).material.rotation += dt * 4;
+        if (Math.random() < 0.5) this.cotton(s.x, s.y, s.z, 1, 0.3, 0.3);
+        continue;
+      }
       if (!g) {
         g = new THREE.Group();
         const outer = this.sprite(col);
@@ -1320,6 +1409,7 @@ export class AnimeField {
       const fade = Math.max(0, 1 - q.r / range);
       const owner = b.f[q.owner];
       const dir = owner.face;
+      const mofuRoar = owner.species === 'mofu';
       g.position.set(q.x, 0, q.z);
       g.children.forEach((m, k) => {
         const mat = (m as THREE.Mesh).material as THREE.MeshBasicMaterial;
@@ -1340,6 +1430,15 @@ export class AnimeField {
           mat.opacity = 0.75 * fade * (1 - d / range);
         }
       });
+      // MOFU(花嵐のゆりかご): 輪はピンク、花びらがうずをまいて広がる
+      g.children.forEach((m) => ((m as THREE.Mesh).material as THREE.MeshBasicMaterial).color.setHex(mofuRoar ? 0xffa0d8 : 0xc070ff));
+      if (mofuRoar) {
+        if (dt > 0 && Math.random() < dt * 90 * fade) {
+          const a = Math.random() * Math.PI * 2;
+          this.petals(q.x + Math.cos(a) * q.r, 0.4 + Math.random() * 1.2, q.z + Math.sin(a) * q.r, 3, 1.5);
+        }
+        return;
+      }
       // 紫の空気のゆらぎ
       if (dt > 0 && Math.random() < dt * 60 * fade) {
         const a = Math.random() * Math.PI * 2;
@@ -1369,11 +1468,15 @@ export class AnimeField {
       const [disc, ring, wall] = g.children as THREE.Mesh[];
       // 自分の場(千花天幕)は花の輪・相手の場は重力の魔法陣
       const dm = disc.material as THREE.MeshBasicMaterial;
-      if (dm.map !== (fl.self ? this.flowerTex : this.circleTex)) {
-        dm.map = fl.self ? this.flowerTex : this.circleTex;
+      // MOFU の場(ねむりの綿雨)は、綿雲のじゅうたん
+      const cloud = !fl.self && b.f[fl.owner].species === 'mofu';
+      const want = fl.self ? this.flowerTex : cloud ? this.puffTex : this.circleTex;
+      if (dm.map !== want) {
+        dm.map = want;
+        dm.opacity = cloud ? 0.75 : 1;
         dm.needsUpdate = true;
-        (ring.material as THREE.MeshBasicMaterial).color.setHex(fl.self ? 0xfff0a0 : 0xe0a0ff);
-        (wall.material as THREE.MeshBasicMaterial).color.setHex(fl.self ? 0x80e080 : 0x6a20b0);
+        (ring.material as THREE.MeshBasicMaterial).color.setHex(fl.self ? 0xfff0a0 : cloud ? 0xd0e8ff : 0xe0a0ff);
+        (wall.material as THREE.MeshBasicMaterial).color.setHex(fl.self ? 0x80e080 : cloud ? 0xb0d0ff : 0x6a20b0);
       }
       const left = fl.until - b.t;
       // 出てすぐは広がり、消える前はしぼむ
@@ -1392,6 +1495,22 @@ export class AnimeField {
           const p = this.sprite(Math.random() < 0.5 ? 0xff9ad0 : 0xfff6c0);
           p.position.set(fl.x + Math.cos(a) * r, 0.2, fl.z + Math.sin(a) * r);
           this.add(p, 1.0, -0.3, 0.35, { vx: 0, vz: 0, vy: 1.5 });
+        }
+        return;
+      }
+      // MOFU の綿雲: 上に雲・綿毛の雨が ふわふわ降る
+      if (cloud) {
+        if (dt > 0 && Math.random() < dt * 30) {
+          const a = Math.random() * Math.PI * 2;
+          const rr = Math.random() * fl.r;
+          const p = this.sprite(0xffffff, false, this.puffTex);
+          p.position.set(fl.x + Math.cos(a) * rr, 2.6, fl.z + Math.sin(a) * rr);
+          this.add(p, 1.2, -0.3, 0.3, { vx: 0, vz: 0, vy: -1.8 });
+        }
+        if (dt > 0 && Math.random() < dt * 6) {
+          const c = this.sprite(0xf4f0ff, false, this.puffTex);
+          c.position.set(fl.x + (Math.random() - 0.5) * fl.r, 2.9, fl.z + (Math.random() - 0.5) * fl.r);
+          this.add(c, 1.0, 0.3, 1.4);
         }
         return;
       }
@@ -1490,7 +1609,19 @@ export class AnimeField {
       m.position.set(q.x, 0.08, q.z);
       m.scale.setScalar(Math.max(0.1, q.r));
       const big = tech.strength === '大技';
-      (m.material as THREE.MeshBasicMaterial).color.setHex(big && tech.element === '無' ? 0xc080ff : 0xffe8a0);
+      const mofuQ = b.f[q.owner]?.species === 'mofu';
+      (m.material as THREE.MeshBasicMaterial).color.setHex(mofuQ ? 0xd8ffd0 : big && tech.element === '無' ? 0xc080ff : 0xffe8a0);
+      ((m.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial).color.setHex(mofuQ ? 0xffffff : 0xd8c8a8);
+      // MOFU(ふわりの風・超膨張): 綿毛と花びらの風(石は飛ばない)
+      if (mofuQ) {
+        (m.material as THREE.MeshBasicMaterial).opacity = 0.9 * fade;
+        if (Math.random() < 0.8) {
+          const a = Math.random() * Math.PI * 2;
+          if (Math.random() < 0.5) this.cotton(q.x + Math.cos(a) * q.r, 0.4, q.z + Math.sin(a) * q.r, 1, 0.3, 1);
+          else this.petals(q.x + Math.cos(a) * q.r, 0.5, q.z + Math.sin(a) * q.r, 1, 1.5);
+        }
+        return;
+      }
       (m.material as THREE.MeshBasicMaterial).opacity = 0.9 * fade;
       const wall = m.children[0] as THREE.Mesh;
       wall.scale.set(1, 1, big ? 2.4 : 1.4);
