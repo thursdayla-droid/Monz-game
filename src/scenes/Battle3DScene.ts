@@ -654,11 +654,14 @@ export class Battle3DScene extends Phaser.Scene {
           const n = atk.act.k === 'tech' ? atk.act.n : 1;
           F.comboHit(e.x, e.y, e.z, hdir, n, n >= ht.hits, ht.strength === '強' || ht.strength === '大技');
         } else if (ht.kind === 'beam') F.explode(e.x, e.y, e.z, e.tech, true);
+        // ツルのムチ(MOFU の通常攻撃): 葉っぱがはじける
+        const whip = ht.kind === 'jab' && !!atk.jab.whip;
+        if (whip) F.whipHit(e.x, e.y, e.z, atk.act.k === 'tech' && atk.act.n >= atk.jab.parts.length);
         // 雷の技: 短い放電
         if (ht.element === '雷') F.zap(e.x, e.y, e.z);
         if (ht.element === '炎') F.flameBurst(e.x, e.y, e.z);
         // 当たった所から光の輪(技の色)。大きい当たりは画面が白く光る(2026-11-02 企画者「技しょぼい」)
-        F.shockRing(e.x, e.y, e.z, ELEMENT_HEX[getTech(e.tech).element] === 0xe0e0f0 ? 0xffd080 : ELEMENT_HEX[getTech(e.tech).element], e.big ? 1.8 : 1.1);
+        if (!whip) F.shockRing(e.x, e.y, e.z, ELEMENT_HEX[getTech(e.tech).element] === 0xe0e0f0 ? 0xffd080 : ELEMENT_HEX[getTech(e.tech).element], e.big ? 1.8 : 1.1);
         // 画面の光・ゆれ・止まる時間は、技の強さで決める(弱い技でも迫力は出すが、控えめ)
         const lvS = { 弱: 0, 中: 1, 強: 2, 大技: 3 }[ht.strength];
         if (lvS >= 2) this.screenFlash(0.35 + lvS * 0.1);
@@ -668,7 +671,7 @@ export class Battle3DScene extends Phaser.Scene {
         else if (ht.kind === 'jab') audio.se('b3dPunchHit');
         else if (!audio.techSe(e.tech, ht.kind, 'hit')) audio.se(e.big ? 'punchHeavy' : 'punch', { pitch: 0.9 + Math.random() * 0.2 });
         this.hitStop = Math.max(this.hitStop, [0.06, 0.08, 0.11, 0.15][lvS]);
-        if (!e.big) F.explode(e.x, e.y, e.z, e.tech, false);
+        if (!e.big && !whip) F.explode(e.x, e.y, e.z, e.tech, false);
         this.pop(e.crit ? `クリティカル！ -${e.damage}` : `-${e.damage}`, e.target === 0 ? '#ff8a8a' : '#ffd23a');
         break;
       }

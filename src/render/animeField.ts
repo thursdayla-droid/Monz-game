@@ -895,42 +895,73 @@ export class AnimeField {
     start.y = Math.max(0.5, start.y - 0.1);
     const sideX = -Math.sin(dir);
     const sideZ = Math.cos(dir);
-    const bend = (n % 2 ? 1 : -1) * 0.7;
-    const pts: THREE.Vector3[] = [];
-    for (let i = 0; i <= 8; i++) {
-      const k = i / 8;
-      const wave = Math.sin(k * Math.PI) * bend * (1 - k * 0.3);
-      pts.push(new THREE.Vector3(start.x + Math.cos(dir) * len * k + sideX * wave, start.y + Math.sin(k * Math.PI) * 0.35 - k * 0.15, start.z + Math.sin(dir) * len * k + sideZ * wave));
-    }
-    const curve = new THREE.CatmullRomCurve3(pts);
-    // 2026-11-03 企画者「見えにくい」→ 太く・こい緑のふち＋明るい まん中・根もとから先へ のびる・少し長く残る・葉っぱ
-    const life = 0.38;
-    const grow = 0.3;
-    for (const [r, col, add] of [[0.17, 0x1f5a1f, false], [0.11, 0x4fc04f, false], [0.05, 0xd8ffb0, true]] as const) {
-      const geo = new THREE.TubeGeometry(curve, 24, r, 7, false);
+    const sgn = n % 2 ? 1 : -1;
+    const vinePts = (bend: number, reach: number) => {
+      const pts: THREE.Vector3[] = [];
+      for (let i = 0; i <= 10; i++) {
+        const k = i / 10;
+        const wave = Math.sin(k * Math.PI) * bend * (1 - k * 0.3) + bend * 0.25 * k;
+        pts.push(new THREE.Vector3(start.x + Math.cos(dir) * reach * k + sideX * wave, start.y + Math.sin(k * Math.PI) * 0.45 - k * 0.15, start.z + Math.sin(dir) * reach * k + sideZ * wave));
+      }
+      return pts;
+    };
+    // 2026-11-03 企画者「エフェクトしょぼい」→ 大きく横から振りぬく(残像が2つ)・先に緑の斬撃の弧・葉っぱが舞う
+    const life = 0.42;
+    const tube = (pts: THREE.Vector3[], r: number, col: number, opacity: number, addMode: boolean, delay: number, grow: number) => {
+      const geo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 28, r, 7, false);
       const total = geo.index ? geo.index.count : 0;
       geo.setDrawRange(0, 0);
-      const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: col, transparent: true, depthWrite: false, ...(add ? { blending: THREE.AdditiveBlending } : {}) }));
+      const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity, depthWrite: false, ...(addMode ? { blending: THREE.AdditiveBlending } : {}) }));
       m.renderOrder = 3;
-      this.add(m, life, 0, 1, { must: true, tick: (k) => geo.setDrawRange(0, Math.floor(total * Math.min(1, k / grow) / 6) * 6) });
+      this.add(m, life, 0, 1, { must: true, tick: (k) => geo.setDrawRange(0, Math.floor((total * Math.max(0, Math.min(1, (k - delay) / grow))) / 6) * 6) });
+    };
+    // 残像(大きく しなった前の位置) → 本体
+    tube(vinePts(sgn * 2.4, len * 0.85), 0.12, 0x6adf4a, 0.25, true, 0, 0.18);
+    tube(vinePts(sgn * 1.5, len * 0.95), 0.13, 0x6adf4a, 0.4, true, 0.05, 0.2);
+    const main = vinePts(sgn * 0.7, len);
+    tube(main, 0.19, 0x1a4a1a, 1, false, 0.1, 0.22);
+    tube(main, 0.13, 0x4fc04f, 1, false, 0.1, 0.22);
+    tube(main, 0.055, 0xe0ffb8, 1, true, 0.1, 0.22);
+    // ツルのトゲのような葉っぱ
+    for (let i = 2; i <= 9; i += 2) {
+      const lp = this.sprite(0x8aef6a, false, this.leafTex);
+      lp.position.copy(main[i]);
+      lp.material.rotation = Math.random() * Math.PI;
+      this.add(lp, life * 0.9, 0.3, 0.36, { must: true });
     }
-    // ツルにそって葉っぱ(のびたあと)
-    for (let i = 2; i <= 7; i += 2) {
-      const lp = this.sprite(0x7adf5a, false, this.leafTex);
-      lp.position.copy(pts[i]);
-      this.add(lp, life * 0.9, 0.2, 0.32, { must: true });
-    }
-    // 先に光と葉っぱの粒
-    const tip = pts[pts.length - 1];
+    // 先: 緑の斬撃の弧(カメラを向く)と光
+    const tip = main[main.length - 1];
+    const arc = new THREE.Mesh(new THREE.TorusGeometry(0.9, 0.09, 6, 28, Math.PI * 0.85), new THREE.MeshBasicMaterial({ color: 0xb8ff7a, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+    arc.position.copy(tip);
+    arc.lookAt(this.camera.position);
+    arc.rotateZ(sgn > 0 ? 0.3 : Math.PI - 0.3);
+    this.add(arc, 0.24, 0.9, 1, { must: true });
     const flash = this.sprite(0xeaffc0, true, this.star);
     flash.position.copy(tip);
-    this.add(flash, 0.2, 2, 0.7, { must: true });
-    for (let i = 0; i < 7; i++) {
+    this.add(flash, 0.22, 2.4, 0.9, { must: true });
+    for (let i = 0; i < 8; i++) {
       const p = this.sprite(i % 2 ? 0x7adf5a : 0xffffff);
       p.position.copy(tip);
-      const a = Math.random() * Math.PI * 2;
-      this.add(p, 0.35, -0.4, 0.35, { vx: Math.cos(a) * 2.5, vz: Math.sin(a) * 2.5, vy: 1 + Math.random() * 2 });
+      const a2 = Math.random() * Math.PI * 2;
+      this.add(p, 0.35, -0.4, 0.35, { vx: Math.cos(a2) * 3, vz: Math.sin(a2) * 3, vy: 1 + Math.random() * 2.5 });
     }
+  }
+
+  /** ツルのムチが当たった: 葉っぱが くるくる回りながら はじける・緑の光の輪 */
+  whipHit(x: number, y: number, z: number, last: boolean): void {
+    for (let i = 0; i < (last ? 16 : 10); i++) {
+      const lp = this.sprite(i % 3 ? 0x7adf5a : 0xc8ff9a, false, this.leafTex);
+      lp.position.set(x, y, z);
+      const a = Math.random() * Math.PI * 2;
+      const sp = 2.5 + Math.random() * 3.5;
+      const spin = (Math.random() - 0.5) * 20;
+      this.add(lp, 0.55, -0.3, 0.32, { vx: Math.cos(a) * sp, vz: Math.sin(a) * sp, vy: 1.5 + Math.random() * 3, tick: () => { lp.material.rotation += spin / 60; } });
+    }
+    this.shockRing(x, y, z, 0x7adf5a, last ? 1.6 : 1.1);
+    const st = this.sprite(0xffffff, true, this.star);
+    st.position.set(x, y, z);
+    this.add(st, 0.18, 2.6, last ? 1.1 : 0.8);
+    this.shake(last ? 0.3 : 0.18);
   }
 
   /** 雷の命中: 短い放電(ぎざぎざの線) */
