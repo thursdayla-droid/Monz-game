@@ -45,6 +45,8 @@ interface Burst {
   sharedMat?: boolean;
   /** 大事な演出(粒の数の上限でも消さない) */
   must?: boolean;
+  /** 毎フレーム呼ぶ(k = 0〜1 の進み) */
+  tick?: (k: number) => void;
 }
 
 function toonGradient(): THREE.DataTexture {
@@ -358,6 +360,26 @@ export class AnimeField {
   })();
   private circleTex = magicCircleTexture();
   private flowerTex = flowerCircleTexture();
+  /** 葉っぱの形 */
+  private leafTex = (() => {
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const g = c.getContext('2d')!;
+    g.fillStyle = '#ffffff';
+    g.beginPath();
+    g.moveTo(32, 4);
+    g.quadraticCurveTo(60, 32, 32, 60);
+    g.quadraticCurveTo(4, 32, 32, 4);
+    g.fill();
+    g.strokeStyle = '#1f5a1f';
+    g.lineWidth = 4;
+    g.stroke();
+    g.beginPath();
+    g.moveTo(32, 8);
+    g.lineTo(32, 56);
+    g.stroke();
+    return new THREE.CanvasTexture(c);
+  })();
   private tmpV = new THREE.Vector3();
   /** パンチの光を出したか(のばしきりで1回) */
   private punchLit = [0, 0];
@@ -881,17 +903,33 @@ export class AnimeField {
       pts.push(new THREE.Vector3(start.x + Math.cos(dir) * len * k + sideX * wave, start.y + Math.sin(k * Math.PI) * 0.35 - k * 0.15, start.z + Math.sin(dir) * len * k + sideZ * wave));
     }
     const curve = new THREE.CatmullRomCurve3(pts);
-    for (const [r, col, life] of [[0.07, 0x3a9a3a, 0.2], [0.035, 0x9aff7a, 0.16]] as const) {
-      const m = new THREE.Mesh(new THREE.TubeGeometry(curve, 20, r, 6, false), new THREE.MeshBasicMaterial({ color: col, transparent: true, depthWrite: false }));
-      this.add(m, life, 0, 1, { must: true });
+    // 2026-11-03 企画者「見えにくい」→ 太く・こい緑のふち＋明るい まん中・根もとから先へ のびる・少し長く残る・葉っぱ
+    const life = 0.38;
+    const grow = 0.3;
+    for (const [r, col, add] of [[0.17, 0x1f5a1f, false], [0.11, 0x4fc04f, false], [0.05, 0xd8ffb0, true]] as const) {
+      const geo = new THREE.TubeGeometry(curve, 24, r, 7, false);
+      const total = geo.index ? geo.index.count : 0;
+      geo.setDrawRange(0, 0);
+      const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: col, transparent: true, depthWrite: false, ...(add ? { blending: THREE.AdditiveBlending } : {}) }));
+      m.renderOrder = 3;
+      this.add(m, life, 0, 1, { must: true, tick: (k) => geo.setDrawRange(0, Math.floor(total * Math.min(1, k / grow) / 6) * 6) });
     }
-    // 先に葉っぱと光
+    // ツルにそって葉っぱ(のびたあと)
+    for (let i = 2; i <= 7; i += 2) {
+      const lp = this.sprite(0x7adf5a, false, this.leafTex);
+      lp.position.copy(pts[i]);
+      this.add(lp, life * 0.9, 0.2, 0.32, { must: true });
+    }
+    // 先に光と葉っぱの粒
     const tip = pts[pts.length - 1];
-    for (let i = 0; i < 5; i++) {
+    const flash = this.sprite(0xeaffc0, true, this.star);
+    flash.position.copy(tip);
+    this.add(flash, 0.2, 2, 0.7, { must: true });
+    for (let i = 0; i < 7; i++) {
       const p = this.sprite(i % 2 ? 0x7adf5a : 0xffffff);
       p.position.copy(tip);
       const a = Math.random() * Math.PI * 2;
-      this.add(p, 0.3, -0.4, 0.3, { vx: Math.cos(a) * 2, vz: Math.sin(a) * 2, vy: 1 + Math.random() * 2 });
+      this.add(p, 0.35, -0.4, 0.35, { vx: Math.cos(a) * 2.5, vz: Math.sin(a) * 2.5, vy: 1 + Math.random() * 2 });
     }
   }
 
@@ -1127,6 +1165,7 @@ export class AnimeField {
         if (p.vy !== undefined && !p.fade) p.vy -= 18 * dt;
       }
       if (p.grow) p.obj.scale.setScalar(p.base * Math.max(0.05, 1 + p.grow * k));
+      p.tick?.(k);
       if (p.fade) {
         const mat = (p.obj as THREE.Sprite).material as THREE.Material & { opacity: number };
         mat.opacity = (mat.userData.o0 ??= mat.opacity) * (1 - k);
