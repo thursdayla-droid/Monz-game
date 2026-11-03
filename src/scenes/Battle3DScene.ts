@@ -554,7 +554,6 @@ export class Battle3DScene extends Phaser.Scene {
         if (t.strength === '大技') this.cutin(e.side, t.name, formAt(this.level));
         const text = e.side === 0 ? (e.byCommand ? `${f.name}、${t.name}だ！` : `${f.name}の ${t.name}！`) : `あいての ${t.name}！`;
         this.call(text, hex(ELEMENT_HEX[t.element]), e.side === 0 ? '#3a9cff' : '#ff4a4a', e.side);
-        audio.se(t.kind === 'beam' ? 'mcThunder' : t.kind === 'shot' ? 'mcFire' : 'whoosh', { pitch: 1 });
         break;
       }
       case 'fire': {
@@ -589,13 +588,15 @@ export class Battle3DScene extends Phaser.Scene {
           F.shake(0.35);
           audio.se('koBlast', { pitch: 0.6 });
         }
-        if (k === 'beam') {
-          audio.se('mcMagic');
-          F.shake(0.25);
-        } else if (k === 'shot' || k === 'barrage') audio.se('mcSlash', { pitch: 1.2 });
-        else if (k === 'rush' || k === 'spin' || k === 'combo') audio.se('whoosh', { pitch: 0.8 });
-        else if (k === 'barrier') audio.se('mcMagic', { pitch: 1.3 });
-        else audio.se('hop', { pitch: 0.8 });
+        if (k === 'beam') F.shake(0.25);
+        // 技ごとの音(2026-11-03 企画者「音は技ごとに」)。ない時は型の音
+        if (!audio.techSe(e.tech, k, 'fire')) {
+          if (k === 'beam') audio.se('mcMagic');
+          else if (k === 'shot' || k === 'barrage') audio.se('mcSlash', { pitch: 1.2 });
+          else if (k === 'rush' || k === 'spin' || k === 'combo') audio.se('whoosh', { pitch: 0.8 });
+          else if (k === 'barrier') audio.se('mcMagic', { pitch: 1.3 });
+          else audio.se('hop', { pitch: 0.8 });
+        }
         // 大技は画面が大きくゆれる(名前は上の小さい札だけ。試合が見えるように 2026-11-02)
         if (getTech(e.tech).strength === '大技') F.shake(0.3);
         break;
@@ -625,7 +626,7 @@ export class Battle3DScene extends Phaser.Scene {
         F.shake(0.18 + lvS * 0.1);
         // 通常攻撃のパンチは企画者の音(2026-11-02)
         if (ht.kind === 'jab') audio.se('b3dPunchHit');
-        else audio.se(e.big ? 'punchHeavy' : 'punch', { pitch: 0.9 + Math.random() * 0.2 });
+        else if (!audio.techSe(e.tech, ht.kind, 'hit')) audio.se(e.big ? 'punchHeavy' : 'punch', { pitch: 0.9 + Math.random() * 0.2 });
         this.hitStop = Math.max(this.hitStop, [0.06, 0.08, 0.11, 0.15][lvS]);
         if (!e.big) F.explode(e.x, e.y, e.z, e.tech, false);
         this.pop(e.crit ? `クリティカル！ -${e.damage}` : `-${e.damage}`, e.target === 0 ? '#ff8a8a' : '#ffd23a');
@@ -652,7 +653,7 @@ export class Battle3DScene extends Phaser.Scene {
           this.screenFlash(0.5);
           F.shake(0.7);
         }
-        audio.se('slam');
+        if (!audio.techSe(e.tech, qt.kind, 'land')) audio.se('slam');
         break;
       }
       case 'mark':
@@ -668,7 +669,7 @@ export class Battle3DScene extends Phaser.Scene {
           F.crack(e.x, e.z, e.r);
           this.screenFlash(0.4);
         }
-        audio.se('slam');
+        if (it.kind !== 'pillar' && !audio.techSe(e.tech, it.kind, 'land')) audio.se('slam');
         break;
       }
       case 'blocked':
@@ -696,7 +697,7 @@ export class Battle3DScene extends Phaser.Scene {
         F.flameBurst(e.x, 0.4, e.z);
         F.rocks(e.x, e.z);
         F.shake(0.2);
-        audio.se('mcFire', { pitch: 0.8 });
+        if (!audio.techSe('レンゴクホウケン', 'pillar', 'land')) audio.se('mcFire', { pitch: 0.8 });
         break;
       case 'domeBurst':
         F.impact(e.x, e.z, 2.2, true);

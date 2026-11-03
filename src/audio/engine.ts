@@ -2,7 +2,7 @@ import { BGM_FILES, type BgmName } from './bgmFiles';
 import { FilePlayer, loadAudio, loadBuffer } from './filePlayer';
 import { SE_FILES, SE_MAX_VOICES } from './seFiles';
 import { loadSound, saveSound, stepToGain, type SoundSettings } from './settings';
-import { playSe, type SeName } from './sfx';
+import { playSe, playTechSe, type SeName, type TechPhase } from './sfx';
 
 /**
  * 音の再生をまとめて受け持つ(BGM・効果音)。
@@ -113,6 +113,12 @@ class AudioEngine {
     this.wanted = null;
     this.current?.stop(fade);
     this.current = null;
+  }
+
+  /** 3Dバトルの技ごとの音(2026-11-03)。鳴らす音があれば true(なければ呼んだ側が ふつうの音を鳴らす) */
+  techSe(name: string, kind: string, phase: TechPhase): boolean {
+    if (!this.ctx || !this.seBus || this.ctx.state !== 'running') return false;
+    return playTechSe(this.ctx, this.seBus, name, kind, phase);
   }
 
   se(name: SeName, opts: { pitch?: number } = {}): void {

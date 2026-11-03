@@ -471,3 +471,137 @@ export function playSe(ctx: AudioContext, out: AudioNode, name: SeName, pitch: n
       break;
   }
 }
+
+/**
+ * 3Dバトルの技ごとの音(2026-11-03 企画者「音は技ごとにほしい」)。プログラムで作った【仮】の音。
+ * phase: fire = 技を出した時 / hit = 当たった時 / land = 着地・地面に当たった時(衝撃波・落下・火柱・設置)
+ * 企画者の音のファイルができたら、技ごとに差しかえる(audio/engine.ts の techSe)
+ */
+export type TechPhase = 'fire' | 'hit' | 'land';
+
+const boom = (ctx: AudioContext, out: AudioNode, t: number, size: number) => {
+  const o = heavy(ctx, out, 0.5 + size * 0.15, 4 + size);
+  tone(ctx, o, t, 'sine', [[0, 110 - size * 15], [0.5 + size * 0.3, 32]], [[0, 0.9], [0.6 + size * 0.4, 0.0001]], 0.7 + size * 0.4);
+  hiss(ctx, o, t, 'lowpass', [[0, 1200], [0.5 + size * 0.3, 150]], 0.7, [[0, 0.8], [0.6 + size * 0.4, 0.0001]], 0.7 + size * 0.4);
+  hiss(ctx, out, t, 'highpass', [[0, 2400]], 0.7, [[0, 0.6], [0.05, 0.0001]], 0.06);
+};
+const whoosh = (ctx: AudioContext, out: AudioNode, t: number, f0: number, f1: number, len: number, vol = 0.5) =>
+  hiss(ctx, out, t, 'bandpass', [[0, f0], [len, f1]], 1.4, [[0, 0.0001], [len * 0.35, vol], [len, 0.0001]], len + 0.02);
+const hitPunch = (ctx: AudioContext, out: AudioNode, t: number, p: number, heavyHit: boolean) => {
+  const o = crunch(ctx, out, heavyHit ? 4 : 2.5);
+  hiss(ctx, out, t, 'highpass', [[0, 3000]], 0.8, [[0, 0.8], [0.025, 0.0001]], 0.03);
+  hiss(ctx, o, t, 'bandpass', [[0, 1200 * p], [heavyHit ? 0.16 : 0.07, 500]], 1, [[0, 0.75], [heavyHit ? 0.18 : 0.08, 0.0001]], 0.2);
+  tone(ctx, o, t, 'sine', [[0, 180 * p], [heavyHit ? 0.25 : 0.1, 45]], [[0, 0.95], [heavyHit ? 0.3 : 0.13, 0.0001]], 0.32);
+};
+const zapSnd = (ctx: AudioContext, out: AudioNode, t: number, len: number) => {
+  for (let i = 0; i < 6; i++) hiss(ctx, out, t + i * (len / 6), 'highpass', [[0, 3500 + Math.random() * 2000]], 2, [[0, 0.5], [0.03, 0.0001]], 0.04);
+  tone(ctx, out, t, 'sawtooth', [[0, 120], [len, 90]], [[0, 0.18], [len, 0.0001]], len + 0.02);
+};
+const fireSnd = (ctx: AudioContext, out: AudioNode, t: number, len: number, vol = 0.6) => {
+  hiss(ctx, crunch(ctx, out, 2), t, 'lowpass', [[0, 400], [len * 0.4, 1600], [len, 300]], 0.8, [[0, 0.0001], [len * 0.25, vol], [len, 0.0001]], len + 0.02);
+};
+
+/** 技の名前 → 音(ない技は型で決める) */
+const TECH_SND: Record<string, Partial<Record<TechPhase, (ctx: AudioContext, out: AudioNode, t: number) => void>>> = {
+  バンクバッシュ: {
+    fire: (c, o, t) => { whoosh(c, o, t, 400, 1600, 0.3, 0.6); tone(c, o, t, 'sine', [[0, 140], [0.12, 60]], [[0, 0.6], [0.15, 0.0001]], 0.16); },
+    hit: (c, o, t) => hitPunch(c, o, t, 1, false),
+  },
+  コロガン: {
+    fire: (c, o, t) => { for (let i = 0; i < 8; i++) whoosh(c, o, t + i * 0.1, 300, 900, 0.1, 0.35); },
+    hit: (c, o, t) => { hitPunch(c, o, t, 1.15, false); tone(c, o, t + 0.02, 'triangle', [[0, 900], [0.2, 500]], [[0, 0.2], [0.22, 0.0001]], 0.24); },
+  },
+  ポンポンショット: {
+    fire: (c, o, t) => { tone(c, o, t, 'sine', [[0, 320], [0.08, 760]], [[0, 0.5], [0.12, 0.0001]], 0.14); fireSnd(c, o, t, 0.25, 0.35); },
+    hit: (c, o, t) => { hiss(c, crunch(c, o, 2), t, 'lowpass', [[0, 2200], [0.18, 300]], 0.8, [[0, 0.7], [0.2, 0.0001]], 0.22); },
+  },
+  ドスンパクト: {
+    fire: (c, o, t) => tone(c, o, t, 'sine', [[0, 300], [0.15, 600]], [[0, 0.25], [0.18, 0.0001]], 0.2),
+    land: (c, o, t) => boom(c, o, t, 1),
+  },
+  バウンドプレス: {
+    fire: (c, o, t) => tone(c, o, t, 'triangle', [[0, 180], [0.25, 620]], [[0, 0.45], [0.3, 0.0001]], 0.32),
+    land: (c, o, t) => boom(c, o, t, 0.4),
+  },
+  ハネツキラッシュ: {
+    fire: (c, o, t) => { for (let i = 0; i < 3; i++) tone(c, o, t + i * 0.12, 'triangle', [[0, 260], [0.08, 520]], [[0, 0.3], [0.1, 0.0001]], 0.11); },
+    hit: (c, o, t) => hitPunch(c, o, t, 0.95 + Math.random() * 0.25, false),
+  },
+  ゴウリキクラッシュ: {
+    fire: (c, o, t) => { fireSnd(c, o, t, 0.6, 0.8); whoosh(c, o, t + 0.1, 300, 1200, 0.35, 0.5); },
+    hit: (c, o, t) => { hitPunch(c, o, t, 0.8, true); fireSnd(c, o, t, 0.4, 0.6); },
+  },
+  ガンジョウドーム: {
+    fire: (c, o, t) => { tone(c, reverb(c, o, 0.4), t, 'sine', [[0, 660], [0.4, 990]], [[0, 0.3], [0.5, 0.0001]], 0.52); tone(c, o, t + 0.05, 'sine', [[0, 1320], [0.3, 1760]], [[0, 0.12], [0.35, 0.0001]], 0.36); },
+  },
+  シュンソクスピン: {
+    fire: (c, o, t) => zapSnd(c, o, t, 0.8),
+    hit: (c, o, t) => { hitPunch(c, o, t, 1.2, false); zapSnd(c, o, t, 0.25); },
+  },
+  ネライウチバースト: {
+    fire: (c, o, t) => { tone(c, o, t, 'sine', [[0, 700], [0.18, 1900]], [[0, 0.35], [0.2, 0.0001]], 0.22); tone(c, o, t + 0.04, 'triangle', [[0, 1400]], [[0, 0.15], [0.15, 0.0001]], 0.16); },
+    hit: (c, o, t) => { tone(c, o, t, 'sine', [[0, 1800], [0.25, 400]], [[0, 0.45], [0.28, 0.0001]], 0.3); hiss(c, o, t, 'highpass', [[0, 3000]], 0.7, [[0, 0.5], [0.08, 0.0001]], 0.1); },
+  },
+  バンクブレイカー: {
+    fire: (c, o, t) => whoosh(c, o, t, 200, 1800, 0.45, 0.7),
+    land: (c, o, t) => boom(c, o, t, 1.6),
+  },
+  ブレイクロア: {
+    fire: (c, o, t) => {
+      const g = crunch(c, reverb(c, o, 0.35), 5);
+      tone(c, g, t, 'sawtooth', [[0, 95], [0.3, 120], [0.9, 70]], [[0, 0.0001], [0.08, 0.6], [0.8, 0.3], [1.0, 0.0001]], 1.02);
+      hiss(c, g, t, 'bandpass', [[0, 500], [0.9, 260]], 1.2, [[0, 0.0001], [0.1, 0.5], [1.0, 0.0001]], 1.02);
+    },
+  },
+  メガトンラッシュ: {
+    fire: (c, o, t) => whoosh(c, o, t, 300, 1000, 0.25, 0.5),
+    hit: (c, o, t) => hitPunch(c, o, t, 0.75 + Math.random() * 0.15, true),
+  },
+  グラビティプレス: {
+    fire: (c, o, t) => {
+      boom(c, o, t, 0.3);
+      const r = reverb(c, o, 0.6);
+      tone(c, r, t + 0.05, 'sine', [[0, 70], [1.0, 45]], [[0, 0.7], [1.2, 0.0001]], 1.25);
+      tone(c, r, t + 0.05, 'triangle', [[0, 140], [1.0, 90]], [[0, 0.25], [1.1, 0.0001]], 1.15);
+    },
+  },
+  ギガントバースト: {
+    fire: (c, o, t) => {
+      tone(c, o, t, 'sawtooth', [[0, 180], [0.7, 260]], [[0, 0.0001], [0.05, 0.35], [0.7, 0.25], [0.85, 0.0001]], 0.88);
+      hiss(c, o, t, 'bandpass', [[0, 1500], [0.8, 2600]], 1, [[0, 0.0001], [0.05, 0.6], [0.85, 0.0001]], 0.88);
+    },
+    hit: (c, o, t) => boom(c, o, t, 0.8),
+  },
+  テンチゴウサイ: {
+    fire: (c, o, t) => { tone(c, reverb(c, o, 0.5), t, 'sawtooth', [[0, 60], [0.5, 110]], [[0, 0.0001], [0.4, 0.4], [0.6, 0.0001]], 0.62); whoosh(c, o, t, 150, 900, 0.5, 0.5); },
+    land: (c, o, t) => { boom(c, o, t, 2.2); boom(c, o, t + 0.25, 1); },
+  },
+  レンゴクホウケン: {
+    fire: (c, o, t) => boom(c, o, t, 0.5),
+    land: (c, o, t) => { fireSnd(c, o, t, 0.7, 0.9); tone(c, o, t, 'sine', [[0, 90], [0.4, 40]], [[0, 0.6], [0.5, 0.0001]], 0.52); },
+  },
+};
+
+/** 型ごとの音(表にない技・ほかの種族の技) */
+const KIND_SND: Record<string, Partial<Record<TechPhase, (ctx: AudioContext, out: AudioNode, t: number) => void>>> = {
+  rush: TECH_SND.バンクバッシュ,
+  spin: TECH_SND.コロガン,
+  shot: TECH_SND.ネライウチバースト,
+  barrage: TECH_SND.ポンポンショット,
+  beam: TECH_SND.ギガントバースト,
+  quake: TECH_SND.ドスンパクト,
+  drop: TECH_SND.バウンドプレス,
+  combo: TECH_SND.ハネツキラッシュ,
+  barrier: TECH_SND.ガンジョウドーム,
+  debuff: TECH_SND.ブレイクロア,
+  field: TECH_SND.グラビティプレス,
+  pillar: TECH_SND.レンゴクホウケン,
+};
+
+/** 技の音を鳴らす。鳴らす音があれば true */
+export function playTechSe(ctx: AudioContext, out: AudioNode, name: string, kind: string, phase: TechPhase): boolean {
+  const f = TECH_SND[name]?.[phase] ?? KIND_SND[kind]?.[phase];
+  if (!f) return false;
+  f(ctx, out, ctx.currentTime + 0.005);
+  return true;
+}
