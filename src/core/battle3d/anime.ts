@@ -12,7 +12,7 @@ import type { StatBlock } from '../stats';
 import type { Instinct } from '../autobattle/config';
 import type { Proficiency } from './config';
 import { ANIME as C, TECH_IDS, type TechId } from './animeConfig';
-import { EFFECT_CHANCE, getTech, type Effect } from './techTable';
+import { EFFECT_CHANCE, getTech, SELF_FIELD_TECHS, type Effect } from './techTable';
 
 export type Side = 0 | 1;
 export type Command = TechId | 'dodge';
@@ -59,6 +59,13 @@ export interface AnimeMon {
   sleepUntil: number;
   /** この時刻までは ねむらない */
   sleepSafeUntil: number;
+  /** 回復した合計(1試合の上限があるので) */
+  healed: number;
+  /** 強化: 攻撃が上がる・受けるダメージが減る(割合と、いつまで) */
+  atkUpUntil: number;
+  atkUp: number;
+  defUpUntil: number;
+  defUp: number;
   /** 攻撃ダウン(ほえる)・遅くなる(重力の場) の終わり */
   atkDownUntil: number;
   slowUntil: number;
@@ -154,6 +161,9 @@ export type AnimeEvent =
   | { kind: 'domeBurst'; side: Side; x: number; z: number }
   | { kind: 'field'; side: Side; x: number; z: number; r: number; until: number }
   | { kind: 'pillar'; side: Side; x: number; z: number }
+  /** 回復した(吸収・自分の場も) */
+  | { kind: 'heal'; side: Side; amount: number; why: '回復' | '吸収' | '場' }
+  | { kind: 'buff'; side: Side; what: 'atk' | 'def' | 'speed' }
   /** 少しのダメージ(よろけない): やけど・どく・グラビティプレスの場 */
   | { kind: 'chip'; side: Side; target: Side; damage: number; why: 'やけど' | 'どく' | '場'; x: number; z: number }
   | { kind: 'blocked'; side: Side; x: number; y: number; z: number }
@@ -189,7 +199,7 @@ export interface AnimeBattle {
   /** ほえる声の輪(ダメージなし。当たると攻撃ダウン) */
   roars: Quake[];
   /** 重力の場(中にいると遅くなる) */
-  fields: { owner: Side; tech: TechId; x: number; z: number; r: number; until: number; tick?: number }[];
+  fields: { owner: Side; tech: TechId; x: number; z: number; r: number; until: number; tick?: number; self?: boolean }[];
   /** 火柱(at に地面から出る。同じ g の柱は、どれか1本が当たったら ほかは当たらない) */
   pillars: Pillar[];
   seq: number;
@@ -215,7 +225,7 @@ function newMon(e: AnimeEntrant, side: Side): AnimeMon {
     instinct: e.instinct,
     prof: e.proficiency,
     techs: e.techs ?? [...TECH_IDS],
-    jab: C.jabByForm[Math.max(1, Math.min(3, e.form ?? 1)) - 1],
+    jab: jabFor(e),
     ukemi: false,
     dizzyUntil: 0,
     paraUntil: 0,
@@ -225,6 +235,11 @@ function newMon(e: AnimeEntrant, side: Side): AnimeMon {
     poisonTick: 0,
     sleepUntil: 0,
     sleepSafeUntil: 0,
+    healed: 0,
+    atkUpUntil: 0,
+    atkUp: 0,
+    defUpUntil: 0,
+    defUp: 0,
     atkDownUntil: 0,
     slowUntil: 0,
     barrierUntil: 0,
@@ -363,9 +378,11 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
       b.events.push({ kind: 'roar', side: f.side, x: f.x, z: f.z });
     } else if (tech.kind === 'field') {
       // 拳を地面にたたきつけ、相手のいる所に重力の場【案: 場所は相手の足もと】
-      const fx = clamp(o.x, -C.field.halfX, C.field.halfX);
-      const fz = clamp(o.z, -C.field.halfZ, C.field.halfZ);
-      b.fields.push({ owner: f.side, tech: a.id, x: fx, z: fz, r: tech.size, until: b.t + C.gfield.time, tick: b.t + C.fieldTick * 0.5 });
+      // 自分の場(千花天幕)は自分の足もと・ほかは相手の足もと
+      const self = SELF_FIELD.has(a.id);
+      const fx = clamp(self ? f.x : o.x, -C.field.halfX, C.field.halfX);
+      const fz = clamp(self ? f.z : o.z, -C.field.halfZ, C.field.halfZ);
+      b.fields.push({ owner: f.side, tech: a.id, x: fx, z: fz, r: tech.size, until: b.t + C.gfield.time, tick: b.t + C.fieldTick * 0.5, self });
       b.events.push({ kind: 'field', side: f.side, x: fx, z: fz, r: tech.size, until: b.t + C.gfield.time });
     } else if (tech.kind === 'pillar') {
       // 自分の前の地面を なぐる → 使った時の相手の足もと と、そのまわり3か所から 炎の柱(地面が光ってから出る。よけられる)
@@ -384,7 +401,21 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
       }
       // なぐった所(自分の足もとの すぐ前)にヒビと火
       b.events.push({ kind: 'impact', side: f.side, tech: a.id, x: f.x + Math.cos(a.dir) * 0.55, z: f.z + Math.sin(a.dir) * 0.55, r: 0.9 });
-    } else if (tech.kind === 'barrier') {
+    } else if (tech.kind === 'heal') {
+      healMon(b, f, (f.maxHp * tech.power) / 100, '回復');
+    } else if (tech.kind === 'buff') {
+      const what = BUFF_WHAT[a.id] ?? 'atk';
+      if (what === 'def') {
+        f.defUp = tech.power / 100;
+        f.defUpUntil = b.t + tech.duration;
+      } else {
+        f.atkUp = tech.power / 100;
+        f.atkUpUntil = b.t + tech.duration;
+        if (what === 'speed') f.burstUntil = b.t + tech.duration;
+      }
+      b.events.push({ kind: 'buff', side: f.side, what });
+    } else if (tech.kind === 'drain') shoot(a.dir);
+    else if (tech.kind === 'barrier') {
       f.barrierUntil = b.t + tech.duration;
       f.barrierR = tech.size;
     }
@@ -509,9 +540,9 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
     default:
       break;
   }
-  const extra = tech.kind === 'beam' || tech.kind === 'barrier' ? tech.duration : tech.kind === 'barrage' ? C.barrage.gap * C.barrage.count : 0;
+  const extra = tech.kind === 'beam' || tech.kind === 'barrier' || tech.kind === 'heal' ? tech.duration : tech.kind === 'barrage' ? C.barrage.gap * C.barrage.count : 0;
   const move = tech.kind === 'rush' ? tech.range / tech.speed : 0;
-  if (a.hit || tech.kind === 'shot' || tech.kind === 'barrage' || tech.kind === 'beam' || tech.kind === 'barrier' || tech.kind === 'debuff' || tech.kind === 'field' || tech.kind === 'pillar') {
+  if (a.hit || tech.kind === 'shot' || tech.kind === 'barrage' || tech.kind === 'beam' || tech.kind === 'barrier' || tech.kind === 'debuff' || tech.kind === 'field' || tech.kind === 'pillar' || tech.kind === 'heal' || tech.kind === 'buff' || tech.kind === 'drain') {
     if (a.t >= a.windup + extra + tech.recovery + (a.hit ? 0 : move) && f.y <= 0) f.act = { k: 'free' };
     else if (tech.kind === 'rush' && a.hit && run >= tech.recovery && f.y <= 0 && a.t >= a.windup + tech.recovery) f.act = { k: 'free' };
   }
@@ -521,6 +552,33 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
  * ガンジョウドームの反撃(2026-11-02 企画者「相手の技や攻撃受けたら爆発が起きて反撃できるように」)。
  * 守りのドームが攻撃を受けると、ドームが はじけて衝撃波が広がる(ドームはそこで終わり)。近くの相手に当たる(ジャンプでよけられる)
  */
+/**
+ * 通常攻撃(種族・形態で変わる)。火の粉・火の玉は BUNK だけ。
+ * MOFU(Lv.1)は腕がないので、ちょっこりタックル(1発ごとに少し前へ ぶつかる。2026-11-03 企画者「モフの攻撃はちょっこりタックル」)
+ */
+function jabFor(e: AnimeEntrant): AnimeMon['jab'] {
+  const form = Math.max(1, Math.min(3, e.form ?? 1));
+  const j = { ...C.jabByForm[form - 1] };
+  if (e.species !== 'bunk') j.fire = 0;
+  if (e.species === 'mofu' && form === 1) j.step = Math.max(j.step, 0.25);
+  return j;
+}
+
+/** 強化の技が何を上げるか(技の名前で決める。ない技は攻撃)【案】 */
+const BUFF_WHAT: Record<string, 'atk' | 'def' | 'speed'> = { もりの息吹: 'def', アイアンボディ: 'def', グランドアンカー: 'def', 残光ステップ: 'speed', 超弾性チャージ: 'atk', ヒートロア: 'atk', レイジブースト: 'atk', 帯電チャージ: 'atk' };
+/** 自分の まわりに置く場(中にいると自分が回復・守られる)の技 */
+const SELF_FIELD = SELF_FIELD_TECHS;
+
+/** 回復(1試合の上限まで) */
+function healMon(b: AnimeBattle, f: AnimeMon, amount: number, why: '回復' | '吸収' | '場'): void {
+  const room = Math.max(0, Math.round(f.maxHp * C.heal.cap) - f.healed);
+  const n = Math.min(Math.round(amount), room, f.maxHp - f.hp);
+  if (n <= 0 || f.act.k === 'ko') return;
+  f.hp += n;
+  f.healed += n;
+  b.events.push({ kind: 'heal', side: f.side, amount: n, why });
+}
+
 /** 今、攻撃が当たらないか(たおれている・起きた直後・受け身のあと・よけている瞬間)。hit() と同じ決まり。見た目で分かるように使う(2026-11-02 企画者) */
 export function isInvincible(b: AnimeBattle, f: AnimeMon): boolean {
   return b.t < f.safeUntil || f.act.k === 'down' || (f.act.k === 'dodge' && f.act.t < C.dodge.invincible);
@@ -531,6 +589,39 @@ function domeBurst(b: AnimeBattle, f: AnimeMon): void {
   f.barrierUntil = b.t;
   b.quakes.push({ owner: f.side, tech: 'domeBurst', x: f.x, z: f.z, r: f.barrierR, hit: false });
   b.events.push({ kind: 'domeBurst', side: f.side, x: f.x, z: f.z });
+}
+
+/** 追加効果をかける(当たり・場・弱体から)。ねむりになったら true */
+function setEffect(b: AnimeBattle, o: AnimeMon, effect: Effect, big = false): boolean {
+  let ok = true;
+  let sleep = false;
+  if (effect === 'ふらつき') o.dizzyUntil = b.t + C.status.dizzy;
+  else if (effect === 'まひ') o.paraUntil = b.t + C.status.para;
+  else if (effect === '遅くする') o.slowUntil = b.t + C.gfield.time;
+  else if (effect === '攻撃ダウン') o.atkDownUntil = b.t + C.debuff.time;
+  else if (effect === 'やけど') {
+    if (b.t >= o.burnUntil) o.burnTick = b.t + C.burn.every;
+    o.burnUntil = b.t + C.burn.time;
+  } else if (effect === 'どく') {
+    if (b.t >= o.poisonUntil) o.poisonTick = b.t + C.poison.every;
+    o.poisonUntil = b.t + C.poison.time;
+  } else if (effect === 'ねむり') {
+    ok = !big && b.t >= o.sleepSafeUntil && o.act.k !== 'down' && o.act.k !== 'air';
+    if (ok) {
+      sleep = true;
+      o.sleepUntil = b.t + C.sleep.time;
+      o.sleepSafeUntil = b.t + C.sleep.time + C.sleep.immune;
+    }
+  } else ok = false;
+  if (ok) b.events.push({ kind: 'status', side: o.side, effect });
+  return sleep;
+}
+
+/** 場・弱体から追加効果(かかる確率 = 技の強さの確率 × k)。ねむりは その場で動けなくする */
+function applyEffect(b: AnimeBattle, o: AnimeMon, tech: ReturnType<typeof getTech>, k: number): void {
+  if (o.act.k === 'ko' || b.t < o.safeUntil || o.act.k === 'down') return;
+  if (b.rng() >= EFFECT_CHANCE[tech.strength] * k) return;
+  if (setEffect(b, o, tech.effect)) o.act = { k: 'hurt', t: 0, until: C.sleep.time };
 }
 
 /** 当たり → ダメージ・吹っ飛び */
@@ -549,13 +640,16 @@ function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y:
   }
   const tech = getTech(id);
   const part = opt.part ?? 1;
-  // ねむっている時に攻撃を受けると起きる
+  // ねむっている時に攻撃を受けると起きる。起こした攻撃では ふっとばない(ねむり＋ふっとびで長く動けなくならないように 2026-11-03)
+  const wasAsleep = o.sleepUntil > 0 && b.t < o.sleepUntil + 0.3;
   if (b.t < o.sleepUntil) o.sleepUntil = b.t;
   // テクニックが高いと、クリティカル(1.4倍)が出やすい
   const crit = b.rng() < Math.min(0.3, f.stats.tech / C.stat.techCritDiv);
   // 攻撃ダウン中は、与えるダメージが下がる
   const down = b.t < f.atkDownUntil ? C.debuff.atkDown : 1;
-  const dmg = Math.max(1, Math.round(down * (crit ? C.stat.critMul : 1) * tech.power * part * (part < 1 ? C.combo.bonus : 1) * (1 + f.stats.power / C.stat.powerDiv) * (C.stat.toughDiv / (C.stat.toughDiv + o.stats.tough)) * (0.9 + b.rng() * 0.2)));
+  // 強化(攻撃アップ・守りアップ)と、自分の場(千花天幕)の中
+  const up = (b.t < f.atkUpUntil ? 1 + f.atkUp : 1) * (b.t < o.defUpUntil ? 1 - o.defUp : 1) * (b.fields.some((fl) => fl.self && fl.owner === o.side && dist(fl, o) < fl.r) ? C.selfField.guard : 1);
+  const dmg = Math.max(1, Math.round(up * down * (crit ? C.stat.critMul : 1) * tech.power * part * (part < 1 ? C.combo.bonus : 1) * (1 + f.stats.power / C.stat.powerDiv) * (C.stat.toughDiv / (C.stat.toughDiv + o.stats.tough)) * (0.9 + b.rng() * 0.2)));
   o.hp = Math.max(0, o.hp - dmg);
   const finish = opt.last ?? true;
   // 通常攻撃(パンチの連打)は、さいごの1発だけ押す(とちゅうで とどかなくならないように)
@@ -564,7 +658,7 @@ function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y:
   o.kvz += Math.sin(dir) * knock * C.hurt.friction * 0.35;
   o.command = null;
   o.face = angleTo(o, f);
-  const big = tech.launch > 0 && finish;
+  const big = tech.launch > 0 && finish && !wasAsleep;
   b.events.push({ kind: 'hit', side: f.side, target: o.side, tech: id, damage: dmg, x, y, z, big, crit });
   if (o.hp <= 0) {
     o.act = { k: 'ko', t: 0 };
@@ -579,26 +673,7 @@ function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y:
   }
   // 追加効果(ふらつき・まひ・やけど・どく・ねむり。こおりは【未実装】)
   let sleep = false;
-  if (finish && tech.effect !== 'なし' && b.rng() < EFFECT_CHANCE[tech.strength] + Math.min(0.25, f.stats.tech / C.stat.techEffectDiv)) {
-    let ok = true;
-    if (tech.effect === 'ふらつき') o.dizzyUntil = b.t + C.status.dizzy;
-    else if (tech.effect === 'まひ') o.paraUntil = b.t + C.status.para;
-    else if (tech.effect === 'やけど') {
-      if (b.t >= o.burnUntil) o.burnTick = b.t + C.burn.every;
-      o.burnUntil = b.t + C.burn.time;
-    } else if (tech.effect === 'どく') {
-      if (b.t >= o.poisonUntil) o.poisonTick = b.t + C.poison.every;
-      o.poisonUntil = b.t + C.poison.time;
-    } else if (tech.effect === 'ねむり') {
-      ok = !big && b.t >= o.sleepSafeUntil;
-      if (ok) {
-        sleep = true;
-        o.sleepUntil = b.t + C.sleep.time;
-        o.sleepSafeUntil = b.t + C.sleep.time + C.sleep.immune;
-      }
-    } else if (tech.effect === 'こおり') ok = false;
-    if (ok) b.events.push({ kind: 'status', side: o.side, effect: tech.effect });
-  }
+  if (finish && tech.effect !== 'なし' && b.rng() < EFFECT_CHANCE[tech.strength] + Math.min(0.25, f.stats.tech / C.stat.techEffectDiv)) sleep = setEffect(b, o, tech.effect, big);
   if (big) {
     o.vy = tech.launch;
     o.y = Math.max(o.y, 0.001);
@@ -624,7 +699,10 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
       continue;
     }
     if (dist(s, tgt) < s.r + C.body.radius && Math.abs(tgt.y + 0.7 - s.y) < 1.2) {
+      const hp0 = tgt.hp;
       const did = hit(b, b.f[s.owner], tgt, s.tech, s.x, s.y, s.z, Math.atan2(s.vz, s.vx));
+      // 吸収: 当てたダメージの半分を回復
+      if (did && getTech(s.tech).kind === 'drain') healMon(b, b.f[s.owner], (hp0 - tgt.hp) * C.drain.ratio, '吸収');
       if (did) {
         s.alive = false;
         b.events.push({ kind: 'explode', x: s.x, y: s.y, z: s.z, tech: s.tech, big: false });
@@ -695,8 +773,13 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
       q.hit = true;
       if (tgt.act.k === 'dodge' && tgt.act.t < C.dodge.invincible) b.events.push({ kind: 'evaded', side: tgt.side });
       else if (tgt.act.k !== 'ko') {
-        tgt.atkDownUntil = b.t + C.debuff.time;
-        b.events.push({ kind: 'status', side: tgt.side, effect: '攻撃ダウン' });
+        // 弱体の効果は技の表の追加効果(攻撃ダウン・ねむり・遅くする)
+        const eff = getTech(q.tech).effect;
+        if (eff === 'ねむり' || eff === '遅くする') applyEffect(b, tgt, getTech(q.tech), 1);
+        else {
+          tgt.atkDownUntil = b.t + C.debuff.time;
+          b.events.push({ kind: 'status', side: tgt.side, effect: '攻撃ダウン' });
+        }
       }
     }
   }
@@ -704,7 +787,7 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
   // 重力の場: 中にいる相手は遅くなる(出ても少しのあいだ遅いまま)
   for (const fl of b.fields) {
     const tgt = b.f[fl.owner === 0 ? 1 : 0];
-    if (dist(fl, tgt) < fl.r && tgt.y < 0.5) {
+    if (!fl.self && getTech(fl.tech).effect === '遅くする' && dist(fl, tgt) < fl.r && tgt.y < 0.5) {
       if (b.t >= tgt.slowUntil) b.events.push({ kind: 'status', side: tgt.side, effect: '遅くする' });
       tgt.slowUntil = b.t + C.gfield.linger;
     }
@@ -712,9 +795,21 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
   // 場の中にいる間、1秒ごとに少しダメージ(よろけない)
   for (const fl of b.fields) {
     const tgt = b.f[fl.owner === 0 ? 1 : 0];
+    if (fl.self) {
+      // 自分の場: 中にいる間、自分が回復
+      if (fl.tick !== undefined && b.t >= fl.tick) {
+        fl.tick = b.t + C.fieldTick;
+        const me = b.f[fl.owner];
+        if (dist(fl, me) < fl.r) healMon(b, me, me.maxHp * C.selfField.healPct, '場');
+      }
+      continue;
+    }
     if (fl.tick !== undefined && b.t >= fl.tick) {
       fl.tick = b.t + C.fieldTick;
       if (dist(fl, tgt) < fl.r && tgt.y < 0.5) {
+        // 場の追加効果(ねむり・どく など。遅くするは下で)
+        const ft = getTech(fl.tech);
+        if (ft.effect !== 'なし' && ft.effect !== '遅くする') applyEffect(b, tgt, ft, 0.5);
         const f = b.f[fl.owner];
         const tech = getTech(fl.tech);
         if (tech.power > 0) chip(b, tgt, Math.max(1, Math.round(tech.power * (1 + f.stats.power / C.stat.powerDiv) * (C.stat.toughDiv / (C.stat.toughDiv + tgt.stats.tough)))), '場');
@@ -792,6 +887,10 @@ function chooseTech(b: AnimeBattle, f: AnimeMon): TechId | null {
     else if (t.kind === 'debuff') x = b.t < o.atkDownUntil ? 0.05 : d < t.range ? 0.9 : 0.1;
     else if (t.kind === 'pillar') x = d < t.range ? 1 + f.instinct.fight : 0.1;
     else if (t.kind === 'field') x = b.fields.some((fl) => fl.owner === f.side) ? 0.05 : 0.8;
+    // 回復: HPがへってきたら(上限まで)。強化: かかっていない時。吸収: 近めの相手に
+    else if (t.kind === 'heal') x = f.hp < f.maxHp * 0.6 && f.healed < f.maxHp * C.heal.cap ? 1.6 + f.instinct.survival : 0.02;
+    else if (t.kind === 'buff') x = b.t < f.atkUpUntil || b.t < f.defUpUntil ? 0.03 : 0.7;
+    else if (t.kind === 'drain') x = d < t.range * 1.3 ? 1 + f.instinct.attack * 0.5 : 0.3;
     return x * (t.strength === '大技' ? 1.6 : 1);
   });
   let r = b.rng() * w.reduce((s, x) => s + x, 0);

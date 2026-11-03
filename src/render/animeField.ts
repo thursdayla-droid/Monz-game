@@ -193,6 +193,56 @@ function magicCircleTexture(): THREE.CanvasTexture {
   return new THREE.CanvasTexture(c);
 }
 
+/** 花の輪(千花天幕・自分の場): 花びらと光の根。緑・ピンク・白 */
+function flowerCircleTexture(): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = c.height = 512;
+  const g = c.getContext('2d')!;
+  const C = 256;
+  const grad = g.createRadialGradient(C, C, 10, C, C, 250);
+  grad.addColorStop(0, 'rgba(255,255,220,0.7)');
+  grad.addColorStop(0.6, 'rgba(120,220,120,0.45)');
+  grad.addColorStop(1, 'rgba(120,220,120,0)');
+  g.fillStyle = grad;
+  g.beginPath();
+  g.arc(C, C, 250, 0, Math.PI * 2);
+  g.fill();
+  // 光の根(くねくね外へ)
+  g.strokeStyle = 'rgba(255,250,200,0.9)';
+  g.lineWidth = 5;
+  for (let k = 0; k < 12; k++) {
+    let a = (k / 12) * Math.PI * 2;
+    let r = 40;
+    g.beginPath();
+    g.moveTo(C + Math.cos(a) * r, C + Math.sin(a) * r);
+    for (let s = 0; s < 8; s++) {
+      r += 26;
+      a += Math.sin(s + k) * 0.12;
+      g.lineTo(C + Math.cos(a) * r, C + Math.sin(a) * r);
+    }
+    g.stroke();
+  }
+  // 花(ピンクと白の花びら)
+  for (let k = 0; k < 18; k++) {
+    const a = (k / 18) * Math.PI * 2 + (k % 2) * 0.1;
+    const r = 120 + (k % 3) * 45;
+    const x = C + Math.cos(a) * r;
+    const y = C + Math.sin(a) * r;
+    for (let p = 0; p < 5; p++) {
+      const pa = (p / 5) * Math.PI * 2;
+      g.fillStyle = k % 2 ? 'rgba(255,140,200,0.95)' : 'rgba(255,255,255,0.95)';
+      g.beginPath();
+      g.ellipse(x + Math.cos(pa) * 10, y + Math.sin(pa) * 10, 10, 6, pa, 0, Math.PI * 2);
+      g.fill();
+    }
+    g.fillStyle = 'rgba(255,220,80,1)';
+    g.beginPath();
+    g.arc(x, y, 6, 0, Math.PI * 2);
+    g.fill();
+  }
+  return new THREE.CanvasTexture(c);
+}
+
 /** 守りのドームの六角形のもよう(2026-11-03 企画者の演出指示「バリア表面に六角形の模様」) */
 function hexTexture(): THREE.CanvasTexture {
   const c = document.createElement('canvas');
@@ -307,6 +357,7 @@ export class AnimeField {
     return new THREE.CanvasTexture(c);
   })();
   private circleTex = magicCircleTexture();
+  private flowerTex = flowerCircleTexture();
   private tmpV = new THREE.Vector3();
   /** パンチの光を出したか(のばしきりで1回) */
   private punchLit = [0, 0];
@@ -713,6 +764,45 @@ export class AnimeField {
     this.shake(big ? 0.6 : 0.45);
   }
 
+  /** 回復: 緑と白の光が体からのぼる・光の輪(大技は大きく、光の木の柱) */
+  healFx(side: number, big: boolean): void {
+    const f = this.rigs[side].root.position;
+    for (let i = 0; i < (big ? 30 : 16); i++) {
+      const p = this.sprite(i % 3 ? 0x9aff9a : 0xffffff);
+      const a = Math.random() * Math.PI * 2;
+      p.position.set(f.x + Math.cos(a) * 0.7, 0.2 + Math.random() * 0.6, f.z + Math.sin(a) * 0.7);
+      this.add(p, 0.9, -0.4, 0.4, { vx: 0, vz: 0, vy: 2 + Math.random() * 2 });
+    }
+    this.groundRing(f.x, f.z, 1, 0x9aff9a, 0.6, 1.5);
+    if (big) this.lightPillar(f.x, f.z, 0x9aff9a);
+  }
+
+  /** 強化: 色の光の輪(守り = 緑・攻撃 = オレンジ・速さ = 水色) */
+  buffFx(side: number, what: 'atk' | 'def' | 'speed'): void {
+    const f = this.rigs[side].root.position;
+    const col = what === 'def' ? 0x9aff9a : what === 'atk' ? 0xff9a3a : 0x7ad0ff;
+    this.groundRing(f.x, f.z, 0.9, col, 0.5, 2);
+    this.shockRing(f.x, 1, f.z, col, 1.3);
+    for (let i = 0; i < 12; i++) {
+      const p = this.sprite(col);
+      const a = (i / 12) * Math.PI * 2;
+      p.position.set(f.x + Math.cos(a) * 0.9, 0.3, f.z + Math.sin(a) * 0.9);
+      this.add(p, 0.6, -0.3, 0.4, { vx: 0, vz: 0, vy: 3 });
+    }
+  }
+
+  /** 吸収: 当たった相手から、光の粒が自分へもどる */
+  drainFx(from: number, to: number): void {
+    const a = this.rigs[from].root.position;
+    const t = this.rigs[to].root.position;
+    for (let i = 0; i < 10; i++) {
+      const p = this.sprite(i % 2 ? 0x9aff9a : 0xffffff);
+      p.position.set(a.x + (Math.random() - 0.5) * 0.6, 0.8 + Math.random() * 0.5, a.z + (Math.random() - 0.5) * 0.6);
+      const k = 1.6 + Math.random() * 0.6;
+      this.add(p, 0.5, -0.4, 0.35, { vx: (t.x - a.x) * k, vz: (t.z - a.z) * k, vy: 0 });
+    }
+  }
+
   /** 光の柱(大技の着地。テンチゴウサイ) */
   lightPillar(x: number, z: number, color: number): void {
     for (const [w, c, life] of [[1.6, color, 0.7], [0.7, 0xffffff, 0.5]] as const) {
@@ -950,6 +1040,13 @@ export class AnimeField {
         stars.position.set(f.x, f.y + 1.75, f.z);
         stars.rotation.y += dt * 5;
       }
+      // 強化中: 体のまわりに色の粒(守り = 緑・攻撃 = オレンジ)
+      if (f.act.k !== 'ko' && dt > 0 && (b.t < f.defUpUntil || b.t < f.atkUpUntil) && Math.random() < dt * 12) {
+        const p = this.sprite(b.t < f.defUpUntil ? 0x9aff9a : 0xff9a3a);
+        const a = Math.random() * Math.PI * 2;
+        p.position.set(f.x + Math.cos(a) * 0.8, f.y + 0.2 + Math.random() * 1.2, f.z + Math.sin(a) * 0.8);
+        this.add(p, 0.5, -0.3, 0.3, { vx: 0, vz: 0, vy: 1 });
+      }
       // やけど(体から火)・どく(紫のあわ)・ねむり(Z が のぼる)
       if (f.act.k !== 'ko' && dt > 0) {
         if (b.t < f.burnUntil && Math.random() < dt * 25) this.flame(f.x, f.y + 0.4, f.z, 1.0, 1);
@@ -1167,6 +1264,14 @@ export class AnimeField {
       g.visible = !!fl;
       if (!fl) return;
       const [disc, ring, wall] = g.children as THREE.Mesh[];
+      // 自分の場(千花天幕)は花の輪・相手の場は重力の魔法陣
+      const dm = disc.material as THREE.MeshBasicMaterial;
+      if (dm.map !== (fl.self ? this.flowerTex : this.circleTex)) {
+        dm.map = fl.self ? this.flowerTex : this.circleTex;
+        dm.needsUpdate = true;
+        (ring.material as THREE.MeshBasicMaterial).color.setHex(fl.self ? 0xfff0a0 : 0xe0a0ff);
+        (wall.material as THREE.MeshBasicMaterial).color.setHex(fl.self ? 0x80e080 : 0x6a20b0);
+      }
       const left = fl.until - b.t;
       // 出てすぐは広がり、消える前はしぼむ
       const age = getTechAge(fl, b.t);
@@ -1176,6 +1281,17 @@ export class AnimeField {
       disc.rotation.z += dt * 0.6;
       ring.rotation.z -= dt * 1.4;
       (wall.material as THREE.MeshBasicMaterial).opacity = 0.08 + Math.sin(performance.now() / 150) * 0.03;
+      // 自分の場: 花びらと光の粒が ふわふわ のぼる
+      if (fl.self) {
+        if (dt > 0 && Math.random() < dt * 40) {
+          const a = Math.random() * Math.PI * 2;
+          const r = Math.random() * fl.r;
+          const p = this.sprite(Math.random() < 0.5 ? 0xff9ad0 : 0xfff6c0);
+          p.position.set(fl.x + Math.cos(a) * r, 0.2, fl.z + Math.sin(a) * r);
+          this.add(p, 1.0, -0.3, 0.35, { vx: 0, vz: 0, vy: 1.5 });
+        }
+        return;
+      }
       // 上から押しつける紫と黒の粒
       if (dt > 0 && Math.random() < dt * 40) {
         const a = Math.random() * Math.PI * 2;

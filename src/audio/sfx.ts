@@ -598,6 +598,18 @@ const KIND_SND: Record<string, Partial<Record<TechPhase, (ctx: AudioContext, out
   debuff: TECH_SND.ブレイクロア,
   field: TECH_SND.グラビティプレス,
   pillar: TECH_SND.レンゴクホウケン,
+  // 2026-11-03 MOFU の新しい型
+  heal: {
+    fire: (c, o, t) => { for (let i = 0; i < 4; i++) tone(c, reverb(c, o, 0.4), t + i * 0.08, 'sine', [[0, 660 * Math.pow(1.26, i)]], [[0, 0.22], [0.35, 0.0001]], 0.38); },
+    hit: (c, o, t) => tone(c, o, t, 'triangle', [[0, 880], [0.2, 1320]], [[0, 0.2], [0.25, 0.0001]], 0.26),
+  },
+  buff: {
+    fire: (c, o, t) => { tone(c, o, t, 'triangle', [[0, 330], [0.4, 990]], [[0, 0.3], [0.45, 0.0001]], 0.46); hiss(c, o, t, 'bandpass', [[0, 800], [0.4, 3000]], 1, [[0, 0.0001], [0.2, 0.3], [0.45, 0.0001]], 0.46); },
+  },
+  drain: {
+    fire: (c, o, t) => { tone(c, o, t, 'sine', [[0, 500], [0.25, 260]], [[0, 0.35], [0.28, 0.0001]], 0.3); },
+    hit: (c, o, t) => { hiss(c, o, t, 'bandpass', [[0, 2500], [0.3, 500]], 2, [[0, 0.4], [0.32, 0.0001]], 0.34); tone(c, o, t + 0.1, 'sine', [[0, 400], [0.2, 900]], [[0, 0.2], [0.25, 0.0001]], 0.26); },
+  },
 };
 
 /** 技の音を鳴らす。鳴らす音があれば true */

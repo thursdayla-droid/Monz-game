@@ -89,15 +89,23 @@ export const ANIME = {
    */
   burn: { time: 3, every: 1, pct: 0.02 },
   poison: { time: 8, every: 1, pct: 0.01 },
-  sleep: { time: 2.5, immune: 5 },
+  sleep: { time: 2.0, immune: 5 },  // 2026-11-03 2.5→2.0(MOFU の技で、ねむり＋攻撃で3秒こえて動けなくなったため)
   /** グラビティプレスの場の中にいると、1秒ごとに少しダメージ(よろけない。2026-11-03 企画者「ダメージを少し」)【案】 */
   fieldTick: 1.0,
+  /**
+   * 回復・強化・吸収(2026-11-03 MOFU の技。技リスト案 docs/TECHS_ALL_DRAFT.md)【案】
+   * heal.cap: 1試合で回復できるのは最大HPの60%まで(回復しすぎない)。selfField: 自分の場(千花天幕)の中は 1秒ごとに最大HPの2%回復・受けるダメージ0.7倍
+   * drain: 当てたダメージの半分を回復
+   */
+  heal: { cap: 0.8 },
+  drain: { ratio: 0.5 },
+  selfField: { healPct: 0.03, guard: 0.6 },
   /** AI習熟度(よけるのがうまくなる) Lv.1 → Lv.5 */
   skill: { dodge: [0.25, 0.8], aim: [0.35, 0.05] },
 };
 
 /** 技の種類(表の「型」から決まる。techTable.ts)。2026-11-01 回転・連射・落下・連続攻撃・守り を追加 */
-export type TechKind = 'rush' | 'shot' | 'beam' | 'quake' | 'spin' | 'barrage' | 'drop' | 'combo' | 'barrier' | 'debuff' | 'field' | 'jab' | 'pillar';
+export type TechKind = 'rush' | 'shot' | 'beam' | 'quake' | 'spin' | 'barrage' | 'drop' | 'combo' | 'barrier' | 'debuff' | 'field' | 'jab' | 'pillar' | 'heal' | 'buff' | 'drain';
 export type Element = '炎' | '水' | '自然' | '雷' | '光' | '闇' | '無';
 
 export interface Tech {

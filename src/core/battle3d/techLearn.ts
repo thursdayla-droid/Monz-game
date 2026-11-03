@@ -6,7 +6,7 @@
 import type { Instinct } from '../autobattle/config';
 import { speciesStats, STAT_KEYS, type StatBlock, type StatKey } from '../stats';
 import type { SpeciesId } from '../species';
-import { getTech, learnset, type TechRow } from './techTable';
+import { getTech, isSupportTech, learnset, type TechRow } from './techTable';
 
 /** 【調整案】技枠: Lv.1 で2つ、Lv.10 で3つ、Lv.20 で4つ */
 export const SLOT_LEVELS = [1, 1, 10, 20] as const;
@@ -89,7 +89,13 @@ export function autoEquip(species: string, learned: string[], level: number, ins
       // 遠くから撃つ技が1つもなければ、1つは入れる(遠距離の選択肢。2026-11-02 ポンポンショット)
       const far = ['shot', 'barrage', 'beam'];
       const needFar = far.includes(t.kind) && !chosen.some((c) => far.includes(getTech(c).kind)) ? 1 : 0;
-      const s = rank[t.strength] * 2 + lvOf(n) * 0.04 + like(n) + own + needFar - same * 2.5;
+      // 攻撃しない技(回復・強化・守り など)ばかりにしない: 攻撃の技を2つ以上のこす(2026-11-03 MOFU の技が入って、守りと回復ばかり選ばれたため)
+      const supports = chosen.filter(isSupportTech).length;
+      const attacks = chosen.length - supports;
+      const sup = isSupportTech(n);
+      const tooMany = sup && slots >= 3 && supports >= slots - 2 ? -100 : 0;
+      const needAtk = !sup && attacks < 2 ? 2 : 0;
+      const s = rank[t.strength] * 2 + lvOf(n) * 0.04 + like(n) + own + needFar - same * 2.5 + tooMany + needAtk;
       if (s > bestS) {
         bestS = s;
         best = n;

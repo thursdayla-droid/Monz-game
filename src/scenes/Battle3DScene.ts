@@ -717,6 +717,17 @@ export class Battle3DScene extends Phaser.Scene {
         audio.se('guard');
         this.pop('ふせいだ！', e.side === 0 ? '#7ad0ff' : '#ffb070');
         break;
+      case 'heal':
+        // 回復(吸収・自分の場も)
+        if (e.why === '吸収') F.drainFx(e.side === 0 ? 1 : 0, e.side);
+        else if (e.why === '回復') F.healFx(e.side, b.f[e.side].act.k === 'tech' && getTech((b.f[e.side].act as { id: string }).id).strength === '大技');
+        this.pop(`+${e.amount}`, '#7dff9a');
+        if (e.why !== '場') audio.techSe('', 'heal', 'hit');
+        break;
+      case 'buff':
+        F.buffFx(e.side, e.what);
+        this.pop(e.what === 'def' ? 'まもりアップ！' : e.what === 'atk' ? 'こうげきアップ！' : 'すばやさアップ！', '#ffe040');
+        break;
       case 'chip':
         // 少しのダメージ(やけど・どく・グラビティプレスの場)。よろけないので、数字だけ小さく
         this.pop(`-${e.damage}`, e.why === 'やけど' ? '#ff9a4a' : e.why === 'どく' ? '#c070ff' : '#b080ff');

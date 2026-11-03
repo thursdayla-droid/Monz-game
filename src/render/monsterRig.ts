@@ -320,6 +320,15 @@ export class MonsterRig {
             sy = 0.85;
             sx = 0.95;
           }
+        } else if (tech.kind === 'jab' && !this.bones && this.model) {
+          // 腕のないモデル(MOFU)の通常攻撃: ちょっこりタックル(1発ごとに、体ごと前へ小さく ぶつかる。2026-11-03 企画者)
+          const p = Math.min(1, Math.max(0, 1 - (a.next - a.t) / Math.max(0.05, tech.duration)));
+          const bump = a.n > 0 ? Math.sin(p * Math.PI) : 0;
+          rotZ = -0.4 * bump;
+          lift = 0.1 * bump;
+          sx = 1 + 0.12 * bump;
+          sy = 1 - 0.08 * bump;
+          b.position.x = 0.35 * bump;
         } else if (tech.kind === 'jab' || (tech.kind === 'combo' && this.bones)) {
           // パンチ(通常攻撃・連続攻撃): 体はまっすぐ立てたまま、腕でパンチ(前にかたむけると頭突きに見える。2026-11-02 企画者「頭突きだし」)
           rotZ = 0.06;
@@ -460,7 +469,9 @@ export class MonsterRig {
     }
     b.rotation.set(rx, rotY, rz);
     b.position.y = this.spring('lift', lift, dt, 400, 18);
-    if (a.k !== 'tech' || getTech(a.id).kind !== 'beam') b.position.x = this.lungeNow * 0.35 * (this.model ? this.model.scale.x / 1.8 : 1);
+    // (腕のないモデルのタックルは、上で前へ出している)
+    const tackling = a.k === 'tech' && getTech(a.id).kind === 'jab' && !this.bones && !!this.model;
+    if (!tackling && (a.k !== 'tech' || getTech(a.id).kind !== 'beam')) b.position.x = this.lungeNow * 0.35 * (this.model ? this.model.scale.x / 1.8 : 1);
     this.armL.rotation.set(0, 0, arm * 0.9 + Math.sin(now * 9) * 0.05);
     this.armR.rotation.set(0, 0, arm * 0.9 - Math.sin(now * 9) * 0.05);
     this.legL.rotation.set(0, 0, legSwing);

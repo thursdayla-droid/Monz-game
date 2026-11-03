@@ -32,10 +32,10 @@ export const TYPE_KIND: Record<string, TechKind | null> = {
   連続攻撃: 'combo',
   回転: 'spin',
   守り: 'barrier',
-  回復: null,
-  強化: null,
+  回復: 'heal',
+  強化: 'buff',
   弱体: 'debuff',
-  吸収: null,
+  吸収: 'drain',
 };
 
 export const ELEMENTS: Element[] = ['炎', '水', '自然', '雷', '光', '闇', '無'];
@@ -64,6 +64,10 @@ const BASE: Record<TechKind, Omit<Tech, 'name' | 'element' | 'kind'>> = {
   jab: { power: 7, cooldown: 0.5, windup: 0.06, recovery: 0.16, speed: 0, range: 1.9, size: 0.9, duration: 0.14, launch: 0, knock: 2 },
   // 2026-11-02 火柱(地面から柱が出る。相手の足もと＋まわり3本・当たるのは1回)【案・未承認】
   pillar: { power: 16, cooldown: 6, windup: 0.5, recovery: 0.5, speed: 0, range: 14, size: 1.0, duration: 0, launch: 7, knock: 2 },
+  // 2026-11-03 MOFU の技(技リスト案と同じ数字)【案】。回復の power = 最大HPの何%・強化の power = 何%上がるか(duration 秒)・吸収は弾のように飛んで当てた分の半分を回復
+  heal: { power: 18, cooldown: 10, windup: 0.6, recovery: 0.2, speed: 0, range: 0, size: 0, duration: 0.8, launch: 0, knock: 0 },
+  buff: { power: 20, cooldown: 12, windup: 0.4, recovery: 0.2, speed: 0, range: 0, size: 0, duration: 6, launch: 0, knock: 0 },
+  drain: { power: 10, cooldown: 4.5, windup: 0.4, recovery: 0.25, speed: 14, range: 8, size: 0.8, duration: 0, launch: 0, knock: 2 },
   barrier: { power: 0, cooldown: 7, windup: 0.15, recovery: 0.2, speed: 0, range: 0, size: 1.7, duration: 2.0, launch: 0, knock: 0 },
 };
 
@@ -137,6 +141,12 @@ export function checkRows(rows: TechRow[] = TECH_ROWS): string[] {
 
 const TABLE = new Map<string, TableTech>();
 for (const r of TECH_ROWS) if (TYPE_KIND[r.type] && !TABLE.has(r.name)) TABLE.set(r.name, buildTech(r));
+
+/** 自分の まわりに置く場(中にいると自分が回復・守られる)の技(2026-11-03 MOFU) */
+export const SELF_FIELD_TECHS = new Set(['千花天幕']);
+
+/** 攻撃しない技(回復・強化・守り・弱体・自分の場) */
+export const isSupportTech = (id: string): boolean => ['heal', 'buff', 'barrier', 'debuff'].includes(getTech(id).kind) || SELF_FIELD_TECHS.has(id);
 
 /** 技の id(= 技の名前)から、技の数字を出す。前の試作の4つ(dash など)も使える */
 export function getTech(id: string): TableTech {
