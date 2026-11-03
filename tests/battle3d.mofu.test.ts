@@ -76,12 +76,23 @@ describe('MOFU の技 (2026-11-03)', () => {
     expect(b.fields.some((f) => f.self) || ev.some((x) => x.kind === 'heal' && x.why === '場')).toBe(true);
     expect(ev.filter((x) => x.kind === 'heal' && x.why === '場').length).toBeGreaterThanOrEqual(2);
   });
-  it('MOFU(Lv.1)の通常攻撃は ちょっこりタックル(少し前へ)・火は BUNK だけ', () => {
+  it('MOFU の通常攻撃は ツルのムチ(中くらいの距離。BUNK のパンチより遠くまで)・火は BUNK だけ', () => {
     const b = newAnimeBattle(e('mofu', [], 1), e('bunk', [], 3), 4, 'manual');
-    expect(b.f[0].jab.step).toBeGreaterThan(0);
+    expect(b.f[0].jab.whip).toBe(true);
+    expect(b.f[0].jab.range).toBeGreaterThan(3);
     expect(b.f[0].jab.fire).toBe(0);
-    const b2 = newAnimeBattle(e('mofu', [], 3), e('bunk', [], 3), 4, 'manual');
-    expect(b2.f[0].jab.fire).toBe(0);
-    expect(b2.f[1].jab.fire).toBe(2);
+    expect(b.f[1].jab.fire).toBe(2);
+    // 3m はなれた相手に当たる(BUNK のパンチでは とどかない)
+    quiet(b);
+    const [p, q] = b.f;
+    p.x = 0; q.x = 3; p.z = q.z = 0; p.face = 0;
+    giveCommand(b, 0, 'punch');
+    const ev = run(b, 1);
+    expect(ev.filter((x) => x.kind === 'hit').length).toBe(2);
+    const b2 = newAnimeBattle(e('bunk', [], 1), e('bunk', [], 1), 4, 'manual');
+    quiet(b2);
+    b2.f[0].x = 0; b2.f[1].x = 3; b2.f[0].z = b2.f[1].z = 0; b2.f[0].face = 0;
+    giveCommand(b2, 0, 'punch');
+    expect(run(b2, 1).filter((x) => x.kind === 'hit').length).toBe(0);
   });
 });

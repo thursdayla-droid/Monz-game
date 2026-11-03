@@ -862,6 +862,39 @@ export class AnimeField {
     this.shake(strong ? 0.5 : 0.3);
   }
 
+  /**
+   * ツルのムチ(MOFU の通常攻撃。2026-11-03 企画者「ツルの鞭みたいな中距離」): 体の前(手があれば手)から、
+   * 緑のツルが しなりながら前へのびる。n で左右に しなる向きを変える
+   */
+  vineWhip(side: number, dir: number, len: number, n: number): void {
+    const rig = this.rigs[side];
+    const start = new THREE.Vector3();
+    if (!rig.glove(start)) rig.mouth.getWorldPosition(start);
+    start.y = Math.max(0.5, start.y - 0.1);
+    const sideX = -Math.sin(dir);
+    const sideZ = Math.cos(dir);
+    const bend = (n % 2 ? 1 : -1) * 0.7;
+    const pts: THREE.Vector3[] = [];
+    for (let i = 0; i <= 8; i++) {
+      const k = i / 8;
+      const wave = Math.sin(k * Math.PI) * bend * (1 - k * 0.3);
+      pts.push(new THREE.Vector3(start.x + Math.cos(dir) * len * k + sideX * wave, start.y + Math.sin(k * Math.PI) * 0.35 - k * 0.15, start.z + Math.sin(dir) * len * k + sideZ * wave));
+    }
+    const curve = new THREE.CatmullRomCurve3(pts);
+    for (const [r, col, life] of [[0.07, 0x3a9a3a, 0.2], [0.035, 0x9aff7a, 0.16]] as const) {
+      const m = new THREE.Mesh(new THREE.TubeGeometry(curve, 20, r, 6, false), new THREE.MeshBasicMaterial({ color: col, transparent: true, depthWrite: false }));
+      this.add(m, life, 0, 1, { must: true });
+    }
+    // 先に葉っぱと光
+    const tip = pts[pts.length - 1];
+    for (let i = 0; i < 5; i++) {
+      const p = this.sprite(i % 2 ? 0x7adf5a : 0xffffff);
+      p.position.copy(tip);
+      const a = Math.random() * Math.PI * 2;
+      this.add(p, 0.3, -0.4, 0.3, { vx: Math.cos(a) * 2, vz: Math.sin(a) * 2, vy: 1 + Math.random() * 2 });
+    }
+  }
+
   /** 雷の命中: 短い放電(ぎざぎざの線) */
   zap(x: number, y: number, z: number): void {
     for (let k = 0; k < 5; k++) {

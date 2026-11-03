@@ -106,7 +106,7 @@ export interface AnimeMon {
    */
   pad: { x: number; z: number } | null;
   /** 通常攻撃(形態で変わる) */
-  jab: { parts: number[]; range: number; step: number; fire: number };
+  jab: { parts: number[]; range: number; step: number; fire: number; whip?: boolean };
   /** 受け身の予約(空中で よける を押した) */
   ukemi: boolean;
 }
@@ -495,7 +495,7 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
       }
       if (!a.hit && a.t >= a.next) {
         const reach = f.jab.range + C.body.radius;
-        const ok = dist(f, o) < reach && Math.abs(angDiff(angleTo(f, o), f.face)) < 0.9 && Math.abs(o.y - f.y) < 1.3;
+        const ok = dist(f, o) < reach && Math.abs(angDiff(angleTo(f, o), f.face)) < (f.jab.whip ? 0.6 : 0.9) && Math.abs(o.y - f.y) < 1.3;
         a.n++;
         a.next = a.t + tech.duration;
         b.events.push({ kind: 'comboHit', side: f.side, n: a.n });
@@ -554,13 +554,14 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
  */
 /**
  * 通常攻撃(種族・形態で変わる)。火の粉・火の玉は BUNK だけ。
- * MOFU(Lv.1)は腕がないので、ちょっこりタックル(1発ごとに少し前へ ぶつかる。2026-11-03 企画者「モフの攻撃はちょっこりタックル」)
+ * MOFU は ツルのムチ(中くらいの距離までとどく。2026-11-03 企画者「ツルの鞭みたいな中距離射程の攻撃」。
+ * その前の「ちょっこりタックル」から変えた)。遠くまでとどくぶん、ダメージは BUNK のパンチより少し低い【仮】
  */
 function jabFor(e: AnimeEntrant): AnimeMon['jab'] {
   const form = Math.max(1, Math.min(3, e.form ?? 1));
+  if (e.species === 'mofu') return { ...C.whipByForm[form - 1], step: 0, fire: 0, whip: true };
   const j = { ...C.jabByForm[form - 1] };
   if (e.species !== 'bunk') j.fire = 0;
-  if (e.species === 'mofu' && form === 1) j.step = Math.max(j.step, 0.25);
   return j;
 }
 

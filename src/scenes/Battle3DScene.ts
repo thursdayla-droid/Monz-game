@@ -664,7 +664,8 @@ export class Battle3DScene extends Phaser.Scene {
         if (lvS >= 2) this.screenFlash(0.35 + lvS * 0.1);
         F.shake(0.18 + lvS * 0.1);
         // 通常攻撃のパンチは企画者の音(2026-11-02)
-        if (ht.kind === 'jab') audio.se('b3dPunchHit');
+        if (ht.kind === 'jab' && b.f[e.side].jab.whip) audio.techSe('', 'whip', 'hit');
+        else if (ht.kind === 'jab') audio.se('b3dPunchHit');
         else if (!audio.techSe(e.tech, ht.kind, 'hit')) audio.se(e.big ? 'punchHeavy' : 'punch', { pitch: 0.9 + Math.random() * 0.2 });
         this.hitStop = Math.max(this.hitStop, [0.06, 0.08, 0.11, 0.15][lvS]);
         if (!e.big) F.explode(e.x, e.y, e.z, e.tech, false);
@@ -717,6 +718,15 @@ export class Battle3DScene extends Phaser.Scene {
         audio.se('guard');
         this.pop('ふせいだ！', e.side === 0 ? '#7ad0ff' : '#ffb070');
         break;
+      case 'comboHit': {
+        // ツルのムチ(MOFU の通常攻撃): 1発ごとに ツルがのびる
+        const wf = b.f[e.side];
+        if (wf.jab.whip && wf.act.k === 'tech' && wf.act.id === 'punch') {
+          F.vineWhip(e.side, wf.face, wf.jab.range + 0.4, e.n);
+          audio.techSe('', 'whip', 'fire');
+        }
+        break;
+      }
       case 'heal':
         // 回復(吸収・自分の場も)
         if (e.why === '吸収') F.drainFx(e.side === 0 ? 1 : 0, e.side);

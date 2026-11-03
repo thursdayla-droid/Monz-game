@@ -598,6 +598,11 @@ const KIND_SND: Record<string, Partial<Record<TechPhase, (ctx: AudioContext, out
   debuff: TECH_SND.ブレイクロア,
   field: TECH_SND.グラビティプレス,
   pillar: TECH_SND.レンゴクホウケン,
+  // ツルのムチ(MOFU の通常攻撃): ひゅっ → ぴしっ
+  whip: {
+    fire: (c, o, t) => whoosh(c, o, t, 1200, 3500, 0.12, 0.4),
+    hit: (c, o, t) => { hiss(c, o, t, 'highpass', [[0, 2500]], 1.2, [[0, 0.7], [0.05, 0.0001]], 0.06); tone(c, o, t, 'sine', [[0, 300], [0.08, 120]], [[0, 0.4], [0.1, 0.0001]], 0.11); },
+  },
   // 2026-11-03 MOFU の新しい型
   heal: {
     fire: (c, o, t) => { for (let i = 0; i < 4; i++) tone(c, reverb(c, o, 0.4), t + i * 0.08, 'sine', [[0, 660 * Math.pow(1.26, i)]], [[0, 0.22], [0.35, 0.0001]], 0.38); },
