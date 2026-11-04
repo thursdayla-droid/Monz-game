@@ -124,16 +124,16 @@ export const ANIME = {
    */
   techStyle: {
     // ZIPP(雷・速さ)
-    クイックリープ: 'lowLeap', スパークレイン: 'fan', 雷走ブレイカー: 'boltTrail', 帯電シールド: 'zapShield', 稲妻マーキング: 'strike1', 閃電三連: 'homing3',
-    電光スパイラル: 'spiral', ライトレール: 'rail', 帯電フィールド: 'net', 千閃雷走: 'multiPass', 天網雷獄: 'strikeNet',
+    ジップタックル: 'vanishTackle', クイックリープ: 'lowLeap', スパークレイン: 'fan', 雷走ブレイカー: 'boltTrail', 帯電シールド: 'zapShield', 残光ステップ: 'afterimage',
+    稲妻マーキング: 'strike1', 閃電三連: 'homing3', 電光スパイラル: 'spiral', ライトレール: 'rail', 帯電フィールド: 'net', 迅雷乱舞: 'ghostRush', 千閃雷走: 'multiPass', 天網雷獄: 'strikeNet',
     // PUNI(自然・弾力・吸う)
-    ぷにタッチ: 'stretch', ぽよん玉: 'arc', ぷにバウンド: 'multiBounce', ぷるんガード: 'jelly', ぽよぽよ連弾: 'arc', ぷにっと吸引: 'pull', ビッグぷにプレス: 'bigPress',
-    ぷにぷにウォール: 'reflect', ぽよんスパイラル: 'droplets', ぷにトラップ: 'goo', バウンドウェーブ: 'tripleWave', ぐにゃりスリップ: 'goo', ぷに分裂弾: 'arcHoming',
-    エナジーぷにドレイン: 'tether', 超弾性チャージ: 'harden', 超膨張インパクト: 'inflate', 万象ぷにドーム: 'absorbCounter',
+    ぷにタッチ: 'stretch', ぽよん玉: 'arc', ぷにバウンド: 'multiBounce', ぷるんガード: 'jellyBounce', ぽよぽよ連弾: 'skip', ぷにっと吸引: 'pull', ビッグぷにプレス: 'bigPress',
+    ぷにぷにウォール: 'reflect', ぽよんスパイラル: 'droplets', ぷにトラップ: 'stickyGoo', バウンドウェーブ: 'tripleWave', ぐにゃりスリップ: 'slip', ぷに分裂弾: 'split',
+    エナジーぷにドレイン: 'tether', 超弾性チャージ: 'elastic', 超膨張インパクト: 'inflate', 万象ぷにドーム: 'absorbCounter',
     // KLAK(罠・ねらい)
-    カチンショット: 'soundRing', クラップタックル: 'sidestep', ピンポイント弾: 'pinpoint', カチカチトラップ: 'miniTraps', スナップラッシュ: 'snap', ロックオンライン: 'track',
-    クイッククランプ: 'sidestepBind', クロスワイヤー: 'cross', 精密包囲陣: 'stakes', ディレイボム: 'bomb', スナイプライン: 'snipe', トラップチェイン: 'trapChain',
-    千機包囲網: 'turrets', 終端狙撃陣: 'snipeArray',
+    カチンショット: 'soundRing', クラップタックル: 'sidestep', ピンポイント弾: 'pinpoint', カチカチトラップ: 'miniTraps', スナップラッシュ: 'snapThrow', ロックオンライン: 'sweep',
+    ヘビークラッシュ: 'crackLine', クランプシェル: 'clampCounter', クイッククランプ: 'flankClamp', クロスワイヤー: 'cross', 精密包囲陣: 'stakes', ディレイボム: 'bomb',
+    アーマーブレイク音波: 'shatter', スナイプライン: 'snipe', トラップチェイン: 'trapChain', 千機包囲網: 'turrets', 終端狙撃陣: 'snipeArray',
   } as Record<string, string>,
   /** とくべつな動きの数字【仮】。strike: 予告のあと落ちる・立つ攻撃(落雷・光の杭)の威力(強さごと) */
   style: {

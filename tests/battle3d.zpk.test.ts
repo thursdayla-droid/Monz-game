@@ -97,10 +97,10 @@ describe('ZIPP らしい動き (2026-11-03 企画者)', () => {
     expect(a).toBeGreaterThan(0);
     expect(c).toBeGreaterThan(a);
   });
-  it('ジグザグ: 突進は 左右にぶれながら進む', () => {
+  it('ジグザグ: 回転は 左右にぶれながら進む', () => {
     const b = setup();
     b.f[0].x = -6; b.f[1].x = 6; b.f[0].z = b.f[1].z = 0;
-    giveCommand(b, 0, 'ジップタックル');
+    giveCommand(b, 0, 'ジグザグスピン');
     let maxZ = 0, minZ = 0;
     for (let i = 0; i < 1.2 / ANIME.dt; i++) { b.events = []; stepAnime(b, ANIME.dt); maxZ = Math.max(maxZ, b.f[0].z); minZ = Math.min(minZ, b.f[0].z); }
     expect(maxZ).toBeGreaterThan(0.3);
@@ -295,5 +295,103 @@ describe('技ごとの とくべつな動き (2026-11-03 企画者「そのキ�
     const b = duel('klak', ['クロスワイヤー']);
     use(b, 0, 'クロスワイヤー', 1);
     expect(b.fields.some((fl) => fl.shape === 'cross')).toBe(true);
+  });
+});
+
+describe('のこりの技も それぞれ ちがう動き (2026-11-04 企画者「今の17技を全部ちがうように」)', () => {
+  const duel = (sp: string, techs: string[], foeTechs: string[] = [], gap = 6) => {
+    const b = newAnimeBattle(e(sp, techs, 3), e('bunk', foeTechs, 1), 17, 'manual');
+    for (const f of b.f) { f.pad = { x: 0, z: 0 }; f.techMode = 'manual'; f.thinkT = 1e9; f.cooldown.dodge = 1e9; f.z = 0; }
+    b.f[0].x = -gap / 2; b.f[1].x = gap / 2;
+    b.f[1].maxHp = b.f[1].hp = 999;
+    return b;
+  };
+  const use = (b: ReturnType<typeof duel>, side: 0 | 1, id: string, sec: number) => { giveCommand(b, side, id); return run(b, sec); };
+  const hits = (ev: AnimeEvent[], side = 0) => ev.filter((x) => x.kind === 'hit' && x.side === side).length;
+
+  it('ジップタックル: 消えて 目の前に あらわれて 当たる', () => {
+    const ev = use(duel('zipp', ['ジップタックル'], [], 9), 0, 'ジップタックル', 1.2);
+    expect(ev.some((x) => x.kind === 'blink')).toBe(true);
+    expect(hits(ev)).toBe(1);
+  });
+  it('迅雷乱舞: 残像が 何回も当たる', () => {
+    const ev = use(duel('zipp', ['迅雷乱舞'], [], 5), 0, '迅雷乱舞', 2);
+    expect(hits(ev)).toBeGreaterThanOrEqual(3);
+  });
+  it('残光ステップ: よけるのが速くなる', () => {
+    const b = duel('zipp', ['残光ステップ']);
+    use(b, 0, '残光ステップ', 0.8);
+    expect(b.f[0].blinkUntil ?? 0).toBeGreaterThan(b.t);
+  });
+  it('ぽよぽよ連弾: 何回も はねる', () => {
+    const ev = use(duel('puni', ['ぽよぽよ連弾'], [], 30), 0, 'ぽよぽよ連弾', 2.5);
+    expect(ev.filter((x) => x.kind === 'explode').length).toBeGreaterThanOrEqual(6);
+  });
+  it('ぷに分裂弾: とちゅうで 3つに分かれる', () => {
+    const b = duel('puni', ['ぷに分裂弾'], [], 12);
+    giveCommand(b, 0, 'ぷに分裂弾');
+    let most = 0;
+    for (let i = 0; i < 1.5 / ANIME.dt; i++) { b.events = []; stepAnime(b, ANIME.dt); most = Math.max(most, b.shots.filter((s) => s.owner === 0).length); }
+    expect(most).toBe(3);
+  });
+  it('ぷるんガード: 攻撃してきた相手を はね飛ばす', () => {
+    const b = duel('puni', ['ぷるんガード'], ['バンクバッシュ'], 4);
+    use(b, 0, 'ぷるんガード', 0.3);
+    const x0 = b.f[1].x;
+    giveCommand(b, 1, 'バンクバッシュ');
+    run(b, 1.2);
+    expect(b.f[1].x).toBeGreaterThan(x0 - 1);
+  });
+  it('ぷにトラップ: ふむと くっつく', () => {
+    const b = duel('puni', ['ぷにトラップ'], [], 6);
+    const ev = use(b, 0, 'ぷにトラップ', 1.5);
+    expect(ev.some((x) => x.kind === 'status' && x.effect === 'くっついた')).toBe(true);
+  });
+  it('ぐにゃりスリップ: すべる', () => {
+    const b = duel('puni', ['ぐにゃりスリップ'], [], 4);
+    const ev = use(b, 0, 'ぐにゃりスリップ', 1.5);
+    expect(ev.some((x) => x.kind === 'status' && x.effect === 'すべる')).toBe(true);
+  });
+  it('エナジーぷにドレイン: つないで 何回も吸う', () => {
+    const b = duel('puni', ['エナジーぷにドレイン'], [], 5);
+    b.f[0].hp = 50;
+    const ev = use(b, 0, 'エナジーぷにドレイン', 2.5);
+    expect(hits(ev)).toBeGreaterThanOrEqual(3);
+    expect(b.f[0].hp).toBeGreaterThan(50);
+  });
+  it('スナップラッシュ: さいごに うしろへ 投げる', () => {
+    const b = duel('klak', ['スナップラッシュ'], [], 2.4);
+    use(b, 0, 'スナップラッシュ', 2.5);
+    expect(b.f[1].x).toBeLessThan(b.f[0].x + 1);
+  });
+  it('ヘビークラッシュ: 着地で 前へ 地割れ', () => {
+    const ev = use(duel('klak', ['ヘビークラッシュ'], [], 6), 0, 'ヘビークラッシュ', 2.5);
+    expect(ev.filter((x) => x.kind === 'pillar' && x.look === 'rock').length).toBe(3);
+  });
+  it('クランプシェル: 受けて はさみ返す', () => {
+    const b = duel('klak', ['クランプシェル'], ['バンクバッシュ'], 4);
+    use(b, 0, 'クランプシェル', 0.3);
+    giveCommand(b, 1, 'バンクバッシュ');
+    const ev = run(b, 1.2);
+    expect(hits(ev, 0)).toBe(1);
+  });
+  it('クイッククランプ: うしろへ 回りこんで はさむ', () => {
+    const b = duel('klak', ['クイッククランプ'], [], 4);
+    const ev = use(b, 0, 'クイッククランプ', 1);
+    expect(hits(ev)).toBe(1);
+    expect(b.f[0].x).toBeGreaterThan(b.f[1].x - 0.5);
+  });
+  it('アーマーブレイク音波: 守りを こわす', () => {
+    const b = duel('klak', ['アーマーブレイク音波'], ['ガンジョウドーム'], 4);
+    use(b, 1, 'ガンジョウドーム', 0.3);
+    use(b, 0, 'アーマーブレイク音波', 1.5);
+    expect(b.f[1].barrierUntil).toBeLessThanOrEqual(b.t);
+  });
+  it('ロックオンライン: 撃っている間も 追いかける', () => {
+    const b = duel('klak', ['ロックオンライン'], [], 8);
+    giveCommand(b, 0, 'ロックオンライン');
+    let tracked = false;
+    for (let i = 0; i < 1.5 / ANIME.dt; i++) { b.events = []; stepAnime(b, ANIME.dt); if (b.beams[0]?.track) tracked = true; }
+    expect(tracked).toBe(true);
   });
 });
