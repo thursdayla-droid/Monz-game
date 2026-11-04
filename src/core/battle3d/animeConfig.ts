@@ -185,7 +185,8 @@ export const ANIME = {
    * stun: ふつうのガードで受けた時の 小さな のけぞり・breakStun: 量が0になって ガードがこわれた時 動けない秒・minTime: 短く押しても これだけは ガード・
    * aiTime: CPU が ガードする長さ・cool: ガードを やめてから また出せるまで
    */
-  guard: { max: 100, hold: 20, drainMul: 2.0, regen: 25, regenDelay: 0.8, chip: 0.3, just: 0.16, stun: 0.18, breakStun: 1.0, minTime: 0.25, aiTime: 0.7, cool: 0.25 },
+  guard: { max: 100, hold: 20, drainMul: 2.0, regen: 25, regenDelay: 0.8, chip: 0.3, just: 0.16, stun: 0.18, breakStun: 1.0, minTime: 0.25, aiTime: 0.7, cool: 0 },
+  // 2026-11-04 企画者「よけるは待ち時間あってもいいけど、ガードは連続で出せるように」→ ガードの待ち時間 0.25 → 0
   /**
    * マップ(柱・壁)での AI(2026-11-03 ロストテンプル)【仮】。[うまさ★1, ★5] の あいだ
    * blockedShoot: 柱で見通せない時、遠くから撃つ技を えらぶ重さの倍率 / flank: 回りこむ確率 / cover: 弾が来た時 柱へにげる確率

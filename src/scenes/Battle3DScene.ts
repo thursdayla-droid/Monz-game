@@ -1039,7 +1039,8 @@ export class Battle3DScene extends Phaser.Scene {
       const btn = this.ui.btn[c];
       if (!btn) continue;
       btn.el.classList.toggle('queued', s === 'queued');
-      btn.el.classList.toggle('cool', s === 'cooldown');
+      // ガードボタンは よけるが 待ち時間でも ガードは 出せるので、暗くしない(待ち時間は 下からの 黒い ぬりで 分かる)
+      btn.el.classList.toggle('cool', s === 'cooldown' && c !== 'dodge');
       const total = c === 'dodge' ? ANIME.dodge.cooldown : c === 'jump' ? ANIME.jump.cooldown : getTech(c).cooldown;
       btn.cd.style.height = `${s === 'cooldown' ? (Math.max(0, me.cooldown[c] - b.t) / total) * 100 : 0}%`;
     }

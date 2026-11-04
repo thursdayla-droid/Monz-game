@@ -70,6 +70,18 @@ describe('ガード', () => {
     expect(b.f[0].act.k).toBe('free');
     expect(b.f[0].guardGauge).toBeGreaterThan(g);
   });
+  it('ガードは 待ち時間なしで 続けて出せる(2026-11-04 企画者)', () => {
+    const b = duel();
+    for (let k = 0; k < 4; k++) {
+      b.f[0].guardHold = true;
+      expect(giveCommand(b, 0, 'guard')).toBe(true);
+      run(b, 0.3);
+      expect(b.f[0].act.k).toBe('guard');
+      b.f[0].guardHold = false;
+      run(b, 0.05);
+      expect(b.f[0].act.k).toBe('free');
+    }
+  });
   it('はさむ技・罠は ガードできない', () => {
     const b = newAnimeBattle(e('bunk', []), e('klak', ['クイッククランプ'], 3), 5, 'manual');
     for (const f of b.f) { f.pad = { x: 0, z: 0 }; f.techMode = 'manual'; f.thinkT = 1e9; f.cooldown.dodge = 1e9; f.z = 0; }
