@@ -70,10 +70,10 @@ export type ModelRig = 'auto' | 'snake' | 'quad:wild' | 'quad:heavy' | 'quad:lig
 const rig3 = (sp: string, r: ModelRig): Record<string, ModelRig> => ({ [sp]: r, [`${sp}:2`]: r, [`${sp}:3`]: r });
 export const MODEL_RIG: Record<string, ModelRig> = { ...rig3('riot', 'quad:wild'), ...rig3('grit', 'quad:heavy'), ...rig3('vybe', 'quad:light'), ...rig3('shellz', 'quad:turtle'), ...rig3('snek', 'snake') };
 /**
- * 骨がずれていて、骨を動かすと形がくずれるモデル(体全体だけで動かす)。
- * GRITBULL(2026-11-04): 人の形の骨が 体に合っていない(手の骨が 体の外にある など)→ 骨を つけ直すまで 体ぜんたいで動く
+ * 骨がずれていて、骨を動かすと形がくずれるモデル(体全体だけで動かす)。今はなし
+ * (GRITBULL は 2026-11-04 に 企画者が 四つ足の骨で つけ直したモデルに 差しかえた。前のものは unused/battle3d/)
  */
-export const MODEL_NO_BONES = new Set<string>(['grit:3']);
+export const MODEL_NO_BONES = new Set<string>();
 /** 腕の攻撃の動きの大きさ(肩が高い・上着があるモデルは、大きく回すとくずれるので小さく)【仮】 */
 export const MODEL_ATTACK_AMP: Record<string, number> = { bunk: 1, 'bunk:2': 0.8, 'bunk:3': 0.65 };
 /** 【仮】形態ごとのゲームの中の高さ(進化すると大きくなる) */

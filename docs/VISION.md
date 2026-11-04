@@ -286,3 +286,4 @@
 - 2026-11-04：SHELLZ の進化ラインの名前（企画者）：Lv.1 SHELLZ（シェルズ）→ Lv.30 SHELD（シェルド）→ Lv.60 SHELDOZER（シェルドーザー）。お世話画面用の絵3枚（企画者）を `design/species/shellz/` に（care_main_2026-11-04.png・sheld_form2.png・sheldozer_form3.png。1枚めと3枚めは 白い背景を消した。元は *_original.png）。これで10体全部の お世話画面用の絵がそろった
 - 2026-11-04：RIOT・RIOTER・RIOTRAX の3D骨入りモデル（企画者）を MONZ RUMBLE に入れた。四つ足の歩き方で骨を動かす（アニメーションは入っていなかった）。技は あとで。くわしくは `docs/BATTLE.md`
 - 2026-11-04：SNEK・GRIT・VYBE・SHELLZ の3D骨入りモデル 12体（企画者）を入れた。へびの動き（くねる・すべる）と、四つ足の歩き方を 種族ごとに（重いブルドッグ・軽い狼・亀）。GRITBULL は 骨が体に合っていないので 体ぜんたいで動く（骨の つけ直しが 必要）。順番が ちがった VYBE・SHELLZ は 見た目で 入れかえた。くわしくは `docs/BATTLE.md`
+- 2026-11-04：GRITBULL・SHELDOZER の新しい3Dモデル（企画者。四つ足の骨）に差しかえ。GRITBULL も足を動かすように（前のモデルは `unused/battle3d/`）
