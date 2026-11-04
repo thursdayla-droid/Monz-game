@@ -918,7 +918,7 @@ export class Battle3DScene extends Phaser.Scene {
         this.pop(e.side === 0 ? 'ガードが こわれた！' : 'ガードブレイク！', '#ffd23a');
         break;
       case 'evaded':
-        this.pop(e.side === 0 ? 'よけた！' : 'よけられた！', e.side === 0 ? '#7dffa0' : '#ffb070');
+        // 2026-11-04 企画者「避けたとかいらないかな」→ 文字は出さない
         break;
       case 'land': {
         const f = b.f[e.side];
