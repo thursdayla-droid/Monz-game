@@ -384,7 +384,7 @@ function startTech(b: AnimeBattle, f: AnimeMon, id: TechId, byCommand: boolean):
   f.face = dir;
   // テクニックが高いと、技の待ち時間が少し短い(最大2割。2026-11-02 バランス)
   f.cooldown[id] = tech.kind === 'jab' && f.jab.dash
-    ? b.t + 99 // 電撃ダッシュ: 走り終わってから決める
+    ? b.t + C.zdash.cool // 電撃ダッシュ: 走り終わったら また決める(とちゅうで やられても 使えなくならないように)
     : tech.kind === 'jab' && f.jab.trap
     ? b.t + C.klakTrap.cool[f.jab.trap - 1] // はさみトラップ: 待ち時間 長め(企画者)
     : tech.kind === 'jab'

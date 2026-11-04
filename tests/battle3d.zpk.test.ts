@@ -167,3 +167,20 @@ describe('PUNI・KLAK の通常攻撃 (2026-11-03 企画者)', () => {
     expect(b.traps.filter((t) => t.owner === 0).length).toBe(3);
   });
 });
+
+describe('ZIPP: 電撃ダッシュの とちゅうで やられても また使える(2026-11-03 企画者「ジップ攻撃打てなくなった」)', () => {
+  it('ためている間に攻撃を受けても、あとで また出せる', () => {
+    const b = newAnimeBattle(e('zipp', [], 1), e('bunk', ['バンクバッシュ'], 1), 11, 'manual');
+    b.f[0].pad = { x: 0, z: 0 }; b.f[0].techMode = 'manual';
+    b.f[1].thinkT = 1e9; b.f[1].cooldown.dodge = 1e9; b.f[1].pad = { x: 0, z: 0 }; b.f[1].techMode = 'manual';
+    b.f[0].x = -3; b.f[1].x = 3; b.f[0].z = b.f[1].z = 0;
+    b.f[0].hold = true;
+    giveCommand(b, 0, 'punch');
+    run(b, 0.2);
+    giveCommand(b, 1, 'バンクバッシュ');
+    run(b, 3);
+    b.f[0].hold = false;
+    run(b, 1);
+    expect(giveCommand(b, 0, 'punch')).toBe(true);
+  });
+});

@@ -1101,16 +1101,16 @@ export class AnimeField {
     void side;
   }
 
-  /** 水しぶき(PUNI の水の玉が当たった・はじけた) */
+  /** しぶき(PUNI のぷに玉が当たった・はじけた。緑) */
   splash(x: number, y: number, z: number): void {
     for (let i = 0; i < 10; i++) {
-      const d = this.sprite(i % 3 ? 0x6ac8ff : 0xffffff);
+      const d = this.sprite(i % 3 ? 0x7ae05a : 0xffffff);
       d.position.set(x, y, z);
       const a = Math.random() * Math.PI * 2;
       const sp = 1.5 + Math.random() * 2.5;
       this.add(d, 0.45, -0.4, 0.3, { vx: Math.cos(a) * sp, vz: Math.sin(a) * sp, vy: 2 + Math.random() * 3, fade: true });
     }
-    this.groundRing(x, z, 0.7, 0x6ac8ff, 0.35, 1.4);
+    this.groundRing(x, z, 0.7, 0x7ae05a, 0.35, 1.4);
   }
 
   /** KLAK の はさみトラップが はさんだ */
@@ -1538,14 +1538,14 @@ export class AnimeField {
         continue;
       }
       if (s.tech === 'puniWater') {
-        // PUNI の水の玉(2026-11-03): ぷるぷる ゆれる 半透明の水のかたまり。しずくをこぼす
+        // PUNI のぷに玉(2026-11-03): ぷるぷる ゆれる 半透明の緑のかたまり(PUNI は自然。企画者)。しずくをこぼす
         if (!g) {
           g = new THREE.Group();
-          const blob = new THREE.Mesh(this.blobGeo, new THREE.MeshBasicMaterial({ color: 0x4ab8ff, transparent: true, opacity: 0.75, depthWrite: false }));
+          const blob = new THREE.Mesh(this.blobGeo, new THREE.MeshBasicMaterial({ color: 0x6ad84a, transparent: true, opacity: 0.75, depthWrite: false }));
           const shine = this.sprite(0xffffff, true);
           shine.scale.setScalar(s.r * 1.1);
           shine.position.set(-s.r * 0.35, s.r * 0.4, 0);
-          const glow = this.sprite(0x6ac8ff);
+          const glow = this.sprite(0x8ae86a);
           glow.scale.setScalar(s.r * 3);
           g.add(blob, shine, glow);
           this.scene.add(g);
@@ -1556,7 +1556,7 @@ export class AnimeField {
         g.children[0].scale.set(s.r * (1 + w), s.r * (1 - w), s.r * (1 + w * 0.5));
         g.children[0].rotation.y = -Math.atan2(s.vz, s.vx);
         if (dt > 0 && Math.random() < dt * 25) {
-          const d = this.sprite(0x8ad8ff);
+          const d = this.sprite(0xa8f08a);
           d.position.set(s.x + (Math.random() - 0.5) * 0.3, s.y, s.z + (Math.random() - 0.5) * 0.3);
           this.add(d, 0.4, -0.5, 0.22, { vx: 0, vz: 0, vy: -1, fade: true });
         }

@@ -188,7 +188,7 @@ export const TECHS = {
   // 2026-11-02 企画者「連打はやめ・クールタイム0.5秒」「その場でパンチ。ヒットしたら3連ぐらい」「空中でも」→ 型 jab。1発目が当たったら3連(合計 power)。待ち時間は攻撃が終わってから0.5秒
   punchFire: { name: 'パンチの火', element: '炎', kind: 'shot', power: 5, cooldown: 0, windup: 0, recovery: 0, speed: 15, range: 4, size: 0.45, duration: 0, launch: 0, knock: 2 },
   // PUNI の水の玉・KLAK のはさみトラップ(通常攻撃。2026-11-03)
-  puniWater: { name: '水の玉', element: '水', kind: 'shot', power: 6.5, cooldown: 0, windup: 0, recovery: 0, speed: 15, range: 13, size: 0.42, duration: 0, launch: 0, knock: 2.5 },
+  puniWater: { name: 'ぷに玉', element: '自然', kind: 'shot', power: 6.5, cooldown: 0, windup: 0, recovery: 0, speed: 15, range: 13, size: 0.42, duration: 0, launch: 0, knock: 2.5 },
   klakTrap: { name: 'はさみトラップ', element: '無', kind: 'field', power: 7, cooldown: 0, windup: 0, recovery: 0, speed: 0, range: 2, size: 0.85, duration: 0, launch: 0, knock: 0 },
   punch: { name: 'パンチ', element: '無', kind: 'jab', power: 7, cooldown: 0.5, windup: 0.06, recovery: 0.16, speed: 0, range: 1.9, size: 0.9, duration: 0.14, launch: 0, knock: 2 },
   /** ガンジョウドームの爆発(反撃)。ドームが攻撃を受けると広がる衝撃波【仮】威力10・届く長さ4.5 */
