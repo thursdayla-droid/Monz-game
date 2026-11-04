@@ -813,7 +813,7 @@ export class Battle3DScene extends Phaser.Scene {
         break;
       case 'status':
         this.pop(
-          e.effect === 'ふらつき' ? 'ふらふら！' : e.effect === 'まひ' ? 'しびれた！' : e.effect === 'やけど' ? 'やけどした！' : e.effect === 'どく' ? 'どくを うけた！' : e.effect === 'ねむり' ? 'ねむった…' : e.effect === '防御ダウン' ? 'まもりが下がった！' : e.effect,
+          e.effect === 'ふらつき' ? 'ふらふら！' : e.effect === 'まひ' ? 'しびれた！' : e.effect === 'やけど' ? 'やけどした！' : e.effect === 'どく' ? 'どくを うけた！' : e.effect === 'ねむり' ? 'ねむった…' : e.effect === '防御ダウン' ? 'まもりが下がった！' : e.effect === 'つかまった' ? 'はさまれた！' : e.effect,
           '#ffe040',
         );
         break;
@@ -825,6 +825,14 @@ export class Battle3DScene extends Phaser.Scene {
         F.zdashStart(e.side, e.x, e.z, e.dir, e.c);
         audio.se('whoosh', { pitch: 1.9 - e.c * 0.5 });
         if (e.c > 0.5) F.shake(0.12 + e.c * 0.12);
+        break;
+      case 'trapSet':
+        audio.se('select', { pitch: 0.7 });
+        break;
+      case 'trapSnap':
+        F.trapSnap(e.x, e.z);
+        F.shake(0.18);
+        audio.se('punchHeavy', { pitch: 1.6 });
         break;
       case 'blink':
         F.bolt(e.x0, 0.8, e.z0, e.x, 0.8, e.z, 1);

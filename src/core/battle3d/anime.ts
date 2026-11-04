@@ -71,6 +71,8 @@ export interface AnimeMon {
   atkDownUntil: number;
   /** 防御ダウンの終わり(受けるダメージが上がる) */
   defDownUntil: number;
+  /** はさみトラップに もう かからない時刻 */
+  trapSafeUntil: number;
   slowUntil: number;
   /** 守りのドームの終わりと大きさ */
   barrierUntil: number;
@@ -114,7 +116,7 @@ export interface AnimeMon {
    */
   pad: { x: number; z: number } | null;
   /** 通常攻撃(形態で変わる) */
-  jab: { parts: number[]; range: number; step: number; fire: number; whip?: boolean; dash?: number };
+  jab: { parts: number[]; range: number; step: number; fire: number; whip?: boolean; dash?: number; water?: number; trap?: number };
   /** ZIPP の電撃ダッシュ: こうげきボタンを押している間 true(画面が入れる。AI は使わない) */
   hold?: boolean;
   /** 受け身の予約(空中で よける を押した) */
@@ -135,6 +137,25 @@ export interface Shot {
   alive: boolean;
   /** ZIPP の弾: 左右にジグザグにゆれる(1 = する) */
   zig?: number;
+  /** 消えるまでの秒・威力の倍率(PUNI の水の玉) */
+  life?: number;
+  part?: number;
+}
+
+/** KLAK の はさみトラップ(ふんだ相手は動けない) */
+export interface Trap {
+  id: number;
+  owner: Side;
+  x: number;
+  z: number;
+  r: number;
+  armAt: number;
+  until: number;
+  form: number;
+  /** はさんだ時刻(はさんだら 少しして消える) */
+  snapAt?: number;
+  /** はさんだ相手 */
+  caught?: Side;
 }
 
 export interface Beam {
@@ -163,6 +184,9 @@ export type AnimeEvent =
   | { kind: 'fire'; side: Side; tech: TechId }
   /** ZIPP の電撃ダッシュが出た(c = ためた割合 0〜1) */
   | { kind: 'zdash'; side: Side; x: number; z: number; dir: number; len: number; c: number }
+  /** KLAK が はさみトラップを置いた・トラップが相手をはさんだ */
+  | { kind: 'trapSet'; side: Side; id: number; x: number; z: number }
+  | { kind: 'trapSnap'; side: Side; target: Side; id: number; x: number; z: number }
   /** ZIPP が 連続攻撃で 一瞬で回りこんだ(元の場所 → 新しい場所) */
   | { kind: 'blink'; side: Side; x0: number; z0: number; x: number; z: number }
   | { kind: 'hit'; side: Side; target: Side; tech: TechId; damage: number; x: number; y: number; z: number; big: boolean; crit?: boolean }
@@ -175,7 +199,7 @@ export type AnimeEvent =
   | { kind: 'quake'; side: Side; x: number; z: number; tech: TechId }
   | { kind: 'land'; side: Side; hard: boolean }
   | { kind: 'command'; side: Side; cmd: Command; state: 'queued' | 'done' | 'expired' }
-  | { kind: 'status'; side: Side; effect: Effect }
+  | { kind: 'status'; side: Side; effect: Effect | 'つかまった' }
   | { kind: 'roar'; side: Side; x: number; z: number }
   | { kind: 'ukemi'; side: Side }
   | { kind: 'domeBurst'; side: Side; x: number; z: number }
@@ -222,6 +246,7 @@ export interface AnimeBattle {
   fields: { owner: Side; tech: TechId; x: number; z: number; r: number; until: number; tick?: number; self?: boolean }[];
   /** 火柱(at に地面から出る。同じ g の柱は、どれか1本が当たったら ほかは当たらない) */
   pillars: Pillar[];
+  traps: Trap[];
   /** マップ(柱・壁)。null = 前の四角いコート(テストなど) */
   arena: ArenaMap | null;
   seq: number;
@@ -282,6 +307,7 @@ function newMon(e: AnimeEntrant, side: Side): AnimeMon {
     defUp: 0,
     atkDownUntil: 0,
     defDownUntil: 0,
+    trapSafeUntil: 0,
     slowUntil: 0,
     barrierUntil: 0,
     barrierR: 0,
@@ -320,7 +346,7 @@ export function newAnimeBattle(a: AnimeEntrant, c: AnimeEntrant, seed: number, p
   f[0].techMode = partnerMode;
   // はじめは少し様子を見る
   for (const m of f) m.thinkT = 0.8 + rng() * 0.6;
-  return { f, t: 0, rng, winner: null, koAt: null, shots: [], beams: [], quakes: [], roars: [], fields: [], pillars: [], arena, seq: 0, events: [] };
+  return { f, t: 0, rng, winner: null, koAt: null, shots: [], beams: [], quakes: [], roars: [], fields: [], pillars: [], traps: [], arena, seq: 0, events: [] };
 }
 
 // ---------------- 指示 ----------------
@@ -359,6 +385,8 @@ function startTech(b: AnimeBattle, f: AnimeMon, id: TechId, byCommand: boolean):
   // テクニックが高いと、技の待ち時間が少し短い(最大2割。2026-11-02 バランス)
   f.cooldown[id] = tech.kind === 'jab' && f.jab.dash
     ? b.t + 99 // 電撃ダッシュ: 走り終わってから決める
+    : tech.kind === 'jab' && f.jab.trap
+    ? b.t + C.klakTrap.cool[f.jab.trap - 1] // はさみトラップ: 待ち時間 長め(企画者)
     : tech.kind === 'jab'
     ? b.t + tech.windup + tech.duration * f.jab.parts.length + tech.recovery + tech.cooldown // 通常攻撃: 連打が終わってから0.5秒
     : b.t + tech.cooldown * (1 - Math.min(C.stat.techCdMax, f.stats.tech / C.stat.techCdDiv));
@@ -382,6 +410,64 @@ function startDodge(b: AnimeBattle, f: AnimeMon, jump: boolean): void {
   if (jump) f.vy = 9;
   f.cooldown.dodge = b.t + C.dodge.cooldown * 0.5;
   b.events.push({ kind: 'dodge', side: f.side, jump });
+}
+
+/**
+ * PUNI の「水の玉」(遠くへ1発。進化するほど遠くまで)・KLAK の「はさみトラップ」(自分の前に罠を置く)(2026-11-03 企画者)
+ */
+function updateRangedJab(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech' }>): void {
+  const o = other(b, f);
+  if (!a.fired && a.t >= a.windup) {
+    a.fired = true;
+    a.next = a.t;
+    const dir = f.pad && Math.hypot(f.pad.x, f.pad.z) > 0.3 && f.jab.trap ? Math.atan2(f.pad.z, f.pad.x) : angleTo(f, o);
+    f.face = dir;
+    if (f.jab.water) {
+      const P = C.puniShot.byForm[f.jab.water - 1];
+      const t = getTech('puniWater');
+      b.seq++;
+      b.shots.push({ id: b.seq, owner: f.side, tech: 'puniWater', x: f.x + Math.cos(dir) * 0.9, y: 0.8, z: f.z + Math.sin(dir) * 0.9, vx: Math.cos(dir) * t.speed, vz: Math.sin(dir) * t.speed, r: t.size, t: 0, alive: true, life: P.range / t.speed, part: P.power });
+      b.events.push({ kind: 'fire', side: f.side, tech: 'puniWater' });
+    } else if (f.jab.trap) {
+      const T = C.klakTrap;
+      const form = f.jab.trap;
+      const [x, z] = clampField(b, f.x + Math.cos(dir) * T.ahead, f.z + Math.sin(dir) * T.ahead);
+      // 置ける数をこえたら、いちばん古い罠から消える
+      const mine = b.traps.filter((tp) => tp.owner === f.side && tp.snapAt === undefined);
+      if (mine.length >= T.max[form - 1]) b.traps = b.traps.filter((tp) => tp !== mine[0]);
+      b.seq++;
+      b.traps.push({ id: b.seq, owner: f.side, x, z, r: T.r * (1 + (form - 1) * 0.12), armAt: b.t + T.arm, until: b.t + T.life, form });
+      b.events.push({ kind: 'trapSet', side: f.side, id: b.seq, x, z });
+    }
+  }
+  if (a.fired && a.t >= a.next + (f.jab.water ? C.puniShot.recover : 0.3)) f.act = { k: 'free' };
+}
+
+/** KLAK の はさみトラップ: ふんだ相手を はさんで 動けなくする */
+function updateTraps(b: AnimeBattle): void {
+  const T = C.klakTrap;
+  for (const tp of b.traps) {
+    if (tp.snapAt !== undefined || b.t < tp.armAt) continue;
+    const tgt = b.f[tp.owner === 0 ? 1 : 0];
+    if (tgt.act.k === 'ko' || tgt.y > 0.35 || dist(tp, tgt) > tp.r + C.body.radius * 0.6) continue;
+    // よけている瞬間・起きた直後・もう かからない間は ふんでも作動しない
+    if (b.t < tgt.trapSafeUntil || isInvincible(b, tgt)) continue;
+    tp.snapAt = b.t;
+    tp.caught = tgt.side;
+    const bind = T.bind[tp.form - 1];
+    hit(b, b.f[tp.owner], tgt, 'klakTrap', tp.x, 0.4, tp.z, angleTo(b.f[tp.owner], tgt), { last: true, part: T.power[tp.form - 1] });
+    if ((tgt.act as AnimeAct).k !== 'ko') {
+      tgt.act = { k: 'hurt', t: 0, until: bind };
+      tgt.kvx = tgt.kvz = 0;
+      tgt.vx = tgt.vz = 0;
+      tgt.x = tp.x;
+      tgt.z = tp.z;
+    }
+    tgt.trapSafeUntil = b.t + bind + T.immune;
+    b.events.push({ kind: 'trapSnap', side: tp.owner, target: tgt.side, id: tp.id, x: tp.x, z: tp.z });
+    b.events.push({ kind: 'status', side: tgt.side, effect: 'つかまった' });
+  }
+  b.traps = b.traps.filter((tp) => (tp.snapAt === undefined ? b.t < tp.until : b.t < tp.snapAt + T.bind[tp.form - 1]));
 }
 
 /**
@@ -436,6 +522,7 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
   const o = other(b, f);
   a.t += dt;
   if (tech.kind === 'jab' && f.jab.dash) return updateDash(b, f, a, dt);
+  if (tech.kind === 'jab' && (f.jab.water || f.jab.trap)) return updateRangedJab(b, f, a);
   const run = a.t - a.windup;
   const shoot = (dir: number) => {
     b.seq++;
@@ -677,6 +764,9 @@ function jabFor(e: AnimeEntrant): AnimeMon['jab'] {
   if (e.species === 'mofu') return { ...C.whipByForm[form - 1], step: 0, fire: 0, whip: true };
   // ZIPP は ためる電撃ダッシュ(2026-11-03 企画者)
   if (e.species === 'zipp') return { parts: [1], range: 1.2, step: 0, fire: 0, dash: form };
+  // PUNI は 水の玉(遠くから1発)・KLAK は はさみトラップ(前に罠を置く)(2026-11-03 企画者)
+  if (e.species === 'puni') return { parts: [1], range: C.puniShot.byForm[form - 1].range, step: 0, fire: 0, water: form };
+  if (e.species === 'klak') return { parts: [1], range: C.klakTrap.ahead, step: 0, fire: 0, trap: form };
   const j = { ...C.jabByForm[form - 1] };
   if (e.species !== 'bunk') j.fire = 0;
   return j;
@@ -836,7 +926,7 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
     }
     if (dist(s, tgt) < s.r + C.body.radius && Math.abs(tgt.y + 0.7 - s.y) < 1.2) {
       const hp0 = tgt.hp;
-      const did = hit(b, b.f[s.owner], tgt, s.tech, s.x, s.y, s.z, Math.atan2(s.vz, s.vx));
+      const did = hit(b, b.f[s.owner], tgt, s.tech, s.x, s.y, s.z, Math.atan2(s.vz, s.vx), s.part ? { part: s.part } : {});
       // 吸収: 当てたダメージの半分を回復
       if (did && getTech(s.tech).kind === 'drain') healMon(b, b.f[s.owner], (hp0 - tgt.hp) * C.drain.ratio, '吸収');
       if (did) {
@@ -845,8 +935,9 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
       }
     }
     const out = b.arena ? Math.hypot(s.x, s.z) > b.arena.radius + 2 : Math.abs(s.x) > H.halfX + 3 || Math.abs(s.z) > H.halfZ + 3;
-    if (out || s.t > (s.tech === 'punchFire' ? C.punchFire.life : 4)) s.alive = false;
+    if (out || s.t > (s.life ?? (s.tech === 'punchFire' ? C.punchFire.life : 4))) s.alive = false;
   }
+  updateTraps(b);
   // 弾どうしがぶつかる → 両方爆発
   for (const s of b.shots)
     for (const u of b.shots) {
@@ -1173,9 +1264,15 @@ function walk(b: AnimeBattle, f: AnimeMon, dt: number): void {
     const off = (k % 2 ? 1 : -1) * 0.5;
     [vx, vz] = [vx * Math.cos(off) - vz * Math.sin(off), vx * Math.sin(off) + vz * Math.cos(off)];
   }
+  // KLAK: カニのように 横向きに ちょこちょこ歩く(近づく時も ななめ横から)【仮】
+  if (f.species === 'klak' && f.plan === 'approach') {
+    const off = (Math.floor((b.t + f.side * 0.6) / 1.1) % 2 ? 1 : -1) * 1.1;
+    [vx, vz] = [vx * Math.cos(off) - vz * Math.sin(off), vx * Math.sin(off) + vz * Math.cos(off)];
+  }
   const len = Math.hypot(vx, vz);
   // 速さに強弱をつける(いつも同じ速さだと機械みたいなので)
-  const sway = f.species === 'zipp' ? dart : 0.75 + 0.35 * Math.sin(b.t * 2.3 + f.side * 1.7) + 0.15 * Math.sin(b.t * 5.1 + f.side);
+  // PUNI: ぽよん ぽよん と はねるたびに進む。KLAK: 小きざみに ちょこちょこ
+  const sway = f.species === 'puni' ? 0.35 + 1.05 * Math.abs(Math.sin(b.t * 4.2 + f.side)) : f.species === 'klak' ? 0.85 + 0.3 * Math.sin(b.t * 15 + f.side) : f.species === 'zipp' ? dart : 0.75 + 0.35 * Math.sin(b.t * 2.3 + f.side * 1.7) + 0.15 * Math.sin(b.t * 5.1 + f.side);
   const sp = walkSpeed(f) * sway * (b.t < f.paraUntil ? C.status.paraSpeed : 1) * (b.t < f.slowUntil ? C.gfield.slow : 1) * (b.t < f.dizzyUntil ? 0.6 : 1) * (b.t < f.burstUntil ? C.move.burst : 1);
   const wx = len > 0.01 ? (vx / len) * sp : 0;
   const wz = len > 0.01 ? (vz / len) * sp : 0;

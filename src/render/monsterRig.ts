@@ -405,6 +405,18 @@ export class MonsterRig {
         sy += (h - 0.5) * 0.16 * big;
         sx -= (h - 0.5) * 0.1 * big;
         legSwing = Math.sin(this.hop) * 0.8 * big;
+        // 2026-11-03 種族らしい歩き方【仮】
+        if (f.species === 'puni') {
+          // PUNI: ぽよん ぽよん と大きく はねる(着地で ぺちゃっと つぶれる)
+          const hp = Math.abs(Math.sin(now * 4.2 + f.side));
+          lift = hp * 0.42 * big;
+          sy = 1 + (hp - 0.35) * 0.32 * big;
+          sx = 1 - (hp - 0.35) * 0.22 * big;
+        } else if (f.species === 'klak') {
+          // KLAK: はねずに、小きざみに カタカタ(横歩き)
+          lift = Math.abs(Math.sin(now * 15 + f.side)) * 0.04 * big;
+          legSwing = Math.sin(now * 30) * 0.9 * big;
+        }
       }
       // 企画者のモデル: 止まっている時も、小さく はずむ(構え。2026-11-02)
       if (this.model && sp <= 0.3) lift = Math.abs(Math.sin(now * 5.5 + f.side * 1.3)) * 0.05;

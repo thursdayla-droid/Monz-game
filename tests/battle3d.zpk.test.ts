@@ -115,3 +115,55 @@ describe('ZIPP らしい動き (2026-11-03 企画者)', () => {
     expect(ev.filter((x) => x.kind === 'hit').length).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe('PUNI・KLAK の通常攻撃 (2026-11-03 企画者)', () => {
+  const setup = (sp: string, form = 1) => {
+    const b = newAnimeBattle(e(sp, [], form), e('bunk', [], 1), 9, 'manual');
+    b.f[0].pad = { x: 0, z: 0 }; b.f[0].techMode = 'manual';
+    b.f[1].thinkT = 1e9; b.f[1].cooldown.dodge = 1e9; b.f[1].pad = { x: 0, z: 0 }; b.f[1].techMode = 'manual';
+    b.f[0].z = b.f[1].z = 0;
+    return b;
+  };
+  it('PUNI: 水の玉は1発だけ・進化するほど遠くまで とどく', () => {
+    const reach = (form: number, gap: number) => {
+      const b = setup('puni', form);
+      b.f[0].x = -gap / 2; b.f[1].x = gap / 2;
+      giveCommand(b, 0, 'punch');
+      const ev = run(b, 2);
+      return ev.filter((x) => x.kind === 'hit').length;
+    };
+    expect(reach(1, 6)).toBe(1);
+    expect(reach(1, 10)).toBe(0);
+    expect(reach(2, 10)).toBe(1);
+    expect(reach(3, 13)).toBe(1);
+  });
+  it('KLAK: 前に置いた罠を ふむと はさまれて 動けない', () => {
+    const b = setup('klak', 1);
+    b.f[0].x = -3; b.f[1].x = 3;
+    giveCommand(b, 0, 'punch');
+    run(b, 0.8);
+    expect(b.traps.length).toBe(1);
+    const tp = b.traps[0];
+    expect(tp.x).toBeGreaterThan(-2);
+    // 相手が 罠の上へ歩いてくる
+    b.f[1].pad = { x: -1, z: 0 };
+    let snapped = false;
+    for (let i = 0; i < 3 / ANIME.dt && !snapped; i++) { b.events = []; stepAnime(b, ANIME.dt); snapped = b.events.some((x) => x.kind === 'trapSnap'); }
+    expect(snapped).toBe(true);
+    const f1 = b.f[1];
+    const x0 = f1.x;
+    b.f[1].pad = { x: 1, z: 0 };
+    // 少しのあいだ 動けない
+    run(b, 0.5);
+    expect(Math.abs(f1.x - x0)).toBeLessThan(0.3);
+  });
+  it('KLAK: 待ち時間は長め(パンチより長い)・進化すると たくさん置ける', () => {
+    const b = setup('klak', 3);
+    b.f[0].x = -6; b.f[1].x = 8;
+    giveCommand(b, 0, 'punch');
+    run(b, 0.6);
+    expect(b.f[0].cooldown.punch - b.t).toBeGreaterThan(1.5);
+    for (let i = 0; i < 3; i++) { b.f[0].cooldown.punch = 0; b.f[0].x -= 2.5; giveCommand(b, 0, 'punch'); run(b, 0.6); }
+    expect(b.traps.filter((t) => t.owner === 0).length).toBe(3);
+  });
+});

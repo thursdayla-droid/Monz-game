@@ -107,6 +107,17 @@ export const ANIME = {
    * shotZig: 弾が左右にゆれる速さ。dart: 歩きは「さっと走って、ぴたっと止まる」(走る秒・止まる秒)
    */
   zipp: { zig: 0.13, zigAng: 0.75, spinZig: 0.17, blink: 1.35, shotZig: 9, shotZigT: 0.09, dart: [0.32, 0.14] as [number, number], dartSpeed: [1.4, 0.1] as [number, number], dodge: 1.2 },
+  /**
+   * PUNI の通常攻撃「水の玉」(2026-11-03 企画者「水の塊発射する遠隔攻撃、進化するごとに距離が伸びる、コンボはなし」)【仮】。
+   * range: とどく長さ・power: 威力の倍率(水の玉の威力 × これ)
+   */
+  puniShot: { byForm: [{ range: 7, power: 1.0 }, { range: 10, power: 1.25 }, { range: 13, power: 1.5 }], recover: 0.35 },
+  /**
+   * KLAK の通常攻撃「はさみトラップ」(2026-11-03 企画者「自分の先に当たったら相手が動けなくなるトラップ」「待機時間長めで」)【仮】。
+   * ahead: 自分の何m前に置くか・arm: 置いてから効くまで・life: 残る時間・bind: 動けない時間(形ごと)・
+   * immune: 動けなくなったあと しばらく かからない・max: 置ける数(形ごと)・cool: 待ち時間(形ごと)・power: 威力の倍率
+   */
+  klakTrap: { ahead: 1.8, r: 0.85, arm: 0.4, life: 9, bind: [1.0, 1.3, 1.6], immune: 3, max: [1, 2, 3], cool: [3.2, 2.9, 2.6], power: [0.6, 0.85, 1.1] },
   whipByForm: [
     { parts: [0.45], range: 3.4 },
     { parts: [0.45, 0.55], range: 3.8 },
@@ -176,6 +187,9 @@ export const TECHS = {
   /** 通常攻撃(2026-11-02 企画者「通常攻撃もいれよう」)。近くでパンチ1発。待ち時間ほぼなし・威力は弱い【仮】。技の枠には入れない */
   // 2026-11-02 企画者「連打はやめ・クールタイム0.5秒」「その場でパンチ。ヒットしたら3連ぐらい」「空中でも」→ 型 jab。1発目が当たったら3連(合計 power)。待ち時間は攻撃が終わってから0.5秒
   punchFire: { name: 'パンチの火', element: '炎', kind: 'shot', power: 5, cooldown: 0, windup: 0, recovery: 0, speed: 15, range: 4, size: 0.45, duration: 0, launch: 0, knock: 2 },
+  // PUNI の水の玉・KLAK のはさみトラップ(通常攻撃。2026-11-03)
+  puniWater: { name: '水の玉', element: '水', kind: 'shot', power: 6.5, cooldown: 0, windup: 0, recovery: 0, speed: 15, range: 13, size: 0.42, duration: 0, launch: 0, knock: 2.5 },
+  klakTrap: { name: 'はさみトラップ', element: '無', kind: 'field', power: 7, cooldown: 0, windup: 0, recovery: 0, speed: 0, range: 2, size: 0.85, duration: 0, launch: 0, knock: 0 },
   punch: { name: 'パンチ', element: '無', kind: 'jab', power: 7, cooldown: 0.5, windup: 0.06, recovery: 0.16, speed: 0, range: 1.9, size: 0.9, duration: 0.14, launch: 0, knock: 2 },
   /** ガンジョウドームの爆発(反撃)。ドームが攻撃を受けると広がる衝撃波【仮】威力10・届く長さ4.5 */
   domeBurst: { name: 'ガンジョウドーム', element: '無', kind: 'quake', power: 10, cooldown: 0, windup: 0, recovery: 0, speed: 14, range: 4.5, size: 0.6, duration: 0, launch: 5, knock: 5 },
@@ -188,4 +202,4 @@ export const TECHS = {
 /** 技の id = 技の名前(表の技)。前の試作の4つは dash・fire・beam・quake */
 export type TechId = string;
 /** 技として使えるもの(ドームの爆発・パンチの火は ほかの技から出るだけ) */
-export const TECH_IDS = Object.keys(TECHS).filter((k) => k !== 'domeBurst' && k !== 'punchFire');
+export const TECH_IDS = Object.keys(TECHS).filter((k) => k !== 'domeBurst' && k !== 'punchFire' && k !== 'puniWater' && k !== 'klakTrap');

@@ -407,6 +407,9 @@ export class AnimeField {
   private boltGeo = new THREE.BoxGeometry(1, 1, 1);
   private zLast: ({ x: number; y: number; z: number } | null)[] = [null, null];
   private dashGuide: THREE.Mesh[] = [];
+  /** PUNI の水の玉の形・KLAK のトラップ(id → 見た目) */
+  private blobGeo = new THREE.SphereGeometry(1, 14, 10);
+  private trapObjs = new Map<number, THREE.Group>();
   private stars: THREE.Group[] = [];
   private markers: { obj: THREE.Group; r: number; until: number }[] = [];
   private camPos = new THREE.Vector3(-12, 5, 6);
@@ -641,6 +644,7 @@ export class AnimeField {
 
   /** 爆発(技の色) */
   explode(x: number, y: number, z: number, tech: TechId | null, big: boolean): void {
+    if (tech === 'puniWater') this.splash(x, y, z);
     const col = tech ? ELEMENT_HEX[getTech(tech).element] : 0xffffff;
     const s = this.sprite(0xffffff, true, this.star);
     s.position.set(x, y, z);
@@ -1097,6 +1101,96 @@ export class AnimeField {
     void side;
   }
 
+  /** 水しぶき(PUNI の水の玉が当たった・はじけた) */
+  splash(x: number, y: number, z: number): void {
+    for (let i = 0; i < 10; i++) {
+      const d = this.sprite(i % 3 ? 0x6ac8ff : 0xffffff);
+      d.position.set(x, y, z);
+      const a = Math.random() * Math.PI * 2;
+      const sp = 1.5 + Math.random() * 2.5;
+      this.add(d, 0.45, -0.4, 0.3, { vx: Math.cos(a) * sp, vz: Math.sin(a) * sp, vy: 2 + Math.random() * 3, fade: true });
+    }
+    this.groundRing(x, z, 0.7, 0x6ac8ff, 0.35, 1.4);
+  }
+
+  /** KLAK の はさみトラップが はさんだ */
+  trapSnap(x: number, z: number): void {
+    this.shockRing(x, 0.4, z, 0xff5040, 1.2);
+    for (let k = 0; k < 8; k++) {
+      const sp = this.sprite(k % 2 ? 0xffffff : 0xffc040, true, this.star);
+      sp.position.set(x + (Math.random() - 0.5) * 0.8, 0.3 + Math.random() * 0.7, z + (Math.random() - 0.5) * 0.8);
+      this.add(sp, 0.25, 1.5, 0.35);
+    }
+  }
+
+  /** KLAK の はさみトラップ: 地面の金属の輪と、開いた はさみ。効くようになると赤いランプが点めつ。はさむと閉じる */
+  private drawTraps(b: AnimeBattle): void {
+    const alive = new Set<number>();
+    for (const tp of b.traps) {
+      alive.add(tp.id);
+      let g = this.trapObjs.get(tp.id);
+      if (!g) {
+        g = new THREE.Group();
+        const metal = new THREE.MeshToonMaterial({ color: 0x8a96a8, gradientMap: this.gradient });
+        const dark = new THREE.MeshToonMaterial({ color: 0x3a4250, gradientMap: this.gradient });
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(tp.r * 0.9, 0.08, 6, 24), new THREE.MeshBasicMaterial({ color: 0xffc020 }));
+        ring.rotation.x = Math.PI / 2;
+        ring.position.y = 0.05;
+        const plate = new THREE.Mesh(new THREE.CylinderGeometry(tp.r * 0.35, tp.r * 0.4, 0.08, 12), dark);
+        plate.position.y = 0.04;
+        g.add(ring, plate);
+        // はさみ 2つ(ぎざぎざの歯つき)。userData.side で 開き・閉じ
+        for (const sd of [1, -1]) {
+          const jaw = new THREE.Group();
+          const bar = new THREE.Mesh(new THREE.TorusGeometry(tp.r * 0.75, 0.08, 5, 12, Math.PI), metal);
+          jaw.add(bar);
+          for (let k = 1; k < 6; k++) {
+            const a = (k / 6) * Math.PI;
+            const tooth = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.28, 4), metal);
+            tooth.position.set(Math.cos(a) * tp.r * 0.75, Math.sin(a) * tp.r * 0.75 - 0.1, 0);
+            tooth.rotation.z = Math.PI;
+            jaw.add(tooth);
+          }
+          jaw.userData.side = sd;
+          jaw.rotation.y = sd > 0 ? 0 : Math.PI;
+          g.add(jaw);
+        }
+        const lamp = this.sprite(0xff3020);
+        lamp.position.y = 0.2;
+        lamp.scale.setScalar(0.35);
+        g.add(lamp);
+        g.position.set(tp.x, 0, tp.z);
+        this.scene.add(g);
+        this.trapObjs.set(tp.id, g);
+        this.groundRing(tp.x, tp.z, tp.r, 0xffc040, 0.3, 0.6);
+      }
+      const armed = b.t >= tp.armAt;
+      const close = tp.snapAt === undefined ? 0 : Math.min(1, (b.t - tp.snapAt) / 0.08);
+      for (const c of g.children) {
+        if (c.userData.side === undefined) continue;
+        // 開いている: ななめに開いた口(見て分かるように 少し立てる) → 閉じる: 立ち上がって 合わさる
+        c.rotation.x = 0;
+        c.rotation.z = 0;
+        const open = (1 - close) * (armed ? 1.05 : 1.3);
+        c.rotation.set(c.userData.side > 0 ? -open : open, c.userData.side > 0 ? 0 : Math.PI, 0);
+      }
+      const lamp = g.children[g.children.length - 1] as THREE.Sprite;
+      lamp.visible = armed && tp.snapAt === undefined && Math.sin(performance.now() / 110) > 0;
+      // 消える前は 点めつ
+      g.visible = tp.snapAt !== undefined || tp.until - b.t > 1.2 || Math.sin(performance.now() / 60) > 0;
+    }
+    for (const [id, g] of this.trapObjs)
+      if (!alive.has(id)) {
+        this.scene.remove(g);
+        g.traverse((o) => {
+          const m = o as THREE.Mesh;
+          m.geometry?.dispose?.();
+          (m.material as THREE.Material | undefined)?.dispose?.();
+        });
+        this.trapObjs.delete(id);
+      }
+  }
+
   /** 雷の命中: 短い放電(ぎざぎざの線) */
   zap(x: number, y: number, z: number): void {
     for (let k = 0; k < 5; k++) {
@@ -1385,6 +1479,7 @@ export class AnimeField {
       return true;
     });
     this.drawShots(b, dt);
+    this.drawTraps(b);
     this.drawBeams(b);
     this.drawQuakes(b);
     this.drawRoarsFields(b, dt);
@@ -1440,6 +1535,31 @@ export class AnimeField {
         g.position.set(s.x, s.y + Math.sin(s.t * 14) * 0.08, s.z);
         (g.children[0] as THREE.Sprite).material.rotation += dt * 4;
         if (Math.random() < 0.5) this.cotton(s.x, s.y, s.z, 1, 0.3, 0.3);
+        continue;
+      }
+      if (s.tech === 'puniWater') {
+        // PUNI の水の玉(2026-11-03): ぷるぷる ゆれる 半透明の水のかたまり。しずくをこぼす
+        if (!g) {
+          g = new THREE.Group();
+          const blob = new THREE.Mesh(this.blobGeo, new THREE.MeshBasicMaterial({ color: 0x4ab8ff, transparent: true, opacity: 0.75, depthWrite: false }));
+          const shine = this.sprite(0xffffff, true);
+          shine.scale.setScalar(s.r * 1.1);
+          shine.position.set(-s.r * 0.35, s.r * 0.4, 0);
+          const glow = this.sprite(0x6ac8ff);
+          glow.scale.setScalar(s.r * 3);
+          g.add(blob, shine, glow);
+          this.scene.add(g);
+          this.shotObjs.set(s.id, g);
+        }
+        const w = Math.sin(s.t * 26) * 0.18;
+        g.position.set(s.x, s.y + Math.abs(Math.sin(s.t * 9)) * 0.12, s.z);
+        g.children[0].scale.set(s.r * (1 + w), s.r * (1 - w), s.r * (1 + w * 0.5));
+        g.children[0].rotation.y = -Math.atan2(s.vz, s.vx);
+        if (dt > 0 && Math.random() < dt * 25) {
+          const d = this.sprite(0x8ad8ff);
+          d.position.set(s.x + (Math.random() - 0.5) * 0.3, s.y, s.z + (Math.random() - 0.5) * 0.3);
+          this.add(d, 0.4, -0.5, 0.22, { vx: 0, vz: 0, vy: -1, fade: true });
+        }
         continue;
       }
       if (!g) {
