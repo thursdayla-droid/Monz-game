@@ -110,7 +110,7 @@ export class Battle3DFightScene extends Phaser.Scene {
     this.battle = newB3Battle(me, foe, seed);
     this.buildDom();
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.cleanup());
-    audio.playBgm('dash');
+    audio.playBgm('battle'); // 2026-11-04 企画者「これは戦闘BGMに」(前は DASH MONZ の曲)
   }
 
   private buildDom(): void {

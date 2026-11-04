@@ -288,3 +288,4 @@
 - 2026-11-04：SNEK・GRIT・VYBE・SHELLZ の3D骨入りモデル 12体（企画者）を入れた。へびの動き（くねる・すべる）と、四つ足の歩き方を 種族ごとに（重いブルドッグ・軽い狼・亀）。GRITBULL は 骨が体に合っていないので 体ぜんたいで動く（骨の つけ直しが 必要）。順番が ちがった VYBE・SHELLZ は 見た目で 入れかえた。くわしくは `docs/BATTLE.md`
 - 2026-11-04：GRITBULL・SHELDOZER の新しい3Dモデル（企画者。四つ足の骨）に差しかえ。GRITBULL も足を動かすように（前のモデルは `unused/battle3d/`）
 - 2026-11-04：企画者「シェルドーザーはこっちで」→ SHELDOZER は はじめに送られたモデルに もどした
+- 2026-11-04：企画者「これは戦闘BGMにしてください」（Combat Pulse）→ バトルの曲（MONZ RUMBLE・オートバトル・前のバトル画面）を この曲に（前は DASH MONZ の曲）。元は `music/battle_Combat_Pulse.m4a`、ゲーム用は `public/assets/bgm/battle.mp3`（ほかの曲と 音量を そろえた）

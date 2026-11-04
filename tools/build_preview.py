@@ -115,14 +115,15 @@ for p in paths:
 BGM_NOT_YET: set[str] = set()
 for p in sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/bgm/*.mp3') + glob.glob(pub + 'assets/se/**/*.mp3', recursive=True)):
     # MYTHCLASH の確認用ページには、MYTHCLASH の曲と効果音だけ
-    if p in BGM_NOT_YET or (MYTH and 'mythclash' not in p) or (B3D and 'dash' not in p and not p.startswith('assets/se/')):
+    if p in BGM_NOT_YET or (MYTH and 'mythclash' not in p) or (B3D and 'battle' not in p and not p.startswith('assets/se/')):
         continue
     # 確認用ページの大きさの上限(16MB)のため、曲は軽く(モノラル20kbps・2026-10-26 に28k→24k→20kと下げた。22kHzでは実際は16kbpsになる)して埋め込む。ゲーム本体は元の音質のまま
+    # 2026-11-04: 戦闘BGM が増えて ゲームのページが 15MB をこえたので、ゲームのページだけ 16k
     import subprocess, tempfile
     tmp = tempfile.mktemp(suffix='.mp3')
     # 効果音は短いので、確認用ページでも音質をあまり落とさない(48kbps)
     se = p.startswith('assets/se/')
-    subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-i', pub + p, '-c:a', 'libmp3lame', '-ac', '1', '-ar', '32000' if se else '22050', '-b:a', '48k' if se else '20k', tmp], check=True)
+    subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-i', pub + p, '-c:a', 'libmp3lame', '-ac', '1', '-ar', '32000' if se else ('22050' if (B3D or MYTH) else '16000'), '-b:a', '48k' if se else ('20k' if (B3D or MYTH) else '12k'), tmp], check=True)
     assets[p] = 'data:audio/mpeg;base64,' + base64.b64encode(open(tmp, 'rb').read()).decode()
     os.remove(tmp)
 jsons = {p: json.load(open(pub + p)) for p in ['assets/bunk/parts/parts.json', 'assets/bunk/down/parts.json', 'assets/bunk/faces/faces.json']}

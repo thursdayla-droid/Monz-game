@@ -247,7 +247,7 @@ export class AutoBattleScene extends Phaser.Scene {
     this.buildHud();
     this.buildTurnHint();
     this.cameras.main.fadeIn(300, 0, 0, 0);
-    audio.playBgm('dash');
+    audio.playBgm('battle'); // 2026-11-04 企画者「これは戦闘BGMに」(前は DASH MONZ の曲)
     this.intro();
   }
 

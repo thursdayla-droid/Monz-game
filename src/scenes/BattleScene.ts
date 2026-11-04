@@ -478,7 +478,7 @@ export class BattleScene extends Phaser.Scene {
     this.keys = this.input.keyboard?.addKeys('LEFT,RIGHT,UP,DOWN,Z,X,C,V,SPACE,SHIFT') as Record<string, Phaser.Input.Keyboard.Key> | undefined;
     this.cameras.main.fadeIn(300, 0, 0, 0);
     this.uiCam.fadeIn(300, 0, 0, 0);
-    audio.playBgm('dash');
+    audio.playBgm('battle'); // 2026-11-04 企画者「これは戦闘BGMに」(前は DASH MONZ の曲)
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(PORTRAIT.w, PORTRAIT.h));
   }
 

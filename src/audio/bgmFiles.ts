@@ -8,8 +8,9 @@
  * - slugger: 「Diamond Glory」ミニゲーム MONZ SLUGGER(2026-10-21 企画者決定)
  * - mythclash: 「Shadowy Contour」カードゲーム MYTHCLASH(2026-10-26 企画者決定)
  * - mythclashPack: MYTHCLASH のパック開封(2026-10-26 企画者決定。開封の画面はまだ。元は music/mythclash_pack.m4a)
+ * - battle: 「Combat Pulse」バトル(MONZ RUMBLE・オートバトルなど)(2026-11-04 企画者「これは戦闘BGMにしてください」。元は music/battle_Combat_Pulse.m4a)
  */
-export type BgmName = 'main' | 'home' | 'card' | 'dash' | 'slugger' | 'mythclash' | 'mythclashPack';
+export type BgmName = 'main' | 'home' | 'card' | 'dash' | 'slugger' | 'mythclash' | 'mythclashPack' | 'battle';
 
 export interface BgmFile {
   file: string;
@@ -25,4 +26,5 @@ export const BGM_FILES: Record<BgmName, BgmFile> = {
   slugger: { file: 'slugger.mp3', loop: true },
   mythclash: { file: 'mythclash.mp3', loop: true },
   mythclashPack: { file: 'mythclash_pack.mp3', loop: true },
+  battle: { file: 'battle.mp3', loop: true },
 };
