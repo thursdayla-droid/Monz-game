@@ -32,7 +32,7 @@ export interface AnimeEntrant {
 
 export type AnimeAct =
   | { k: 'free' }
-  | { k: 'tech'; id: TechId; t: number; dir: number; fired: boolean; hit: boolean; tx: number; tz: number; windup: number; n: number; next: number; charge?: number; len?: number; zig?: number }
+  | { k: 'tech'; id: TechId; t: number; dir: number; fired: boolean; hit: boolean; tx: number; tz: number; windup: number; n: number; next: number; charge?: number; len?: number; zig?: number; sx?: number; sz?: number }
   | { k: 'dodge'; t: number; dx: number; dz: number; jump: boolean }
   | { k: 'hurt'; t: number; until: number }
   | { k: 'air'; t: number }
@@ -73,6 +73,9 @@ export interface AnimeMon {
   defDownUntil: number;
   /** はさみトラップに もう かからない時刻 */
   trapSafeUntil: number;
+  /** 今の守りの技・受け止めた数(万象ぷにドーム) */
+  barrierTech?: TechId;
+  absorbN?: number;
   slowUntil: number;
   /** 守りのドームの終わりと大きさ */
   barrierUntil: number;
@@ -140,6 +143,13 @@ export interface Shot {
   /** 消えるまでの秒・威力の倍率(PUNI の水の玉) */
   life?: number;
   part?: number;
+  /** とくべつな弾(2026-11-03): 上下の速さ(放物線)・はねる回数・相手を追う強さ・止まる距離と爆発の時刻・動き出すまでの秒 */
+  vy?: number;
+  bounce?: number;
+  home?: number;
+  stop?: number;
+  fuse?: number;
+  wait?: number;
 }
 
 /** KLAK の はさみトラップ(ふんだ相手は動けない) */
@@ -156,6 +166,12 @@ export interface Trap {
   snapAt?: number;
   /** はさんだ相手 */
   caught?: Side;
+  /** トラップチェイン: 同じ番号の罠は いっしょに作動 */
+  chain?: number;
+  /** 技の罠: 技の名前・威力・動けない時間 */
+  tech?: TechId;
+  power?: number;
+  bind?: number;
 }
 
 export interface Beam {
@@ -177,6 +193,9 @@ export interface Quake {
   z: number;
   r: number;
   hit: boolean;
+  /** 広がり始める時刻・威力(とくべつな動き) */
+  start?: number;
+  power?: number;
 }
 
 export type AnimeEvent =
@@ -204,7 +223,7 @@ export type AnimeEvent =
   | { kind: 'ukemi'; side: Side }
   | { kind: 'domeBurst'; side: Side; x: number; z: number }
   | { kind: 'field'; side: Side; x: number; z: number; r: number; until: number }
-  | { kind: 'pillar'; side: Side; x: number; z: number }
+  | { kind: 'pillar'; side: Side; x: number; z: number; look?: Pillar['look'] }
   /** 回復した(吸収・自分の場も) */
   | { kind: 'heal'; side: Side; amount: number; why: '回復' | '吸収' | '場' }
   | { kind: 'buff'; side: Side; what: 'atk' | 'def' | 'speed' }
@@ -218,6 +237,26 @@ export type AnimeEvent =
   | { kind: 'victory'; side: Side }
   | { kind: 'timeUp' };
 
+/** 地面の場(円・十字・線) */
+export interface Field {
+  owner: Side;
+  tech: TechId;
+  x: number;
+  z: number;
+  r: number;
+  until: number;
+  tick?: number;
+  self?: boolean;
+  /** 形(ふつうは円)。十字は rot の向き、線は x,z → x2,z2 */
+  shape?: 'cross' | 'line';
+  rot?: number;
+  x2?: number;
+  z2?: number;
+  /** 1秒ごとのダメージ・追加効果(技の表とちがう時) */
+  power?: number;
+  effect?: Effect;
+}
+
 export interface Pillar {
   owner: Side;
   tech: TechId;
@@ -229,6 +268,10 @@ export interface Pillar {
   at: number;
   up: boolean;
   hitDone?: boolean;
+  /** 見た目(火柱・落雷・光の杭・光の砲撃)・威力・この時刻まで相手を追う */
+  look?: 'fire' | 'bolt' | 'stake' | 'beam';
+  power?: number;
+  follow?: number;
 }
 
 export interface AnimeBattle {
@@ -243,7 +286,7 @@ export interface AnimeBattle {
   /** ほえる声の輪(ダメージなし。当たると攻撃ダウン) */
   roars: Quake[];
   /** 重力の場(中にいると遅くなる) */
-  fields: { owner: Side; tech: TechId; x: number; z: number; r: number; until: number; tick?: number; self?: boolean }[];
+  fields: Field[];
   /** 火柱(at に地面から出る。同じ g の柱は、どれか1本が当たったら ほかは当たらない) */
   pillars: Pillar[];
   traps: Trap[];
@@ -380,7 +423,10 @@ function startTech(b: AnimeBattle, f: AnimeMon, id: TechId, byCommand: boolean):
   // まひ中は ためが長い
   // スピードが高いと、ためが短い。まひ中は長い
   const windup = tech.windup * (1 - Math.min(C.stat.speedWindupMax, f.stats.speed / C.stat.speedWindupDiv)) * (b.t < f.paraUntil ? C.status.paraWindup : 1);
-  f.act = { k: 'tech', id, t: 0, dir, fired: false, hit: false, tx: o.x, tz: o.z, windup, n: 0, next: 0 };
+  // ねらう技は ためが長い(ピンポイント弾・スナイプライン)。超膨張インパクトは ふくらむぶん長い
+  const st = styleOf(id);
+  const wmul = st === 'pinpoint' ? 1.6 : st === 'snipe' ? 1.5 : st === 'inflate' ? 1.4 : 1;
+  f.act = { k: 'tech', id, t: 0, dir, fired: false, hit: false, tx: o.x, tz: o.z, windup: windup * wmul, n: 0, next: 0, sx: f.x, sz: f.z, zig: b.rng() < 0.5 ? 1 : -1 };
   f.face = dir;
   // テクニックが高いと、技の待ち時間が少し短い(最大2割。2026-11-02 バランス)
   f.cooldown[id] = tech.kind === 'jab' && f.jab.dash
@@ -446,6 +492,14 @@ function updateRangedJab(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 
 /** KLAK の はさみトラップ: ふんだ相手を はさんで 動けなくする */
 function updateTraps(b: AnimeBattle): void {
   const T = C.klakTrap;
+  // 万象ぷにドーム: ドームが消える時、受け止めた数だけ 強い はじける反撃
+  for (const f of b.f)
+    if (f.absorbN && f.barrierTech && styleOf(f.barrierTech) === 'absorbCounter' && b.t >= f.barrierUntil) {
+      const n = Math.min(5, f.absorbN);
+      f.absorbN = 0;
+      b.quakes.push({ owner: f.side, tech: 'domeBurst', x: f.x, z: f.z, r: 0.3, hit: false, power: getTech('domeBurst').power * (1 + 0.6 * n) });
+      b.events.push({ kind: 'domeBurst', side: f.side, x: f.x, z: f.z });
+    }
   for (const tp of b.traps) {
     if (tp.snapAt !== undefined || b.t < tp.armAt) continue;
     const tgt = b.f[tp.owner === 0 ? 1 : 0];
@@ -454,8 +508,15 @@ function updateTraps(b: AnimeBattle): void {
     if (b.t < tgt.trapSafeUntil || isInvincible(b, tgt)) continue;
     tp.snapAt = b.t;
     tp.caught = tgt.side;
-    const bind = T.bind[tp.form - 1];
-    hit(b, b.f[tp.owner], tgt, 'klakTrap', tp.x, 0.4, tp.z, angleTo(b.f[tp.owner], tgt), { last: true, part: T.power[tp.form - 1] });
+    const bind = tp.bind ?? T.bind[tp.form - 1];
+    hit(b, b.f[tp.owner], tgt, tp.tech ?? 'klakTrap', tp.x, 0.4, tp.z, angleTo(b.f[tp.owner], tgt), tp.power ? { last: true, power: tp.power } : { last: true, part: T.power[tp.form - 1] });
+    // トラップチェイン: つながった ほかの罠も いっせいに作動(光の杭)
+    if (tp.chain !== undefined)
+      for (const q of b.traps)
+        if (q !== tp && q.chain === tp.chain && q.snapAt === undefined) {
+          q.snapAt = b.t;
+          addStrike(b, b.f[tp.owner], q.tech ?? 'klakTrap', q.x, q.z, 0.9, b.t + 0.15, 'stake', (q.power ?? 6) * 0.8);
+        }
     if ((tgt.act as AnimeAct).k !== 'ko') {
       tgt.act = { k: 'hurt', t: 0, until: bind };
       tgt.kvx = tgt.kvz = 0;
@@ -467,7 +528,7 @@ function updateTraps(b: AnimeBattle): void {
     b.events.push({ kind: 'trapSnap', side: tp.owner, target: tgt.side, id: tp.id, x: tp.x, z: tp.z });
     b.events.push({ kind: 'status', side: tgt.side, effect: 'つかまった' });
   }
-  b.traps = b.traps.filter((tp) => (tp.snapAt === undefined ? b.t < tp.until : b.t < tp.snapAt + T.bind[tp.form - 1]));
+  b.traps = b.traps.filter((tp) => (tp.snapAt === undefined ? b.t < tp.until : b.t < tp.snapAt + (tp.bind ?? T.bind[tp.form - 1])));
 }
 
 /**
@@ -516,6 +577,107 @@ function updateDash(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
   }
 }
 
+/** 雷走ブレイカー: 走ったあとの地面に 焦げた電気の線(上にいると しびれる・少しダメージ) */
+function boltTrail(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech' }>): void {
+  b.fields.push({ owner: f.side, tech: a.id, x: a.sx ?? f.x, z: a.sz ?? f.z, x2: f.x, z2: f.z, r: 0.75, until: b.t + 2.5, tick: b.t + 0.3, shape: 'line', power: 3, effect: 'まひ' });
+  b.events.push({ kind: 'field', side: f.side, x: f.x, z: f.z, r: 0.75, until: b.t + 2.5 });
+}
+
+/**
+ * とくべつな出し方の技(2026-11-03 企画者「そのキャラにあった技を」)。出したら true
+ */
+function fireSpecial(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech' }>, st: string): boolean {
+  const o = other(b, f);
+  const tech = getTech(a.id);
+  const S = C.style;
+  const pw = S.strike[tech.strength] ?? 16;
+  const warn = S.strikeWarn;
+  const mk = (x: number, z: number, dir: number, sp: number, extra: Partial<Shot> = {}) => {
+    b.seq++;
+    b.shots.push({ id: b.seq, owner: f.side, tech: a.id, x, y: 0.8, z, vx: Math.cos(dir) * sp, vz: Math.sin(dir) * sp, r: tech.size, t: 0, alive: true, ...extra });
+  };
+  switch (st) {
+    case 'strike1':
+      // 稲妻マーキング: 相手の足もとに印 → 少しあとに落雷
+      addStrike(b, f, a.id, o.x, o.z, 1.15, b.t + warn, 'bolt', pw);
+      return true;
+    case 'strikeNet': {
+      // 天網雷獄: 相手の足もと → まわり5か所へ 順番に落雷(1つずつ当たる・少し弱い)
+      addStrike(b, f, a.id, o.x, o.z, 1.2, b.t + warn, 'bolt', pw * 0.4);
+      const a0 = b.rng() * Math.PI * 2;
+      for (let i = 0; i < 5; i++) {
+        const ang = a0 + (i * Math.PI * 2) / 5;
+        addStrike(b, f, a.id, o.x + Math.cos(ang) * S.netRing, o.z + Math.sin(ang) * S.netRing, 1.2, b.t + warn + 0.18 * (i + 1), 'bolt', pw * 0.4);
+      }
+      return true;
+    }
+    case 'stakes': {
+      // 精密包囲陣: 相手のまわり4か所と まん中に 照準 → いっせいに光の杭(まとめて1回)
+      b.seq++;
+      const g = b.seq;
+      addStrike(b, f, a.id, o.x, o.z, 0.9, b.t + warn + 0.2, 'stake', pw, g);
+      for (let i = 0; i < 4; i++) {
+        const ang = (i * Math.PI) / 2 + Math.PI / 4;
+        addStrike(b, f, a.id, o.x + Math.cos(ang) * 1.5, o.z + Math.sin(ang) * 1.5, 0.9, b.t + warn + 0.2, 'stake', pw, g);
+      }
+      return true;
+    }
+    case 'snipeArray':
+      // 終端狙撃陣: 照準が相手を追いかけ、さいごに 止まって 集中砲撃
+      addStrike(b, f, a.id, o.x, o.z, 1.5, b.t + 1.2, 'beam', pw, undefined, b.t + 0.85);
+      return true;
+    case 'trapChain':
+    case 'miniTraps': {
+      // トラップチェイン: 相手までの線の上に 3つの罠(どれかを ふむと 全部作動)
+      // カチカチトラップ: 相手のまわりに 小さい罠を3つ
+      b.seq++;
+      const chain = st === 'trapChain' ? b.seq : undefined;
+      for (let i = 0; i < 3; i++) {
+        let x: number;
+        let z: number;
+        if (st === 'trapChain') {
+          const k = 0.35 + i * 0.25;
+          x = f.x + (o.x - f.x) * k;
+          z = f.z + (o.z - f.z) * k;
+        } else {
+          const ang = b.rng() * 0.6 + (i * Math.PI * 2) / 3;
+          x = o.x + Math.cos(ang) * 1.7;
+          z = o.z + Math.sin(ang) * 1.7;
+        }
+        const [cx, cz] = clampField(b, x, z);
+        b.seq++;
+        b.traps.push({ id: b.seq, owner: f.side, x: cx, z: cz, r: 0.75, armAt: b.t + 0.35, until: b.t + (st === 'trapChain' ? 10 : 6), form: 1, chain, tech: a.id, power: pw * (st === 'trapChain' ? 0.55 : 0.5), bind: S.bindShort + (st === 'trapChain' ? 0.3 : 0.2) });
+        b.events.push({ kind: 'trapSet', side: f.side, id: b.seq, x: cx, z: cz });
+      }
+      return true;
+    }
+    case 'homing3':
+      // 閃電三連: 体の3方向に電光の矢 → 曲がって相手へ
+      for (const off of [-0.95, 0, 0.95]) mk(f.x + Math.cos(a.dir + off) * 0.9, f.z + Math.sin(a.dir + off) * 0.9, a.dir + off, tech.speed, { home: S.homeRate });
+      a.n = C.barrage.count;
+      return true;
+    case 'fan':
+      // スパークレイン: 細い雷の針を いっせいに3本(扇の形)
+      for (const off of [-0.22, 0, 0.22]) mk(f.x + Math.cos(a.dir + off) * 0.9, f.z + Math.sin(a.dir + off) * 0.9, a.dir + off, tech.speed * 1.3);
+      a.n = C.barrage.count;
+      return true;
+    case 'turrets': {
+      // 千機包囲網: 相手のまわりに 小さな砲台が5つ → 順番に 内がわへ撃つ
+      const a0 = b.rng() * Math.PI * 2;
+      for (let i = 0; i < 5; i++) {
+        const ang = a0 + (i * Math.PI * 2) / 5;
+        let [x, z] = clampField(b, o.x + Math.cos(ang) * S.turretR, o.z + Math.sin(ang) * S.turretR);
+        if (b.arena && insideObstacle(b.arena, x, z, 0.6)) [x, z] = clampField(b, o.x + Math.cos(ang) * 3.2, o.z + Math.sin(ang) * 3.2);
+        mk(x, z, ang + Math.PI, tech.speed, { wait: 0.6 + i * 0.15, part: 0.6, life: 0.6 + i * 0.15 + 1.2 });
+      }
+      a.n = C.barrage.count;
+      return true;
+    }
+    default:
+      return false;
+  }
+}
+
 /** 技のため・発射 */
 function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech' }>, dt: number): void {
   const tech = getTech(a.id);
@@ -526,15 +688,41 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
   const run = a.t - a.windup;
   const shoot = (dir: number) => {
     b.seq++;
-    b.shots.push({ id: b.seq, owner: f.side, tech: a.id, x: f.x + Math.cos(dir) * 0.9, y: 0.8, z: f.z + Math.sin(dir) * 0.9, vx: Math.cos(dir) * tech.speed, vz: Math.sin(dir) * tech.speed, r: tech.size, t: 0, alive: true, zig: f.species === 'zipp' && tech.kind !== 'drain' ? 1 : 0 });
+    const st0 = styleOf(a.id);
+    const sp = tech.speed * (st0 === 'pinpoint' ? 2.2 : st0 === 'bomb' ? 0.6 : 1);
+    const shot: Shot = { id: b.seq, owner: f.side, tech: a.id, x: f.x + Math.cos(dir) * 0.9, y: 0.8, z: f.z + Math.sin(dir) * 0.9, vx: Math.cos(dir) * sp, vz: Math.sin(dir) * sp, r: tech.size, t: 0, alive: true, zig: f.species === 'zipp' && tech.kind !== 'drain' && !st0 ? 1 : 0 };
+    // ぽよん玉・ぽよぽよ連弾・ぷに分裂弾: ぽーんと山なりに飛んで、地面で1回はねる
+    if (st0 === 'arc' || st0 === 'arcHoming') {
+      shot.vy = C.style.arcVy;
+      shot.bounce = 1;
+      shot.y = 1.0;
+    }
+    if (st0 === 'arcHoming') shot.home = C.style.homeRate * 0.5;
+    // ディレイボム: 相手の近くまで ころがって止まり、少しして爆発
+    if (st0 === 'bomb') {
+      shot.stop = Math.min(tech.range, Math.max(2, dist(f, o) - 0.5));
+      shot.y = 0.35;
+      shot.life = 8;
+    }
+    b.shots.push(shot);
   };
   // ZIPP: 左右にジグザグ(はじめの半分は片側へ)。ZZ = 今の向き(+1/-1)
   const zz = (seg: number) => (Math.floor(run / seg + 0.5) % 2 ? -1 : 1);
   const zippy = f.species === 'zipp';
+  const st = styleOf(a.id);
+  // ロックオンライン・スナイプライン・ピンポイント弾: ためている間、相手を ねらい続ける
+  if (!a.fired && (st === 'track' || st === 'snipe' || st === 'pinpoint')) {
+    a.dir += clamp(angDiff(angleTo(f, o), a.dir), -4 * dt, 4 * dt);
+    f.face = a.dir;
+  }
   if (!a.fired && a.t >= a.windup) {
     a.fired = true;
+    a.sx = f.x;
+    a.sz = f.z;
     b.events.push({ kind: 'fire', side: f.side, tech: a.id });
-    if (tech.kind === 'shot') shoot(a.dir);
+    if (st && fireSpecial(b, f, a, st)) {
+      // とくべつな出し方(下の ふつうの出し方は しない)
+    } else if (tech.kind === 'shot') shoot(a.dir);
     else if (tech.kind === 'barrage') {
       shoot(a.dir);
       a.n = 1;
@@ -545,16 +733,17 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
       f.vy = C.quake.hop;
       f.y = 0.001;
     } else if (tech.kind === 'drop') {
-      // 高く跳んで、相手のいた所へ落ちる(落ちる所に印)
-      const air = (2 * C.drop.jump) / C.gravity;
+      // 高く跳んで、相手のいた所へ落ちる(落ちる所に印)。クイックリープは 低く速く・ぷにバウンドは 小さく何回も
+      const jump = C.drop.jump * (st === 'lowLeap' ? 0.5 : st === 'multiBounce' ? 0.6 : 1);
+      const air = (2 * jump) / C.gravity;
       const [tx, tz] = clampField(b, o.x, o.z);
       a.tx = tx;
       a.tz = tz;
-      f.vy = C.drop.jump;
+      f.vy = jump;
       f.y = 0.001;
       f.vx = (tx - f.x) / air;
       f.vz = (tz - f.z) / air;
-      b.events.push({ kind: 'mark', side: f.side, x: tx, z: tz, r: tech.size, until: b.t + air });
+      b.events.push({ kind: 'mark', side: f.side, x: tx, z: tz, r: tech.size * (st === 'bigPress' ? 1.3 : 1), until: b.t + air });
     } else if (tech.kind === 'debuff') {
       // ほえる: 口もとから声の輪が広がる
       b.roars.push({ owner: f.side, tech: a.id, x: f.x, z: f.z, r: 0.5, hit: false });
@@ -564,7 +753,8 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
       // 自分の場(千花天幕)は自分の足もと・ほかは相手の足もと
       const self = SELF_FIELD.has(a.id);
       const [fx, fz] = clampField(b, self ? f.x : o.x, self ? f.z : o.z);
-      b.fields.push({ owner: f.side, tech: a.id, x: fx, z: fz, r: tech.size, until: b.t + C.gfield.time, tick: b.t + C.fieldTick * 0.5, self });
+      // クロスワイヤー: 相手の足もとに 十字の光るワイヤー(線の上だけ効く・長い)
+      b.fields.push({ owner: f.side, tech: a.id, x: fx, z: fz, r: tech.size * (st === 'cross' ? 1.5 : 1), until: b.t + C.gfield.time, tick: b.t + C.fieldTick * 0.5, self, shape: st === 'cross' ? 'cross' : undefined, rot: a.dir });
       b.events.push({ kind: 'field', side: f.side, x: fx, z: fz, r: tech.size, until: b.t + C.gfield.time });
     } else if (tech.kind === 'pillar') {
       // 自分の前の地面を なぐる → 使った時の相手の足もと と、そのまわり3か所から 炎の柱(地面が光ってから出る。よけられる)
@@ -598,13 +788,65 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
     else if (tech.kind === 'barrier') {
       f.barrierUntil = b.t + tech.duration;
       f.barrierR = tech.size;
+      f.barrierTech = a.id;
+      f.absorbN = 0;
     }
   }
   if (!a.fired) return;
   switch (tech.kind) {
     case 'rush': {
+      if (st === 'multiPass') {
+        // 千閃雷走: 相手を何度も つきぬけて 走りぬける(4回。さいごが強い)
+        const passes = 4;
+        if (a.len === undefined) {
+          a.len = dist(f, o) + 3;
+          a.charge = 0;
+          a.dir = angleTo(f, o);
+          a.next = 0;
+        }
+        const sp = tech.speed * 1.5;
+        f.x += Math.cos(a.dir) * sp * dt;
+        f.z += Math.sin(a.dir) * sp * dt;
+        a.charge = (a.charge ?? 0) + sp * dt;
+        f.face = a.dir;
+        if (a.next === 0 && dist(f, o) < C.body.minGap + 0.3 && Math.abs(o.y - f.y) < 1.2) {
+          a.next = 1;
+          hit(b, f, o, a.id, (f.x + o.x) / 2, 0.8, (f.z + o.z) / 2, a.dir, { last: a.n === passes - 1, part: a.n === passes - 1 ? 0.4 : 0.2 });
+        }
+        if (a.charge >= a.len || edgeness(b, f.x, f.z) > 0.97) {
+          a.n++;
+          if (a.n >= passes) {
+            a.hit = true;
+            break;
+          }
+          a.dir = angleTo(f, o);
+          a.len = dist(f, o) + 3;
+          a.charge = 0;
+          a.next = 0;
+        }
+        return;
+      }
+      if (st === 'stretch') {
+        // ぷにタッチ: 体を にゅっと のばして つつく(その場から。とどく長さ 3.4m)
+        if (!a.hit && run >= 0.08) {
+          a.hit = true;
+          const reach = C.style.stretchReach + C.body.radius;
+          if (dist(f, o) < reach && Math.abs(angDiff(angleTo(f, o), a.dir)) < 0.55 && los(b, f, o, 0.8) && Math.abs(o.y - f.y) < 1.2) hit(b, f, o, a.id, o.x, 0.8, o.z, a.dir);
+        }
+        return;
+      }
+      // クラップタックル・クイッククランプ: はじめに 横へ すっと動いてから、相手へ
+      const side = st === 'sidestep' || st === 'sidestepBind';
+      if (side && run < 0.24) {
+        const sd = a.dir + ((a.zig ?? 1) * Math.PI) / 2;
+        f.x += Math.cos(sd) * 11 * dt;
+        f.z += Math.sin(sd) * 11 * dt;
+        if (run + dt >= 0.24) a.dir = angleTo(f, o);
+        return;
+      }
+      const rr = side ? run - 0.24 : run;
       // 突進: まっすぐ走る(とちゅうで曲がらない)
-      if (run * tech.speed < tech.range && !a.hit) {
+      if (rr * tech.speed < tech.range && !a.hit) {
         // ZIPP: ぎざぎざに曲がりながら 相手へ(雷走ブレイカーだけは 一直線)【仮】
         const zr = zippy && a.id !== '雷走ブレイカー';
         if (zr) a.dir += clamp(angDiff(angleTo(f, o), a.dir), -2.5 * dt, 2.5 * dt);
@@ -615,10 +857,14 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
         f.z += Math.sin(md) * ms * dt;
         if (dist(f, o) < C.body.minGap + 0.2 && Math.abs(o.y - f.y) < 1.2) {
           a.hit = true;
-          hit(b, f, o, a.id, (f.x + o.x) / 2, 0.8, (f.z + o.z) / 2, a.dir);
+          const ok = hit(b, f, o, a.id, (f.x + o.x) / 2, 0.8, (f.z + o.z) / 2, a.dir);
+          // クイッククランプ: はさんで 少し 動けなくする
+          if (ok && st === 'sidestepBind' && o.act.k === 'hurt') o.act.until = Math.max(o.act.until, C.style.bindShort);
+          if (st === 'boltTrail') boltTrail(b, f, a);
         }
         return;
       }
+      if (!a.hit && st === 'boltTrail') boltTrail(b, f, a);
       a.hit = true;
       break;
     }
@@ -626,9 +872,18 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
       // 回転: 転がって、少しずつ相手のほうへ曲がる
       if (run < tech.duration && !a.hit) {
         a.dir += clamp(angDiff(angleTo(f, o), a.dir), -C.spin.turn * dt, C.spin.turn * dt);
-        // ZIPP: 回りながら、ぎざぎざに曲がる
-        const md = zippy ? a.dir + zz(C.zipp.spinZig) * C.zipp.zigAng : a.dir;
-        const ms = zippy ? tech.speed / Math.cos(C.zipp.zigAng) : tech.speed;
+        // ZIPP: 回りながら、ぎざぎざに曲がる。電光スパイラル: 相手のまわりを うずまきのように回りながら近づく
+        const md = st === 'spiral' ? angleTo(f, o) + (1.3 * (1 - run / tech.duration) + 0.2) * (a.zig ?? 1) : zippy ? a.dir + zz(C.zipp.spinZig) * C.zipp.zigAng : a.dir;
+        const ms = st === 'spiral' ? tech.speed * 1.35 : zippy ? tech.speed / Math.cos(C.zipp.zigAng) : tech.speed;
+        // ぽよんスパイラル: 回りながら まわりに しずくを飛ばす
+        if (st === 'droplets' && run >= a.next) {
+          a.next = run + 0.22;
+          for (let k = 0; k < 4; k++) {
+            const ang = run * 7 + (k * Math.PI) / 2;
+            b.seq++;
+            b.shots.push({ id: b.seq, owner: f.side, tech: a.id, x: f.x + Math.cos(ang) * 0.8, y: 0.6, z: f.z + Math.sin(ang) * 0.8, vx: Math.cos(ang) * 9, vz: Math.sin(ang) * 9, r: 0.3, t: 0, alive: true, part: 0.3, life: 0.5 });
+          }
+        }
         f.face = md;
         f.x += Math.cos(md) * ms * dt;
         f.z += Math.sin(md) * ms * dt;
@@ -729,12 +984,31 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
       if (!a.hit) {
         a.hit = true;
         if (tech.kind === 'quake') {
-          b.quakes.push({ owner: f.side, tech: a.id, x: f.x, z: f.z, r: 0.3, hit: false });
+          if (st === 'tripleWave') {
+            // バウンドウェーブ: ばいん ばいん と 3回はねて、波の輪が3つ(1つずつは 弱め)
+            for (let k = 0; k < 3; k++) b.quakes.push({ owner: f.side, tech: a.id, x: f.x, z: f.z, r: 0.3, hit: false, start: b.t + k * 0.35, power: tech.power * 0.45 });
+          } else b.quakes.push({ owner: f.side, tech: a.id, x: f.x, z: f.z, r: 0.3, hit: false });
           b.events.push({ kind: 'quake', side: f.side, x: f.x, z: f.z, tech: a.id });
         } else {
           f.vx = f.vz = 0;
-          b.events.push({ kind: 'impact', side: f.side, tech: a.id, x: f.x, z: f.z, r: tech.size });
-          if (dist(f, o) < tech.size + C.body.radius && o.y < 0.6) hit(b, f, o, a.id, o.x, 0.5, o.z, angleTo(f, o));
+          const dr = tech.size * (st === 'bigPress' ? 1.3 : 1);
+          b.events.push({ kind: 'impact', side: f.side, tech: a.id, x: f.x, z: f.z, r: dr });
+          if (st === 'multiBounce' && a.n < 2) {
+            // ぷにバウンド: 小さく はねながら 相手へ(3回。着地のたびに当たる)
+            if (dist(f, o) < dr + C.body.radius && o.y < 0.6) hit(b, f, o, a.id, o.x, 0.5, o.z, angleTo(f, o), { last: false, part: 0.4 });
+            a.n++;
+            a.hit = false;
+            const jump = C.drop.jump * 0.6;
+            const air = (2 * jump) / C.gravity;
+            const [tx, tz] = clampField(b, o.x, o.z);
+            f.vy = jump;
+            f.y = 0.001;
+            f.vx = (tx - f.x) / air;
+            f.vz = (tz - f.z) / air;
+            b.events.push({ kind: 'mark', side: f.side, x: tx, z: tz, r: dr, until: b.t + air });
+            return;
+          }
+          if (dist(f, o) < dr + C.body.radius && o.y < 0.6) hit(b, f, o, a.id, o.x, 0.5, o.z, angleTo(f, o), st === 'multiBounce' ? { part: 0.6 } : {});
           else b.events.push({ kind: 'evaded', side: o.side });
         }
       }
@@ -792,6 +1066,60 @@ export function isInvincible(b: AnimeBattle, f: AnimeMon): boolean {
   return b.t < f.safeUntil || f.act.k === 'down' || (f.act.k === 'dodge' && f.act.t < C.dodge.invincible);
 }
 
+/** とくべつな動きの名前(技の名前から) */
+const styleOf = (id: TechId): string | undefined => C.techStyle[id];
+
+/**
+ * 守りが攻撃を受け止めた時(2026-11-03): ふつうは ドームが はじけて反撃(ガンジョウドーム)。
+ * 帯電シールド: 近くの相手が しびれる。ぷにぷにウォール(弾は はね返す)・万象ぷにドーム(ためて あとで反撃): はじけない
+ */
+function guardReact(b: AnimeBattle, o: AnimeMon, from: AnimeMon | null): void {
+  const st = o.barrierTech ? styleOf(o.barrierTech) : undefined;
+  if (st === 'absorbCounter') {
+    // 受け止めて ためる → 少しあとに はじけて 反撃(受け止めた数だけ強い)
+    o.absorbN = (o.absorbN ?? 0) + 1;
+    o.barrierUntil = Math.min(o.barrierUntil, b.t + 0.6);
+    return;
+  }
+  if (st === 'reflect') return;
+  if (st === 'zapShield') {
+    if (from && dist(from, o) < 3.5 && from.act.k !== 'ko') setEffect(b, from, 'まひ');
+    b.events.push({ kind: 'domeBurst', side: o.side, x: o.x, z: o.z });
+    o.barrierUntil = b.t;
+    return;
+  }
+  domeBurst(b, o);
+}
+
+/** 予告のあと その場所に 落ちる・立つ攻撃(落雷・光の杭・光の砲撃)を足す。g が同じものは まとめて1回だけ当たる */
+function addStrike(b: AnimeBattle, f: AnimeMon, id: TechId, x: number, z: number, r: number, at: number, look: Pillar['look'], power: number, g?: number, follow?: number): number {
+  b.seq++;
+  const gg = g ?? b.seq;
+  const [cx, cz] = clampField(b, x, z);
+  b.pillars.push({ owner: f.side, tech: id, g: gg, x: cx, z: cz, r, at, up: false, look, power, follow });
+  return gg;
+}
+
+/** 場の中にいるか(円・十字・線) */
+function inField(fl: Field, p: { x: number; z: number }): boolean {
+  if (fl.shape === 'line' && fl.x2 !== undefined && fl.z2 !== undefined) {
+    const dx = fl.x2 - fl.x;
+    const dz = fl.z2 - fl.z;
+    const L = Math.hypot(dx, dz) || 1;
+    const t = clamp(((p.x - fl.x) * dx + (p.z - fl.z) * dz) / (L * L), 0, 1);
+    return Math.hypot(p.x - (fl.x + dx * t), p.z - (fl.z + dz * t)) < fl.r;
+  }
+  if (fl.shape === 'cross') {
+    const c = Math.cos(-(fl.rot ?? 0));
+    const sn = Math.sin(-(fl.rot ?? 0));
+    const lx = (p.x - fl.x) * c - (p.z - fl.z) * sn;
+    const lz = (p.x - fl.x) * sn + (p.z - fl.z) * c;
+    const w = 0.55;
+    return (Math.abs(lx) < fl.r && Math.abs(lz) < w) || (Math.abs(lz) < fl.r && Math.abs(lx) < w);
+  }
+  return dist(fl, p) < fl.r;
+}
+
 function domeBurst(b: AnimeBattle, f: AnimeMon): void {
   if (b.t >= f.barrierUntil) return;
   f.barrierUntil = b.t;
@@ -834,13 +1162,13 @@ function applyEffect(b: AnimeBattle, o: AnimeMon, tech: ReturnType<typeof getTec
 }
 
 /** 当たり → ダメージ・吹っ飛び */
-function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y: number, z: number, dir: number, opt: { last?: boolean; part?: number } = {}): boolean {
+function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y: number, z: number, dir: number, opt: { last?: boolean; part?: number; power?: number } = {}): boolean {
   if (o.act.k === 'ko' || o.act.k === 'victory') return false;
   if (b.t < o.safeUntil || o.act.k === 'down') return false;
   // 守りのドームの中 → 止める
   if (b.t < o.barrierUntil) {
     b.events.push({ kind: 'blocked', side: o.side, x, y, z });
-    domeBurst(b, o);
+    guardReact(b, o, f);
     return false;
   }
   if (o.act.k === 'dodge' && o.act.t < C.dodge.invincible) {
@@ -858,7 +1186,7 @@ function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y:
   const down = (b.t < f.atkDownUntil ? C.debuff.atkDown : 1) * (b.t < o.defDownUntil ? C.defDown.mul : 1);
   // 強化(攻撃アップ・守りアップ)と、自分の場(千花天幕)の中
   const up = (b.t < f.atkUpUntil ? 1 + f.atkUp : 1) * (b.t < o.defUpUntil ? 1 - o.defUp : 1) * (b.fields.some((fl) => fl.self && fl.owner === o.side && dist(fl, o) < fl.r) ? C.selfField.guard : 1);
-  const dmg = Math.max(1, Math.round(up * down * (crit ? C.stat.critMul : 1) * tech.power * part * (part < 1 ? C.combo.bonus : 1) * (1 + f.stats.power / C.stat.powerDiv) * (C.stat.toughDiv / (C.stat.toughDiv + o.stats.tough)) * (0.9 + b.rng() * 0.2)));
+  const dmg = Math.max(1, Math.round(up * down * (crit ? C.stat.critMul : 1) * (opt.power ?? tech.power) * part * (part < 1 ? C.combo.bonus : 1) * (1 + f.stats.power / C.stat.powerDiv) * (C.stat.toughDiv / (C.stat.toughDiv + o.stats.tough)) * (0.9 + b.rng() * 0.2)));
   o.hp = Math.max(0, o.hp - dmg);
   const finish = opt.last ?? true;
   // 通常攻撃(パンチの連打)は、さいごの1発だけ押す(とちゅうで とどかなくならないように)
@@ -898,10 +1226,59 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
   for (const s of b.shots) {
     if (!s.alive) continue;
     s.t += dt;
+    const foe = b.f[s.owner === 0 ? 1 : 0];
+    // 千機包囲網の砲台: 動き出すまで、相手を ねらって待つ
+    if (s.wait !== undefined && s.t < s.wait) {
+      const d = Math.atan2(foe.z - s.z, foe.x - s.x);
+      const sp = Math.hypot(s.vx, s.vz);
+      s.vx = Math.cos(d) * sp;
+      s.vz = Math.sin(d) * sp;
+      continue;
+    }
+    // 追いかける弾(閃電三連・ぷに分裂弾): 少しずつ 相手のほうへ曲がる
+    if (s.home && s.t < 1.4) {
+      const sp = Math.hypot(s.vx, s.vz);
+      const cur = Math.atan2(s.vz, s.vx);
+      const nd = cur + clamp(angDiff(Math.atan2(foe.z - s.z, foe.x - s.x), cur), -s.home * dt, s.home * dt);
+      s.vx = Math.cos(nd) * sp;
+      s.vz = Math.sin(nd) * sp;
+    }
+    // ディレイボム: 止まる所まで ころがる → 止まって 少しあとに 爆発
+    if (s.stop !== undefined && s.fuse === undefined) {
+      s.stop -= Math.hypot(s.vx, s.vz) * dt;
+      if (s.stop <= 0) {
+        s.vx = s.vz = 0;
+        s.fuse = b.t + C.style.bombFuse;
+      }
+    }
+    if (s.fuse !== undefined && b.t >= s.fuse) {
+      s.alive = false;
+      b.events.push({ kind: 'explode', x: s.x, y: 0.5, z: s.z, tech: s.tech, big: true });
+      b.events.push({ kind: 'impact', side: s.owner, tech: s.tech, x: s.x, z: s.z, r: C.style.bombR });
+      if (dist(s, foe) < C.style.bombR + C.body.radius && foe.y < 1 && los(b, s, foe, 0.4)) hit(b, b.f[s.owner], foe, s.tech, foe.x, 0.5, foe.z, angleTo(s, foe));
+      continue;
+    }
     const px = s.x;
     const pz = s.z;
     s.x += s.vx * dt;
     s.z += s.vz * dt;
+    // 山なりの弾: 落ちて、地面で はねる(はねたら 次は はじける)
+    if (s.vy !== undefined) {
+      s.vy -= C.gravity * 0.8 * dt;
+      s.y += s.vy * dt;
+      if (s.y < 0.3) {
+        if ((s.bounce ?? 0) > 0) {
+          s.bounce = (s.bounce ?? 0) - 1;
+          s.y = 0.3;
+          s.vy = Math.abs(s.vy) * 0.6;
+          b.events.push({ kind: 'explode', x: s.x, y: 0.2, z: s.z, tech: s.tech, big: false });
+        } else {
+          s.alive = false;
+          b.events.push({ kind: 'explode', x: s.x, y: 0.2, z: s.z, tech: s.tech, big: false });
+          continue;
+        }
+      }
+    }
     if (s.zig) {
       // ZIPP の弾: 進む向きの横へ、ぎざぎざに ゆれる(はじめの半分は片側へ)
       const sg = Math.floor(s.t / C.zipp.shotZigT + 0.5) % 2 ? -1 : 1;
@@ -919,9 +1296,20 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
     }
     const tgt = b.f[s.owner === 0 ? 1 : 0];
     if (b.t < tgt.barrierUntil && dist(s, tgt) < tgt.barrierR + s.r) {
-      s.alive = false;
       b.events.push({ kind: 'blocked', side: tgt.side, x: s.x, y: s.y, z: s.z });
-      domeBurst(b, tgt);
+      // ぷにぷにウォール: 弾を はね返す(はね返った弾は 相手のもの)
+      if (tgt.barrierTech && styleOf(tgt.barrierTech) === 'reflect') {
+        s.owner = tgt.side;
+        s.vx = -s.vx;
+        s.vz = -s.vz;
+        s.home = undefined;
+        s.t = 0;
+        s.x += s.vx * dt * 2;
+        s.z += s.vz * dt * 2;
+        continue;
+      }
+      s.alive = false;
+      guardReact(b, tgt, b.f[s.owner]);
       continue;
     }
     if (dist(s, tgt) < s.r + C.body.radius && Math.abs(tgt.y + 0.7 - s.y) < 1.2) {
@@ -929,6 +1317,14 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
       const did = hit(b, b.f[s.owner], tgt, s.tech, s.x, s.y, s.z, Math.atan2(s.vz, s.vx), s.part ? { part: s.part } : {});
       // 吸収: 当てたダメージの半分を回復
       if (did && getTech(s.tech).kind === 'drain') healMon(b, b.f[s.owner], (hp0 - tgt.hp) * C.drain.ratio, '吸収');
+      // ぷにっと吸引: 当たった相手を 自分のほうへ 吸いよせる
+      if (did && styleOf(s.tech) === 'pull') {
+        const ow = b.f[s.owner];
+        const d = angleTo(tgt, ow);
+        const D = Math.max(0, Math.min(C.style.pullDist, dist(tgt, ow) - C.body.minGap - 0.2));
+        tgt.kvx = Math.cos(d) * D * C.hurt.friction;
+        tgt.kvz = Math.sin(d) * D * C.hurt.friction;
+      }
       if (did) {
         s.alive = false;
         b.events.push({ kind: 'explode', x: s.x, y: s.y, z: s.z, tech: s.tech, big: false });
@@ -984,6 +1380,7 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
   b.beams = b.beams.filter((x) => x.t < getTech(x.tech).duration);
   // 衝撃波(輪が広がる。ジャンプ中ならよけられる)
   for (const q of b.quakes) {
+    if (q.start !== undefined && b.t < q.start) continue;
     const tech = getTech(q.tech);
     const prev = q.r;
     q.r += tech.speed * dt;
@@ -993,7 +1390,7 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
       // 柱のうしろにいれば、衝撃波は当たらない
       if (!los(b, q, tgt, 0.3)) q.hit = true;
       else if (tgt.y > 0.5) b.events.push({ kind: 'evaded', side: tgt.side });
-      else if (hit(b, b.f[q.owner], tgt, q.tech, tgt.x, 0.4, tgt.z, angleTo(q, tgt))) b.events.push({ kind: 'explode', x: tgt.x, y: 0.4, z: tgt.z, tech: q.tech, big: true });
+      else if (hit(b, b.f[q.owner], tgt, q.tech, tgt.x, 0.4, tgt.z, angleTo(q, tgt), q.power ? { power: q.power } : {})) b.events.push({ kind: 'explode', x: tgt.x, y: 0.4, z: tgt.z, tech: q.tech, big: true });
       q.hit = true;
     }
   }
@@ -1028,7 +1425,7 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
   // 重力の場: 中にいる相手は遅くなる(出ても少しのあいだ遅いまま)
   for (const fl of b.fields) {
     const tgt = b.f[fl.owner === 0 ? 1 : 0];
-    if (!fl.self && getTech(fl.tech).effect === '遅くする' && dist(fl, tgt) < fl.r && tgt.y < 0.5) {
+    if (!fl.self && (fl.effect ?? getTech(fl.tech).effect) === '遅くする' && inField(fl, tgt) && tgt.y < 0.5) {
       if (b.t >= tgt.slowUntil) b.events.push({ kind: 'status', side: tgt.side, effect: '遅くする' });
       tgt.slowUntil = b.t + C.gfield.linger;
     }
@@ -1047,27 +1444,30 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
     }
     if (fl.tick !== undefined && b.t >= fl.tick) {
       fl.tick = b.t + C.fieldTick;
-      if (dist(fl, tgt) < fl.r && tgt.y < 0.5) {
+      if (inField(fl, tgt) && tgt.y < 0.5) {
         // 場の追加効果(ねむり・どく など。遅くするは下で)
         const ft = getTech(fl.tech);
-        if (ft.effect !== 'なし' && ft.effect !== '遅くする') applyEffect(b, tgt, ft, 0.5);
+        const eff = fl.effect ?? ft.effect;
+        if (eff !== 'なし' && eff !== '遅くする') applyEffect(b, tgt, { ...ft, effect: eff }, 0.5);
         const f = b.f[fl.owner];
-        const tech = getTech(fl.tech);
-        if (tech.power > 0) chip(b, tgt, Math.max(1, Math.round(tech.power * (1 + f.stats.power / C.stat.powerDiv) * (C.stat.toughDiv / (C.stat.toughDiv + tgt.stats.tough)))), '場');
+        const fp = fl.power ?? getTech(fl.tech).power;
+        if (fp > 0) chip(b, tgt, Math.max(1, Math.round(fp * (1 + f.stats.power / C.stat.powerDiv) * (C.stat.toughDiv / (C.stat.toughDiv + tgt.stats.tough)))), '場');
       }
     }
   }
   b.fields = b.fields.filter((fl) => b.t < fl.until);
   // 火柱: 出た瞬間から少しのあいだ、柱の中にいる相手に当たる(1回の技で1回だけ)
   for (const p of b.pillars) {
+    const tgt = b.f[p.owner === 0 ? 1 : 0];
+    // 終端狙撃陣: 照準が 相手を追いかける(さいごの少しは 止まる → よけられる)
+    if (p.follow !== undefined && b.t < p.follow) [p.x, p.z] = clampField(b, tgt.x, tgt.z);
     if (b.t < p.at) continue;
     if (!p.up) {
       p.up = true;
-      b.events.push({ kind: 'pillar', side: p.owner, x: p.x, z: p.z });
+      b.events.push({ kind: 'pillar', side: p.owner, x: p.x, z: p.z, look: p.look });
     }
-    const tgt = b.f[p.owner === 0 ? 1 : 0];
     if (b.t < p.at + C.pillar.burst && dist(p, tgt) < p.r + C.body.radius * 0.6 && tgt.y < 2.5 && !b.pillars.some((q) => q.g === p.g && q.hitDone)) {
-      if (hit(b, b.f[p.owner], tgt, p.tech, tgt.x, tgt.y + 0.6, tgt.z, angleTo(p, tgt))) for (const q of b.pillars) if (q.g === p.g) q.hitDone = true;
+      if (hit(b, b.f[p.owner], tgt, p.tech, tgt.x, tgt.y + 0.6, tgt.z, angleTo(p, tgt), p.power ? { power: p.power } : {})) for (const q of b.pillars) if (q.g === p.g) q.hitDone = true;
     }
   }
   b.pillars = b.pillars.filter((p) => b.t < p.at + C.pillar.life);
@@ -1134,7 +1534,8 @@ function chooseTech(b: AnimeBattle, f: AnimeMon): TechId | null {
   const w = ready.map((id) => {
     const t = getTech(id);
     let x = 1;
-    if (t.kind === 'rush' || t.kind === 'spin' || t.kind === 'combo') x = d < 9 ? 1 + f.instinct.attack : 0.2;
+    if (styleOf(id) === 'stretch') x = d < C.style.stretchReach + 0.5 ? 1.4 + f.instinct.attack : 0.05;
+    else if (t.kind === 'rush' || t.kind === 'spin' || t.kind === 'combo') x = d < 9 ? 1 + f.instinct.attack : 0.2;
     else if (t.kind === 'quake') x = d < t.range * 0.9 ? 1.2 + f.instinct.fight : 0.05;
     else if (t.kind === 'drop') x = d < t.range ? 1 + f.instinct.fight : 0.1;
     else if (t.kind === 'beam') x = 0.8 + f.instinct.fight;
@@ -1453,7 +1854,9 @@ function updateMon(b: AnimeBattle, f: AnimeMon, dt: number): void {
 function separate(b: AnimeBattle): void {
   const [p, q] = b.f;
   const d = dist(p, q);
-  if (d < C.body.minGap && Math.abs(p.y - q.y) < 1.2) {
+  // 千閃雷走は 相手を つきぬける
+  const through = b.f.some((f) => f.act.k === 'tech' && f.act.fired && !f.act.hit && styleOf(f.act.id) === 'multiPass');
+  if (!through && d < C.body.minGap && Math.abs(p.y - q.y) < 1.2) {
     const nx = d > 1e-4 ? (q.x - p.x) / d : 1;
     const nz = d > 1e-4 ? (q.z - p.z) / d : 0;
     const push = (C.body.minGap - d) / 2;

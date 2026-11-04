@@ -184,3 +184,116 @@ describe('ZIPP: 電撃ダッシュの とちゅうで やられても また使�
     expect(giveCommand(b, 0, 'punch')).toBe(true);
   });
 });
+
+describe('技ごとの とくべつな動き (2026-11-03 企画者「そのキャラにあった技を」)', () => {
+  const duel = (sp: string, techs: string[], foeTechs: string[] = [], gap = 6) => {
+    const b = newAnimeBattle(e(sp, techs, 3), e('bunk', foeTechs, 1), 13, 'manual');
+    for (const f of b.f) { f.pad = { x: 0, z: 0 }; f.techMode = 'manual'; f.thinkT = 1e9; f.cooldown.dodge = 1e9; f.z = 0; }
+    b.f[0].x = -gap / 2; b.f[1].x = gap / 2;
+    b.f[1].maxHp = b.f[1].hp = 999;
+    return b;
+  };
+  const use = (b: ReturnType<typeof duel>, side: 0 | 1, id: string, sec: number) => { giveCommand(b, side, id); return run(b, sec); };
+  const hits = (ev: AnimeEvent[], side = 0) => ev.filter((x) => x.kind === 'hit' && x.side === side).length;
+
+  it('稲妻マーキング: 予告のあと落雷。動かなければ当たる', () => {
+    const b = duel('zipp', ['稲妻マーキング']);
+    const ev = use(b, 0, '稲妻マーキング', 2);
+    expect(ev.some((x) => x.kind === 'pillar' && x.look === 'bolt')).toBe(true);
+    expect(hits(ev)).toBe(1);
+  });
+  it('天網雷獄: 何度も落雷', () => {
+    const b = duel('zipp', ['天網雷獄']);
+    const ev = use(b, 0, '天網雷獄', 3);
+    expect(ev.filter((x) => x.kind === 'pillar').length).toBe(6);
+  });
+  it('千閃雷走: 相手を つきぬけて 何回も当たる', () => {
+    const b = duel('zipp', ['千閃雷走']);
+    const ev = use(b, 0, '千閃雷走', 4);
+    expect(hits(ev)).toBeGreaterThanOrEqual(2);
+  });
+  it('雷走ブレイカー: 走ったあとに 電気の線', () => {
+    const b = duel('zipp', ['雷走ブレイカー'], [], 14);
+    use(b, 0, '雷走ブレイカー', 1.5);
+    expect(b.fields.some((fl) => fl.shape === 'line')).toBe(true);
+  });
+  it('閃電三連・スパークレイン: 3つ いっせいに出る', () => {
+    for (const id of ['閃電三連', 'スパークレイン']) {
+      const b = duel('zipp', [id], [], 12);
+      giveCommand(b, 0, id);
+      let most = 0;
+      for (let i = 0; i < 0.8 / ANIME.dt; i++) { b.events = []; stepAnime(b, ANIME.dt); most = Math.max(most, b.shots.filter((s) => s.owner === 0).length); }
+      expect(most, id).toBe(3);
+    }
+  });
+  it('ぷにタッチ: のびて つつく(近くだけ)', () => {
+    expect(hits(use(duel('puni', ['ぷにタッチ'], [], 3.6), 0, 'ぷにタッチ', 1))).toBe(1);
+    expect(hits(use(duel('puni', ['ぷにタッチ'], [], 7), 0, 'ぷにタッチ', 1))).toBe(0);
+  });
+  it('ぷにバウンド: 何回もはねて着地する', () => {
+    const ev = use(duel('puni', ['ぷにバウンド'], [], 4), 0, 'ぷにバウンド', 4);
+    expect(ev.filter((x) => x.kind === 'impact').length).toBe(3);
+  });
+  it('バウンドウェーブ: 波の輪が3つ', () => {
+    const b = duel('puni', ['バウンドウェーブ'], [], 4);
+    giveCommand(b, 0, 'バウンドウェーブ');
+    let most = 0;
+    for (let i = 0; i < 2 / ANIME.dt; i++) { b.events = []; stepAnime(b, ANIME.dt); most = Math.max(most, b.quakes.length); }
+    expect(most).toBe(3);
+  });
+  it('ぷにぷにウォール: 弾を はね返す', () => {
+    const b = duel('puni', ['ぷにぷにウォール'], ['ポンポンショット'], 10);
+    use(b, 0, 'ぷにぷにウォール', 0.3);
+    giveCommand(b, 1, 'ポンポンショット');
+    run(b, 1.5);
+    expect(b.f[1].hp).toBeLessThan(999);
+  });
+  it('万象ぷにドーム: 受け止めたあと はじけて反撃', () => {
+    const b = duel('puni', ['万象ぷにドーム'], ['バンクバッシュ'], 4);
+    use(b, 0, '万象ぷにドーム', 0.3);
+    giveCommand(b, 1, 'バンクバッシュ');
+    const ev = run(b, 8);
+    expect(ev.some((x) => x.kind === 'domeBurst')).toBe(true);
+    expect(b.f[1].hp).toBeLessThan(999);
+  });
+  it('ぷにっと吸引: 当たると 引きよせる', () => {
+    const b = duel('puni', ['ぷにっと吸引'], [], 6);
+    const d0 = Math.abs(b.f[1].x - b.f[0].x);
+    use(b, 0, 'ぷにっと吸引', 1.5);
+    expect(Math.abs(b.f[1].x - b.f[0].x)).toBeLessThan(d0 - 1);
+  });
+  it('ぽよん玉: 山なりに飛んで はねる', () => {
+    const b = duel('puni', ['ぽよん玉'], [], 14);
+    giveCommand(b, 0, 'ぽよん玉');
+    let top = 0;
+    for (let i = 0; i < 1 / ANIME.dt; i++) { b.events = []; stepAnime(b, ANIME.dt); for (const s of b.shots) top = Math.max(top, s.y); }
+    expect(top).toBeGreaterThan(1.3);
+  });
+  it('ディレイボム: 止まって 少しあとに 爆発', () => {
+    const b = duel('klak', ['ディレイボム'], [], 7);
+    const ev = use(b, 0, 'ディレイボム', 3);
+    expect(hits(ev)).toBe(1);
+  });
+  it('千機包囲網: まわりの砲台から 何発も', () => {
+    const ev = use(duel('klak', ['千機包囲網'], [], 6), 0, '千機包囲網', 3);
+    expect(hits(ev)).toBeGreaterThanOrEqual(3);
+  });
+  it('トラップチェイン: 1つ ふむと 全部作動', () => {
+    const b = duel('klak', ['トラップチェイン'], [], 8);
+    use(b, 0, 'トラップチェイン', 0.8);
+    expect(b.traps.length).toBe(3);
+    b.f[1].pad = { x: -1, z: 0 };
+    const ev = run(b, 3);
+    expect(ev.filter((x) => x.kind === 'trapSnap').length).toBe(1);
+    expect(ev.filter((x) => x.kind === 'pillar' && x.look === 'stake').length).toBe(2);
+  });
+  it('精密包囲陣・終端狙撃陣: 予告のあと 当たる', () => {
+    expect(hits(use(duel('klak', ['精密包囲陣']), 0, '精密包囲陣', 2.5))).toBe(1);
+    expect(hits(use(duel('klak', ['終端狙撃陣']), 0, '終端狙撃陣', 3))).toBe(1);
+  });
+  it('クロスワイヤー: 十字の場', () => {
+    const b = duel('klak', ['クロスワイヤー']);
+    use(b, 0, 'クロスワイヤー', 1);
+    expect(b.fields.some((fl) => fl.shape === 'cross')).toBe(true);
+  });
+});

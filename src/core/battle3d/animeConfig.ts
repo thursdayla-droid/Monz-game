@@ -118,6 +118,37 @@ export const ANIME = {
    * immune: 動けなくなったあと しばらく かからない・max: 置ける数(形ごと)・cool: 待ち時間(形ごと)・power: 威力の倍率
    */
   klakTrap: { ahead: 1.8, r: 0.85, arm: 0.4, life: 9, bind: [1.0, 1.3, 1.6], immune: 3, max: [1, 2, 3], cool: [3.2, 2.9, 2.6], power: [0.6, 0.85, 1.1] },
+  /**
+   * 技ごとの とくべつな動き(2026-11-03 企画者「レベル上がって覚える技が全部一緒に見えるから 今ある技の種類を多くしていいから、そのキャラにあった技を」)【仮】。
+   * 技の名前 → 動きの名前。くわしくは docs/BATTLE.md
+   */
+  techStyle: {
+    // ZIPP(雷・速さ)
+    クイックリープ: 'lowLeap', スパークレイン: 'fan', 雷走ブレイカー: 'boltTrail', 帯電シールド: 'zapShield', 稲妻マーキング: 'strike1', 閃電三連: 'homing3',
+    電光スパイラル: 'spiral', ライトレール: 'rail', 帯電フィールド: 'net', 千閃雷走: 'multiPass', 天網雷獄: 'strikeNet',
+    // PUNI(自然・弾力・吸う)
+    ぷにタッチ: 'stretch', ぽよん玉: 'arc', ぷにバウンド: 'multiBounce', ぷるんガード: 'jelly', ぽよぽよ連弾: 'arc', ぷにっと吸引: 'pull', ビッグぷにプレス: 'bigPress',
+    ぷにぷにウォール: 'reflect', ぽよんスパイラル: 'droplets', ぷにトラップ: 'goo', バウンドウェーブ: 'tripleWave', ぐにゃりスリップ: 'goo', ぷに分裂弾: 'arcHoming',
+    エナジーぷにドレイン: 'tether', 超弾性チャージ: 'harden', 超膨張インパクト: 'inflate', 万象ぷにドーム: 'absorbCounter',
+    // KLAK(罠・ねらい)
+    カチンショット: 'soundRing', クラップタックル: 'sidestep', ピンポイント弾: 'pinpoint', カチカチトラップ: 'miniTraps', スナップラッシュ: 'snap', ロックオンライン: 'track',
+    クイッククランプ: 'sidestepBind', クロスワイヤー: 'cross', 精密包囲陣: 'stakes', ディレイボム: 'bomb', スナイプライン: 'snipe', トラップチェイン: 'trapChain',
+    千機包囲網: 'turrets', 終端狙撃陣: 'snipeArray',
+  } as Record<string, string>,
+  /** とくべつな動きの数字【仮】。strike: 予告のあと落ちる・立つ攻撃(落雷・光の杭)の威力(強さごと) */
+  style: {
+    strike: { 弱: 12, 中: 16, 強: 21.6, 大技: 35.2 } as Record<string, number>,
+    strikeWarn: 0.75,
+    netRing: 2.4,
+    homeRate: 3.2,
+    arcVy: 5.5,
+    bombFuse: 1.0,
+    bombR: 2.3,
+    turretR: 5.5,
+    pullDist: 2.4,
+    stretchReach: 3.4,
+    bindShort: 0.6,
+  },
   whipByForm: [
     { parts: [0.45], range: 3.4 },
     { parts: [0.45, 0.55], range: 3.8 },
