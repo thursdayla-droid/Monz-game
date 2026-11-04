@@ -1313,7 +1313,15 @@ export class AnimeField {
     b.f.forEach((f, i) => {
       let m = this.guardObjs[i];
       if (!m) {
-        m = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ map: this.hexTex, color: 0x7ad0ff, transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+        const geo = new THREE.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+        m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: this.hexTex, color: 0x7ad0ff, transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+        // 2026-11-04 企画者「ガードが薄いからもう少し濃く」→ 中を 青く ぬった 盾を重ねる(ふつうの色の重ね方で はっきり見える)
+        const fill = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0x3a9cff, transparent: true, opacity: 0.45, depthWrite: false, side: THREE.DoubleSide }));
+        fill.renderOrder = -1;
+        m.add(fill);
+        const rim = new THREE.Mesh(new THREE.TorusGeometry(1, 0.05, 6, 32), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false }));
+        rim.rotation.x = Math.PI / 2;
+        m.add(rim);
         this.scene.add(m);
         this.guardObjs[i] = m;
       }
@@ -1323,13 +1331,20 @@ export class AnimeField {
       if (!m.visible) return;
       const g = f.guardGauge / ANIME.guard.max;
       // 体の前に 立てた 半分の球(盾)
-      m.position.set(f.x + Math.cos(f.face) * 0.55, f.y + 0.9, f.z + Math.sin(f.face) * 0.55);
+      // 横から見ても わかるように、大きく まるい盾(2026-11-04 企画者「見えにくい」)
+      m.position.set(f.x + Math.cos(f.face) * 0.3, f.y + 0.85, f.z + Math.sin(f.face) * 0.3);
       m.rotation.set(0, -f.face, -Math.PI / 2);
-      const sc = (0.75 + 0.35 * g) * (1 + this.guardGlow[i] * 0.15);
-      m.scale.set(sc * 1.1, sc * 0.45, sc * 1.1);
+      const sc = (0.85 + 0.3 * g) * (1 + this.guardGlow[i] * 0.15);
+      m.scale.set(sc * 1.3, sc * 0.85, sc * 1.3);
       const mat = m.material as THREE.MeshBasicMaterial;
-      mat.color.setHex(this.guardGlow[i] > 1 ? 0xffffff : g > 0.3 ? 0x7ad0ff : 0xff6a4a);
-      mat.opacity = (on ? 0.45 + 0.15 * Math.sin(performance.now() / 60) : 0) + this.guardGlow[i] * 0.4;
+      const low = g <= 0.3;
+      mat.color.setHex(this.guardGlow[i] > 1 ? 0xffffff : low ? 0xff6a4a : 0x9ae0ff);
+      const k = (on ? 1 : 0) * (0.85 + 0.15 * Math.sin(performance.now() / 60));
+      mat.opacity = Math.min(1, k + this.guardGlow[i] * 0.4);
+      const fillMat = (m.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial;
+      fillMat.color.setHex(low ? 0xff4a2a : 0x3a9cff);
+      fillMat.opacity = Math.min(0.7, 0.5 * k + this.guardGlow[i] * 0.25);
+      ((m.children[1] as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = Math.min(1, 0.9 * k + this.guardGlow[i] * 0.4);
     });
   }
 
