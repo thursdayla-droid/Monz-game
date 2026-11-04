@@ -426,7 +426,7 @@ function startTech(b: AnimeBattle, f: AnimeMon, id: TechId, byCommand: boolean):
   // ねらう技は ためが長い(ピンポイント弾・スナイプライン)。超膨張インパクトは ふくらむぶん長い
   const st = styleOf(id);
   const wmul = st === 'pinpoint' ? 1.6 : st === 'snipe' ? 1.5 : st === 'inflate' ? 1.4 : 1;
-  f.act = { k: 'tech', id, t: 0, dir, fired: false, hit: false, tx: o.x, tz: o.z, windup: windup * wmul, n: 0, next: 0, sx: f.x, sz: f.z, zig: b.rng() < 0.5 ? 1 : -1 };
+  f.act = { k: 'tech', id, t: 0, dir, fired: false, hit: false, tx: o.x, tz: o.z, windup: windup * wmul, n: 0, next: 0, sx: f.x, sz: f.z, zig: st === 'sidestep' || st === 'sidestepBind' || st === 'spiral' ? (b.rng() < 0.5 ? 1 : -1) : 1 };
   f.face = dir;
   // テクニックが高いと、技の待ち時間が少し短い(最大2割。2026-11-02 バランス)
   f.cooldown[id] = tech.kind === 'jab' && f.jab.dash
@@ -603,11 +603,11 @@ function fireSpecial(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tec
       return true;
     case 'strikeNet': {
       // 天網雷獄: 相手の足もと → まわり5か所へ 順番に落雷(1つずつ当たる・少し弱い)
-      addStrike(b, f, a.id, o.x, o.z, 1.2, b.t + warn, 'bolt', pw * 0.4);
+      addStrike(b, f, a.id, o.x, o.z, 1.2, b.t + warn, 'bolt', pw * 0.3);
       const a0 = b.rng() * Math.PI * 2;
       for (let i = 0; i < 5; i++) {
         const ang = a0 + (i * Math.PI * 2) / 5;
-        addStrike(b, f, a.id, o.x + Math.cos(ang) * S.netRing, o.z + Math.sin(ang) * S.netRing, 1.2, b.t + warn + 0.18 * (i + 1), 'bolt', pw * 0.4);
+        addStrike(b, f, a.id, o.x + Math.cos(ang) * S.netRing, o.z + Math.sin(ang) * S.netRing, 1.2, b.t + warn + 0.18 * (i + 1), 'bolt', pw * 0.25);
       }
       return true;
     }
@@ -615,16 +615,16 @@ function fireSpecial(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tec
       // 精密包囲陣: 相手のまわり4か所と まん中に 照準 → いっせいに光の杭(まとめて1回)
       b.seq++;
       const g = b.seq;
-      addStrike(b, f, a.id, o.x, o.z, 0.9, b.t + warn + 0.2, 'stake', pw, g);
+      addStrike(b, f, a.id, o.x, o.z, 0.9, b.t + warn + 0.2, 'stake', pw * 0.7, g);
       for (let i = 0; i < 4; i++) {
         const ang = (i * Math.PI) / 2 + Math.PI / 4;
-        addStrike(b, f, a.id, o.x + Math.cos(ang) * 1.5, o.z + Math.sin(ang) * 1.5, 0.9, b.t + warn + 0.2, 'stake', pw, g);
+        addStrike(b, f, a.id, o.x + Math.cos(ang) * 1.5, o.z + Math.sin(ang) * 1.5, 0.9, b.t + warn + 0.2, 'stake', pw * 0.7, g);
       }
       return true;
     }
     case 'snipeArray':
       // 終端狙撃陣: 照準が相手を追いかけ、さいごに 止まって 集中砲撃
-      addStrike(b, f, a.id, o.x, o.z, 1.5, b.t + 1.2, 'beam', pw, undefined, b.t + 0.85);
+      addStrike(b, f, a.id, o.x, o.z, 1.5, b.t + 1.2, 'beam', pw * 0.8, undefined, b.t + 0.85);
       return true;
     case 'trapChain':
     case 'miniTraps': {
@@ -653,7 +653,8 @@ function fireSpecial(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tec
     }
     case 'homing3':
       // 閃電三連: 体の3方向に電光の矢 → 曲がって相手へ
-      for (const off of [-0.95, 0, 0.95]) mk(f.x + Math.cos(a.dir + off) * 0.9, f.z + Math.sin(a.dir + off) * 0.9, a.dir + off, tech.speed, { home: S.homeRate });
+      // 着く時間を ずらす(1回よけても 次が来る)
+      [-0.95, 0.95, 0].forEach((off, k) => mk(f.x + Math.cos(a.dir + off) * 0.9, f.z + Math.sin(a.dir + off) * 0.9, a.dir + off, tech.speed * (1.25 - k * 0.2), { home: S.homeRate * 1.4 }));
       a.n = C.barrage.count;
       return true;
     case 'fan':
@@ -668,7 +669,7 @@ function fireSpecial(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tec
         const ang = a0 + (i * Math.PI * 2) / 5;
         let [x, z] = clampField(b, o.x + Math.cos(ang) * S.turretR, o.z + Math.sin(ang) * S.turretR);
         if (b.arena && insideObstacle(b.arena, x, z, 0.6)) [x, z] = clampField(b, o.x + Math.cos(ang) * 3.2, o.z + Math.sin(ang) * 3.2);
-        mk(x, z, ang + Math.PI, tech.speed, { wait: 0.6 + i * 0.15, part: 0.6, life: 0.6 + i * 0.15 + 1.2 });
+        mk(x, z, ang + Math.PI, tech.speed, { wait: 0.6 + i * 0.15, part: 0.32, life: 0.6 + i * 0.15 + 1.2 });
       }
       a.n = C.barrage.count;
       return true;
@@ -828,11 +829,24 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
       }
       if (st === 'stretch') {
         // ぷにタッチ: 体を にゅっと のばして つつく(その場から。とどく長さ 3.4m)
+        // 遠い時は のびる前に ぴょんと前へ(2.5mまで)。のびる向きは 相手のほうへ合わせる
+        if (!a.hit && run < 0.08) {
+          a.dir = angleTo(f, o);
+          f.face = a.dir;
+          const gap = dist(f, o) - C.style.stretchReach + 0.6;
+          if (gap > 0) {
+            const mv = Math.min(gap, 2.5) * (dt / 0.08);
+            f.x += Math.cos(a.dir) * mv;
+            f.z += Math.sin(a.dir) * mv;
+          }
+        }
         if (!a.hit && run >= 0.08) {
           a.hit = true;
           const reach = C.style.stretchReach + C.body.radius;
-          if (dist(f, o) < reach && Math.abs(angDiff(angleTo(f, o), a.dir)) < 0.55 && los(b, f, o, 0.8) && Math.abs(o.y - f.y) < 1.2) hit(b, f, o, a.id, o.x, 0.8, o.z, a.dir);
+          if (dist(f, o) < reach && Math.abs(angDiff(angleTo(f, o), a.dir)) < 0.8 && los(b, f, o, 0.8) && Math.abs(o.y - f.y) < 1.2) hit(b, f, o, a.id, o.x, 0.8, o.z, a.dir);
         }
+        // のびたあと: もどったら 動ける(下の「技のおわり」へ)
+        if (a.hit) break;
         return;
       }
       // クラップタックル・クイッククランプ: はじめに 横へ すっと動いてから、相手へ
@@ -1083,7 +1097,7 @@ function guardReact(b: AnimeBattle, o: AnimeMon, from: AnimeMon | null): void {
   }
   if (st === 'reflect') return;
   if (st === 'zapShield') {
-    if (from && dist(from, o) < 3.5 && from.act.k !== 'ko') setEffect(b, from, 'まひ');
+    if (from && dist(from, o) < 3.5 && from.act.k !== 'ko' && b.rng() < 0.5) setEffect(b, from, 'まひ');
     b.events.push({ kind: 'domeBurst', side: o.side, x: o.x, z: o.z });
     o.barrierUntil = b.t;
     return;
@@ -1312,7 +1326,8 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
       guardReact(b, tgt, b.f[s.owner]);
       continue;
     }
-    if (dist(s, tgt) < s.r + C.body.radius && Math.abs(tgt.y + 0.7 - s.y) < 1.2) {
+    // 山なりの弾は 上下の当たりを 広めに(頭の上を こえやすいので)
+    if (dist(s, tgt) < s.r + C.body.radius && Math.abs(tgt.y + 0.7 - s.y) < (s.vy !== undefined ? 1.8 : 1.2)) {
       const hp0 = tgt.hp;
       const did = hit(b, b.f[s.owner], tgt, s.tech, s.x, s.y, s.z, Math.atan2(s.vz, s.vx), s.part ? { part: s.part } : {});
       // 吸収: 当てたダメージの半分を回復
@@ -1534,7 +1549,8 @@ function chooseTech(b: AnimeBattle, f: AnimeMon): TechId | null {
   const w = ready.map((id) => {
     const t = getTech(id);
     let x = 1;
-    if (styleOf(id) === 'stretch') x = d < C.style.stretchReach + 0.5 ? 1.4 + f.instinct.attack : 0.05;
+    // ぷにタッチ: とどく時は よく使う。遠い時も ときどき(使うと 近づく)
+    if (styleOf(id) === 'stretch') x = d < C.style.stretchReach + 0.5 ? 1.6 + f.instinct.attack : d < 7 ? 0.6 + f.instinct.attack * 0.5 : 0.15;
     else if (t.kind === 'rush' || t.kind === 'spin' || t.kind === 'combo') x = d < 9 ? 1 + f.instinct.attack : 0.2;
     else if (t.kind === 'quake') x = d < t.range * 0.9 ? 1.2 + f.instinct.fight : 0.05;
     else if (t.kind === 'drop') x = d < t.range ? 1 + f.instinct.fight : 0.1;

@@ -1935,17 +1935,19 @@ export class AnimeField {
       const dm = disc.material as THREE.MeshBasicMaterial;
       // MOFU の場(ねむりの綿雨)は、綿雲のじゅうたん
       const cloud = !fl.self && b.f[fl.owner].species === 'mofu';
-      const want = fl.self ? this.flowerTex : cloud ? this.puffTex : this.circleTex;
+      // ZIPP・PUNI・KLAK の場は 魔法陣の絵ではなく、種族の色の まるい光(2026-11-04)
+      const plain = !fl.self && !cloud && (sp === 'zipp' || sp === 'puni' || sp === 'klak');
+      const want = fl.self ? this.flowerTex : cloud ? this.puffTex : plain ? this.glow : this.circleTex;
       if (dm.map !== want) {
         dm.map = want;
-        dm.opacity = cloud ? 0.75 : 1;
+        dm.opacity = cloud ? 0.75 : plain ? 0.55 : 1;
         dm.needsUpdate = true;
       }
       // 種族の色(2026-11-03): ZIPP は電気の黄・PUNI は ぷにぷにの緑・KLAK は 機械の水色
       const fc = fl.self ? [0xfff0a0, 0x80e080, 0xffffff] : cloud ? [0xd0e8ff, 0xb0d0ff, 0xffffff] : sp === 'zipp' ? [0xfff060, 0xc0a000, 0xfff0a0] : sp === 'puni' ? [0x8af06a, 0x3a9a30, 0x9af080] : sp === 'klak' ? [0x80e8ff, 0x2080b0, 0xa0e8ff] : [0xe0a0ff, 0x6a20b0, 0xffffff];
       (ring.material as THREE.MeshBasicMaterial).color.setHex(fc[0]);
       (wall.material as THREE.MeshBasicMaterial).color.setHex(fc[1]);
-      dm.color.setHex(fc[2]);
+      dm.color.setHex(plain ? fc[0] : fc[2]);
       const left = fl.until - b.t;
       // 出てすぐは広がり、消える前はしぼむ
       const age = getTechAge(fl, b.t);

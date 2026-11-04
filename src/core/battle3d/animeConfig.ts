@@ -146,7 +146,7 @@ export const ANIME = {
     bombR: 2.3,
     turretR: 5.5,
     pullDist: 2.4,
-    stretchReach: 3.4,
+    stretchReach: 3.8,
     bindShort: 0.6,
   },
   whipByForm: [
