@@ -48,7 +48,7 @@ export const STORY_STAGES: StoryStage[] = Array.from({ length: STORY_COUNT }, (_
     title: last ? 'さいごのボス' : mid ? `${no}マスめ（中ボス）` : `${no}マスめ`,
     text: '（ここに話が入ります。企画者が一枚絵と文を作ります）',
     image: null,
-    map: 'lostTemple',
+    map: 'grassland', // 2026-11-04 企画者「草原を基本に」(マスごとに あとで変えられる)
     enemy: {
       name: last ? 'ボス' : mid ? '中ボス' : 'ライバル',
       level: last ? 70 : Math.max(1, Math.round(1 + (no - 1) * 3.4)),
@@ -59,7 +59,7 @@ export const STORY_STAGES: StoryStage[] = Array.from({ length: STORY_COUNT }, (_
 });
 
 /** バトルモードのマップ(マップが増えたら ランダムに。今はロストテンプルだけ) */
-export const pickFreeMap = (rng: () => number, ids: string[]): string => ids[Math.floor(rng() * ids.length)] ?? 'lostTemple';
+export const pickFreeMap = (rng: () => number, ids: string[]): string => ids[Math.floor(rng() * ids.length)] ?? 'grassland';
 
 /** 戦いのうまさ(1〜5)を、5つの全部に同じだけ */
 export const profOf = (n: number): Proficiency => ({ attack: n, defense: n, evasion: n, counter: n, spacing: n });

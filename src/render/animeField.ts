@@ -2215,7 +2215,9 @@ export class AnimeField {
     const targetYaw = dir + Math.PI - 1.25;
     if (this.camYaw === null) this.camYaw = targetYaw;
     this.camYaw += Math.atan2(Math.sin(targetYaw - this.camYaw), Math.cos(targetYaw - this.camYaw)) * (1 - Math.exp(-dt * 1.2));
-    const mid = new THREE.Vector3(p.x + (q.x - p.x) * 0.45, 0, p.z + (q.z - p.z) * 0.45);
+    // 2体が はなれている時は、自分の MONZ が 画面から出ないように、自分のほうを 中心に(2026-11-04)
+    const frac = sep > 12 ? Math.max(0.2, 0.45 - (sep - 12) * 0.016) : 0.45;
+    const mid = new THREE.Vector3(p.x + (q.x - p.x) * frac, 0, p.z + (q.z - p.z) * frac);
     const dist = 7.5 + Math.min(sep, 16) * 0.45;
     const camH = 3.6 + Math.min(sep, 16) * 0.18;
     const want = new THREE.Vector3(mid.x + Math.cos(this.camYaw) * dist, camH, mid.z + Math.sin(this.camYaw) * dist);
@@ -2235,17 +2237,24 @@ export class AnimeField {
       // 2026-11-03 相手も かくれないように(まずは2体とも見える向き → だめなら自分だけ見える向き)
       const foe = { x: q.x, y: 0.6, z: q.z };
       const blockBoth = (x: number, y: number, z: number) => blockAt(x, y, z) ?? blockFrom(foe, x, y, z);
-      let hit = blockAt(want.x, want.y, want.z);
+      // 2026-11-04 企画者「マップの左の端の方行くとモンズが見えなくなる」: はしでは「うしろ」が マップの外になり、
+      // カメラが MONZ の真上に おしこまれていた → マップの中に置ける向きへ 回す
+      const Rin = A.radius - 0.6;
+      const out = (x: number, z: number) => Math.hypot(x, z) > Rin;
+      const wall = { t: 0, h: 99 };
+      const inBoth = (x: number, y: number, z: number) => (out(x, z) ? wall : blockBoth(x, y, z));
+      const inMe = (x: number, y: number, z: number) => (out(x, z) ? wall : blockAt(x, y, z));
+      let hit = blockAt(want.x, want.y, want.z) ?? (out(want.x, want.z) ? wall : null);
       if (hit || blockBoth(want.x, want.y, want.z)) {
-        // 少しずつ横へ回して、さえぎられない向きをさがす(近い向きから)
-        search: for (const test of [blockBoth, blockAt]) {
-          for (const off of [0.35, -0.35, 0.7, -0.7, 1.05, -1.05, 1.4, -1.4]) {
+        // 少しずつ横へ回して、さえぎられない・マップの中の向きをさがす(近い向きから)
+        search: for (const test of [inBoth, inMe]) {
+          for (const off of [0.35, -0.35, 0.7, -0.7, 1.05, -1.05, 1.4, -1.4, 1.8, -1.8, 2.2, -2.2, 2.7, -2.7]) {
             const yaw = this.camYaw + off;
             const x = mid.x + Math.cos(yaw) * dist;
             const z = mid.z + Math.sin(yaw) * dist;
             if (!test(x, camH, z)) {
               want.set(x, camH, z);
-              this.camYaw += off * (1 - Math.exp(-dt * 3));
+              this.camYaw += off * (1 - Math.exp(-dt * (hit === wall ? 5 : 3)));
               hit = null;
               break search;
             }
@@ -2253,6 +2262,7 @@ export class AnimeField {
           if (!hit) break;
         }
       }
+      if (hit === wall) hit = null;
       if (hit) {
         // どこからも見えない時: さえぎる物より 手前(自分の MONZ 側)へ寄せて、上から見る
         const len = Math.hypot(want.x - me.x, want.z - me.z) || 1;

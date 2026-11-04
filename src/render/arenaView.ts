@@ -105,8 +105,148 @@ export interface ArenaView {
   obstacles: Obstacle[];
 }
 
+/** 草の地面(明るい緑に、少し濃い草の すじ と 点) */
+function grassTex(): THREE.CanvasTexture {
+  return canvasTex(256, (g, s) => {
+    g.fillStyle = '#7cc850';
+    g.fillRect(0, 0, s, s);
+    let seed = 7;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < 90; i++) {
+      g.fillStyle = rnd() < 0.5 ? 'rgba(90,170,60,0.55)' : 'rgba(150,215,95,0.5)';
+      const x = rnd() * s;
+      const y = rnd() * s;
+      g.beginPath();
+      g.ellipse(x, y, 6 + rnd() * 16, 4 + rnd() * 10, rnd() * Math.PI, 0, Math.PI * 2);
+      g.fill();
+    }
+    g.strokeStyle = 'rgba(70,150,50,0.6)';
+    g.lineWidth = 2;
+    for (let i = 0; i < 160; i++) {
+      const x = rnd() * s;
+      const y = rnd() * s;
+      g.beginPath();
+      g.moveTo(x, y);
+      g.lineTo(x + (rnd() - 0.5) * 4, y - 5 - rnd() * 5);
+      g.stroke();
+    }
+  }, 14);
+}
+
+/**
+ * 草原(2026-11-04 企画者「柱とか何もない草原のフィールド」)。戦う所に さえぎる物は 何もない。
+ * まわりは 低い しげみの輪(カメラを じゃましない高さ)・遠くに 木と丘(当たりなし)。草・花は まとめて1回で描く(軽い)
+ */
+function buildGrass(map: ArenaMap, gradient: THREE.Texture): ArenaView {
+  const g = new THREE.Group();
+  const toon = (color: number) => new THREE.MeshToonMaterial({ color, gradientMap: gradient });
+  const R = map.radius;
+  let seed = 11;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  // 地面: 遠くまで つづく草原
+  const ground = new THREE.Mesh(new THREE.CircleGeometry(R + 60, 64), new THREE.MeshLambertMaterial({ map: grassTex() }));
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = 0.006;
+  ground.receiveShadow = true;
+  g.add(ground);
+  // 戦う所: 少し明るい 刈った草の円と、うすい白い線
+  const lawn = new THREE.Mesh(new THREE.CircleGeometry(R, 64), new THREE.MeshLambertMaterial({ color: 0xb8f090, transparent: true, opacity: 0.22, depthWrite: false }));
+  lawn.rotation.x = -Math.PI / 2;
+  lawn.position.y = 0.012;
+  lawn.receiveShadow = true;
+  g.add(lawn);
+  const line = new THREE.Mesh(new THREE.RingGeometry(R - 0.12, R + 0.08, 96), new THREE.MeshBasicMaterial({ color: 0xf4ffe0, transparent: true, opacity: 0.55, depthWrite: false }));
+  line.rotation.x = -Math.PI / 2;
+  line.position.y = 0.015;
+  g.add(line);
+  // 草のたば・花(1回で たくさん描く)
+  const dummy = new THREE.Object3D();
+  const tuftGeo = new THREE.ConeGeometry(0.09, 0.35, 4);
+  const tufts = new THREE.InstancedMesh(tuftGeo, toon(0x5aa83a), 420);
+  for (let i = 0; i < 420; i++) {
+    const a = rnd() * Math.PI * 2;
+    const r = Math.sqrt(rnd()) * (R + 6);
+    dummy.position.set(Math.cos(a) * r, 0.15, Math.sin(a) * r);
+    dummy.rotation.set((rnd() - 0.5) * 0.4, rnd() * 3, (rnd() - 0.5) * 0.4);
+    dummy.scale.setScalar(0.7 + rnd() * 0.8);
+    dummy.updateMatrix();
+    tufts.setMatrixAt(i, dummy.matrix);
+  }
+  g.add(tufts);
+  const flowerGeo = new THREE.IcosahedronGeometry(0.09, 0);
+  for (const [col, n] of [[0xffffff, 120], [0xffe060, 90], [0xff9ad0, 70]] as const) {
+    const fl = new THREE.InstancedMesh(flowerGeo, new THREE.MeshBasicMaterial({ color: col }), n);
+    for (let i = 0; i < n; i++) {
+      const a = rnd() * Math.PI * 2;
+      const r = Math.sqrt(rnd()) * (R + 8);
+      dummy.position.set(Math.cos(a) * r, 0.1, Math.sin(a) * r);
+      dummy.rotation.set(0, 0, 0);
+      dummy.scale.setScalar(0.8 + rnd() * 0.6);
+      dummy.updateMatrix();
+      fl.setMatrixAt(i, dummy.matrix);
+    }
+    g.add(fl);
+  }
+  // まわりの 低い しげみの輪(ここから外へは出られない。当たりは丸い場所の半径)
+  const bushGeo = new THREE.IcosahedronGeometry(1, 1);
+  const bushes = new THREE.InstancedMesh(bushGeo, toon(0x4e9e34), 64);
+  const bushLine = new THREE.InstancedMesh(bushGeo, new THREE.MeshBasicMaterial({ color: 0x1e3a14, side: THREE.BackSide }), 64);
+  for (let i = 0; i < 64; i++) {
+    const a = (i / 64) * Math.PI * 2 + rnd() * 0.04;
+    const r = R + 1.1 + rnd() * 0.4;
+    const sc = 0.55 + rnd() * 0.3;
+    dummy.position.set(Math.cos(a) * r, sc * 0.5, Math.sin(a) * r);
+    dummy.rotation.set(0, rnd() * 3, 0);
+    dummy.scale.set(sc * 1.3, sc, sc * 1.3);
+    dummy.updateMatrix();
+    bushes.setMatrixAt(i, dummy.matrix);
+    dummy.scale.multiplyScalar(1.07);
+    dummy.updateMatrix();
+    bushLine.setMatrixAt(i, dummy.matrix);
+  }
+  bushes.castShadow = true;
+  g.add(bushes, bushLine);
+  // 遠くの木(当たりなし): 幹と まるい葉
+  const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.25, 0.35, 1, 6), toon(0x8a5a32), 40);
+  const crowns = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), toon(0x3f8f2e), 40);
+  const crownLine = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0x1a3010, side: THREE.BackSide }), 40);
+  for (let i = 0; i < 40; i++) {
+    const a = rnd() * Math.PI * 2;
+    const r = R + 7 + rnd() * 16;
+    const h = 2 + rnd() * 2;
+    const cx = Math.cos(a) * r;
+    const cz = Math.sin(a) * r;
+    dummy.rotation.set(0, 0, 0);
+    dummy.position.set(cx, h / 2, cz);
+    dummy.scale.set(1, h, 1);
+    dummy.updateMatrix();
+    trunks.setMatrixAt(i, dummy.matrix);
+    const cs = 1.4 + rnd() * 1.2;
+    dummy.position.set(cx, h + cs * 0.6, cz);
+    dummy.scale.set(cs, cs * 0.9, cs);
+    dummy.updateMatrix();
+    crowns.setMatrixAt(i, dummy.matrix);
+    dummy.scale.multiplyScalar(1.05);
+    dummy.updateMatrix();
+    crownLine.setMatrixAt(i, dummy.matrix);
+  }
+  g.add(trunks, crowns, crownLine);
+  // もっと遠くの なだらかな丘
+  const hillMat = toon(0x6abf48);
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 9) * Math.PI * 2 + rnd() * 0.3;
+    const r = R + 34 + rnd() * 10;
+    const hill = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), hillMat);
+    hill.position.set(Math.cos(a) * r, 0, Math.sin(a) * r);
+    hill.scale.set(12 + rnd() * 10, 4 + rnd() * 5, 12 + rnd() * 10);
+    g.add(hill);
+  }
+  return { group: g, obstacles: map.obstacles };
+}
+
 /** マップを作る(シーンに足す物を group にまとめて返す) */
 export function buildArena(map: ArenaMap, gradient: THREE.Texture): ArenaView {
+  if (map.theme === 'grass') return buildGrass(map, gradient);
   const g = new THREE.Group();
   const toon = (color: number, map2?: THREE.Texture) => new THREE.MeshToonMaterial({ color, gradientMap: gradient, map: map2 ?? null });
   const outline = new THREE.MeshBasicMaterial({ color: 0x2a1e14, side: THREE.BackSide });

@@ -44,7 +44,25 @@ export interface ArenaMap {
   obstacles: Obstacle[];
   /** はじめの位置(自分・相手) */
   start: [{ x: number; z: number }, { x: number; z: number }];
+  /** 見た目(遺跡・草原)。なければ遺跡 */
+  theme?: 'temple' | 'grass';
 }
+
+/**
+ * 草原(2026-11-04 企画者「広さは一緒で 柱とか何もない草原のフィールドをお願い。それを基本にしよう」)。
+ * 直径36m・さえぎる物なし。まわりの しげみ・木・丘は 飾り(当たりなし)
+ */
+export const GRASSLAND: ArenaMap = {
+  id: 'grassland',
+  name: 'そうげん',
+  radius: 18,
+  start: [
+    { x: -7, z: 0 },
+    { x: 7, z: 0 },
+  ],
+  obstacles: [],
+  theme: 'grass',
+};
 
 const deg = (d: number) => (d * Math.PI) / 180;
 const ring = (r: number, d: number) => ({ x: Math.cos(deg(d)) * r, z: Math.sin(deg(d)) * r });
@@ -70,7 +88,9 @@ export const LOST_TEMPLE: ArenaMap = {
   ],
 };
 
-export const ARENAS: Record<string, ArenaMap> = { lostTemple: LOST_TEMPLE };
+export const ARENAS: Record<string, ArenaMap> = { grassland: GRASSLAND, lostTemple: LOST_TEMPLE };
+/** ふつうに使うマップ(2026-11-04 企画者「それを基本にしよう」)。ロストテンプルは 残してある */
+export const DEFAULT_MAP = 'grassland';
 
 /** ローカルの座標へ(箱) */
 function toLocal(o: BoxObstacle, x: number, z: number): [number, number] {

@@ -14,8 +14,8 @@ import { modelFor } from '../core/roster';
 import { UI_FONT } from '../ui/paint';
 import { assetUrl } from '../assetUrl';
 import { partnerEntrant, rivalEntrant } from './AutoBattleScene';
-import { BOSS_HP, CPU_LEVELS, pickFreeMap, profOf, STORY_STAGES } from '../core/rumble';
-import { ARENAS } from '../core/battle3d/arena';
+import { BOSS_HP, CPU_LEVELS, profOf, STORY_STAGES } from '../core/rumble';
+import { ARENAS, DEFAULT_MAP } from '../core/battle3d/arena';
 
 /** どのモードで戦うか(2026-11-03 企画者: ストーリーモードとバトルモード)。なければ 自分と同じレベルの相手(確認用) */
 export interface RumbleParams {
@@ -251,7 +251,8 @@ export class Battle3DScene extends Phaser.Scene {
     me.form = formAt(level);
     foe.form = formAt(foeLevel);
     // マップ: ストーリーはマスのマップ・ほかはランダム(今はロストテンプルだけ)
-    const mapId = stage ? stage.map : pickFreeMap(Math.random, Object.keys(ARENAS));
+    // マップ: ストーリーは マスごと・バトルモードは 草原(2026-11-04 企画者「それを基本にしよう」)。マップが増えたら pickFreeMap で えらぶ
+    const mapId = stage ? stage.map : DEFAULT_MAP;
     this.battle = newAnimeBattle(me, foe, seed, 'manual', ARENAS[mapId] ?? null);
     // ボス(中ボス・さいごのボス)は HP が多い【仮】
     if (stage?.enemy.boss) {
