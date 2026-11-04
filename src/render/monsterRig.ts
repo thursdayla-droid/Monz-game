@@ -216,7 +216,8 @@ export class MonsterRig {
     // へび(企画者「腕0本・脚0本」): 人の形・四つ足・生き物用の骨は 使わない
     const sb = useBones && rig === 'snake' ? new SnakeBones(model) : null;
     this.snake = sb?.ok ? sb : null;
-    const special = !!this.quad || rig === 'snake';
+    // 四つ足・へびの種族は、骨が 見つからなくても 人の形の動きは 使わない(体ぜんたいだけで 動く)
+    const special = rig !== 'auto';
     const bones = useBones && !special ? new BunkBones(model, amp) : null;
     this.bones = bones?.ok ? bones : null;
     // 人の形の骨でなければ、生き物用の骨として動かす(触角・足)

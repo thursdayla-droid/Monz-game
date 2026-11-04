@@ -107,6 +107,11 @@ export class QuadBones {
       for (const left of [true, false]) {
         const c = side.filter((g) => pos.get(g)!.x > midX === front && pos.get(g)!.z < 0 === left);
         if (c.length) feet.push(c.reduce((a, g) => (pos.get(g)!.y < pos.get(a)!.y ? g : a), c[0]));
+        else {
+          // 足の骨が 肩の1本しかない時(GRIT の 右前足): その側の いちばん低い骨を 足にする(足ぜんたいを ふるだけ)
+          const alt = bones.filter((b) => pos.get(b)!.x > midX === front && pos.get(b)!.z < 0 === left && Math.abs(pos.get(b)!.z) > maxZ * 0.3 && pos.get(b)!.y - minY < H * 0.7);
+          if (alt.length) feet.push(alt.reduce((a, g) => (pos.get(g)!.y < pos.get(a)!.y ? g : a), alt[0]));
+        }
       }
     if (feet.length !== 4) return;
     const ancestors = (b: THREE.Bone) => {
@@ -140,7 +145,7 @@ export class QuadBones {
         b = isBone(b.parent) ? b.parent : null;
       }
       chain.forEach((c) => legBones.add(c));
-      if (chain.length < 2) continue;
+      if (chain.length < 1) continue;
       const p = pos.get(f)!;
       this.legs.push({ root: joint(chain[0]), knee: chain.length >= 3 ? joint(chain[Math.floor(chain.length / 2)]) : null, front: p.x > cx, left: p.z < 0 });
     }
