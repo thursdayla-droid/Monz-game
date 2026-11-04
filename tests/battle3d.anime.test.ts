@@ -35,6 +35,8 @@ describe('3D battle (anime monster battle style)', () => {
   it('a technique command makes the MONZ call and use that technique, then it cools down', () => {
     for (const id of ['dash', 'fire', 'beam', 'quake'] as const) {
       const b = newAnimeBattle(ent(), ent(), 7);
+      // 自分では技を出さない(指示した技の待ち時間だけを見る。2026-11-04 ガードで乱数の順番が変わり、自分で同じ技を出すことがあった)
+      b.f[0].techMode = 'manual';
       expect(giveCommand(b, 0, id)).toBe(true);
       const ev: AnimeEvent[] = [];
       run(b, 0.2, (e) => ev.push(e));

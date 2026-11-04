@@ -415,6 +415,8 @@ export class AnimeField {
   private tendrils: THREE.Mesh[] = [];
   private shapeFields = new Map<object, THREE.Group>();
   private gooIds = new Set<number>();
+  /** さいごに描いた試合(ガードの光の場所に使う) */
+  private lastB: AnimeBattle | null = null;
   private stars: THREE.Group[] = [];
   private markers: { obj: THREE.Group; r: number; until: number }[] = [];
   private camPos = new THREE.Vector3(-12, 5, 6);
@@ -1281,6 +1283,56 @@ export class AnimeField {
     rig.root.scale.setScalar(cur + (grow - cur) * Math.min(1, dt * 12 + (dt === 0 ? 0 : 0.05)));
   }
 
+  private guardObjs: THREE.Mesh[] = [];
+  private guardGlow = [0, 0];
+  /** ガード: 体の前に 青い光の盾(ガードの量が へると 小さく・赤く)。受けた時に 光る */
+  guardFlash(side: number, just: boolean, broke = false): void {
+    this.guardGlow[side] = just ? 2 : 1;
+    const f = this.lastB?.f[side];
+    if (!f) return;
+    const x = f.x + Math.cos(f.face) * 0.8;
+    const z = f.z + Math.sin(f.face) * 0.8;
+    if (broke) {
+      for (let k = 0; k < 10; k++) {
+        const p = this.sprite(k % 2 ? 0x7ad0ff : 0xffffff, true, this.star);
+        p.position.set(x, 0.9, z);
+        const a = Math.random() * Math.PI * 2;
+        this.add(p, 0.5, 0.5, 0.4, { vx: Math.cos(a) * 4, vz: Math.sin(a) * 4, vy: 3 });
+      }
+      return;
+    }
+    this.shockRing(x, 0.9, z, just ? 0xffffff : 0x7ad0ff, just ? 1.6 : 0.9);
+    if (just) {
+      const st = this.sprite(0xffffff, true, this.star);
+      st.position.set(x, 0.9, z);
+      this.add(st, 0.3, 3, 1.2);
+    }
+  }
+
+  private drawGuards(b: AnimeBattle, dt: number): void {
+    b.f.forEach((f, i) => {
+      let m = this.guardObjs[i];
+      if (!m) {
+        m = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ map: this.hexTex, color: 0x7ad0ff, transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+        this.scene.add(m);
+        this.guardObjs[i] = m;
+      }
+      const on = f.act.k === 'guard';
+      m.visible = on || this.guardGlow[i] > 0.05;
+      this.guardGlow[i] = Math.max(0, this.guardGlow[i] - dt * 4);
+      if (!m.visible) return;
+      const g = f.guardGauge / ANIME.guard.max;
+      // 体の前に 立てた 半分の球(盾)
+      m.position.set(f.x + Math.cos(f.face) * 0.55, f.y + 0.9, f.z + Math.sin(f.face) * 0.55);
+      m.rotation.set(0, -f.face, -Math.PI / 2);
+      const sc = (0.75 + 0.35 * g) * (1 + this.guardGlow[i] * 0.15);
+      m.scale.set(sc * 1.1, sc * 0.45, sc * 1.1);
+      const mat = m.material as THREE.MeshBasicMaterial;
+      mat.color.setHex(this.guardGlow[i] > 1 ? 0xffffff : g > 0.3 ? 0x7ad0ff : 0xff6a4a);
+      mat.opacity = (on ? 0.45 + 0.15 * Math.sin(performance.now() / 60) : 0) + this.guardGlow[i] * 0.4;
+    });
+  }
+
   private tetherObjs: THREE.Mesh[] = [];
   /** エナジーぷにドレイン: PUNI から相手へ のびる 緑の触手(ぴくぴく 動いて、光の粒が PUNI へ もどる) */
   private drawTethers(b: AnimeBattle, dt: number): void {
@@ -1677,6 +1729,8 @@ export class AnimeField {
     this.drawShots(b, dt);
     this.drawTraps(b);
     this.drawTethers(b, dt);
+    this.drawGuards(b, dt);
+    this.lastB = b;
     this.drawBeams(b);
     this.drawQuakes(b);
     this.drawRoarsFields(b, dt);

@@ -16,7 +16,7 @@ import { coverSpot, insideObstacle, lineOfSight, rayHit, resolveBody, steerAroun
 import { EFFECT_CHANCE, getTech, SELF_FIELD_TECHS, type Effect } from './techTable';
 
 export type Side = 0 | 1;
-export type Command = TechId | 'dodge';
+export type Command = TechId | 'dodge' | 'guard';
 
 export interface AnimeEntrant {
   name: string;
@@ -34,6 +34,8 @@ export type AnimeAct =
   | { k: 'free' }
   | { k: 'tech'; id: TechId; t: number; dir: number; fired: boolean; hit: boolean; tx: number; tz: number; windup: number; n: number; next: number; charge?: number; len?: number; zig?: number; sx?: number; sz?: number }
   | { k: 'dodge'; t: number; dx: number; dz: number; jump: boolean }
+  /** ガード中(until: CPU が やめる時間。自分で動かす時は ボタンを はなすまで) */
+  | { k: 'guard'; t: number; until: number }
   | { k: 'hurt'; t: number; until: number }
   | { k: 'air'; t: number }
   | { k: 'down'; t: number; until: number }
@@ -73,6 +75,10 @@ export interface AnimeMon {
   defDownUntil: number;
   /** はさみトラップに もう かからない時刻 */
   trapSafeUntil: number;
+  /** ガードの量(0〜最大)・もどり始める時刻・ガードボタンを 押している(自分で動かす時) */
+  guardGauge: number;
+  guardRegenAt: number;
+  guardHold?: boolean;
   /** 今の守りの技・受け止めた数(万象ぷにドーム) */
   barrierTech?: TechId;
   absorbN?: number;
@@ -218,6 +224,10 @@ export interface Quake {
 export type AnimeEvent =
   | { kind: 'call'; side: Side; tech: TechId; byCommand: boolean }
   | { kind: 'fire'; side: Side; tech: TechId }
+  /** ガードで受けた(just: ジャストガード)・ガードを始めた・ガードがこわれた */
+  | { kind: 'guardHit'; side: Side; x: number; y: number; z: number; damage: number; just: boolean }
+  | { kind: 'guard'; side: Side }
+  | { kind: 'guardBreak'; side: Side }
   /** ZIPP の電撃ダッシュが出た(c = ためた割合 0〜1) */
   | { kind: 'zdash'; side: Side; x: number; z: number; dir: number; len: number; c: number }
   /** KLAK が はさみトラップを置いた・トラップが相手をはさんだ */
@@ -372,6 +382,8 @@ function newMon(e: AnimeEntrant, side: Side): AnimeMon {
     atkDownUntil: 0,
     defDownUntil: 0,
     trapSafeUntil: 0,
+    guardGauge: C.guard.max,
+    guardRegenAt: 0,
     slowUntil: 0,
     barrierUntil: 0,
     barrierR: 0,
@@ -383,7 +395,7 @@ function newMon(e: AnimeEntrant, side: Side): AnimeMon {
     hp: maxHp,
     maxHp,
     act: { k: 'free' },
-    cooldown: Object.fromEntries([...(e.techs ?? TECH_IDS), 'dodge', 'jump', 'punch'].map((k) => [k, 0])),
+    cooldown: Object.fromEntries([...(e.techs ?? TECH_IDS), 'dodge', 'jump', 'punch', 'guard'].map((k) => [k, 0])),
     command: null,
     plan: 'hold',
     planT: 0,
@@ -559,7 +571,7 @@ function updateTraps(b: AnimeBattle): void {
     tp.snapAt = b.t;
     tp.caught = tgt.side;
     const bind = tp.bind ?? T.bind[tp.form - 1];
-    hit(b, b.f[tp.owner], tgt, tp.tech ?? 'klakTrap', tp.x, 0.4, tp.z, angleTo(b.f[tp.owner], tgt), tp.power ? { last: true, power: tp.power } : { last: true, part: T.power[tp.form - 1] });
+    hit(b, b.f[tp.owner], tgt, tp.tech ?? 'klakTrap', tp.x, 0.4, tp.z, angleTo(b.f[tp.owner], tgt), tp.power ? { last: true, power: tp.power, unblockable: true } : { last: true, part: T.power[tp.form - 1], unblockable: true });
     // トラップチェイン: つながった ほかの罠も いっせいに作動(光の杭)
     if (tp.chain !== undefined)
       for (const q of b.traps)
@@ -1219,6 +1231,29 @@ export function isInvincible(b: AnimeBattle, f: AnimeMon): boolean {
 /** とくべつな動きの名前(技の名前から) */
 const styleOf = (id: TechId): string | undefined => C.techStyle[id];
 
+/** ガードを始める(量が少なすぎる時は できない) */
+function startGuard(b: AnimeBattle, f: AnimeMon, until: number, ai = false): boolean {
+  if (f.guardGauge < C.guard.max * 0.1) return false;
+  // CPU は ぎりぎりで ガードするので、そのままだと いつも ジャストガードになる → ジャストは うまさ「守り」の確率だけ
+  const just = !ai || b.rng() < lerp(C.skill.just, lv(f, 'defense'));
+  f.act = { k: 'guard', t: just ? 0 : C.guard.just, until };
+  f.vx *= 0.3;
+  f.vz *= 0.3;
+  b.events.push({ kind: 'guard', side: f.side });
+  return true;
+}
+
+/** ガードが こわれる(量が0): しばらく動けない */
+function guardBreak(b: AnimeBattle, f: AnimeMon): void {
+  f.guardGauge = 0;
+  f.guardRegenAt = b.t + C.guard.regenDelay * 2;
+  f.act = { k: 'hurt', t: 0, until: C.guard.breakStun };
+  b.events.push({ kind: 'guardBreak', side: f.side });
+}
+
+/** 投げ・はさむ技は ガードできない(企画者に出した案「ガードは投げや罠でくずれる」) */
+const UNBLOCKABLE = new Set(['snapThrow', 'flankClamp']);
+
 /**
  * 守りが攻撃を受け止めた時(2026-11-03): ふつうは ドームが はじけて反撃(ガンジョウドーム)。
  * 帯電シールド: 近くの相手が しびれる。ぷにぷにウォール(弾は はね返す)・万象ぷにドーム(ためて あとで反撃): はじけない
@@ -1330,7 +1365,7 @@ function applyEffect(b: AnimeBattle, o: AnimeMon, tech: ReturnType<typeof getTec
 }
 
 /** 当たり → ダメージ・吹っ飛び */
-function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y: number, z: number, dir: number, opt: { last?: boolean; part?: number; power?: number } = {}): boolean {
+function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y: number, z: number, dir: number, opt: { last?: boolean; part?: number; power?: number; unblockable?: boolean } = {}): boolean {
   if (o.act.k === 'ko' || o.act.k === 'victory') return false;
   if (b.t < o.safeUntil || o.act.k === 'down') return false;
   // 守りのドームの中 → 止める
@@ -1341,6 +1376,14 @@ function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y:
   }
   if (o.act.k === 'dodge' && o.act.t < C.dodge.invincible) {
     b.events.push({ kind: 'evaded', side: o.side });
+    return false;
+  }
+  // ガード: ジャストガード(始めてすぐ)は ダメージなしで すぐ動ける。ふつうは 少しだけ ダメージ・量がへる
+  const guarded = o.act.k === 'guard' && !opt.unblockable && !UNBLOCKABLE.has(styleOf(id) ?? '');
+  if (guarded && o.act.k === 'guard' && o.act.t < C.guard.just) {
+    o.act = { k: 'free' };
+    o.safeUntil = b.t + 0.15;
+    b.events.push({ kind: 'guardHit', side: o.side, x, y, z, damage: 0, just: true });
     return false;
   }
   const tech = getTech(id);
@@ -1354,7 +1397,27 @@ function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y:
   const down = (b.t < f.atkDownUntil ? C.debuff.atkDown : 1) * (b.t < o.defDownUntil ? C.defDown.mul : 1);
   // 強化(攻撃アップ・守りアップ)と、自分の場(千花天幕)の中
   const up = (b.t < f.atkUpUntil ? 1 + f.atkUp : 1) * (b.t < o.defUpUntil ? 1 - o.defUp : 1) * (b.fields.some((fl) => fl.self && fl.owner === o.side && dist(fl, o) < fl.r) ? C.selfField.guard : 1);
-  const dmg = Math.max(1, Math.round(up * down * (crit ? C.stat.critMul : 1) * (opt.power ?? tech.power) * part * (part < 1 ? C.combo.bonus : 1) * (1 + f.stats.power / C.stat.powerDiv) * (C.stat.toughDiv / (C.stat.toughDiv + o.stats.tough)) * (0.9 + b.rng() * 0.2)));
+  let dmg = Math.max(1, Math.round(up * down * (crit ? C.stat.critMul : 1) * (opt.power ?? tech.power) * part * (part < 1 ? C.combo.bonus : 1) * (1 + f.stats.power / C.stat.powerDiv) * (C.stat.toughDiv / (C.stat.toughDiv + o.stats.tough)) * (0.9 + b.rng() * 0.2)));
+  if (guarded) {
+    // ふっとばす重い技は ガードの上からでも 強い(ガードの量が大きく へる・押される)
+    const heavy = tech.launch > 0 ? 1 + tech.launch / 6 : 1;
+    const chipDmg = Math.max(1, Math.round(dmg * C.guard.chip));
+    if (o.hp - chipDmg > 0) {
+      o.hp -= chipDmg;
+      o.guardGauge -= dmg * C.guard.drainMul * heavy;
+      if (heavy > 1) {
+        o.kvx += Math.cos(dir) * tech.knock * C.hurt.friction * 0.25;
+        o.kvz += Math.sin(dir) * tech.knock * C.hurt.friction * 0.25;
+      }
+      o.guardRegenAt = b.t + C.guard.regenDelay;
+      o.kvx += Math.cos(dir) * 0.6 * C.hurt.friction * 0.35;
+      o.kvz += Math.sin(dir) * 0.6 * C.hurt.friction * 0.35;
+      b.events.push({ kind: 'guardHit', side: o.side, x, y, z, damage: chipDmg, just: false });
+      if (o.guardGauge <= 0) guardBreak(b, o);
+      return true;
+    }
+    dmg = chipDmg;
+  }
   o.hp = Math.max(0, o.hp - dmg);
   const finish = opt.last ?? true;
   // 通常攻撃(パンチの連打)は、さいごの1発だけ押す(とちゅうで とどかなくならないように)
@@ -1585,6 +1648,7 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
         const eff = getTech(q.tech).effect;
         const rst = styleOf(q.tech);
         // アーマーブレイク音波: 守りの膜も こわす
+        if (rst === 'shatter' && tgt.act.k === 'guard') guardBreak(b, tgt);
         if (rst === 'shatter' && b.t < tgt.barrierUntil) {
           tgt.barrierUntil = b.t;
           b.events.push({ kind: 'domeBurst', side: tgt.side, x: tgt.x, z: tgt.z });
@@ -1669,9 +1733,25 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
 
 // ---------------- AI ----------------
 
+/** すぐ近くに 危ないものがあるか(ガードするか決める時) */
+function dangerNear(b: AnimeBattle, f: AnimeMon): boolean {
+  const o = other(b, f);
+  for (const s of b.shots) if (s.owner !== f.side && dist(s, f) < 3) return true;
+  if (o.act.k === 'tech' && o.act.fired && !o.act.hit && dist(f, o) < 3.5) return true;
+  return false;
+}
+
 /** 飛んでくる技を見て、よける(習熟度 Evasion) */
 function watchDanger(b: AnimeBattle, f: AnimeMon): void {
-  if (f.act.k !== 'free' || f.y > 0 || f.cooldown.dodge > b.t) return;
+  if (f.act.k !== 'free' || f.y > 0) return;
+  // よけるの待ち時間中: ガードで守る(うまさ「守り」で決める。1回の危険に1回だけ判断)
+  if (f.cooldown.dodge > b.t) {
+    if ((f.cooldown.guard ?? 0) <= b.t && dangerNear(b, f)) {
+      if (b.rng() < lerp(C.skill.guard, lv(f, 'defense')) * (0.6 + f.instinct.defense * 0.6)) startGuard(b, f, C.guard.aiTime, true);
+      else f.cooldown.guard = b.t + 0.5;
+    }
+    return;
+  }
   const o = other(b, f);
   let danger: 'side' | 'jump' | null = null;
   for (const s of b.shots) {
@@ -1693,6 +1773,10 @@ function watchDanger(b: AnimeBattle, f: AnimeMon): void {
   }
   for (const q of b.quakes) if (q.owner !== f.side && !q.hit && dist(q, f) - q.r < 1.4 && dist(q, f) - q.r > 0.3) danger = 'jump';
   if (!danger) return;
+  // ときどき よけずに ガード(守り本能が強いほど)
+  if ((f.cooldown.guard ?? 0) <= b.t && danger === 'side' && b.rng() < lerp(C.skill.guard, lv(f, 'defense')) * f.instinct.defense * 0.5) {
+    if (startGuard(b, f, C.guard.aiTime, true)) return;
+  }
   // マップ: 弾やビームが来そうな時、近くの柱のうしろへ にげる(うまさ「よける」で決める)
   if (b.arena && danger === 'side' && f.plan !== 'cover' && b.rng() < lerp(C.arenaAi.cover, lv(f, 'evasion'))) {
     const spot = coverSpot(b.arena, f, o, C.arenaAi.coverDist, C.body.radius);
@@ -1938,9 +2022,22 @@ function updateMon(b: AnimeBattle, f: AnimeMon, dt: number): void {
     f.kvz *= k;
     if (Math.hypot(f.kvx, f.kvz) < 0.05) f.kvx = f.kvz = 0;
   }
+  // ガードの量: ガードしていない時、少しして もどる
+  if (a.k !== 'guard' && b.t >= f.guardRegenAt) f.guardGauge = Math.min(C.guard.max, f.guardGauge + C.guard.regen * dt);
   switch (a.k) {
     case 'tech':
       updateTech(b, f, a, dt);
+      break;
+    case 'guard':
+      a.t += dt;
+      f.guardGauge -= C.guard.hold * dt;
+      f.guardRegenAt = b.t + C.guard.regenDelay;
+      f.face += angDiff(angleTo(f, other(b, f)), f.face) * Math.min(1, dt * 10);
+      if (f.guardGauge <= 0) guardBreak(b, f);
+      else if (a.t >= a.until || (f.pad && !f.guardHold && a.t >= C.guard.minTime)) {
+        f.act = { k: 'free' };
+        f.cooldown.guard = b.t + C.guard.cool;
+      }
       break;
     case 'dodge':
       a.t += dt;
@@ -2018,6 +2115,8 @@ function updateMon(b: AnimeBattle, f: AnimeMon, dt: number): void {
     if (c === 'dodge') {
       startDodge(b, f, false);
       f.cooldown.dodge = b.t + C.dodge.cooldown * (b.t < (f.blinkUntil ?? 0) ? 0.4 : 1);
+    } else if (c === 'guard') {
+      startGuard(b, f, f.pad ? 1e9 : C.guard.aiTime);
     } else if (c === 'jump') {
       // ジャンプ(2026-11-02 企画者「よけるの近くにジャンプも」)。衝撃波・弾を跳んでよけられる。スティックの向きへ少し進む
       f.vy = C.jump.speed;

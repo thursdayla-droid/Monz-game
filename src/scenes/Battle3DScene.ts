@@ -68,6 +68,8 @@ const CSS = `
 .b3d .name small{font-size:11px;color:#6a6070}
 .b3d .bar{height:10px;border-radius:5px;background:#3a3040;overflow:hidden;margin-top:3px}
 .b3d .bar>i{display:block;height:100%;background:#3ad070;transition:width .25s}
+.b3d .gbar{height:4px;border-radius:2px;background:#2a2838;overflow:hidden;margin-top:2px}
+.b3d .gbar>i{display:block;height:100%;background:#7ad0ff}
 .b3d .num{font-size:11px;font-weight:900;text-align:right;margin-top:1px}
 .b3d .timer{font-weight:900;font-size:20px;min-width:36px;text-align:center;text-shadow:0 2px 0 #16101c;padding-top:10px;margin:0 auto}
 /* 技の名前は小さく、上のHPの下へ(試合が見えるように。企画者 2026-11-02) */
@@ -163,6 +165,7 @@ export class Battle3DScene extends Phaser.Scene {
   private root?: HTMLDivElement;
   private ui!: {
     hp: HTMLElement[];
+    guard: HTMLElement[];
     num: HTMLElement[];
     timer: HTMLElement;
     call: HTMLElement;
@@ -276,7 +279,7 @@ export class Battle3DScene extends Phaser.Scene {
     const canvas = document.createElement('canvas');
     root.appendChild(canvas);
     const [p, q] = this.battle.f;
-    const card = (f: typeof p, cls: string) => `<div class="card ${cls}"><div class="name"><span>${esc(f.name)}</span><small>${f === p ? 'あなた' : 'あいて'}</small></div><div class="bar"><i style="width:100%"></i></div><div class="num">${f.hp}/${f.maxHp}</div></div>`;
+    const card = (f: typeof p, cls: string) => `<div class="card ${cls}"><div class="name"><span>${esc(f.name)}</span><small>${f === p ? 'あなた' : 'あいて'}</small></div><div class="bar"><i style="width:100%"></i></div><div class="gbar"><i style="width:100%"></i></div><div class="num">${f.hp}/${f.maxHp}</div></div>`;
     const techBtn = (id: TechId) => {
       const t = getTech(id);
       return `<button data-c="${id}"><span class="el" style="background:${hex(ELEMENT_HEX[t.element])};${t.element === '無' ? 'color:#16101c' : ''}">${t.element}</span><span class="lb">${t.name}</span><span class="cd" style="height:0"></span></button>`;
@@ -319,6 +322,7 @@ export class Battle3DScene extends Phaser.Scene {
     this.bindStick($('.stickZone'), $('.stickBase'), $('.stickKnob'), $('.stickHint'));
     this.ui = {
       hp: all('.card .bar > i'),
+      guard: all('.card .gbar > i'),
       num: all('.card .num'),
       timer: $('.timer'),
       call: $('.call'),
@@ -389,9 +393,23 @@ export class Battle3DScene extends Phaser.Scene {
       audio.unlock();
       // ZIPP の電撃ダッシュ: 押している間 ためる(はなすと走る)
       if (c === 'punch') this.battle.f[0].hold = true;
+      // よける: スティックを倒していれば よける・倒していなければ ガード(押している間)(2026-11-04 企画者)
+      if (c === 'dodge' && Math.hypot(this.stick.x, this.stick.y) < 0.25 && this.control === 'manual') {
+        this.battle.f[0].guardHold = true;
+        if (!giveCommand(this.battle, 0, 'guard')) audio.se('beep');
+        return;
+      }
       if (giveCommand(this.battle, 0, c)) audio.se('select');
       else audio.se('beep');
     });
+    if (c === 'dodge') {
+      const up = () => {
+        this.battle.f[0].guardHold = false;
+      };
+      el.addEventListener('pointerup', up);
+      el.addEventListener('pointercancel', up);
+      el.addEventListener('pointerleave', up);
+    }
     if (c === 'punch') {
       const up = () => {
         this.battle.f[0].hold = false;
@@ -880,6 +898,25 @@ export class Battle3DScene extends Phaser.Scene {
         // 2026-11-02 企画者「受け身をとった表示いらない」→ 文字は出さない(音だけ)
         audio.se('whoosh', { pitch: 1.6 });
         break;
+      case 'guard':
+        audio.se('select', { pitch: 0.6 });
+        break;
+      case 'guardHit':
+        // ガードで受けた: 青い光の盾が光る。ジャストガードは 白く強く光って すぐ動ける
+        F.guardFlash(e.side, e.just);
+        audio.se('guard', { pitch: e.just ? 1.5 : 1 });
+        if (e.just) {
+          this.pop(e.side === 0 ? 'ジャストガード！' : 'ジャストガードされた！', '#ffffff');
+          this.hitStop = Math.max(this.hitStop, 0.1);
+          F.shake(0.15);
+        } else this.pop(`ガード -${e.damage}`, e.side === 0 ? '#7ad0ff' : '#ffb070');
+        break;
+      case 'guardBreak':
+        F.guardFlash(e.side, false, true);
+        F.shake(0.3);
+        audio.se('crackBig', { pitch: 0.7 });
+        this.pop(e.side === 0 ? 'ガードが こわれた！' : 'ガードブレイク！', '#ffd23a');
+        break;
       case 'evaded':
         this.pop(e.side === 0 ? 'よけた！' : 'よけられた！', e.side === 0 ? '#7dffa0' : '#ffb070');
         break;
@@ -991,6 +1028,10 @@ export class Battle3DScene extends Phaser.Scene {
       this.ui.hp[i].style.width = `${r * 100}%`;
       this.ui.hp[i].style.background = r > 0.5 ? '#3ad070' : r > 0.2 ? '#ffc020' : '#ff4a4a';
       this.ui.num[i].textContent = `${f.hp}/${f.maxHp}`;
+      // ガードの量(青。少ないと赤)
+      const g = f.guardGauge / ANIME.guard.max;
+      this.ui.guard[i].style.width = `${g * 100}%`;
+      this.ui.guard[i].style.background = g > 0.3 ? '#7ad0ff' : '#ff6a4a';
     });
     this.ui.timer.textContent = String(Math.max(0, Math.ceil(ANIME.timeLimit - b.t)));
     const me = b.f[0];

@@ -365,6 +365,13 @@ export class MonsterRig {
           rotZ = 0.1;
         }
       }
+    } else if (a.k === 'guard') {
+      // ガード: 体を少し丸めて、腕を前へ(かまえる)
+      sy = 0.88;
+      sx = 1.08;
+      rotZ = 0.18;
+      arm = 1.4;
+      lift = -0.04;
     } else if (a.k === 'dodge') {
       const p = Math.min(1, a.t / 0.3);
       if (a.jump) {
