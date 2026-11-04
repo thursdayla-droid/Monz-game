@@ -905,17 +905,16 @@ export class Battle3DScene extends Phaser.Scene {
         // ガードで受けた: 青い光の盾が光る。ジャストガードは 白く強く光って すぐ動ける
         F.guardFlash(e.side, e.just);
         audio.se('guard', { pitch: e.just ? 1.5 : 1 });
+        // 文字は出さない(2026-11-04 企画者「ジャストガードとかガードって文字もいらない」)。光・音・ゆれだけ
         if (e.just) {
-          this.pop(e.side === 0 ? 'ジャストガード！' : 'ジャストガードされた！', '#ffffff');
           this.hitStop = Math.max(this.hitStop, 0.1);
           F.shake(0.15);
-        } else this.pop(`ガード -${e.damage}`, e.side === 0 ? '#7ad0ff' : '#ffb070');
+        }
         break;
       case 'guardBreak':
         F.guardFlash(e.side, false, true);
         F.shake(0.3);
         audio.se('crackBig', { pitch: 0.7 });
-        this.pop(e.side === 0 ? 'ガードが こわれた！' : 'ガードブレイク！', '#ffd23a');
         break;
       case 'evaded':
         // 2026-11-04 企画者「避けたとかいらないかな」→ 文字は出さない
