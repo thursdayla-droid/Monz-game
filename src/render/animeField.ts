@@ -7,7 +7,7 @@
  */
 import * as THREE from 'three';
 import { ANIME, type Element, type TechId } from '../core/battle3d/animeConfig';
-import { isInvincible, type AnimeBattle } from '../core/battle3d/anime';
+import { isInvincible, type AnimeBattle, type AnimeMon } from '../core/battle3d/anime';
 import { getTech } from '../core/battle3d/techTable';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
@@ -410,6 +410,11 @@ export class AnimeField {
   /** PUNI の水の玉の形・KLAK のトラップ(id → 見た目) */
   private blobGeo = new THREE.SphereGeometry(1, 14, 10);
   private trapObjs = new Map<number, THREE.Group>();
+  /** とくべつな技の見た目(2026-11-03): ねらいの線・のびる体・十字/線の場・山なりのしずくの id */
+  private aimLines: THREE.Mesh[] = [];
+  private tendrils: THREE.Mesh[] = [];
+  private shapeFields = new Map<object, THREE.Group>();
+  private gooIds = new Set<number>();
   private stars: THREE.Group[] = [];
   private markers: { obj: THREE.Group; r: number; until: number }[] = [];
   private camPos = new THREE.Vector3(-12, 5, 6);
@@ -1191,6 +1196,144 @@ export class AnimeField {
       }
   }
 
+  /** 光の輪(撃った所) */
+  private muzzleAt(x: number, y: number, z: number): void {
+    const s = this.sprite(0xffffff, true, this.star);
+    s.position.set(x, y, z);
+    this.add(s, 0.2, 2, 0.6);
+  }
+
+  /**
+   * 技ごとの とくべつな見た目(2026-11-03 企画者「そのキャラにあった技を」):
+   * ねらう技の赤い線・ライトレールの地面の線・ぷにタッチの のびる体・超膨張インパクト/ビッグぷにプレスで ふくらむ体
+   */
+  private styleFx(b: AnimeBattle, f: AnimeMon, i: number, dt: number): void {
+    const a = f.act;
+    const o = b.f[i === 0 ? 1 : 0];
+    const st = a.k === 'tech' ? ANIME.techStyle[a.id] : undefined;
+    let line = this.aimLines[i];
+    if (!line) {
+      line = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0xff3030, transparent: true, opacity: 0.6, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+      this.scene.add(line);
+      this.aimLines[i] = line;
+    }
+    let ten = this.tendrils[i];
+    if (!ten) {
+      ten = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 10), new THREE.MeshToonMaterial({ color: 0x7ad85a, gradientMap: this.gradient }));
+      this.scene.add(ten);
+      this.tendrils[i] = ten;
+    }
+    line.visible = false;
+    ten.visible = false;
+    const rig = this.rigs[i];
+    let grow = 1;
+    if (a.k === 'tech') {
+      const aiming = !a.fired && (st === 'track' || st === 'snipe' || st === 'pinpoint' || st === 'rail');
+      if (aiming) {
+        // ねらいの線: 赤く(ライトレールは 地面に 光の線)。ためるほど 太く 明るく
+        const w = Math.min(1, a.t / a.windup);
+        const len = st === 'rail' ? getTech(a.id).range : Math.max(1, Math.hypot(o.x - f.x, o.z - f.z));
+        const y = st === 'rail' ? 0.05 : 0.85;
+        line.visible = true;
+        line.position.set(f.x + Math.cos(a.dir) * len * 0.5, y, f.z + Math.sin(a.dir) * len * 0.5);
+        line.rotation.set(-Math.PI / 2, 0, -a.dir);
+        line.scale.set(len, (st === 'rail' ? 0.6 : 0.05) * (0.5 + w), 1);
+        const m = line.material as THREE.MeshBasicMaterial;
+        m.color.setHex(st === 'rail' ? 0xfff2a0 : 0xff3030);
+        m.opacity = (0.3 + 0.5 * w) * (Math.sin(performance.now() / 50) > -0.3 ? 1 : 0.4);
+      }
+      if (st === 'stretch' && a.fired) {
+        // ぷにタッチ: 体が にゅっと のびる(緑のぷにぷに)
+        const k = a.t - a.windup;
+        const ext = k < 0.12 ? k / 0.12 : Math.max(0, 1 - (k - 0.12) / 0.2);
+        if (ext > 0) {
+          const len = ANIME.style.stretchReach * ext;
+          ten.visible = true;
+          ten.position.set(f.x + Math.cos(a.dir) * (0.4 + len / 2), 0.75, f.z + Math.sin(a.dir) * (0.4 + len / 2));
+          ten.rotation.set(0, -a.dir, Math.PI / 2);
+          ten.scale.set(0.22 + 0.06 * Math.sin(k * 40), len, 0.22);
+        }
+      }
+      if (st === 'inflate' && !a.fired) grow = 1 + 1.2 * Math.min(1, a.t / a.windup);
+      if (st === 'bigPress' && a.fired && f.y > 0) grow = 1.55;
+      if (st === 'harden' && dt > 0 && Math.random() < dt * 30) {
+        const p = this.sprite(0xc0ffb0);
+        p.position.set(f.x + (Math.random() - 0.5) * 1.2, f.y + Math.random() * 1.4, f.z + (Math.random() - 0.5) * 1.2);
+        this.add(p, 0.4, -0.5, 0.4);
+      }
+    }
+    // 体の大きさ(なめらかに もどる)
+    const cur = rig.root.scale.x;
+    rig.root.scale.setScalar(cur + (grow - cur) * Math.min(1, dt * 12 + (dt === 0 ? 0 : 0.05)));
+  }
+
+  /** 十字・線の場(クロスワイヤー・雷走ブレイカーの電気の線) */
+  private drawShapeFields(b: AnimeBattle, dt: number): void {
+    const alive = new Set<object>();
+    for (const fl of b.fields) {
+      if (!fl.shape) continue;
+      alive.add(fl);
+      let g = this.shapeFields.get(fl);
+      if (!g) {
+        g = new THREE.Group();
+        const col = fl.shape === 'line' ? 0xffd23a : 0x80e8ff;
+        const mk = () => {
+          const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.7, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+          m.rotation.x = -Math.PI / 2;
+          return m;
+        };
+        if (fl.shape === 'line' && fl.x2 !== undefined && fl.z2 !== undefined) {
+          const len = Math.hypot(fl.x2 - fl.x, fl.z2 - fl.z);
+          const m = mk();
+          m.scale.set(len, fl.r * 1.2, 1);
+          m.rotation.z = -Math.atan2(fl.z2 - fl.z, fl.x2 - fl.x);
+          g.add(m);
+          g.position.set((fl.x + fl.x2) / 2, 0.04, (fl.z + fl.z2) / 2);
+        } else {
+          for (const r of [0, Math.PI / 2]) {
+            const m = mk();
+            m.scale.set(fl.r * 2, 0.5, 1);
+            m.rotation.z = -(fl.rot ?? 0) - r;
+            g.add(m);
+            // ワイヤーのはしの 杭
+            for (const sd of [1, -1]) {
+              const post = new THREE.Mesh(this.boltGeo, new THREE.MeshToonMaterial({ color: 0x506070, gradientMap: this.gradient }));
+              post.scale.set(0.12, 0.6, 0.12);
+              const ang = (fl.rot ?? 0) + r;
+              post.position.set(Math.cos(ang) * fl.r * sd, 0.3, Math.sin(ang) * fl.r * sd);
+              g.add(post);
+            }
+          }
+          g.position.set(fl.x, 0.05, fl.z);
+        }
+        this.scene.add(g);
+        this.shapeFields.set(fl, g);
+      }
+      const left = fl.until - b.t;
+      for (const c of g.children) {
+        const m = (c as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        if (m.blending === THREE.AdditiveBlending) m.opacity = (0.45 + Math.sin(performance.now() / 45) * 0.2) * Math.min(1, left / 0.4);
+      }
+      // 電気の線: ところどころ 稲妻がはしる
+      if (dt > 0 && fl.shape === 'line' && fl.x2 !== undefined && fl.z2 !== undefined && Math.random() < dt * 16) {
+        const k = Math.random();
+        const x = fl.x + (fl.x2 - fl.x) * k;
+        const z = fl.z + (fl.z2 - fl.z) * k;
+        this.bolt(x, 0.05, z, x + (Math.random() - 0.5) * 0.8, 0.5, z + (Math.random() - 0.5) * 0.8, 0.5, 0.12);
+      }
+    }
+    for (const [k, g] of this.shapeFields)
+      if (!alive.has(k)) {
+        this.scene.remove(g);
+        g.traverse((o) => {
+          const m = o as THREE.Mesh;
+          if (m.geometry && m.geometry !== this.boltGeo) m.geometry.dispose();
+          (m.material as THREE.Material | undefined)?.dispose?.();
+        });
+        this.shapeFields.delete(k);
+      }
+  }
+
   /** 雷の命中: 短い放電(ぎざぎざの線) */
   zap(x: number, y: number, z: number): void {
     for (let k = 0; k < 5; k++) {
@@ -1259,6 +1402,7 @@ export class AnimeField {
           this.add(p, 0.25, -0.9, 0.25, { vx: -Math.cos(ang) * r * 4, vz: -Math.sin(ang) * r * 4, vy: 0 });
         }
       } else ch.visible = false;
+      this.styleFx(b, f, i, dt);
       // ZIPP(2026-11-03 企画者「電撃のエフェクトで前に…貯めることができて」):
       // 電撃ダッシュを ためている間: 体が光って 火花が散り、地面に どこまで走るかの線が のびる
       if (f.species === 'zipp') {
@@ -1419,13 +1563,21 @@ export class AnimeField {
         // MOFU の守りは綿雲のドーム(六角形ではなく、ふわふわ)
         const dm = (dome.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial;
         const wantMap = f.species === 'mofu' ? this.puffTex : this.hexTex;
-        if (dm.map !== wantMap) {
+        // PUNI は 緑の ぷるぷる膜・ZIPP は 電気の膜(2026-11-03)
+        const domeCol = f.species === 'mofu' ? 0xffffff : f.species === 'puni' ? 0x9af07a : f.species === 'zipp' ? 0xfff080 : 0xbfe8ff;
+        if (dm.map !== wantMap || dm.color.getHex() !== domeCol) {
           dm.map = wantMap;
-          dm.color.setHex(f.species === 'mofu' ? 0xffffff : 0xbfe8ff);
+          dm.color.setHex(domeCol);
           dm.blending = f.species === 'mofu' ? THREE.NormalBlending : THREE.AdditiveBlending;
           dm.opacity = f.species === 'mofu' ? 0.55 : 0.7;
           dm.needsUpdate = true;
         }
+        if (f.species === 'zipp' && dt > 0 && Math.random() < dt * 14) {
+          const an = Math.random() * Math.PI * 2;
+          const rr = f.barrierR;
+          this.bolt(f.x + Math.cos(an) * rr, f.y + 0.3 + Math.random() * rr, f.z + Math.sin(an) * rr, f.x + Math.cos(an + 0.6) * rr, f.y + 0.3 + Math.random() * rr, f.z + Math.sin(an + 0.6) * rr, 0.6, 0.12);
+        }
+        if (f.species === 'puni') (dome.children[0] as THREE.Mesh).scale.set(1 + Math.sin(performance.now() / 90) * 0.05, 1 - Math.sin(performance.now() / 90) * 0.05, 1 + Math.sin(performance.now() / 90) * 0.05);
         if (f.species === 'mofu' && dt > 0 && Math.random() < dt * 12) this.cotton(f.x + (Math.random() - 0.5) * f.barrierR * 1.6, f.y + 0.3 + Math.random() * f.barrierR, f.z + (Math.random() - 0.5) * f.barrierR * 1.6, 1, 0.3, 0.3);
         dome.position.set(f.x, f.y + 0.6, f.z);
         const left = f.barrierUntil - b.t;
@@ -1537,7 +1689,63 @@ export class AnimeField {
         if (Math.random() < 0.5) this.cotton(s.x, s.y, s.z, 1, 0.3, 0.3);
         continue;
       }
-      if (s.tech === 'puniWater') {
+      const owner = b.f[s.owner];
+      const stl = ANIME.techStyle[s.tech];
+      if (!g && (owner.species === 'puni' && getTech(s.tech).kind !== 'drain')) this.gooIds.add(s.id);
+      if (!g && (s.stop !== undefined || (s.wait !== undefined && s.t < s.wait) || stl === 'soundRing')) {
+        // ディレイボム(黒い玉)・千機包囲網(小さな砲台)・カチンショット(音の輪)
+        g = new THREE.Group();
+        if (s.stop !== undefined) {
+          const ball = new THREE.Mesh(this.blobGeo, new THREE.MeshToonMaterial({ color: 0x2a2a34, gradientMap: this.gradient }));
+          ball.scale.setScalar(0.38);
+          const lamp = this.sprite(0xff3020);
+          lamp.scale.setScalar(0.4);
+          lamp.position.y = 0.38;
+          g.add(ball, lamp);
+          g.userData.kind = 'bomb';
+        } else if (s.wait !== undefined) {
+          const base = new THREE.Mesh(this.boltGeo, new THREE.MeshToonMaterial({ color: 0x7a8aa0, gradientMap: this.gradient }));
+          base.scale.set(0.5, 0.35, 0.5);
+          const barrel = new THREE.Mesh(this.boltGeo, new THREE.MeshToonMaterial({ color: 0x3a4250, gradientMap: this.gradient }));
+          barrel.scale.set(0.6, 0.14, 0.14);
+          barrel.position.set(0.3, 0.12, 0);
+          const lamp = this.sprite(0xfff2a0);
+          lamp.scale.setScalar(0.5);
+          lamp.position.set(0.62, 0.12, 0);
+          g.add(base, barrel, lamp);
+          g.userData.kind = 'turret';
+        } else {
+          const ring = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.06, 6, 20), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending }));
+          const ring2 = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.04, 6, 16), new THREE.MeshBasicMaterial({ color: 0xa0e8ff, transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending }));
+          g.add(ring, ring2);
+          g.userData.kind = 'ring';
+        }
+        this.scene.add(g);
+        this.shotObjs.set(s.id, g);
+      }
+      if (g?.userData.kind) {
+        const kd = g.userData.kind;
+        g.position.set(s.x, kd === 'turret' ? 0.4 : s.y, s.z);
+        if (kd === 'bomb') {
+          g.children[0].rotation.z -= dt * Math.hypot(s.vx, s.vz) * 2.5;
+          g.rotation.y = -Math.atan2(s.vz, s.vx);
+          g.children[1].visible = s.fuse === undefined || Math.sin(performance.now() / (s.fuse - b.t < 0.4 ? 30 : 70)) > 0;
+        } else if (kd === 'turret') {
+          g.rotation.y = -Math.atan2(s.vz, s.vx);
+          if (s.wait !== undefined && s.t >= s.wait) {
+            // 撃った: 砲台は消えて、光の弾に
+            this.scene.remove(g);
+            this.shotObjs.delete(s.id);
+            this.muzzleAt(s.x, 0.5, s.z);
+          }
+        } else {
+          g.rotation.y = -Math.atan2(s.vz, s.vx) + Math.PI / 2;
+          const k = 1 + Math.sin(s.t * 30) * 0.15;
+          g.scale.setScalar(k * (1 + s.t * 0.8));
+        }
+        continue;
+      }
+      if (s.tech === 'puniWater' || this.gooIds.has(s.id)) {
         // PUNI のぷに玉(2026-11-03): ぷるぷる ゆれる 半透明の緑のかたまり(PUNI は自然。企画者)。しずくをこぼす
         if (!g) {
           g = new THREE.Group();
@@ -1587,6 +1795,7 @@ export class AnimeField {
         this.scene.remove(g);
         g.children.forEach((c) => ((c as THREE.Sprite).material as THREE.Material).dispose());
         this.shotObjs.delete(id);
+        this.gooIds.delete(id);
       }
   }
 
@@ -1715,11 +1924,13 @@ export class AnimeField {
       this.scene.add(g);
       this.fieldObjs.push(g);
     }
+    this.drawShapeFields(b, dt);
     this.fieldObjs.forEach((g, i) => {
       const fl = b.fields[i];
-      g.visible = !!fl;
-      if (!fl) return;
+      g.visible = !!fl && !fl.shape;
+      if (!fl || fl.shape) return;
       const [disc, ring, wall] = g.children as THREE.Mesh[];
+      const sp = b.f[fl.owner].species;
       // 自分の場(千花天幕)は花の輪・相手の場は重力の魔法陣
       const dm = disc.material as THREE.MeshBasicMaterial;
       // MOFU の場(ねむりの綿雨)は、綿雲のじゅうたん
@@ -1729,9 +1940,12 @@ export class AnimeField {
         dm.map = want;
         dm.opacity = cloud ? 0.75 : 1;
         dm.needsUpdate = true;
-        (ring.material as THREE.MeshBasicMaterial).color.setHex(fl.self ? 0xfff0a0 : cloud ? 0xd0e8ff : 0xe0a0ff);
-        (wall.material as THREE.MeshBasicMaterial).color.setHex(fl.self ? 0x80e080 : cloud ? 0xb0d0ff : 0x6a20b0);
       }
+      // 種族の色(2026-11-03): ZIPP は電気の黄・PUNI は ぷにぷにの緑・KLAK は 機械の水色
+      const fc = fl.self ? [0xfff0a0, 0x80e080, 0xffffff] : cloud ? [0xd0e8ff, 0xb0d0ff, 0xffffff] : sp === 'zipp' ? [0xfff060, 0xc0a000, 0xfff0a0] : sp === 'puni' ? [0x8af06a, 0x3a9a30, 0x9af080] : sp === 'klak' ? [0x80e8ff, 0x2080b0, 0xa0e8ff] : [0xe0a0ff, 0x6a20b0, 0xffffff];
+      (ring.material as THREE.MeshBasicMaterial).color.setHex(fc[0]);
+      (wall.material as THREE.MeshBasicMaterial).color.setHex(fc[1]);
+      dm.color.setHex(fc[2]);
       const left = fl.until - b.t;
       // 出てすぐは広がり、消える前はしぼむ
       const age = getTechAge(fl, b.t);
@@ -1765,6 +1979,22 @@ export class AnimeField {
           const c = this.sprite(0xf4f0ff, false, this.puffTex);
           c.position.set(fl.x + (Math.random() - 0.5) * fl.r, 2.9, fl.z + (Math.random() - 0.5) * fl.r);
           this.add(c, 1.0, 0.3, 1.4);
+        }
+        return;
+      }
+      // ZIPP の場: 中で 小さな稲妻が はしる。PUNI: 緑の あわが ぷくぷく。KLAK: 水色の光の粒が のぼる
+      if (sp === 'zipp' || sp === 'puni' || sp === 'klak') {
+        if (dt > 0 && Math.random() < dt * (sp === 'zipp' ? 14 : 30)) {
+          const a = Math.random() * Math.PI * 2;
+          const r = Math.random() * fl.r;
+          const x = fl.x + Math.cos(a) * r;
+          const z = fl.z + Math.sin(a) * r;
+          if (sp === 'zipp') this.bolt(x, 0.1, z, x + (Math.random() - 0.5) * 1.6, 0.1 + Math.random() * 0.4, z + (Math.random() - 0.5) * 1.6, 0.6, 0.14);
+          else {
+            const p = this.sprite(sp === 'puni' ? 0xa8f08a : 0x9ae8ff);
+            p.position.set(x, 0.1, z);
+            this.add(p, 0.8, sp === 'puni' ? 0.6 : -0.3, sp === 'puni' ? 0.35 : 0.25, { vx: 0, vz: 0, vy: sp === 'puni' ? 0.8 : 1.6 });
+          }
         }
         return;
       }
@@ -1805,6 +2035,14 @@ export class AnimeField {
       const [warn, rim, outer, inner] = g.children as THREE.Mesh[];
       const k = b.t - p.at;
       const mat = (m: THREE.Mesh) => m.material as THREE.MeshBasicMaterial;
+      // 見た目(2026-11-03): 火柱(赤・橙)・落雷(黄・白)・光の杭(水色・白・細い)・光の砲撃(赤い照準 → 白い光)
+      const lk = p.look ?? 'fire';
+      const cols = lk === 'bolt' ? [0xffd23a, 0xfff6a0, 0xffe040, 0xffffff] : lk === 'stake' ? [0x40c0ff, 0xc0f0ff, 0x80e0ff, 0xffffff] : lk === 'beam' ? [0xff2a2a, 0xff8080, 0xfff0a0, 0xffffff] : [0xff3a00, 0xffc040, 0xff4a0a, 0xffd040];
+      mat(warn).color.setHex(cols[0]);
+      mat(rim).color.setHex(cols[1]);
+      mat(outer).color.setHex(cols[2]);
+      mat(inner).color.setHex(cols[3]);
+      if (lk === 'beam' && k < 0) rim.rotation.z += dt * 6;
       if (k < 0) {
         // 出る前: 地面が赤く光って ふるえる(ここから出ると分かる)
         const w = 1 - Math.min(1, -k / P.warn);
@@ -1814,7 +2052,8 @@ export class AnimeField {
         rim.scale.setScalar(p.r);
         mat(warn).opacity = 0.25 + 0.4 * w + Math.sin(performance.now() / 40) * 0.1;
         mat(rim).opacity = 0.5 + 0.5 * w;
-        if (dt > 0 && Math.random() < dt * 25) this.flame(p.x, 0.1, p.z, p.r * 1.4, 1);
+        if (dt > 0 && lk === 'fire' && Math.random() < dt * 25) this.flame(p.x, 0.1, p.z, p.r * 1.4, 1);
+        if (dt > 0 && lk === 'bolt' && Math.random() < dt * 10) this.bolt(p.x + (Math.random() - 0.5) * p.r, 0.05, p.z + (Math.random() - 0.5) * p.r, p.x + (Math.random() - 0.5) * p.r, 0.3, p.z + (Math.random() - 0.5) * p.r, 0.5, 0.1);
         return;
       }
       // 柱: 一気にのびて、太くなり、消えていく
@@ -1827,7 +2066,7 @@ export class AnimeField {
       mat(warn).opacity = 0.7 * fade;
       warn.scale.setScalar(p.r * 1.2);
       outer.visible = inner.visible = true;
-      const wob = 1 + Math.sin(performance.now() / 25 + i) * 0.08;
+      const wob = (1 + Math.sin(performance.now() / 25 + i) * 0.08) * (lk === 'stake' ? 0.45 : lk === 'bolt' ? 0.6 : 1);
       outer.scale.set(p.r * wob * (0.8 + 0.3 * grow), h, p.r * wob * (0.8 + 0.3 * grow));
       outer.position.y = h / 2;
       inner.scale.set(p.r, h * 1.05, p.r);

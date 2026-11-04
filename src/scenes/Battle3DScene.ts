@@ -839,6 +839,21 @@ export class Battle3DScene extends Phaser.Scene {
         audio.se('whoosh', { pitch: 2.2 });
         break;
       case 'pillar':
+        // 落雷(ZIPP)・光の杭(KLAK)・光の砲撃(終端狙撃陣)(2026-11-03)
+        if (e.look === 'bolt') {
+          for (let k = 0; k < 3; k++) F.bolt(e.x + (Math.random() - 0.5) * 0.8, 12, e.z + (Math.random() - 0.5) * 0.8, e.x, 0.1, e.z, 2.2, 0.3);
+          F.zap(e.x, 0.4, e.z);
+          F.shake(0.22);
+          audio.se('punchHeavy', { pitch: 1.8 });
+          break;
+        }
+        if (e.look === 'stake' || e.look === 'beam') {
+          F.shockRing(e.x, 0.3, e.z, e.look === 'beam' ? 0xfff0a0 : 0x80e0ff, e.look === 'beam' ? 2 : 1);
+          if (e.look === 'beam') F.impact(e.x, e.z, 1.5, true);
+          F.shake(e.look === 'beam' ? 0.3 : 0.15);
+          audio.se('punchHeavy', { pitch: e.look === 'beam' ? 0.9 : 1.4 });
+          break;
+        }
         // 火柱が地面から噴き出す
         F.flameBurst(e.x, 0.4, e.z);
         F.rocks(e.x, e.z);
