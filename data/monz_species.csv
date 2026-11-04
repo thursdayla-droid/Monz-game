@@ -23,9 +23,9 @@ SNEK,3,SNEKXUS,長い体,闇,スピード,Lv.60 で進化。読み：スネク�
 GRIT,1,GRIT,四つ足,無,タフネス,ブルドッグのような けもの。重装甲・防御・重い攻撃。読み：グリット（企画者 2026-11-04）。お世話画面の絵 design/species/grit/care_main_2026-11-04.png
 GRIT,2,GRITTER,四つ足,無,タフネス,Lv.30 で進化。読み：グリッター（企画者 2026-11-04。つづりは GRITTER）。絵 design/species/grit/gritter_form2.png
 GRIT,3,GRITBULL,四つ足,無,タフネス,Lv.60 で進化。読み：グリットブル（企画者 2026-11-04）。絵 design/species/grit/gritbull_form3.png
-VYBE,1,VYBE,四つ足,雷,テクニック,雷のけもの。雷・妨害・電磁。読み：ヴァイブ。名前は変わるかもしれない【仮】（2026-11-02 企画者の絵 design/species/vybe/sheet_2026-11-02.png）
-VYBE,2,VYBER,四つ足,雷,テクニック,雷のけもの。雷・妨害・電磁。Lv.30 で進化。読み：ヴァイバー。名前は変わるかもしれない【仮】
-VYBE,3,VYBOLT,四つ足,雷,テクニック,雷のけもの。雷・妨害・電磁。Lv.60 で進化。読み：ヴァイボルト。名前は変わるかもしれない【仮】
+VYBE,1,VYBE,四つ足,雷,テクニック,電気のけもの。雷・妨害・テクニック。読み：ヴァイブ（企画者 2026-11-04）。お世話画面の絵 design/species/vybe/care_main_2026-11-04.png
+VYBE,2,VYGA,四つ足,雷,テクニック,Lv.30 で進化。読み：ヴァイガ（企画者 2026-11-04。前の案 VYBER から変更）。絵 design/species/vybe/vyga_form2.png
+VYBE,3,VYGARD,四つ足,雷,テクニック,Lv.60 で進化。読み：ヴァイガルド（企画者 2026-11-04。前の案 VYBOLT から変更）。絵 design/species/vybe/vygard_form3.png
 SHELLZ,1,SHELLZ,四つ足,水,タフネス,カメ（甲羅）。甲羅・水圧・はね返し。読み：シェルズ。名前は変わるかもしれない【仮】（2026-11-02 企画者の絵 design/species/shellz/sheet_2026-11-02.png）。絵は属性「地」→ 水にした（企画者 2026-11-02）
 SHELLZ,2,SHELLKER,四つ足,水,タフネス,カメ（甲羅）。甲羅・水圧・はね返し。Lv.30 で進化。読み：シェルカー。名前は変わるかもしれない【仮】（絵の「SHEILKER」はまちがい → SHELLKER。企画者 2026-11-02）
 SHELLZ,3,SHELLBOSS,四つ足,水,タフネス,カメ（甲羅）。甲羅・水圧・はね返し。Lv.60 で進化。読み：シェルボス。名前は変わるかもしれない【仮】

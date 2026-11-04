@@ -282,3 +282,4 @@
 - 2026-11-04：RIOT の進化ラインの名前（企画者）：Lv.1 RIOT（ライオット）→ Lv.30 RIOTER（ライオター）→ Lv.60 RIOTRAX（ライオトラックス）。お世話画面用の絵3枚（企画者）を `design/species/riot/` に（care_main_2026-11-04.png・rioter_form2.png・riotrax_form3.png。うしろは もともと透明）
 - 2026-11-04：GRIT の進化ラインの名前（企画者）：Lv.1 GRIT（グリット）→ Lv.30 GRITTER（グリッター）→ Lv.60 GRITBULL（グリットブル）。お世話画面用の絵3枚（企画者）を `design/species/grit/` に（care_main_2026-11-04.png・gritter_form2.png・gritbull_form3.png。うしろは もともと透明）
 - 2026-11-04：SNEK の進化ラインの名前（企画者）：Lv.1 SNEK（スネーク）→ Lv.30 SNEKER（スネーカー）→ Lv.60 SNEKXUS（スネクサス）。お世話画面用の絵3枚（企画者）を `design/species/snek/` に（care_main_2026-11-04.png・sneker_form2.png・snekxus_form3.png。うしろは もともと透明）
+- 2026-11-04：VYBE の進化ラインの名前（企画者）：Lv.1 VYBE（ヴァイブ）→ Lv.30 VYGA（ヴァイガ）→ Lv.60 VYGARD（ヴァイガルド）。お世話画面用の絵3枚（企画者）を `design/species/vybe/` に（care_main_2026-11-04.png・vyga_form2.png・vygard_form3.png。うしろは もともと透明）
