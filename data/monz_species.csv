@@ -17,9 +17,9 @@ KLAK,3,KLAKTRAP,丸い体,無,テクニック,Lv.60 で進化。読み：クラ�
 RIOT,1,RIOT,四つ足,炎,パワー,たてがみのけもの。暴走・炎・爆発。読み：ライオット（企画者 2026-11-04）。お世話画面の絵 design/species/riot/care_main_2026-11-04.png
 RIOT,2,RIOTER,四つ足,炎,パワー,Lv.30 で進化。読み：ライオター（企画者 2026-11-04）。絵 design/species/riot/rioter_form2.png
 RIOT,3,RIOTRAX,四つ足,炎,パワー,Lv.60 で進化。読み：ライオトラックス（企画者 2026-11-04。前の案 RIOTLORD から変更）。絵 design/species/riot/riotrax_form3.png
-SNEK,1,SNEK,長い体,闇,スピード,へび。闇・毒・奇襲。読み：スネック。名前は変わるかもしれない【仮】（2026-11-02 企画者の絵 design/species/snek/sheet_2026-11-02.png）
-SNEK,2,SNEKER,長い体,闇,スピード,へび。闇・毒・奇襲。Lv.30 で進化。読み：スネカー。名前は変わるかもしれない【仮】
-SNEK,3,SNEKLAWS,長い体,闇,スピード,へび。闇・毒・奇襲。Lv.60 で進化。読み：スネクロウズ。名前は変わるかもしれない【仮】
+SNEK,1,SNEK,長い体,闇,スピード,へび。闇・毒・すばやさ。読み：スネーク（企画者 2026-11-04）。お世話画面の絵 design/species/snek/care_main_2026-11-04.png
+SNEK,2,SNEKER,長い体,闇,スピード,Lv.30 で進化。読み：スネーカー（企画者 2026-11-04）。絵 design/species/snek/sneker_form2.png
+SNEK,3,SNEKXUS,長い体,闇,スピード,Lv.60 で進化。読み：スネクサス（企画者 2026-11-04。前の案 SNEKLAWS から変更）。絵 design/species/snek/snekxus_form3.png
 GRIT,1,GRIT,四つ足,無,タフネス,ブルドッグのような けもの。重装甲・防御・重い攻撃。読み：グリット（企画者 2026-11-04）。お世話画面の絵 design/species/grit/care_main_2026-11-04.png
 GRIT,2,GRITTER,四つ足,無,タフネス,Lv.30 で進化。読み：グリッター（企画者 2026-11-04。つづりは GRITTER）。絵 design/species/grit/gritter_form2.png
 GRIT,3,GRITBULL,四つ足,無,タフネス,Lv.60 で進化。読み：グリットブル（企画者 2026-11-04）。絵 design/species/grit/gritbull_form3.png
