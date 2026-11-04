@@ -64,6 +64,13 @@ const CSS = `
 .b3d .back{pointer-events:auto;background:#16101ccc;border:0;color:#fff;font:900 15px ${UI_FONT};padding:8px 12px;border-radius:10px}
 .b3d .card{flex:0 1 260px;min-width:0;background:#fffffff0;color:#16101c;border-radius:12px;padding:5px 10px 7px;border:3px solid #16101c;box-shadow:0 3px 0 #16101c}
 .b3d .card.r{margin-left:auto}
+.b3d .card{position:relative}
+/* コンボの数: HPの下に 小さく(2発目から。じゃまに ならないように すぐ消える。10発から 少し大きく明るく 2026-11-04 企画者) */
+.b3d .chit{position:absolute;z-index:4;top:calc(100% + 4px);right:6px;font:900 15px ${UI_FONT};color:#fff;-webkit-text-stroke:1px #16101c;text-shadow:0 2px 0 #16101c;opacity:0;white-space:nowrap;pointer-events:none;transform-origin:right center}
+.b3d .card.r .chit{right:auto;left:6px;transform-origin:left center}
+.b3d .chit b{font-size:22px;margin-right:3px}
+.b3d .chit.big{color:#ffe14a}
+.b3d .chit.big b{font-size:28px}
 .b3d .name{font-weight:900;font-size:14px;display:flex;justify-content:space-between}
 .b3d .name small{font-size:11px;color:#6a6070}
 .b3d .bar{height:10px;border-radius:5px;background:#3a3040;overflow:hidden;margin-top:3px}
@@ -167,6 +174,7 @@ export class Battle3DScene extends Phaser.Scene {
     hp: HTMLElement[];
     guard: HTMLElement[];
     num: HTMLElement[];
+    chit: HTMLElement[];
     timer: HTMLElement;
     call: HTMLElement;
     pop: HTMLElement;
@@ -279,7 +287,7 @@ export class Battle3DScene extends Phaser.Scene {
     const canvas = document.createElement('canvas');
     root.appendChild(canvas);
     const [p, q] = this.battle.f;
-    const card = (f: typeof p, cls: string) => `<div class="card ${cls}"><div class="name"><span>${esc(f.name)}</span><small>${f === p ? 'あなた' : 'あいて'}</small></div><div class="bar"><i style="width:100%"></i></div><div class="gbar"><i style="width:100%"></i></div><div class="num">${f.hp}/${f.maxHp}</div></div>`;
+    const card = (f: typeof p, cls: string) => `<div class="card ${cls}"><div class="name"><span>${esc(f.name)}</span><small>${f === p ? 'あなた' : 'あいて'}</small></div><div class="bar"><i style="width:100%"></i></div><div class="gbar"><i style="width:100%"></i></div><div class="num">${f.hp}/${f.maxHp}</div><div class="chit"></div></div>`;
     const techBtn = (id: TechId) => {
       const t = getTech(id);
       return `<button data-c="${id}"><span class="el" style="background:${hex(ELEMENT_HEX[t.element])};${t.element === '無' ? 'color:#16101c' : ''}">${t.element}</span><span class="lb">${t.name}</span><span class="cd" style="height:0"></span></button>`;
@@ -324,6 +332,7 @@ export class Battle3DScene extends Phaser.Scene {
       hp: all('.card .bar > i'),
       guard: all('.card .gbar > i'),
       num: all('.card .num'),
+      chit: all('.card .chit'),
       timer: $('.timer'),
       call: $('.call'),
       pop: $('.pop'),
@@ -901,6 +910,11 @@ export class Battle3DScene extends Phaser.Scene {
       case 'guard':
         audio.se('select', { pitch: 0.6 });
         break;
+      case 'combo':
+        this.showCombo(e.side, e.n);
+        break;
+      case 'comboBreak':
+        break;
       case 'guardHit':
         // ガードで受けた: 青い光の盾が光る。ジャストガードは 白く強く光って すぐ動ける
         F.guardFlash(e.side, e.just);
@@ -1017,6 +1031,24 @@ export class Battle3DScene extends Phaser.Scene {
         { opacity: 0, transform: 'scale(1)' },
       ],
       { duration: 1700 },
+    );
+  }
+
+  /** コンボの数を 当てた側の HP の下に 出す(すぐ うすく消える) */
+  private showCombo(side: number, n: number): void {
+    const el = this.ui.chit[side];
+    if (!el) return;
+    el.innerHTML = `<b>${n}</b>HIT`;
+    el.classList.toggle('big', n >= 10);
+    el.getAnimations().forEach((a) => a.cancel());
+    el.animate(
+      [
+        { opacity: 1, transform: 'scale(1.25)' },
+        { opacity: 1, transform: 'scale(1)', offset: 0.12 },
+        { opacity: 1, transform: 'scale(1)', offset: 0.6 },
+        { opacity: 0, transform: 'scale(1)' },
+      ],
+      { duration: 1300, fill: 'forwards' },
     );
   }
 

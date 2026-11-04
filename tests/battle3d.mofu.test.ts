@@ -94,8 +94,10 @@ describe('MOFU の技 (2026-11-03)', () => {
       const bf = newAnimeBattle(e('mofu', [], form), e('bunk', [], 1), 4, 'manual');
       quiet(bf);
       bf.f[0].x = 0; bf.f[1].x = 3; bf.f[0].z = bf.f[1].z = 0; bf.f[0].face = 0;
-      giveCommand(bf, 0, 'punch');
-      expect(run(bf, 1.2).filter((x) => x.kind === 'hit').length).toBe(want);
+      // 押すたびに1発(2026-11-04)。続けて押すと 2発・3発
+      let n = 0;
+      for (let i = 0; i < 72; i++) { if (i % 9 === 0) giveCommand(bf, 0, 'punch'); n += run(bf, 1 / 60).filter((x) => x.kind === 'hit').length; }
+      expect(n).toBe(want);
     }
     const b2 = newAnimeBattle(e('bunk', [], 1), e('bunk', [], 1), 4, 'manual');
     quiet(b2);

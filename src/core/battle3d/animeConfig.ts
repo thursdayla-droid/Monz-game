@@ -49,6 +49,15 @@ export const ANIME = {
   drop: { jump: 13 },
   spin: { turn: 2.2 },
   combo: { reach: 2.0, stun: 0.3, bonus: 1.15 },
+  /**
+   * コンボ(2026-11-04 企画者「コンボ数は固定しない」「長いコンボほど1ヒットのダメージを下げる」「無限コンボを防ぐ」「通常攻撃は 続けて押すと 次が出る」)【仮】。
+   * press: 通常攻撃の 次を押せる時間(1発のあと)・buffer: 動いている間に 押した時に おぼえておく時間・gap: 途中の1発のあとの すき・
+   * scale: ヒット数が ふえるごとに ダメージを 下げる割合(1ヒットめ 100% → 1ヒットごとに -scaleStep・下は scaleMin)・
+   * stunStep: ヒット数が ふえるごとに 動けない時間を 短く(下は stunMin 倍)・
+   * breakHits / breakTime: これより 多い・長い コンボは 相手が かならず ぬけられる(少しのあいだ 当たらない)・
+   * reset: これだけ 当たらなければ コンボは 切れる
+   */
+  chain: { press: 0.5, buffer: 0.4, gap: 0.04, scaleStep: 0.07, scaleMin: 0.4, stunStep: 0.04, stunMin: 0.5, breakHits: 16, breakTime: 5, breakSafe: 0.8, reset: 1.2 },
   barrage: { count: 3, gap: 0.15 },
   /**
    * 【案・未承認】弱体(ほえる)・設置(重力の場)の数字(2026-11-02 BUNK 追加6技。企画者の承認前なので仮)

@@ -1,14 +1,25 @@
 import { it, expect } from 'vitest';
 import { instinctFor } from '../src/core/autobattle/engine';
 import { ANIME } from '../src/core/battle3d/animeConfig';
-import { giveCommand, newAnimeBattle, stepAnime, type AnimeEntrant } from '../src/core/battle3d/anime';
+import { giveCommand, newAnimeBattle, stepAnime, type AnimeBattle, type AnimeEntrant } from '../src/core/battle3d/anime';
 const st = { hp: 30, power: 36, tough: 32, speed: 12, tech: 16 };
 const e = (): AnimeEntrant => ({ name: 'B', species: 'bunk', stats: st, instinct: instinctFor('bunk', st), proficiency: { attack: 2, defense: 2, evasion: 2, counter: 2, spacing: 2 }, techs: ['バンクバッシュ'] });
-it('normal attack: punch in place, 3 hits if the first lands, 0.5s cooldown after, also in the air', () => {
+/** ボタンを 0.15秒ごとに 押す(連打)。2026-11-04 から 押すたびに1発 */
+const mash = (b: AnimeBattle, frames: number, on?: (ev: AnimeBattle['events'][number]) => void, until = frames) => {
+  for (let i = 0; i < frames; i++) { if (i % 9 === 0 && i < until) giveCommand(b, 0, 'punch'); b.events = []; stepAnime(b, ANIME.dt); if (on) for (const ev of b.events) on(ev); }
+};
+it('normal attack: one press = one hit; mashing gives 3 hits, then a cooldown; also in the air', () => {
   const b = newAnimeBattle(e(), e(), 1, 'manual'); const [p, q] = b.f; p.pad = { x: 0, z: 0 };
   p.x = 0; p.z = 0; q.x = 1.6; q.z = 0; p.face = 0; q.thinkT = 99; q.cooldown.dodge = 99;
-  giveCommand(b, 0, 'punch'); let hits = 0;
-  for (let i = 0; i < 40; i++) { b.events = []; stepAnime(b, ANIME.dt); for (const ev of b.events) if (ev.kind === 'hit') hits++; }
+  // 1回だけ 押すと 1発
+  let one = 0;
+  giveCommand(b, 0, 'punch');
+  for (let i = 0; i < 60; i++) { b.events = []; stepAnime(b, ANIME.dt); for (const ev of b.events) if (ev.kind === 'hit') one++; }
+  expect(one).toBe(1);
+  for (let i = 0; i < 90; i++) { b.events = []; stepAnime(b, ANIME.dt); }
+  p.x = 0; p.z = 0; q.x = 1.6; q.z = 0; p.face = 0;
+  let hits = 0;
+  mash(b, 50, (ev) => { if (ev.kind === 'hit') hits++; });
 
   expect(hits).toBe(3);
   expect(giveCommand(b, 0, 'punch')).toBe(false);
@@ -26,10 +37,9 @@ it('evolution changes the normal attack (form 2: 4 hits, form 3: 5 hits, longer 
     const [p, q] = b.f;
     p.pad = { x: 0, z: 0 };
     p.x = 0; p.z = 0; q.x = form === 3 ? 2.6 : 1.6; q.z = 0; p.face = 0; q.thinkT = 99; q.cooldown.dodge = 99;
-    giveCommand(b, 0, 'punch');
     let hits = 0;
     let fire = 0;
-    for (let i = 0; i < 60; i++) { b.events = []; stepAnime(b, ANIME.dt); for (const ev of b.events) if (ev.kind === 'hit') ev.tech === 'punchFire' ? fire++ : hits++; }
+    mash(b, 100, (ev) => { if (ev.kind === 'hit') ev.tech === 'punchFire' ? fire++ : hits++; }, 15 * want - 10);
     expect(hits).toBe(want);
     // 最終進化だけ、さいごに火の玉が飛ぶ(2026-11-02)
     expect(fire).toBe(form === 3 ? 1 : 0);
@@ -42,8 +52,7 @@ it('evolved punches step forward; form 3 throws a short fireball even when the p
     const [p, q] = b.f;
     p.pad = { x: 0, z: 0 };
     p.x = 0; p.z = 0; q.x = 2.4; q.z = 0; p.face = 0; q.thinkT = 99; q.cooldown.dodge = 99;
-    giveCommand(b, 0, 'punch');
-    for (let i = 0; i < 20; i++) { b.events = []; stepAnime(b, ANIME.dt); }
+    mash(b, 70);
     if (form === 1) expect(p.x).toBeCloseTo(0, 1);
     else expect(p.x).toBeGreaterThan(0.2);
   }
@@ -51,10 +60,11 @@ it('evolved punches step forward; form 3 throws a short fireball even when the p
   const [p, q] = b.f;
   p.pad = { x: 0, z: 0 };
   p.x = 0; p.z = 0; q.x = 5.5; q.z = 0; p.face = 0; q.thinkT = 99; q.cooldown.dodge = 99;
-  giveCommand(b, 0, 'punch');
   const got: string[] = [];
-  for (let i = 0; i < 60; i++) { b.events = []; stepAnime(b, ANIME.dt); for (const ev of b.events) if (ev.kind === 'hit') got.push(ev.tech); }
-  expect(got).toEqual(['punchFire']);
+  // 相手が ガードすることも あるので、火の玉が はじけた所で 数える
+  mash(b, 130, (ev) => { if (ev.kind === 'hit') got.push(ev.tech); else if (ev.kind === 'explode' && ev.tech === 'punchFire') got.push('boom'); }, 70);
+  expect(got.filter((x) => x === 'punch')).toEqual([]);
+  expect(got.length).toBeGreaterThan(0);
 });
 
 it('ukemi: pressing dodge while knocked into the air or down gets up with a roll', () => {
