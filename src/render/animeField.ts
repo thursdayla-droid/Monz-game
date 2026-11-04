@@ -1737,7 +1737,7 @@ export class AnimeField {
       const owner = b.f[s.owner];
       const stl = ANIME.techStyle[s.tech];
       if (!g && (owner.species === 'puni' && getTech(s.tech).kind !== 'drain')) this.gooIds.add(s.id);
-      if (!g && (s.stop !== undefined || (s.wait !== undefined && s.t < s.wait) || stl === 'soundRing')) {
+      if (!g && s.look !== 'ghost' && (s.stop !== undefined || (s.wait !== undefined && s.t < s.wait) || stl === 'soundRing')) {
         // ディレイボム(黒い玉)・千機包囲網(小さな砲台)・カチンショット(音の輪)
         g = new THREE.Group();
         if (s.stop !== undefined) {
