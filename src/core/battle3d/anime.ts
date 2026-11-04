@@ -934,6 +934,8 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
       }
       if (st === 'flankClamp') {
         // クイッククランプ: 相手のまわりを すべるように回って うしろへ → はさんで 少し動けなくする
+        // はさんだあとは 技のおわりへ(2026-11-04 企画者「クイッククランプ使ったら動かなくなる」→ 直した)
+        if (a.hit) break;
         if (a.len === undefined) a.len = angleTo(o, f);
         const k = Math.min(1, run / 0.35);
         const ang = a.len + (a.zig ?? 1) * Math.PI * k;

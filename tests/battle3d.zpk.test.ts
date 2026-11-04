@@ -395,3 +395,23 @@ describe('のこりの技も それぞれ ちがう動き (2026-11-04 企画者�
     expect(tracked).toBe(true);
   });
 });
+
+describe('どの技も 出したあと また動ける (2026-11-04 企画者「クイッククランプ使ったら動かなくなる」)', () => {
+  for (const sp of ['zipp', 'puni', 'klak', 'bunk', 'mofu']) {
+    it(`${sp}: 17技 すべて 8秒以内に 技が終わる`, () => {
+      for (const r of learnset(sp)) {
+        for (const gap of [3, 8]) {
+          const b = newAnimeBattle(e(sp, [r.name], 3), e('bunk', [], 1), 21, 'manual');
+          for (const f of b.f) { f.pad = { x: 0, z: 0 }; f.techMode = 'manual'; f.thinkT = 1e9; f.cooldown.dodge = 1e9; f.z = 0; }
+          b.f[0].x = -gap / 2; b.f[1].x = gap / 2;
+          b.f[1].maxHp = b.f[1].hp = 999;
+          giveCommand(b, 0, r.name);
+          run(b, 0.2);
+          let free = false;
+          for (let i = 0; i < 8 / ANIME.dt && !free; i++) { b.events = []; stepAnime(b, ANIME.dt); free = b.f[0].act.k === 'free'; }
+          expect(free, `${r.name} (${gap}m)`).toBe(true);
+        }
+      }
+    });
+  }
+});
