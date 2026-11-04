@@ -6,7 +6,9 @@
 import * as THREE from 'three';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { CreatureBones } from './creatureBones';
-import { QuadBones } from './quadBones';
+import { QuadBones, type QuadStyle } from './quadBones';
+import { SnakeBones } from './snakeBones';
+import type { ModelRig } from '../core/roster';
 import { BunkBones, type AttackPose } from './bunkBones';
 import { getTech } from '../core/battle3d/techTable';
 import type { AnimeMon } from '../core/battle3d/anime';
@@ -48,6 +50,8 @@ export class MonsterRig {
   private creature: CreatureBones | null = null;
   /** 四つ足の けもの(RIOT など。2026-11-04) */
   private quad: QuadBones | null = null;
+  /** へび(SNEK など) */
+  private snake: SnakeBones | null = null;
   private lastFace: number | null = null;
   private lungeNow = 0;
   /** パンチのグローブの場所(のばしている時だけ。光の演出用) */
@@ -180,7 +184,7 @@ export class MonsterRig {
    * hue: 色違い(色相を回す角度・ラジアン)。0 = そのまま。
    * 骨入りのモデル(2026-11-01)は、待機・移動を骨で動かす(bunkBones.ts)。骨がないモデルは体全体だけで動かす
    */
-  useModel(src: THREE.Object3D, height: number, hue = 0, useBones = true, amp = 1, rig: 'auto' | 'quad' = 'auto'): void {
+  useModel(src: THREE.Object3D, height: number, hue = 0, useBones = true, amp = 1, rig: ModelRig = 'auto'): void {
     // 骨入りのモデルは、骨ごと写す(ふつうの写し方だと骨とのつながりが切れる)
     const model = SkeletonUtils.clone(src);
     const box = new THREE.Box3().setFromObject(model);
@@ -206,12 +210,17 @@ export class MonsterRig {
     this.model = model;
     // 骨がずれているモデルは、骨を動かさない(形がくずれないように。体全体だけで動かす)
     // 四つ足の けもの(企画者「完全な四足歩行」): 人の形の骨・生き物用の骨は 使わない
-    const qb = useBones && rig === 'quad' ? new QuadBones(model) : null;
+    const quadStyle = rig.startsWith('quad') ? ((rig.split(':')[1] ?? 'wild') as QuadStyle) : null;
+    const qb = useBones && quadStyle ? new QuadBones(model, quadStyle) : null;
     this.quad = qb?.ok ? qb : null;
-    const bones = useBones && !this.quad ? new BunkBones(model, amp) : null;
+    // へび(企画者「腕0本・脚0本」): 人の形・四つ足・生き物用の骨は 使わない
+    const sb = useBones && rig === 'snake' ? new SnakeBones(model) : null;
+    this.snake = sb?.ok ? sb : null;
+    const special = !!this.quad || rig === 'snake';
+    const bones = useBones && !special ? new BunkBones(model, amp) : null;
     this.bones = bones?.ok ? bones : null;
     // 人の形の骨でなければ、生き物用の骨として動かす(触角・足)
-    const cb = useBones && !this.bones && !this.quad ? new CreatureBones(model) : null;
+    const cb = useBones && !this.bones && !special ? new CreatureBones(model) : null;
     this.creature = cb?.ok ? cb : null;
     // 口(技を撃つ所)を、モデルの顔の前に
     this.mouth.position.set(size.x * k * 0.55, height * 0.42, 0);
@@ -485,14 +494,44 @@ export class MonsterRig {
       this.lastFace = f.face;
       const sp = a.k === 'dodge' && a.t < 0.3 ? 8 : a.k === 'free' ? f.speed : 0;
       this.quad.update(now, dt, { speed: sp, air: f.y > 0.05, rising: f.vy > 0, dodge: a.k === 'dodge', hurt: a.k === 'hurt' || a.k === 'air', down: a.k === 'down' || a.k === 'ko', turn });
-      // 四つ足は ぴょこぴょこ はねない(歩く はずみ だけ)。体は 息をするように 少し ふくらむ
+      // 四つ足は ぴょこぴょこ はねない(歩く はずみ だけ)。体は 息をするように 少し ふくらむ。重い種族は 左右に ゆれる
       if (a.k === 'free' && f.y <= 0) {
         lift = this.quad.bob;
         const br = Math.sin(now * 3.2 + f.side * 2) * 0.018;
-        sy = 1 + br;
-        sx = 1 - br * 0.5;
+        sy = 1 + br - this.quad.land * 0.05;
+        sx = 1 - br * 0.5 + this.quad.land * 0.03;
+        rotX += this.quad.roll;
       }
       // よける: 宙返りは しない。横へ 体を かたむけて とぶ
+      if (a.k === 'dodge') {
+        const pq = Math.min(1, a.t / 0.3);
+        rotX = (a.dz > 0 ? 1 : -1) * Math.sin(pq * Math.PI) * 0.3;
+        direct = false;
+        sy = 1;
+        sx = 1;
+      }
+    }
+    if (this.snake) {
+      const turn = this.lastFace === null || dt <= 0 ? 0 : Math.atan2(Math.sin(f.face - this.lastFace), Math.cos(f.face - this.lastFace)) / dt;
+      this.lastFace = f.face;
+      const sp = a.k === 'dodge' && a.t < 0.3 ? 8 : a.k === 'free' ? f.speed : 0;
+      this.snake.update(now, dt, { speed: sp, air: f.y > 0.05, dodge: a.k === 'dodge', hurt: a.k === 'hurt' || a.k === 'air', down: a.k === 'down' || a.k === 'ko', turn });
+      // へびは はねない。地面を すべるように、体ごと 左右に くねる。息で 少し ふくらむ
+      if (a.k === 'free' && f.y <= 0) {
+        lift = 0;
+        const br = Math.sin(now * 2.6 + f.side * 2) * 0.02;
+        sy = 1 + br;
+        sx = 1 - br * 0.4;
+        rotZ = 0;
+      }
+      rotY += this.snake.yaw;
+      rotX += this.snake.roll;
+      // たおれても 横には ころがらない(体を 低く・少し かたむける)
+      if (a.k === 'down' || a.k === 'ko') {
+        rotZ = 0.12;
+        lift = 0;
+        sy = 0.9;
+      }
       if (a.k === 'dodge') {
         const p = Math.min(1, a.t / 0.3);
         rotX = (a.dz > 0 ? 1 : -1) * Math.sin(p * Math.PI) * 0.3;

@@ -42,6 +42,23 @@ export interface QuadState {
   turn: number;
 }
 
+/**
+ * 種族ごとの 歩き方(2026-11-04 企画者「ライオットとは違う動きに」)【仮】。
+ * stride: 1歩の長さ(短いほど 足を 細かく動かす)・amp: 足のふり・runAmp: 走る時に足す ふり・bound: 走る時に 前2本/うしろ2本で はねる 度合い・
+ * bob: 歩く上下・roll: 体の 左右の ゆれ・tail: しっぽの 速さと ゆれ・land: 着地の 長さと ひざの まげ・nod: 頭の うなずき・lean: 走る時 頭を下げる
+ */
+export const QUAD_STYLES = {
+  // RIOT: ワイルド(狼とライオン)
+  wild: { stride: 1.25, amp: 0.42, runAmp: 0.25, bound: 1, bob: 0.035, roll: 0, tailSpd: 2.2, tailAmp: 0.18, landT: 0.25, landBend: 0.35, nod: 0.04, lean: 0.08 },
+  // GRIT: 重いブルドッグ(低く、体を 左右に ゆらす・短く 力強い 足・重い 着地)
+  heavy: { stride: 0.95, amp: 0.3, runAmp: 0.16, bound: 0.5, bob: 0.05, roll: 0.07, tailSpd: 1.6, tailAmp: 0.12, landT: 0.4, landBend: 0.55, nod: 0.03, lean: 0.03 },
+  // VYBE: 軽い 狼(大きな 歩幅・はねて 走る・しっぽを よくふる)
+  light: { stride: 1.6, amp: 0.5, runAmp: 0.35, bound: 1, bob: 0.025, roll: 0, tailSpd: 3.2, tailAmp: 0.28, landT: 0.18, landBend: 0.25, nod: 0.05, lean: 0.12 },
+  // SHELLZ: 亀(短い 歩幅で しっかり ふむ・はねない・甲羅は ゆらさない・首を 前後に)
+  turtle: { stride: 0.75, amp: 0.26, runAmp: 0.1, bound: 0, bob: 0.015, roll: 0.02, tailSpd: 1.2, tailAmp: 0.06, landT: 0.38, landBend: 0.3, nod: 0.06, lean: 0.02 },
+};
+export type QuadStyle = keyof typeof QUAD_STYLES;
+
 export class QuadBones {
   private legs: Leg[] = [];
   private tail: Joint[] = [];
@@ -52,7 +69,13 @@ export class QuadBones {
   /** なめらかに変える値 */
   private sm = { walk: 0, run: 0, air: 0, turn: 0, brace: 0 };
 
-  constructor(model: THREE.Object3D) {
+  private st: (typeof QUAD_STYLES)[QuadStyle];
+  /** 体の 左右の ゆれ(ラジアン)・着地の つぶれ(0〜1) */
+  roll = 0;
+  land = 0;
+
+  constructor(model: THREE.Object3D, style: QuadStyle = 'wild') {
+    this.st = QUAD_STYLES[style];
     model.updateMatrixWorld(true);
     const bones: THREE.Bone[] = [];
     model.traverse((o) => {
@@ -70,16 +93,21 @@ export class QuadBones {
     const isBone = (o: THREE.Object3D | null): o is THREE.Bone => !!o && (o as THREE.Bone).isBone;
     const kids = (b: THREE.Bone) => b.children.filter(isBone);
     const leaves = bones.filter((b) => kids(b).length === 0);
-    // 足先: 地面の近くの 先の骨(同じ所に2本あるものは 1つに)
-    const feet: THREE.Bone[] = [];
-    // 同じ足の 先の骨が いくつかある時は、横に近いものを 1つにまとめる(いちばん低いもの)
+    // 足先(2026-11-04 GRIT など 指の骨がある・足先の骨が 地面より少し上のモデルにも合わせた):
+    // 地面に近い骨を 横の近さで まとめ(いちばん低いもの)、体の まん中に近いもの(しっぽ)を のぞき、前右・前左・うしろ右・うしろ左 から1つずつ
     const flat = (a: THREE.Bone, b: THREE.Bone) => Math.hypot(pos.get(a)!.x - pos.get(b)!.x, pos.get(a)!.z - pos.get(b)!.z);
-    for (const l of leaves.filter((b) => pos.get(b)!.y - minY < H * 0.14).sort((a, b) => pos.get(a)!.y - pos.get(b)!.y)) if (!feet.some((f) => flat(f, l) < H * 0.2)) feet.push(l);
-    // 地面に つく しっぽ などが まざる時は、体の まん中から 左右に いちばん はなれた 4つが 足(しっぽは まん中)
-    if (feet.length > 4) {
-      feet.sort((a, b) => Math.abs(pos.get(b)!.z) - Math.abs(pos.get(a)!.z));
-      feet.length = 4;
-    }
+    const groups: THREE.Bone[] = [];
+    for (const l of bones.filter((b) => pos.get(b)!.y - minY < H * 0.2).sort((a, b) => pos.get(a)!.y - pos.get(b)!.y)) if (!groups.some((f) => flat(f, l) < H * 0.18)) groups.push(l);
+    const maxZ = Math.max(1e-6, ...groups.map((g) => Math.abs(pos.get(g)!.z)));
+    const side = groups.filter((g) => Math.abs(pos.get(g)!.z) > maxZ * 0.3);
+    const xs = side.map((g) => pos.get(g)!.x);
+    const midX = (Math.min(...xs) + Math.max(...xs)) / 2;
+    const feet: THREE.Bone[] = [];
+    for (const front of [true, false])
+      for (const left of [true, false]) {
+        const c = side.filter((g) => pos.get(g)!.x > midX === front && pos.get(g)!.z < 0 === left);
+        if (c.length) feet.push(c.reduce((a, g) => (pos.get(g)!.y < pos.get(a)!.y ? g : a), c[0]));
+      }
     if (feet.length !== 4) return;
     const ancestors = (b: THREE.Bone) => {
       const out: THREE.Bone[] = [];
@@ -100,7 +128,7 @@ export class QuadBones {
       if (b.parent) b.parent.getWorldQuaternion(pq);
       return { bone: b, bind: b.quaternion.clone(), parentQ: invQ.clone().multiply(pq) };
     };
-    const cx = feet.reduce((s, f) => s + pos.get(f)!.x, 0) / 4;
+    const cx = midX;
     const legBones = new Set<THREE.Bone>();
     for (const f of feet) {
       const hub = hubOf(f);
@@ -131,7 +159,8 @@ export class QuadBones {
       }
       return chain;
     };
-    const rest = leaves.filter((l) => !legBones.has(l) && !feet.includes(l));
+    const underFoot = (l: THREE.Bone) => ancestors(l).some((x) => feet.includes(x));
+    const rest = leaves.filter((l) => !legBones.has(l) && !feet.includes(l) && !underFoot(l));
     if (rest.length) {
       // しっぽ: いちばん うしろ(-X)
       const tailLeaf = rest.reduce((a, l) => (pos.get(l)!.x < pos.get(a)!.x ? l : a), rest[0]);
@@ -170,18 +199,21 @@ export class QuadBones {
     sm.turn += (Math.max(-1, Math.min(1, s.turn / 4)) - sm.turn) * k;
     sm.brace += ((s.hurt || s.dodge ? 1 : 0) - sm.brace) * Math.min(1, dt * 12);
     // 着地: 少しのあいだ ひざを まげる
-    if (this.wasAir && !s.air) this.landT = 0.25;
+    const S = this.st;
+    if (this.wasAir && !s.air) this.landT = S.landT;
     this.wasAir = s.air;
     this.landT = Math.max(0, this.landT - dt);
-    const land = this.landT / 0.25;
+    const land = this.landT / S.landT;
+    this.land = land;
     // 足の動き(歩く: ななめの足が いっしょ。走る: 前2本・うしろ2本)
-    const stride = 1.25 + sm.run * 0.6;
+    const stride = S.stride * (1 + sm.run * 0.5);
     this.phase += dt * Math.PI * 2 * (Math.max(0.0, s.speed) / stride);
-    const amp = 0.42 * sm.walk * (1 - sm.air) + 0.25 * sm.run;
+    const amp = S.amp * sm.walk * (1 - sm.air) + S.runAmp * sm.run;
+    const bound = sm.run * S.bound;
     for (const l of this.legs) {
       const walkPh = (l.front === l.left ? 0 : Math.PI);
       const runPh = (l.front ? 0 : Math.PI) + (l.left ? 0 : 0.45);
-      const ph = this.phase + walkPh * (1 - sm.run) + runPh * sm.run;
+      const ph = this.phase + walkPh * (1 - bound) + runPh * bound;
       let a = Math.sin(ph) * amp;
       // 空中: 前足は前へ・うしろ足は うしろへ のばす(のぼり)/ たたむ(おり)
       a += sm.air * (l.front ? (s.rising ? 0.55 : 0.25) : s.rising ? -0.55 : -0.2);
@@ -192,19 +224,21 @@ export class QuadBones {
       this.rot(l.root, AX_Z, a);
       if (l.knee) {
         // ひざ: 足を前へ出す時に まげる(前足と うしろ足で 逆)
-        const lift = Math.max(0, Math.cos(ph)) * amp * 1.1 + land * 0.35 + sm.air * 0.3;
+        const lift = Math.max(0, Math.cos(ph)) * amp * 1.1 + land * S.landBend + sm.air * 0.3;
         this.rot(l.knee, AX_Z, (l.front ? -1 : 1) * lift);
       }
     }
-    this.bob = Math.abs(Math.sin(this.phase * 2)) * 0.035 * sm.walk * (1 - sm.air) - land * 0.06;
+    this.bob = Math.abs(Math.sin(this.phase * 2)) * S.bob * sm.walk * (1 - sm.air) - land * 0.06 * (S.landBend / 0.35);
+    // 体の 左右の ゆれ(歩く足に 合わせて)
+    this.roll = Math.sin(this.phase) * S.roll * sm.walk * (1 - sm.air);
     // しっぽ: いつも ゆらゆら(歩くと 大きく・曲がる時は 外へ)
     this.tail.forEach((j, i) => {
-      const sw = Math.sin(t * (2.2 + sm.walk * 3) - i * 0.6) * (0.18 + sm.walk * 0.15) - sm.turn * 0.3;
+      const sw = Math.sin(t * (S.tailSpd + sm.walk * 3) - i * 0.6) * (S.tailAmp + sm.walk * S.tailAmp * 0.8) - sm.turn * 0.3;
       this.rot(j, AX_Y, sw * (1 + i * 0.2), { axis: AX_Z, angle: 0.08 * Math.sin(t * 1.7 - i * 0.5) + sm.run * 0.15 });
     });
     // 頭: 息をするように 少し うなずく・曲がる方を 向く・やられると のけぞる
     if (this.head) {
-      const nod = Math.sin(t * 1.6) * 0.04 + (s.hurt ? 0.25 : 0) + (s.down ? 0.1 : 0) - sm.run * 0.08;
+      const nod = Math.sin(t * 1.6) * S.nod + (s.hurt ? 0.25 : 0) + (s.down ? 0.1 : 0) - sm.run * S.lean;
       this.rot(this.head, AX_Z, nod, { axis: AX_Y, angle: sm.turn * 0.35 });
     }
   }

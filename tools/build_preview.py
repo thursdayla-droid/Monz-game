@@ -58,10 +58,12 @@ for p in paths:
                 # 2026-11-03: 15体のモデルで上限(15MB)をこえるので、確認用ページだけ モデルの絵を 512 にする(ゲーム本体はそのまま)
                 try:
                     pim = Image.open(io.BytesIO(data))
-                    if max(pim.size) > 512:
-                        pim.thumbnail((512, 512), Image.LANCZOS)
+                    # 2026-11-04: 2つめのページ(新しい5体)は 15体 + BUNK で 上限をこえるので 400 に
+                    lim = 400 if B3D2 else 512
+                    if max(pim.size) > lim:
+                        pim.thumbnail((lim, lim), Image.LANCZOS)
                         bb = io.BytesIO()
-                        pim.save(bb, 'WEBP', quality=82, method=6)
+                        pim.save(bb, 'WEBP', quality=70 if B3D2 else 82, method=6)
                         data = bb.getvalue()
                         im['mimeType'] = 'image/webp'
                 except Exception:

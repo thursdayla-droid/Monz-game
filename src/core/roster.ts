@@ -48,9 +48,27 @@ export const MODEL_FILES: Record<string, string> = {
   riot: 'assets/battle3d/riot.glb',
   'riot:2': 'assets/battle3d/rioter.glb',
   'riot:3': 'assets/battle3d/riotrax.glb',
+  // SNEK・GRIT・VYBE・SHELLZ(企画者の Tripo モデル・骨入り 2026-11-04。どれも アニメーションは入っていない → 骨を 動かす)。元は design/battle3d/<種族>/
+  snek: 'assets/battle3d/snek.glb',
+  'snek:2': 'assets/battle3d/sneker.glb',
+  'snek:3': 'assets/battle3d/snekxus.glb',
+  grit: 'assets/battle3d/grit.glb',
+  'grit:2': 'assets/battle3d/gritter.glb',
+  'grit:3': 'assets/battle3d/gritbull.glb',
+  vybe: 'assets/battle3d/vybe.glb',
+  'vybe:2': 'assets/battle3d/vyga.glb',
+  'vybe:3': 'assets/battle3d/vygard.glb',
+  shellz: 'assets/battle3d/shellz.glb',
+  'shellz:2': 'assets/battle3d/sheld.glb',
+  'shellz:3': 'assets/battle3d/sheldozer.glb',
 };
-/** 骨の動かし方(四つ足の けもの = 'quad'。ないものは 今まで通り 骨の形から決める) */
-export const MODEL_RIG: Record<string, 'quad'> = { riot: 'quad', 'riot:2': 'quad', 'riot:3': 'quad' };
+/**
+ * 骨の動かし方(2026-11-04)。'quad:<歩き方>' = 四つ足の けもの(quadBones.ts の QUAD_STYLES)・'snake' = へび(snakeBones.ts)。
+ * ないものは 今まで通り 骨の形から決める(人の形 → 生き物)
+ */
+export type ModelRig = 'auto' | 'snake' | 'quad:wild' | 'quad:heavy' | 'quad:light' | 'quad:turtle';
+const rig3 = (sp: string, r: ModelRig): Record<string, ModelRig> => ({ [sp]: r, [`${sp}:2`]: r, [`${sp}:3`]: r });
+export const MODEL_RIG: Record<string, ModelRig> = { ...rig3('riot', 'quad:wild'), ...rig3('grit', 'quad:heavy'), ...rig3('vybe', 'quad:light'), ...rig3('shellz', 'quad:turtle'), ...rig3('snek', 'snake') };
 /** 骨がずれていて、骨を動かすと形がくずれるモデル(体全体だけで動かす)。今はなし */
 export const MODEL_NO_BONES = new Set<string>();
 /** 腕の攻撃の動きの大きさ(肩が高い・上着があるモデルは、大きく回すとくずれるので小さく)【仮】 */
@@ -59,7 +77,7 @@ export const MODEL_ATTACK_AMP: Record<string, number> = { bunk: 1, 'bunk:2': 0.8
 export const MODEL_HEIGHT = [1.55, 1.8, 2.0];
 
 /** そのレベルで使う3Dモデル(今の形態のモデルがなければ、1つ前の形態のモデル)。なければ null(仮のモンスター) */
-export function modelFor(species: string, level: number): { file: string; form: number; height: number; bones: boolean; amp: number; rig: 'auto' | 'quad' } | null {
+export function modelFor(species: string, level: number): { file: string; form: number; height: number; bones: boolean; amp: number; rig: ModelRig } | null {
   for (let f = formAt(level); f >= 1; f--) {
     const key = f === 1 ? species : `${species}:${f}`;
     const file = MODEL_FILES[key];
