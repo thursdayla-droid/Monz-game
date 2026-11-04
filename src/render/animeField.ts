@@ -1228,7 +1228,7 @@ export class AnimeField {
     const rig = this.rigs[i];
     let grow = 1;
     if (a.k === 'tech') {
-      const aiming = !a.fired && (st === 'track' || st === 'snipe' || st === 'pinpoint' || st === 'rail');
+      const aiming = !a.fired && (st === 'sweep' || st === 'snipe' || st === 'pinpoint' || st === 'rail');
       if (aiming) {
         // ねらいの線: 赤く(ライトレールは 地面に 光の線)。ためるほど 太く 明るく
         const w = Math.min(1, a.t / a.windup);
@@ -1256,15 +1256,59 @@ export class AnimeField {
       }
       if (st === 'inflate' && !a.fired) grow = 1 + 1.2 * Math.min(1, a.t / a.windup);
       if (st === 'bigPress' && a.fired && f.y > 0) grow = 1.55;
-      if (st === 'harden' && dt > 0 && Math.random() < dt * 30) {
+      if (st === 'elastic' && dt > 0 && Math.random() < dt * 30) {
         const p = this.sprite(0xc0ffb0);
         p.position.set(f.x + (Math.random() - 0.5) * 1.2, f.y + Math.random() * 1.4, f.z + (Math.random() - 0.5) * 1.2);
         this.add(p, 0.4, -0.5, 0.4);
       }
     }
+    // ジップタックル: ためている間 体が 消えかける(ちらちら)
+    rig.root.visible = !(a.k === 'tech' && st === 'vanishTackle' && !a.fired && Math.sin(performance.now() / 25) > -0.6);
+    // 残光ステップ中: 黄色い残像が ずっと のこる
+    if (dt > 0 && b.t < (f.blinkUntil ?? 0) && Math.random() < dt * 25) {
+      const g = this.sprite(0xffe060);
+      g.position.set(f.x, f.y + 0.75, f.z);
+      this.add(g, 0.3, -0.2, 1.5);
+    }
+    // ぐにゃりスリップ中: 足もとが 緑に てかてか
+    if (dt > 0 && b.t < (f.slipUntil ?? 0) && Math.random() < dt * 20) {
+      const g = this.sprite(0x9af07a);
+      g.position.set(f.x + (Math.random() - 0.5) * 0.8, 0.08, f.z + (Math.random() - 0.5) * 0.8);
+      this.add(g, 0.5, 0.6, 0.5);
+    }
     // 体の大きさ(なめらかに もどる)
     const cur = rig.root.scale.x;
     rig.root.scale.setScalar(cur + (grow - cur) * Math.min(1, dt * 12 + (dt === 0 ? 0 : 0.05)));
+  }
+
+  private tetherObjs: THREE.Mesh[] = [];
+  /** エナジーぷにドレイン: PUNI から相手へ のびる 緑の触手(ぴくぴく 動いて、光の粒が PUNI へ もどる) */
+  private drawTethers(b: AnimeBattle, dt: number): void {
+    while (this.tetherObjs.length < b.tethers.length) {
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 8), new THREE.MeshToonMaterial({ color: 0x7ad85a, gradientMap: this.gradient }));
+      this.scene.add(m);
+      this.tetherObjs.push(m);
+    }
+    this.tetherObjs.forEach((m, i) => {
+      const th = b.tethers[i];
+      m.visible = !!th;
+      if (!th) return;
+      const ow = b.f[th.owner];
+      const tg = b.f[th.owner === 0 ? 1 : 0];
+      const ax = ow.x;
+      const az = ow.z;
+      const dx = tg.x - ax;
+      const dz = tg.z - az;
+      const len = Math.hypot(dx, dz);
+      m.position.set(ax + dx / 2, 0.8 + Math.sin(performance.now() / 70) * 0.05, az + dz / 2);
+      m.rotation.set(0, -Math.atan2(dz, dx), Math.PI / 2);
+      m.scale.set(0.1 + Math.sin(performance.now() / 60) * 0.02, len, 0.1);
+      if (dt > 0 && Math.random() < dt * 20) {
+        const p = this.sprite(0xc0ffa0);
+        p.position.set(tg.x, 0.8, tg.z);
+        this.add(p, len / 8, -0.3, 0.35, { vx: -dx / len * 8, vz: -dz / len * 8, vy: 0 });
+      }
+    });
   }
 
   /** 十字・線の場(クロスワイヤー・雷走ブレイカーの電気の線) */
@@ -1632,6 +1676,7 @@ export class AnimeField {
     });
     this.drawShots(b, dt);
     this.drawTraps(b);
+    this.drawTethers(b, dt);
     this.drawBeams(b);
     this.drawQuakes(b);
     this.drawRoarsFields(b, dt);
@@ -1743,6 +1788,28 @@ export class AnimeField {
           const k = 1 + Math.sin(s.t * 30) * 0.15;
           g.scale.setScalar(k * (1 + s.t * 0.8));
         }
+        continue;
+      }
+      if (s.look === 'ghost') {
+        // 迅雷乱舞の残像: 黄色く光る ZIPP の かげ。走ると 稲妻の線を引く
+        if (!g) {
+          g = new THREE.Group();
+          const body = this.sprite(0xffe060);
+          body.scale.set(1.3, 1.7, 1);
+          const core = this.sprite(0xffffff);
+          core.scale.setScalar(0.7);
+          g.add(body, core);
+          g.userData.px = s.x;
+          g.userData.pz = s.z;
+          this.scene.add(g);
+          this.shotObjs.set(s.id, g);
+        }
+        g.position.set(s.x, 0.85, s.z);
+        const waiting = s.wait !== undefined && s.t < s.wait;
+        ((g.children[0] as THREE.Sprite).material as THREE.SpriteMaterial).opacity = waiting ? 0.35 + Math.sin(performance.now() / 40) * 0.2 : 0.9;
+        if (!waiting && dt > 0) this.bolt(g.userData.px, 0.8, g.userData.pz, s.x, 0.8, s.z, 0.9, 0.2);
+        g.userData.px = s.x;
+        g.userData.pz = s.z;
         continue;
       }
       if (s.tech === 'puniWater' || this.gooIds.has(s.id)) {
@@ -2039,7 +2106,7 @@ export class AnimeField {
       const mat = (m: THREE.Mesh) => m.material as THREE.MeshBasicMaterial;
       // 見た目(2026-11-03): 火柱(赤・橙)・落雷(黄・白)・光の杭(水色・白・細い)・光の砲撃(赤い照準 → 白い光)
       const lk = p.look ?? 'fire';
-      const cols = lk === 'bolt' ? [0xffd23a, 0xfff6a0, 0xffe040, 0xffffff] : lk === 'stake' ? [0x40c0ff, 0xc0f0ff, 0x80e0ff, 0xffffff] : lk === 'beam' ? [0xff2a2a, 0xff8080, 0xfff0a0, 0xffffff] : [0xff3a00, 0xffc040, 0xff4a0a, 0xffd040];
+      const cols = lk === 'rock' ? [0x8a6a40, 0xc0a070, 0x9a7a50, 0xd8c098] : lk === 'bolt' ? [0xffd23a, 0xfff6a0, 0xffe040, 0xffffff] : lk === 'stake' ? [0x40c0ff, 0xc0f0ff, 0x80e0ff, 0xffffff] : lk === 'beam' ? [0xff2a2a, 0xff8080, 0xfff0a0, 0xffffff] : [0xff3a00, 0xffc040, 0xff4a0a, 0xffd040];
       mat(warn).color.setHex(cols[0]);
       mat(rim).color.setHex(cols[1]);
       mat(outer).color.setHex(cols[2]);
@@ -2068,7 +2135,7 @@ export class AnimeField {
       mat(warn).opacity = 0.7 * fade;
       warn.scale.setScalar(p.r * 1.2);
       outer.visible = inner.visible = true;
-      const wob = (1 + Math.sin(performance.now() / 25 + i) * 0.08) * (lk === 'stake' ? 0.45 : lk === 'bolt' ? 0.6 : 1);
+      const wob = (1 + Math.sin(performance.now() / 25 + i) * 0.08) * (lk === 'stake' ? 0.45 : lk === 'bolt' ? 0.6 : lk === 'rock' ? 0.8 : 1);
       outer.scale.set(p.r * wob * (0.8 + 0.3 * grow), h, p.r * wob * (0.8 + 0.3 * grow));
       outer.position.y = h / 2;
       inner.scale.set(p.r, h * 1.05, p.r);

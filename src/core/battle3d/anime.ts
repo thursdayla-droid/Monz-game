@@ -446,7 +446,8 @@ function startTech(b: AnimeBattle, f: AnimeMon, id: TechId, byCommand: boolean):
   const windup = tech.windup * (1 - Math.min(C.stat.speedWindupMax, f.stats.speed / C.stat.speedWindupDiv)) * (b.t < f.paraUntil ? C.status.paraWindup : 1);
   // ねらう技は ためが長い(ピンポイント弾・スナイプライン)。超膨張インパクトは ふくらむぶん長い
   const st = styleOf(id);
-  const wmul = st === 'pinpoint' ? 1.6 : st === 'snipe' ? 1.5 : st === 'inflate' ? 1.4 : 1;
+  // ジップタックルは 消えかける ためが長い(よける時間)
+  const wmul = st === 'pinpoint' ? 1.6 : st === 'snipe' ? 1.5 : st === 'inflate' ? 1.4 : st === 'vanishTackle' ? 1.8 : 1;
   f.act = { k: 'tech', id, t: 0, dir, fired: false, hit: false, tx: o.x, tz: o.z, windup: windup * wmul, n: 0, next: 0, sx: f.x, sz: f.z, zig: st === 'sidestep' || st === 'flankClamp' || st === 'spiral' ? (b.rng() < 0.5 ? 1 : -1) : 1 };
   f.face = dir;
   // テクニックが高いと、技の待ち時間が少し短い(最大2割。2026-11-02 バランス)
@@ -664,10 +665,10 @@ function fireSpecial(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tec
       // 精密包囲陣: 相手のまわり4か所と まん中に 照準 → いっせいに光の杭(まとめて1回)
       b.seq++;
       const g = b.seq;
-      addStrike(b, f, a.id, o.x, o.z, 0.9, b.t + warn + 0.2, 'stake', pw * 0.7, g);
+      addStrike(b, f, a.id, o.x, o.z, 0.9, b.t + warn + 0.2, 'stake', pw * 0.55, g);
       for (let i = 0; i < 4; i++) {
         const ang = (i * Math.PI) / 2 + Math.PI / 4;
-        addStrike(b, f, a.id, o.x + Math.cos(ang) * 1.5, o.z + Math.sin(ang) * 1.5, 0.9, b.t + warn + 0.2, 'stake', pw * 0.7, g);
+        addStrike(b, f, a.id, o.x + Math.cos(ang) * 1.5, o.z + Math.sin(ang) * 1.5, 0.9, b.t + warn + 0.2, 'stake', pw * 0.55, g);
       }
       return true;
     }
@@ -703,7 +704,7 @@ function fireSpecial(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tec
     case 'homing3':
       // 閃電三連: 体の3方向に電光の矢 → 曲がって相手へ
       // 着く時間を ずらす(1回よけても 次が来る)
-      [-0.95, 0.95, 0].forEach((off, k) => mk(f.x + Math.cos(a.dir + off) * 0.9, f.z + Math.sin(a.dir + off) * 0.9, a.dir + off, tech.speed * (1.25 - k * 0.2), { home: S.homeRate * 1.4 }));
+      [-0.95, 0.95, 0].forEach((off, k) => mk(f.x + Math.cos(a.dir + off) * 0.9, f.z + Math.sin(a.dir + off) * 0.9, a.dir + off, tech.speed * (1.25 - k * 0.2), { home: S.homeRate * 1.15 }));
       a.n = C.barrage.count;
       return true;
     case 'fan':
@@ -718,7 +719,7 @@ function fireSpecial(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tec
         const ang = a0 + (i * Math.PI * 2) / 5;
         let [x, z] = clampField(b, o.x + Math.cos(ang) * S.turretR, o.z + Math.sin(ang) * S.turretR);
         if (b.arena && insideObstacle(b.arena, x, z, 0.6)) [x, z] = clampField(b, o.x + Math.cos(ang) * 3.2, o.z + Math.sin(ang) * 3.2);
-        mk(x, z, ang + Math.PI, tech.speed, { wait: 0.6 + i * 0.15, part: 0.32, life: 0.6 + i * 0.15 + 1.2 });
+        mk(x, z, ang + Math.PI, tech.speed, { wait: 0.6 + i * 0.15, part: 0.25, life: 0.6 + i * 0.15 + 1.2 });
       }
       a.n = C.barrage.count;
       return true;
@@ -730,7 +731,7 @@ function fireSpecial(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tec
         const ang = a0 + (i * Math.PI) / 2 + Math.PI / 4;
         let [x, z] = clampField(b, o.x + Math.cos(ang) * 4.2, o.z + Math.sin(ang) * 4.2);
         if (b.arena && insideObstacle(b.arena, x, z, 0.6)) [x, z] = clampField(b, o.x + Math.cos(ang) * 2.4, o.z + Math.sin(ang) * 2.4);
-        mk(x, z, ang + Math.PI, 26, { wait: 0.1 + i * 0.16, part: 0.32, life: 0.1 + i * 0.16 + 0.5, look: 'ghost', r: 0.7 });
+        mk(x, z, ang + Math.PI, 26, { wait: 0.1 + i * 0.16, part: 0.24, life: 0.1 + i * 0.16 + 0.5, look: 'ghost', r: 0.7 });
       }
       a.n = tech.hits;
       a.hit = true;
@@ -894,7 +895,7 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
         f.face = a.dir;
         if (a.next === 0 && dist(f, o) < C.body.minGap + 0.3 && Math.abs(o.y - f.y) < 1.2) {
           a.next = 1;
-          hit(b, f, o, a.id, (f.x + o.x) / 2, 0.8, (f.z + o.z) / 2, a.dir, { last: a.n === passes - 1, part: a.n === passes - 1 ? 0.4 : 0.2 });
+          hit(b, f, o, a.id, (f.x + o.x) / 2, 0.8, (f.z + o.z) / 2, a.dir, { last: a.n === passes - 1, part: a.n === passes - 1 ? 0.3 : 0.17 });
         }
         if (a.charge >= a.len || edgeness(b, f.x, f.z) > 0.97) {
           a.n++;
@@ -985,7 +986,7 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
         f.z += Math.sin(md) * ms * dt;
         if (dist(f, o) < C.body.minGap + 0.2 && Math.abs(o.y - f.y) < 1.2) {
           a.hit = true;
-          hit(b, f, o, a.id, (f.x + o.x) / 2, 0.8, (f.z + o.z) / 2, a.dir);
+          hit(b, f, o, a.id, (f.x + o.x) / 2, 0.8, (f.z + o.z) / 2, a.dir, st === 'vanishTackle' ? { power: getTech(a.id).power * 0.8 } : {});
           if (st === 'boltTrail') boltTrail(b, f, a);
         }
         return;
@@ -1155,7 +1156,7 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
           if (st === 'crackLine') {
             const dir = angleTo(f, o);
             const pw = C.style.strike[tech.strength] ?? 16;
-            for (let k = 0; k < 3; k++) addStrike(b, f, a.id, f.x + Math.cos(dir) * (1.8 + k * 1.5), f.z + Math.sin(dir) * (1.8 + k * 1.5), 0.85, b.t + 0.12 + k * 0.12, 'rock', pw * 0.35);
+            for (let k = 0; k < 3; k++) addStrike(b, f, a.id, f.x + Math.cos(dir) * (1.8 + k * 1.5), f.z + Math.sin(dir) * (1.8 + k * 1.5), 0.85, b.t + 0.12 + k * 0.12, 'rock', pw * 0.22);
           }
         }
       }

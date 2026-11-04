@@ -813,7 +813,7 @@ export class Battle3DScene extends Phaser.Scene {
         break;
       case 'status':
         this.pop(
-          e.effect === 'ふらつき' ? 'ふらふら！' : e.effect === 'まひ' ? 'しびれた！' : e.effect === 'やけど' ? 'やけどした！' : e.effect === 'どく' ? 'どくを うけた！' : e.effect === 'ねむり' ? 'ねむった…' : e.effect === '防御ダウン' ? 'まもりが下がった！' : e.effect === 'つかまった' ? 'はさまれた！' : e.effect,
+          e.effect === 'ふらつき' ? 'ふらふら！' : e.effect === 'まひ' ? 'しびれた！' : e.effect === 'やけど' ? 'やけどした！' : e.effect === 'どく' ? 'どくを うけた！' : e.effect === 'ねむり' ? 'ねむった…' : e.effect === '防御ダウン' ? 'まもりが下がった！' : e.effect === 'つかまった' ? 'はさまれた！' : e.effect === 'くっついた' ? 'くっついた！' : e.effect === 'すべる' ? 'つるつる すべる！' : e.effect,
           '#ffe040',
         );
         break;
@@ -845,6 +845,15 @@ export class Battle3DScene extends Phaser.Scene {
           F.zap(e.x, 0.4, e.z);
           F.shake(0.22);
           audio.se('punchHeavy', { pitch: 1.8 });
+          break;
+        }
+        if (e.look === 'rock') {
+          // ヘビークラッシュの地割れ: 岩が つき出る
+          F.rocks(e.x, e.z);
+          F.crack(e.x, e.z, 1);
+          F.dust(e.x, e.z, true);
+          F.shake(0.15);
+          audio.se('punchHeavy', { pitch: 0.7 });
           break;
         }
         if (e.look === 'stake' || e.look === 'beam') {
