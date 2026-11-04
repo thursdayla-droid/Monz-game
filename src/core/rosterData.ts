@@ -31,7 +31,7 @@ export const ROSTER_ROWS: RosterRow[] = [
   {"species": "vybe", "form": 1, "name": "VYBE", "body": "四つ足", "element": "雷", "favorite": "テクニック", "memo": "電気のけもの。雷・妨害・テクニック。読み：ヴァイブ（企画者 2026-11-04）。お世話画面の絵 design/species/vybe/care_main_2026-11-04.png"},
   {"species": "vybe", "form": 2, "name": "VYGA", "body": "四つ足", "element": "雷", "favorite": "テクニック", "memo": "Lv.30 で進化。読み：ヴァイガ（企画者 2026-11-04。前の案 VYBER から変更）。絵 design/species/vybe/vyga_form2.png"},
   {"species": "vybe", "form": 3, "name": "VYGARD", "body": "四つ足", "element": "雷", "favorite": "テクニック", "memo": "Lv.60 で進化。読み：ヴァイガルド（企画者 2026-11-04。前の案 VYBOLT から変更）。絵 design/species/vybe/vygard_form3.png"},
-  {"species": "shellz", "form": 1, "name": "SHELLZ", "body": "四つ足", "element": "水", "favorite": "タフネス", "memo": "カメ（甲羅）。甲羅・水圧・はね返し。読み：シェルズ。名前は変わるかもしれない【仮】（2026-11-02 企画者の絵 design/species/shellz/sheet_2026-11-02.png）。絵は属性「地」→ 水にした（企画者 2026-11-02）"},
-  {"species": "shellz", "form": 2, "name": "SHELLKER", "body": "四つ足", "element": "水", "favorite": "タフネス", "memo": "カメ（甲羅）。甲羅・水圧・はね返し。Lv.30 で進化。読み：シェルカー。名前は変わるかもしれない【仮】（絵の「SHEILKER」はまちがい → SHELLKER。企画者 2026-11-02）"},
-  {"species": "shellz", "form": 3, "name": "SHELLBOSS", "body": "四つ足", "element": "水", "favorite": "タフネス", "memo": "カメ（甲羅）。甲羅・水圧・はね返し。Lv.60 で進化。読み：シェルボス。名前は変わるかもしれない【仮】"},
+  {"species": "shellz", "form": 1, "name": "SHELLZ", "body": "四つ足", "element": "水", "favorite": "タフネス", "memo": "こうらの けもの。甲羅・守り・重い。読み：シェルズ（企画者 2026-11-04）。お世話画面の絵 design/species/shellz/care_main_2026-11-04.png（白い背景を消した。元は *_original.png）"},
+  {"species": "shellz", "form": 2, "name": "SHELD", "body": "四つ足", "element": "水", "favorite": "タフネス", "memo": "Lv.30 で進化。読み：シェルド（企画者 2026-11-04）。絵 design/species/shellz/sheld_form2.png"},
+  {"species": "shellz", "form": 3, "name": "SHELDOZER", "body": "四つ足", "element": "水", "favorite": "タフネス", "memo": "Lv.60 で進化。読み：シェルドーザー（企画者 2026-11-04）。絵 design/species/shellz/sheldozer_form3.png（白い背景を消した。元は *_original.png）"},
 ];
