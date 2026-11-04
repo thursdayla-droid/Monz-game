@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { CreatureBones } from './creatureBones';
+import { QuadBones } from './quadBones';
 import { BunkBones, type AttackPose } from './bunkBones';
 import { getTech } from '../core/battle3d/techTable';
 import type { AnimeMon } from '../core/battle3d/anime';
@@ -45,6 +46,9 @@ export class MonsterRig {
   private bones: BunkBones | null = null;
   /** 生き物用の骨(人の形でない骨。MOFU 2026-11-03) */
   private creature: CreatureBones | null = null;
+  /** 四つ足の けもの(RIOT など。2026-11-04) */
+  private quad: QuadBones | null = null;
+  private lastFace: number | null = null;
   private lungeNow = 0;
   /** パンチのグローブの場所(のばしている時だけ。光の演出用) */
   punch(out: THREE.Vector3): { ext: number } | null {
@@ -176,7 +180,7 @@ export class MonsterRig {
    * hue: 色違い(色相を回す角度・ラジアン)。0 = そのまま。
    * 骨入りのモデル(2026-11-01)は、待機・移動を骨で動かす(bunkBones.ts)。骨がないモデルは体全体だけで動かす
    */
-  useModel(src: THREE.Object3D, height: number, hue = 0, useBones = true, amp = 1): void {
+  useModel(src: THREE.Object3D, height: number, hue = 0, useBones = true, amp = 1, rig: 'auto' | 'quad' = 'auto'): void {
     // 骨入りのモデルは、骨ごと写す(ふつうの写し方だと骨とのつながりが切れる)
     const model = SkeletonUtils.clone(src);
     const box = new THREE.Box3().setFromObject(model);
@@ -201,10 +205,13 @@ export class MonsterRig {
     this.body.add(model);
     this.model = model;
     // 骨がずれているモデルは、骨を動かさない(形がくずれないように。体全体だけで動かす)
-    const bones = useBones ? new BunkBones(model, amp) : null;
+    // 四つ足の けもの(企画者「完全な四足歩行」): 人の形の骨・生き物用の骨は 使わない
+    const qb = useBones && rig === 'quad' ? new QuadBones(model) : null;
+    this.quad = qb?.ok ? qb : null;
+    const bones = useBones && !this.quad ? new BunkBones(model, amp) : null;
     this.bones = bones?.ok ? bones : null;
     // 人の形の骨でなければ、生き物用の骨として動かす(触角・足)
-    const cb = useBones && !this.bones ? new CreatureBones(model) : null;
+    const cb = useBones && !this.bones && !this.quad ? new CreatureBones(model) : null;
     this.creature = cb?.ok ? cb : null;
     // 口(技を撃つ所)を、モデルの顔の前に
     this.mouth.position.set(size.x * k * 0.55, height * 0.42, 0);
@@ -472,6 +479,28 @@ export class MonsterRig {
       this.lungeNow += ((atk && !jabbing ? this.bones.lunge : 0) - this.lungeNow) * Math.min(1, dt * 25);
     }
     if (this.creature) this.creature.update(now, Math.min(1, f.speed / 4), a.k === 'down' || a.k === 'ko', a.k === 'tech');
+    if (this.quad) {
+      // 向きが変わる速さ(曲がる時に 頭・しっぽが 動く)
+      const turn = this.lastFace === null || dt <= 0 ? 0 : Math.atan2(Math.sin(f.face - this.lastFace), Math.cos(f.face - this.lastFace)) / dt;
+      this.lastFace = f.face;
+      const sp = a.k === 'dodge' && a.t < 0.3 ? 8 : a.k === 'free' ? f.speed : 0;
+      this.quad.update(now, dt, { speed: sp, air: f.y > 0.05, rising: f.vy > 0, dodge: a.k === 'dodge', hurt: a.k === 'hurt' || a.k === 'air', down: a.k === 'down' || a.k === 'ko', turn });
+      // 四つ足は ぴょこぴょこ はねない(歩く はずみ だけ)。体は 息をするように 少し ふくらむ
+      if (a.k === 'free' && f.y <= 0) {
+        lift = this.quad.bob;
+        const br = Math.sin(now * 3.2 + f.side * 2) * 0.018;
+        sy = 1 + br;
+        sx = 1 - br * 0.5;
+      }
+      // よける: 宙返りは しない。横へ 体を かたむけて とぶ
+      if (a.k === 'dodge') {
+        const p = Math.min(1, a.t / 0.3);
+        rotX = (a.dz > 0 ? 1 : -1) * Math.sin(p * Math.PI) * 0.3;
+        direct = false;
+        sy = 1;
+        sx = 1;
+      }
+    }
     // 企画者のモデルは、形をゆがめないことを最優先(つぶす・のばすを小さくする)
     if (this.model) {
       const q = this.bones ? 0.3 : 0.6;

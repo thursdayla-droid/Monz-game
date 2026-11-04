@@ -284,3 +284,4 @@
 - 2026-11-04：SNEK の進化ラインの名前（企画者）：Lv.1 SNEK（スネーク）→ Lv.30 SNEKER（スネーカー）→ Lv.60 SNEKXUS（スネクサス）。お世話画面用の絵3枚（企画者）を `design/species/snek/` に（care_main_2026-11-04.png・sneker_form2.png・snekxus_form3.png。うしろは もともと透明）
 - 2026-11-04：VYBE の進化ラインの名前（企画者）：Lv.1 VYBE（ヴァイブ）→ Lv.30 VYGA（ヴァイガ）→ Lv.60 VYGARD（ヴァイガルド）。お世話画面用の絵3枚（企画者）を `design/species/vybe/` に（care_main_2026-11-04.png・vyga_form2.png・vygard_form3.png。うしろは もともと透明）
 - 2026-11-04：SHELLZ の進化ラインの名前（企画者）：Lv.1 SHELLZ（シェルズ）→ Lv.30 SHELD（シェルド）→ Lv.60 SHELDOZER（シェルドーザー）。お世話画面用の絵3枚（企画者）を `design/species/shellz/` に（care_main_2026-11-04.png・sheld_form2.png・sheldozer_form3.png。1枚めと3枚めは 白い背景を消した。元は *_original.png）。これで10体全部の お世話画面用の絵がそろった
+- 2026-11-04：RIOT・RIOTER・RIOTRAX の3D骨入りモデル（企画者）を MONZ RUMBLE に入れた。四つ足の歩き方で骨を動かす（アニメーションは入っていなかった）。技は あとで。くわしくは `docs/BATTLE.md`
