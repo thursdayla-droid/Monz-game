@@ -289,3 +289,4 @@
 - 2026-11-04：GRITBULL・SHELDOZER の新しい3Dモデル（企画者。四つ足の骨）に差しかえ。GRITBULL も足を動かすように（前のモデルは `unused/battle3d/`）
 - 2026-11-04：企画者「シェルドーザーはこっちで」→ SHELDOZER は はじめに送られたモデルに もどした
 - 2026-11-04：企画者「これは戦闘BGMにしてください」（Combat Pulse）→ バトルの曲（MONZ RUMBLE・オートバトル・前のバトル画面）を この曲に（前は DASH MONZ の曲）。元は `music/battle_Combat_Pulse.m4a`、ゲーム用は `public/assets/bgm/battle.mp3`（ほかの曲と 音量を そろえた）
+- 2026-11-04：企画者が MONZ RUMBLE の コンボの開発方針を 正式に決めた（コンボの数は 固定しない・「最大5ヒット固定」は やめる など）。今回は 調べて 案を出すだけ（作るのは 企画者の確認のあと）。くわしくは `docs/BATTLE.md`
