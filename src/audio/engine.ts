@@ -123,7 +123,8 @@ class AudioEngine {
   techSe(name: string, kind: string, phase: TechPhase): boolean {
     if (!this.ctx || !this.seBus || this.ctx.state !== 'running') return false;
     // 企画者の音のファイルがある技は、技を出した(さけんだ)時にファイルを鳴らし、出した時の作った音は鳴らさない
-    const file = TECH_SE_FILES[name];
+    // 2026-11-04 企画者「ビーム技ほかのもださいからバンクのビームの音に」→ ビームの型の技は みんな ギガントバーストの音
+    const file = TECH_SE_FILES[name] ?? (kind === 'beam' ? 'b3dGigant' : undefined);
     if (file) {
       if (phase === 'call') {
         this.se(file);
