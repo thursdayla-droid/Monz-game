@@ -665,6 +665,7 @@ export class Battle3DScene extends Phaser.Scene {
     if (animeFinished(b) && !this.ended) this.showResult();
   }
 
+  private breathSndT = -9;
   private fpsEl: HTMLDivElement | null = null;
   private fpsT = 0;
   private fpsN = 0;
@@ -824,6 +825,8 @@ export class Battle3DScene extends Phaser.Scene {
           const mv = atk.act.k === 'tech' && atk.act.mv ? atk.act.mv : atk.jab.moves && atk.act.k === 'tech' ? atk.jab.moves[atk.act.n - 1] : 'punch';
           audio.se(mv === 'clawR' || mv === 'clawL' || mv === 'bite' || mv === 'zap' ? 'b3dPunchHit' : 'b3dStrikeHit');
         }
+        // 爆炎ブレスの 食らう音は 打撃の音(2026-11-05 企画者)
+        else if (e.tech === '爆炎ブレス') audio.se('b3dStrikeHit');
         else if (!audio.techSe(e.tech, ht.kind, 'hit')) audio.se(e.big ? 'punchHeavy' : 'punch', { pitch: 0.9 + Math.random() * 0.2 });
         this.hitStop = Math.max(this.hitStop, [0.06, 0.08, 0.11, 0.15][lvS]);
         if (!e.big && !whip && !mofuHit && !own) F.explode(e.x, e.y, e.z, e.tech, false);
@@ -1010,7 +1013,11 @@ export class Battle3DScene extends Phaser.Scene {
         const fx = e.fx;
         if (fx.includes('claw')) audio.se('mcSlash', { pitch: 1.2 + Math.random() * 0.2 });
         else if (fx.includes('ite') || fx === 'bigJaw') audio.se('whoosh', { pitch: 1.6 });
-        else if (fx === 'flame') audio.se('mcFire', { pitch: 1.3 });
+        else if (fx === 'flame') {
+          // 炎を 吐く 音は 吐きはじめに 1回だけ(当たる音は 打撃の音)
+          if (b.t - this.breathSndT > 0.9) audio.se('mcFire', { pitch: 1.3 });
+          this.breathSndT = b.t;
+        }
         else if (fx.includes('spark') || fx === 'cross') audio.se('mcThunder', { pitch: 1.5 });
         else if (fx.includes('splash') || fx === 'waterTrail' || fx === 'whirl') audio.se('mcWater', { pitch: 1.3 });
         else if (fx === 'stomp' || fx === 'wave') audio.se('slam', { pitch: 1.3 });
