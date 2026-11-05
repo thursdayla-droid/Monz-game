@@ -85,6 +85,12 @@ for p in paths:
             bb = io.BytesIO()
             Image.open(pub + p).resize((300, 417), Image.LANCZOS).save(bb, 'WEBP', quality=72, method=6)
             data = bb.getvalue()
+        elif p.startswith('assets/story/'):
+            # 2026-11-05 STREET KING の 一枚絵(30枚まで 増える): 確認用ページでは 横1280 に(画面いっぱいに 出すのは 同じ。少し ぼける。ゲーム本体は そのまま)
+            bb = io.BytesIO()
+            im = Image.open(pub + p)
+            im.resize((1280, round(im.height * 1280 / im.width)), Image.LANCZOS).save(bb, 'WEBP', quality=40, method=6)
+            data = bb.getvalue()
         elif p.startswith('assets/mythclash/opponents/'):
             # 対戦相手の顔(33人分)は、確認用ページでは 160×160 に小さくする(画面では丸く小さく出すので見た目はほぼ同じ)
             bb = io.BytesIO()
