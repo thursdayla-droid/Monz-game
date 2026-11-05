@@ -219,7 +219,7 @@ it('a just guard also opens a counter; it closes after a short time', () => {
 
 // コンボ5段め(2026-11-05): 空中の追い打ち・たたきつけ・しめ
 it('pressing attack near a launched opponent jumps up for an air follow-up; pressing again keeps juggling, the 3rd spikes them down', () => {
-  for (const sp of ['bunk', 'riot', 'grit', 'snek', 'vybe', 'shellz', 'mofu']) {
+  for (const sp of ['bunk', 'riot', 'grit', 'snek', 'vybe', 'shellz', 'mofu', 'zipp']) {
     const b = newAnimeBattle(e(sp), e(), 1, 'manual');
     const [p, q] = setup(b, 2.4);
     q.act = { k: 'air', t: 0 };

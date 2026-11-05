@@ -504,6 +504,29 @@ export function giveCommand(b: AnimeBattle, side: Side, cmd: Command): boolean {
 
 // ---------------- 行動 ----------------
 
+/** ふっとんで 空中にいる相手の 近く: とび上がって 追い打ち(2026-11-05 コンボ5段め) */
+function startAirChase(b: AnimeBattle, f: AnimeMon, id: TechId, byCommand: boolean): void {
+  const o = other(b, f);
+  if (f.act.k !== 'tech') return;
+  const J = C.juggle;
+  f.act.sp = 'air';
+  f.act.mv = f.jab.moves?.[0] === 'bite' || f.species === 'riot' ? 'bite' : C.powerMoves[f.species]?.[1] ?? 'punch';
+  f.act.windup = J.windup;
+  f.jabChain = 0;
+  // 相手の いる高さまで とぶ(相手の 少し先へ)
+  const ty = Math.max(1, o.y + o.vy * 0.25);
+  f.vy = Math.sqrt(2 * C.gravity * (ty + 0.2));
+  f.y = 0.001;
+  const tUp = f.vy / C.gravity;
+  const gap = Math.max(0, dist(f, o) - C.body.minGap - 0.2);
+  const ang = angleTo(f, o);
+  f.vx = (Math.cos(ang) * gap) / tUp;
+  f.vz = (Math.sin(ang) * gap) / tUp;
+  f.face = ang;
+  f.cooldown[id] = b.t;
+  b.events.push({ kind: 'call', side: f.side, tech: id, byCommand });
+}
+
 function startTech(b: AnimeBattle, f: AnimeMon, id: TechId, byCommand: boolean, cancel = false): void {
   const o = other(b, f);
   const tech = getTech(id);
@@ -528,6 +551,8 @@ function startTech(b: AnimeBattle, f: AnimeMon, id: TechId, byCommand: boolean, 
     : b.t + tech.cooldown * (1 - Math.min(C.stat.techCdMax, f.stats.tech / C.stat.techCdDiv));
   // ZIPP の 電撃ダッシュ: 続けて 押すと コンボ(回数は 形ごと)
   if (tech.kind === 'jab' && f.jab.dash && f.act.k === 'tech') {
+    // 浮いている相手の 近く: 電撃ダッシュの かわりに とび上がって 追い打ち
+    if (f.y <= 0 && canChase(b, f)) return startAirChase(b, f, id, byCommand);
     if (b.t >= f.jabChainUntil) f.jabChain = 0;
     f.jabChain++;
     f.act.n = f.jabChain - 1;
@@ -537,27 +562,7 @@ function startTech(b: AnimeBattle, f: AnimeMon, id: TechId, byCommand: boolean, 
     const ci = b.t < f.jabChainUntil && f.jabChain < f.jab.parts.length ? f.jabChain : 0;
     f.act.n = ci;
     const pm = C.powerMoves[f.species];
-    // ふっとんで 空中にいる相手の 近く: とび上がって 追い打ち(2026-11-05 コンボ5段め)
-    if (pm && f.y <= 0 && canChase(b, f)) {
-      const J = C.juggle;
-      f.act.sp = 'air';
-      f.act.mv = f.jab.moves?.[0] === 'bite' || f.species === 'riot' ? 'bite' : C.powerMoves[f.species][1];
-      f.act.windup = J.windup;
-      f.jabChain = 0;
-      // 相手の いる高さまで とぶ(相手の 少し先へ)
-      const ty = Math.max(1, o.y + o.vy * 0.25);
-      f.vy = Math.sqrt(2 * C.gravity * (ty + 0.2));
-      f.y = 0.001;
-      const tUp = f.vy / C.gravity;
-      const gap = Math.max(0, dist(f, o) - C.body.minGap - 0.2);
-      const ang = angleTo(f, o);
-      f.vx = (Math.cos(ang) * gap) / tUp;
-      f.vz = (Math.sin(ang) * gap) / tUp;
-      f.face = ang;
-      f.cooldown[id] = b.t;
-      b.events.push({ kind: 'call', side: f.side, tech: id, byCommand });
-      return;
-    }
+    if (pm && f.y <= 0 && canChase(b, f)) return startAirChase(b, f, id, byCommand);
     // 走りながら 押した(続きの1発ではない時): ダッシュ攻撃
     if (pm && ci === 0 && f.pad && f.y <= 0 && Math.hypot(f.pad.x, f.pad.z) > 0.6 && Math.hypot(f.vx, f.vz) > walkSpeed(f) * C.pad.speed * C.dashAtk.minSpeed) {
       f.act.sp = 'dash';
@@ -856,7 +861,8 @@ function updateAirChase(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: '
   if (!a.hit) {
     f.face += angDiff(angleTo(f, o), f.face) * 0.3;
     const d3 = Math.hypot(o.x - f.x, o.z - f.z, (o.y - f.y) * 0.8);
-    const reach = f.jab.range + C.body.radius;
+    // とどく長さ(ZIPP の 電撃ダッシュは 短いので 少し のばす)
+    const reach = Math.max(1.6, f.jab.range) + C.body.radius;
     if (d3 < reach && los(b, f, o, f.y + 0.8)) {
       a.hit = true;
       a.next = a.t;
@@ -1037,7 +1043,7 @@ function updateDash(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
     f.z += Math.sin(a.dir) * step;
     a.tx += step;
     a.next = a.t;
-    if (dist(f, o) < C.body.minGap + 0.35 && Math.abs(o.y - f.y) < 1.3) {
+    if (dist(f, o) < C.body.minGap + 0.35 && yOk(b, f, o, 1.3)) {
       a.hit = true;
       hit(b, f, o, a.id, (f.x + o.x) / 2, f.y + 0.7, (f.z + o.z) / 2, a.dir, { last: true, part: P.p0 + (P.p1 - P.p0) * a.n });
     }
@@ -2924,7 +2930,8 @@ function updateMon(b: AnimeBattle, f: AnimeMon, dt: number): void {
 /** 空中の 追い打ちが できるか(ふっとんで 空中にいる相手が 近い) */
 export function canChase(b: AnimeBattle, f: AnimeMon): boolean {
   const o = other(b, f);
-  if (!C.powerMoves[f.species] || !f.jab.parts.length || f.jab.dash || f.jab.water || f.jab.trap) return false;
+  // ZIPP(電撃ダッシュ)も 空中の 追い打ちが できる(2026-11-05 企画者「ジップの空中コンボが繋がらない」)
+  if ((!C.powerMoves[f.species] && !f.jab.dash) || !f.jab.parts.length || f.jab.water || f.jab.trap) return false;
   if (f.act.k === 'hurt' || f.act.k === 'air' || f.act.k === 'down' || f.act.k === 'ko' || f.act.k === 'dodge' || f.act.k === 'guard') return false;
   // 上へ ふっとび始めた 瞬間(まだ 低い)でも できる
   return o.act.k === 'air' && (o.y > C.juggle.minY || o.vy > 1) && dist(f, o) < C.juggle.range && o.juggleN < C.juggle.max;
