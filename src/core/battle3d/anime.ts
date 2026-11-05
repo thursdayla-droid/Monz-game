@@ -1308,6 +1308,13 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
     }
     // 黒蛇玉: へびのように くねくね 進む・黒い息: 遅くて 大きい
     if (st0 === 'weave') shot.zig = 1;
+    // 万象ねむりぷに玉: 大きな ねむりの 玉(少し 遅い)
+    if (st0 === 'sleepOrb') {
+      shot.r *= 1.7;
+      shot.vx *= 0.75;
+      shot.vz *= 0.75;
+      shot.life = 3;
+    }
     // 光狼のキバ: 狼が 相手を 追いかける・雷紋: 大きくなる 輪・泡のつぶて: ゆっくりの 泡(当たると つかまる)
     if (st0 === 'homingWolf') {
       shot.home = 3.2;
@@ -2306,6 +2313,8 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
       const hp0 = tgt.hp;
       const did = hit(b, b.f[s.owner], tgt, s.tech, s.x, s.y, s.z, Math.atan2(s.vz, s.vx), s.part ? { part: s.part } : {});
       // 吸収: 当てたダメージの半分を回復
+      // 万象ねむりぷに玉: 当たると 必ず ねむる
+      if (did && styleOf(s.tech) === 'sleepOrb' && tgt.act.k !== 'ko' && tgt.act.k !== 'air' && setEffect(b, tgt, 'ねむり')) tgt.act = { k: 'hurt', t: 0, until: C.sleep.time };
       // 泡のつぶて: 泡に つつまれて 少し 動けない
       if (did && s.bind && tgt.act.k === 'hurt') {
         tgt.act.until = Math.max(tgt.act.until, s.bind);

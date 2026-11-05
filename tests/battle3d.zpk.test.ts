@@ -248,13 +248,11 @@ describe('技ごとの とくべつな動き (2026-11-03 企画者「そのキ�
     run(b, 1.5);
     expect(b.f[1].hp).toBeLessThan(999);
   });
-  it('万象ぷにドーム: 受け止めたあと はじけて反撃', () => {
-    const b = duel('puni', ['万象ぷにドーム'], ['バンクバッシュ'], 4);
-    use(b, 0, '万象ぷにドーム', 0.3);
-    giveCommand(b, 1, 'バンクバッシュ');
-    const ev = run(b, 8);
-    expect(ev.some((x) => x.kind === 'domeBurst')).toBe(true);
+  it('万象ねむりぷに玉(2026-11-05 万象ぷにドーム から): 相手へ 撃つ 玉・当たると 必ず ねむる', () => {
+    const b = duel('puni', ['万象ねむりぷに玉'], [], 6);
+    use(b, 0, '万象ねむりぷに玉', 2);
     expect(b.f[1].hp).toBeLessThan(999);
+    expect(b.f[1].sleepUntil).toBeGreaterThan(0);
   });
   it('ぷにっと吸引: 当たると 引きよせる', () => {
     const b = duel('puni', ['ぷにっと吸引'], [], 6);

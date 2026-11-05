@@ -230,7 +230,7 @@ export const ANIME = {
     // PUNI(自然・弾力・吸う)
     ぷにタッチ: 'stretch', ぽよん玉: 'arc', ぷにバウンド: 'multiBounce', ぷるんガード: 'jellyBounce', ぽよぽよ連弾: 'skip', ぷにっと吸引: 'pull', 大ぷにプレス: 'bigPress',
     ぷにぷに防壁: 'reflect', ぽよんスパイラル: 'droplets', ぷにトラップ: 'stickyGoo', ぽよん三重波: 'tripleWave', ぐにゃりスリップ: 'slip', ぷに分裂弾: 'split',
-    ぷに触手ドレイン: 'tether', 超弾性チャージ: 'elastic', 超膨張インパクト: 'inflate', 万象ぷにドーム: 'absorbCounter',
+    ぷに触手ドレイン: 'tether', 超弾性チャージ: 'elastic', 超膨張インパクト: 'inflate', 万象ねむりぷに玉: 'sleepOrb',
     // KLAK(罠・ねらい)
     カチンショット: 'soundRing', 横這いタックル: 'sidestep', ピンポイント弾: 'pinpoint', カチカチトラップ: 'miniTraps', 挟撃スナップ: 'snapThrow', 照準ライン: 'sweep',
     重甲クラッシュ: 'crackLine', 鋏盾クランプ: 'clampCounter', 背面クランプ: 'flankClamp', 十字ワイヤー: 'cross', 精密包囲陣: 'stakes', 時限ボム: 'bomb',

@@ -72,7 +72,7 @@ export const TECH_ROWS: TechRow[] = [
   {"species": "puni", "name": "ぷに触手ドレイン", "type": "吸収", "element": "自然", "strength": "強", "level": 45, "condition": "なし", "effect": "なし", "memo": "細い触手をのばして吸う。吸った分 体がふくらむ（2026-11-03 技リスト案から【仮】）"},
   {"species": "puni", "name": "超弾性チャージ", "type": "強化", "element": "無", "strength": "強", "level": 50, "condition": "なし", "effect": "なし", "memo": "体がかたく光る。しばらく攻撃と押し出しが強くなる（2026-11-03 技リスト案から【仮】）"},
   {"species": "puni", "name": "超膨張インパクト", "type": "衝撃波", "element": "無", "strength": "大技", "level": 60, "condition": "第2進化", "effect": "ふらつき", "memo": "フィールドをおおうほどふくらみ、一気にはじける（2026-11-03 技リスト案から【仮】）"},
-  {"species": "puni", "name": "万象ぷにドーム", "type": "守り", "element": "自然", "strength": "大技", "level": 70, "condition": "第2進化", "effect": "なし", "memo": "巨大な半透明のドーム。受けた攻撃をためて反撃(倍率は別に調整)（2026-11-03 技リスト案から【仮】）"},
+  {"species": "puni", "name": "万象ねむりぷに玉", "type": "弾", "element": "自然", "strength": "大技", "level": 70, "condition": "第2進化", "effect": "ねむり", "memo": "相手に向かって 大きな ねむりの ぷに玉を 撃つ。当たると 必ず ねむる（2026-11-05 企画者「万象プニドームは技を変えよう。相手に向かって発射する球の遠隔攻撃。当たると眠るように」で 万象ぷにドーム から 変えた）"},
   {"species": "klak", "name": "カチンショット", "type": "弾", "element": "無", "strength": "弱", "level": 1, "condition": "なし", "effect": "なし", "memo": "はさみを打ち鳴らして音の玉を飛ばす（2026-11-03 技リスト案から【仮】）"},
   {"species": "klak", "name": "横這いタックル", "type": "突進", "element": "無", "strength": "弱", "level": 1, "condition": "なし", "effect": "なし", "memo": "はさみを閉じたまま、横歩きから急に前へ（2026-11-03 技リスト案から【仮】）"},
   {"species": "klak", "name": "ピンポイント弾", "type": "弾", "element": "光", "strength": "弱", "level": 5, "condition": "なし", "effect": "なし", "memo": "照準の光が相手に重なってから、細い光の弾（2026-11-03 技リスト案から【仮】）"},

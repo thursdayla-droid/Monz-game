@@ -165,6 +165,7 @@ export const isSupportTech = (id: string): boolean => ['heal', 'buff', 'barrier'
  */
 export const TECH_RENAME: Record<string, string> = {
   火花爪: '火花',
+  万象ぷにドーム: '万象ねむりぷに玉',
   王者の牙: '王者の爪',
   ハネツキラッシュ: '跳ねつき連撃',
   ゴウリキクラッシュ: '剛力クラッシュ',
