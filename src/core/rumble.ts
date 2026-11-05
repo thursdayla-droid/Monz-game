@@ -76,6 +76,7 @@ export const STORY_IMAGES: Record<number, string> = {
   4: 'assets/story/ch1_04.webp', // 1章4話 RIOT(2026-11-05 企画者)
   5: 'assets/story/ch1_05.webp', // 1章5話 VYBE(中ボス。2026-11-05 企画者)
   6: 'assets/story/ch2_06.webp', // 2章6話 ZIPP(2026-11-05 企画者)
+  7: 'assets/story/ch2_07.webp', // 2章7話 KLAK(2026-11-05 企画者)
 };
 
 /** 話(企画者が 書いた 文。ステージの 番号 → 題名と 行) */
