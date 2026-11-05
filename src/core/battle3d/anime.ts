@@ -1095,10 +1095,14 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
       healMon(b, f, (f.maxHp * tech.power) / 100, '回復');
     } else if (tech.kind === 'buff') {
       const what = BUFF_WHAT[a.id] ?? 'atk';
-      if (what === 'def') {
-        f.defUp = tech.power / 100;
+      if (what === 'def' || what === 'both') {
+        f.defUp = tech.power / 100 * (what === 'both' ? 0.7 : 1);
         f.defUpUntil = b.t + tech.duration;
-      } else {
+      }
+      if (what === 'both') {
+        f.atkUp = (tech.power / 100) * 0.7;
+        f.atkUpUntil = b.t + tech.duration;
+      } else if (what !== 'def') {
         f.atkUp = tech.power / 100;
         f.atkUpUntil = b.t + tech.duration;
         if (what === 'speed') f.burstUntil = b.t + tech.duration;
@@ -1106,7 +1110,8 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
       // 残光ステップ: しばらく よけるのが 速く 遠く。超弾性チャージ: しばらく ふっとばす力が強い
       if (st === 'afterimage') f.blinkUntil = b.t + tech.duration;
       if (st === 'elastic') f.knockUpUntil = b.t + tech.duration;
-      b.events.push({ kind: 'buff', side: f.side, what });
+      b.events.push({ kind: 'buff', side: f.side, what: what === 'both' ? 'atk' : what });
+      if (what === 'both') b.events.push({ kind: 'buff', side: f.side, what: 'def' });
     } else if (tech.kind === 'drain') shoot(a.dir);
     else if (tech.kind === 'barrier') {
       f.barrierUntil = b.t + tech.duration;
@@ -1460,7 +1465,10 @@ function jabFor(e: AnimeEntrant): AnimeMon['jab'] {
 }
 
 /** 強化の技が何を上げるか(技の名前で決める。ない技は攻撃)【案】 */
-const BUFF_WHAT: Record<string, 'atk' | 'def' | 'speed'> = { もりの息吹: 'def', アイアンボディ: 'def', グランドアンカー: 'def', 残光ステップ: 'speed', 超弾性チャージ: 'atk', ヒートロア: 'atk', レイジブースト: 'atk', 帯電チャージ: 'atk' };
+const BUFF_WHAT: Record<string, 'atk' | 'def' | 'speed' | 'both'> = {
+  // 2026-11-05 新しい5体(攻撃の速さアップ は 速さ に。攻撃と守り は 両方)【仮】
+  獣性ブースト: 'atk', 踏ん張り: 'def', 大地の構え: 'def', 黒鱗: 'speed', 電気のリズム: 'speed', 親分の意地: 'both',
+  もりの息吹: 'def', アイアンボディ: 'def', グランドアンカー: 'def', 残光ステップ: 'speed', 超弾性チャージ: 'atk', ヒートロア: 'atk', レイジブースト: 'atk', 帯電チャージ: 'atk' };
 /** 自分の まわりに置く場(中にいると自分が回復・守られる)の技 */
 const SELF_FIELD = SELF_FIELD_TECHS;
 
@@ -1931,6 +1939,8 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
       q.hit = true;
       if (!los(b, q, tgt, 0.9)) {
         // 柱のうしろ: 声はとどかない
+      } else if (floating(tgt)) {
+        // 浮いている相手には とどかない(地面の近くを 広がる 声。2026-11-05 企画者「空中の相手にはあたらない」)
       } else if (tgt.act.k === 'dodge' && tgt.act.t < C.dodge.invincible) evaded(b, tgt);
       else if (tgt.act.k !== 'ko') {
         // 弱体の効果は技の表の追加効果(攻撃ダウン・ねむり・遅くする)

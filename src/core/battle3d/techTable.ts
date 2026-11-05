@@ -17,6 +17,8 @@ export interface TechRow {
   condition: string;
   effect: string;
   memo: string;
+  /** 相手を浮かせるか(true: 浮かせる・false: 浮かせない・なし: 型の ふつう)(2026-11-05 新しい5体) */
+  lift?: boolean;
 }
 
 /** 技の型(表の「型」)→ 計算での種類。【仮】まだ作っていない型は null(表に書くとテストで分かる) */
@@ -107,7 +109,7 @@ export function buildTech(row: TechRow): TableTech {
     range: base.range * (kind === 'quake' || kind === 'drop' ? m.area : 1),
     size: base.size * (kind === 'beam' || kind === 'drop' || kind === 'barrier' || kind === 'shot' || kind === 'field' || kind === 'pillar' ? m.area : 1),
     duration: base.duration * (kind === 'barrier' ? m.area : 1),
-    launch: base.launch * (st === '大技' ? 1.3 : 1),
+    launch: row.lift === false ? 0 : row.lift === true ? Math.max(5, base.launch) * (st === '大技' ? 1.3 : 1) : base.launch * (st === '大技' ? 1.3 : 1),
     knock: base.knock * (st === '強' ? 1.2 : st === '大技' ? 1.5 : 1),
     strength: st,
     effect: row.effect as Effect,
