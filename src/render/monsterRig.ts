@@ -12,6 +12,35 @@ import type { ModelRig } from '../core/roster';
 import { BunkBones, type AttackPose } from './bunkBones';
 import { getTech } from '../core/battle3d/techTable';
 import type { AnimeMon } from '../core/battle3d/anime';
+import { ANIME } from '../core/battle3d/animeConfig';
+
+/**
+ * 新しい5体の 通常攻撃の 1発の 進みぐあい(2026-11-05 企画者「その場で何してるか全然わからない」)。
+ * up: ため(体を引く・前足を上げる。打つ瞬間に 0)・hit: 打つ(当たる瞬間に 1 → もどる)・spin: 回る技の 回りぐあい(0〜1)
+ */
+export interface MonMovePose {
+  move: string;
+  up: number;
+  hit: number;
+  spin: number;
+}
+const ease = (x: number) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+export function monMovePose(f: AnimeMon): MonMovePose | null {
+  const a = f.act;
+  if (a.k !== 'tech' || !f.jab.moves || getTech(a.id).kind !== 'jab') return null;
+  const i = a.hit ? a.n - 1 : a.n;
+  const move = f.jab.moves[Math.max(0, i)];
+  const mv = ANIME.monMove[move];
+  if (!mv) return null;
+  const tW = Math.max(0.01, a.windup);
+  const tI = tW + mv.d * 0.45;
+  const tE = tW + mv.d;
+  const t = a.t;
+  const w = ease(t / tW);
+  const s = ease((t - tW) / (tI - tW));
+  const fo = ease((t - tI) / (tE - tI));
+  return { move, up: w * (1 - s), hit: s * (1 - fo), spin: ease((t - tW * 0.6) / (tE - tW * 0.6)) };
+}
 
 /** 色違い: テクスチャの色の色相を回す(明るさは同じ) */
 function shiftHue(mat: THREE.MeshStandardMaterial, angle: number): void {
@@ -54,6 +83,8 @@ export class MonsterRig {
   private snake: SnakeBones | null = null;
   private lastFace: number | null = null;
   private lungeNow = 0;
+  /** 新しい5体の 通常攻撃で 体を前へ出す量 */
+  private monFwd = 0;
   /** パンチのグローブの場所(のばしている時だけ。光の演出用) */
   punch(out: THREE.Vector3): { ext: number } | null {
     const b = this.bones;
@@ -262,7 +293,50 @@ export class MonsterRig {
     // 進む向き(体の前・横)で、体をかたむける
     const fwd = f.vx * Math.cos(f.face) + f.vz * Math.sin(f.face);
     const side = -f.vx * Math.sin(f.face) + f.vz * Math.cos(f.face);
-    if (a.k === 'tech') {
+    const mp = monMovePose(f);
+    this.monFwd = 0;
+    if (mp) {
+      // 新しい5体の 通常攻撃: ためで 体を引き、とびこんで 打つ(体ぜんたいで 大きく見せる。2026-11-05)
+      const { up, hit } = mp;
+      const sgn = mp.move === 'clawL' ? -1 : 1;
+      // 動きは 短いので ばねを通さず そのまま(おくれて 小さく見えないように)
+      direct = true;
+      if (mp.move === 'clawR' || mp.move === 'clawL') {
+        // 前足で ひっかく: 体を起こして 前足を上げ → ななめに 振りおろす
+        rotZ = 0.5 * up - 0.25 * hit;
+        lift = 0.25 * up;
+        rotY = sgn * (-0.45 * up + 0.4 * hit);
+        rotX = sgn * 0.15 * up;
+        this.monFwd = -0.15 * up + 0.45 * hit;
+      } else if (mp.move === 'bite') {
+        // かみつく: 頭を引いて → 前へ のびて かむ
+        rotZ = 0.25 * up - 0.3 * hit;
+        lift = 0.06 * up;
+        this.monFwd = -0.3 * up + 0.7 * hit;
+      } else if (mp.move === 'head') {
+        // 頭突き: 頭を下げて 体を引き → 体ごと ぶつかる
+        rotZ = -0.2 * up - 0.35 * hit;
+        lift = -0.05 * up + 0.08 * hit;
+        this.monFwd = -0.45 * up + 0.8 * hit;
+      } else if (mp.move === 'shoulder') {
+        // 体当たり(肩): 体を 横へ ひねって → 肩から ぶつかる
+        rotY = -0.9 * up + 0.35 * hit;
+        rotX = 0.25 * hit;
+        this.monFwd = -0.25 * up + 0.7 * hit;
+      } else if (mp.move === 'shell' || mp.move === 'tail') {
+        // 甲羅・しっぽ: その場で ぐるっと 1回まわる(甲羅を ぶつける・しっぽで はらう)
+        rotY = -Math.PI * 2 * mp.spin;
+        lift = mp.move === 'shell' ? -0.05 * (up + hit) : 0;
+        rotZ = mp.move === 'shell' ? -0.06 * hit : 0;
+        this.monFwd = 0.25 * hit;
+      } else if (mp.move === 'zap') {
+        // 電気: 体を ためて → 口を前へ つきだす
+        rotZ = 0.3 * up - 0.15 * hit;
+        sy = 1 - 0.08 * up;
+        rotY = Math.sin(now * 70) * 0.06 * up;
+        this.monFwd = -0.2 * up + 0.35 * hit;
+      }
+    } else if (a.k === 'tech') {
       const tech = getTech(a.id);
       const w = Math.min(1, a.t / a.windup);
       if (!a.fired) {
@@ -494,7 +568,7 @@ export class MonsterRig {
       const turn = this.lastFace === null || dt <= 0 ? 0 : Math.atan2(Math.sin(f.face - this.lastFace), Math.cos(f.face - this.lastFace)) / dt;
       this.lastFace = f.face;
       const sp = a.k === 'dodge' && a.t < 0.3 ? 8 : a.k === 'free' ? f.speed : 0;
-      this.quad.update(now, dt, { speed: sp, air: f.y > 0.05, rising: f.vy > 0, dodge: a.k === 'dodge', hurt: a.k === 'hurt' || a.k === 'air', down: a.k === 'down' || a.k === 'ko', turn });
+      this.quad.update(now, dt, { speed: sp, air: f.y > 0.05, rising: f.vy > 0, dodge: a.k === 'dodge', hurt: a.k === 'hurt' || a.k === 'air', down: a.k === 'down' || a.k === 'ko', turn, atk: mp });
       // 四つ足は ぴょこぴょこ はねない(歩く はずみ だけ)。体は 息をするように 少し ふくらむ。重い種族は 左右に ゆれる
       if (a.k === 'free' && f.y <= 0) {
         lift = this.quad.bob;
@@ -516,7 +590,7 @@ export class MonsterRig {
       const turn = this.lastFace === null || dt <= 0 ? 0 : Math.atan2(Math.sin(f.face - this.lastFace), Math.cos(f.face - this.lastFace)) / dt;
       this.lastFace = f.face;
       const sp = a.k === 'dodge' && a.t < 0.3 ? 8 : a.k === 'free' ? f.speed : 0;
-      this.snake.update(now, dt, { speed: sp, air: f.y > 0.05, dodge: a.k === 'dodge', hurt: a.k === 'hurt' || a.k === 'air', down: a.k === 'down' || a.k === 'ko', turn });
+      this.snake.update(now, dt, { speed: sp, air: f.y > 0.05, dodge: a.k === 'dodge', hurt: a.k === 'hurt' || a.k === 'air', down: a.k === 'down' || a.k === 'ko', turn, atk: mp });
       // へびは はねない。地面を すべるように、体ごと 左右に くねる。息で 少し ふくらむ
       if (a.k === 'free' && f.y <= 0) {
         lift = 0;
@@ -558,7 +632,7 @@ export class MonsterRig {
     b.rotation.set(rx, rotY, rz);
     b.position.y = this.spring('lift', lift, dt, 400, 18);
     // (腕のないモデルのタックルは、上で前へ出している)
-    if (a.k !== 'tech' || getTech(a.id).kind !== 'beam') b.position.x = this.lungeNow * 0.35 * (this.model ? this.model.scale.x / 1.8 : 1);
+    if (a.k !== 'tech' || getTech(a.id).kind !== 'beam') b.position.x = this.lungeNow * 0.35 * (this.model ? this.model.scale.x / 1.8 : 1) + this.monFwd;
     this.armL.rotation.set(0, 0, arm * 0.9 + Math.sin(now * 9) * 0.05);
     this.armR.rotation.set(0, 0, arm * 0.9 - Math.sin(now * 9) * 0.05);
     this.legL.rotation.set(0, 0, legSwing);

@@ -86,3 +86,21 @@ it('PUNI / KLAK normal attacks keep their cooldown (no rapid fire)', () => {
     expect((p.cooldown.punch ?? 0) > b.t).toBe(true);
   }
 });
+
+it('new 5 species: each press is one move (claw, bite, headbutt...), mashing connects the whole chain', () => {
+  for (const sp of ['riot', 'snek', 'grit', 'vybe', 'shellz']) {
+    for (const form of [1, 2, 3]) {
+      const b = newAnimeBattle(e(sp, form), e(), 1, 'manual');
+      const [p] = setup(b, 2.2);
+      const want = ANIME.monJab[sp][form - 1].moves.length;
+      expect(p.jab.moves?.length).toBe(want);
+      const ev = run(b, 20 * want + 40, 9);
+      const hits = ev.filter((x) => x.kind === 'hit').length;
+      const top = Math.max(0, ...ev.map((x) => (x.kind === 'combo' ? x.n : 0)));
+      expect(hits, `${sp} ${form}`).toBeGreaterThanOrEqual(want);
+      expect(top, `${sp} ${form}`).toBeGreaterThanOrEqual(want);
+      // とびこむので 前へ出ている
+      expect(p.x).toBeGreaterThan(0.2);
+    }
+  }
+});

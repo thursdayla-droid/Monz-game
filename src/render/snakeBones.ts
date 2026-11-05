@@ -28,6 +28,8 @@ export interface SnakeState {
   hurt: boolean;
   down: boolean;
   turn: number;
+  /** 通常攻撃の 1発(2026-11-05。monsterRig の monMovePose) */
+  atk?: { move: string; up: number; hit: number; spin: number } | null;
 }
 
 export class SnakeBones {
@@ -112,19 +114,25 @@ export class SnakeBones {
     const n = this.neck.length;
     // 首: S字に くねる(下と上で 逆向き)。曲がる時は 頭が 先に向く。待機は ゆっくり ゆらゆら
     const sway = 0.05 + 0.1 * sm.walk + 0.04 * sm.run;
+    const at = s.atk;
+    // かみつく(2026-11-05): 首を うしろへ 引いて S字に ためる → 前へ のびて かむ(下の骨ほど 引き・上の骨ほど つきだす)
+    const bite = at && at.move === 'bite' ? at : null;
     this.neck.forEach((j, i) => {
       const u = n > 1 ? i / (n - 1) : 1;
       const wave = Math.sin(this.phase - i * 1.1) * sway * (i % 2 ? -1 : 1) * 0.6 + Math.sin(t * 1.1 + i) * 0.02 * (1 - sm.walk);
-      const yaw = wave + sm.turn * 0.18 * (0.4 + u);
+      const yaw = wave * (bite ? 0.3 : 1) + sm.turn * 0.18 * (0.4 + u);
       // 前へ 進むほど 首を 少し前へ・やられると のけぞる・たおれると 下へ
-      const pitch = -sm.run * 0.06 + sm.hurt * 0.14 - sm.down * 0.2 + Math.sin(t * 1.6) * 0.015 + sm.air * 0.05;
+      let pitch = -sm.run * 0.06 + sm.hurt * 0.14 - sm.down * 0.2 + Math.sin(t * 1.6) * 0.015 + sm.air * 0.05;
+      if (bite) pitch += (0.32 - 0.1 * u) * bite.up - (0.18 + 0.22 * u) * bite.hit;
       this.rot(j, yaw, pitch, wave * 0.3);
     });
     // とぐろ・しっぽ: 首より おくれて 少しだけ ゆれる(先ほど 大きく)
     const m = this.coil.length;
     this.coil.forEach((j, i) => {
       const u = m > 1 ? i / (m - 1) : 1;
-      const yaw = Math.sin(this.phase - 1.6 - i * 0.7) * (0.02 + 0.05 * sm.walk) * (0.4 + u) - sm.turn * 0.06 * u + Math.sin(t * 0.9 + i) * 0.01;
+      let yaw = Math.sin(this.phase - 1.6 - i * 0.7) * (0.02 + 0.05 * sm.walk) * (0.4 + u) - sm.turn * 0.06 * u + Math.sin(t * 0.9 + i) * 0.01;
+      // しっぽで はらう: 回る間 しっぽを 外へ のばして 大きく ふる
+      if (at && at.move === 'tail') yaw += (0.25 * at.up - 0.35 * at.hit) * (0.3 + u);
       this.rot(j, yaw, 0);
     });
     // 体ぜんたい: 進む時に 左右へ くねる(すべるように)・よける時は 大きく かたむく

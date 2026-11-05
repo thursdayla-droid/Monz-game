@@ -40,6 +40,8 @@ export interface QuadState {
   down: boolean;
   /** 向きが変わる速さ(ラジアン/秒。+ = 左回り) */
   turn: number;
+  /** 通常攻撃の 1発(2026-11-05。monsterRig の monMovePose) */
+  atk?: { move: string; up: number; hit: number; spin: number } | null;
 }
 
 /**
@@ -226,10 +228,21 @@ export class QuadBones {
       a += sm.brace * (l.front ? 0.18 : -0.18);
       // たおれた: 足は 少し前へ(力がぬける)
       if (s.down) a = l.front ? 0.35 : 0.2;
+      // ひっかく: その側の 前足を 大きく上げて → 振りおろす。ほかの足は ふんばる
+      const at = s.atk;
+      const claw = at && (at.move === 'clawR' || at.move === 'clawL') && l.front && l.left === (at.move === 'clawL');
+      let curl = 0;
+      if (at) {
+        if (claw) {
+          a = 1.25 * at.up - 0.35 * at.hit;
+          curl = 0.7 * at.up;
+        } else if (at.move === 'head' || at.move === 'shoulder' || at.move === 'bite') a += (l.front ? -0.15 : 0.25) * at.up + (l.front ? 0.2 : -0.3) * at.hit;
+        else a += (l.front ? 0.12 : -0.12) * (at.up + at.hit);
+      }
       this.rot(l.root, AX_Z, a);
       if (l.knee) {
         // ひざ: 足を前へ出す時に まげる(前足と うしろ足で 逆)
-        const lift = Math.max(0, Math.cos(ph)) * amp * 1.1 + land * S.landBend + sm.air * 0.3;
+        const lift = Math.max(0, Math.cos(ph)) * amp * 1.1 + land * S.landBend + sm.air * 0.3 + curl;
         this.rot(l.knee, AX_Z, (l.front ? -1 : 1) * lift);
       }
     }
@@ -243,8 +256,18 @@ export class QuadBones {
     });
     // 頭: 息をするように 少し うなずく・曲がる方を 向く・やられると のけぞる
     if (this.head) {
-      const nod = Math.sin(t * 1.6) * S.nod + (s.hurt ? 0.25 : 0) + (s.down ? 0.1 : 0) - sm.run * S.lean;
-      this.rot(this.head, AX_Z, nod, { axis: AX_Y, angle: sm.turn * 0.35 });
+      let nod = Math.sin(t * 1.6) * S.nod + (s.hurt ? 0.25 : 0) + (s.down ? 0.1 : 0) - sm.run * S.lean;
+      let yaw = sm.turn * 0.35;
+      // 攻撃: かむ・電気 = 頭を上へ引いて → 前へ つきだす。頭突き = 頭を下げる。体当たり = 頭を 横へ。甲羅 = 首を すくめる
+      const at = s.atk;
+      if (at) {
+        if (at.move === 'bite' || at.move === 'zap') nod += 0.4 * at.up - 0.45 * at.hit;
+        else if (at.move === 'head') nod += -0.3 * at.up - 0.35 * at.hit;
+        else if (at.move === 'shoulder') yaw += 0.35 * at.up;
+        else if (at.move === 'shell') nod += 0.3 * (at.up + at.hit);
+        else if (at.move === 'clawR' || at.move === 'clawL') nod += -0.15 * at.hit;
+      }
+      this.rot(this.head, AX_Z, nod, { axis: AX_Y, angle: yaw });
     }
   }
 }

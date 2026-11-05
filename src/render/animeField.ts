@@ -1038,6 +1038,85 @@ export class AnimeField {
     }
   }
 
+  /**
+   * 新しい5体の 通常攻撃の 1発(当たらなくても 出す。2026-11-05 企画者「その場で何してるか全然わからない」)。
+   * (x, z): 打った側の場所・dir: 向き・reach: とどく長さ・h: 体の高さ
+   * 爪 = 3本の ひっかき線 / かみつき = 上下の キバが とじる / 頭突き・体当たり = 前へ 風の輪 / 甲羅・しっぽ = 体のまわりを 回る 弧 / 電気 = 口から 稲妻
+   */
+  monSwing(x: number, z: number, dir: number, move: string, reach: number, h: number, last: boolean): void {
+    const cx = x + Math.cos(dir) * reach * 0.75;
+    const cz = z + Math.sin(dir) * reach * 0.75;
+    const y = h;
+    const mat = (color: number) => new THREE.MeshBasicMaterial({ color, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
+    if (move === 'clawR' || move === 'clawL') {
+      const sgn = move === 'clawL' ? -1 : 1;
+      for (let i = -1; i <= 1; i++) {
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(1.25, 0.075), mat(i ? 0xffffff : 0xff5a3a));
+        m.position.set(cx, y, cz);
+        m.lookAt(this.camera.position);
+        m.rotateZ(sgn * 0.85);
+        m.translateY(i * 0.2);
+        this.add(m, 0.24, 0.35, last ? 1.3 : 1);
+      }
+      return;
+    }
+    if (move === 'bite') {
+      // 上と下の キバ(白い弧)が まん中へ とじる
+      for (const up of [1, -1]) {
+        const arc = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.07, 6, 18, Math.PI), mat(0xffffff));
+        arc.position.set(cx, y, cz);
+        arc.lookAt(this.camera.position);
+        if (up < 0) arc.rotateZ(Math.PI);
+        const off = new THREE.Vector3(0, up * 0.32, 0).applyQuaternion(arc.quaternion);
+        const base = arc.position.clone();
+        this.add(arc, 0.22, 0.2, last ? 1.3 : 1, { tick: (k) => arc.position.copy(base).addScaledVector(off, 1 - Math.min(1, k * 2.5)) });
+      }
+      return;
+    }
+    if (move === 'head' || move === 'shoulder') {
+      // 前へ つっこむ 風(輪と 線)
+      this.shockRing(cx, y, cz, 0xffffff, last ? 0.9 : 0.6);
+      for (let i = 0; i < 5; i++) {
+        const sp = this.sprite(0xfff0c0, true, this.star);
+        sp.position.set(x + Math.cos(dir) * 0.4, y + (Math.random() - 0.5) * 0.5, z + Math.sin(dir) * 0.4);
+        const a = dir + (Math.random() - 0.5) * 0.5;
+        this.add(sp, 0.2, -0.4, 0.22, { vx: Math.cos(a) * 9, vz: Math.sin(a) * 9 });
+      }
+      return;
+    }
+    if (move === 'shell' || move === 'tail') {
+      // 体のまわりを まわる 弧(甲羅は 水色・しっぽは 紫)
+      const col = move === 'shell' ? 0x7ae0ff : 0xc08aff;
+      const arc = new THREE.Mesh(new THREE.TorusGeometry(reach * 0.75, 0.08, 6, 32, Math.PI * 1.3), mat(col));
+      arc.position.set(x, move === 'shell' ? h * 0.8 : 0.35, z);
+      arc.rotation.x = -Math.PI / 2;
+      const r0 = -dir - Math.PI * 0.8;
+      arc.rotation.z = r0;
+      this.add(arc, 0.26, 0.15, 1, { tick: (k) => { arc.rotation.z = r0 - k * 2.2; } });
+      return;
+    }
+    if (move === 'zap') {
+      this.bolt(x + Math.cos(dir) * 0.6, y, z + Math.sin(dir) * 0.6, x + Math.cos(dir) * (reach + 0.4), y, z + Math.sin(dir) * (reach + 0.4), last ? 1.4 : 1);
+      this.bolt(x + Math.cos(dir) * 0.6, y, z + Math.sin(dir) * 0.6, x + Math.cos(dir + 0.25) * reach, y + 0.2, z + Math.sin(dir + 0.25) * reach, 0.6);
+    }
+  }
+
+  /** 新しい5体の 通常攻撃が 当たった(動きごとの 光。さいごの1発は 大きく ゆれる) */
+  monHit(x: number, y: number, z: number, dir: number, move: string, last: boolean): void {
+    const st = this.sprite(0xffffff, true, this.star);
+    st.position.set(x, y, z);
+    this.add(st, 0.2, 2.6, last ? 1.2 : 0.8);
+    if (move === 'clawR' || move === 'clawL') this.rushHit(x, y, z, dir, 0xff5a3a, last);
+    else if (move === 'bite') this.rushHit(x, y, z, dir, 0xffffff, last);
+    else if (move === 'head' || move === 'shoulder') {
+      this.shockRing(x, y, z, 0xffc040, last ? 1.6 : 1.1);
+      this.rushHit(x, y, z, dir, 0xffa040, last);
+    } else if (move === 'shell') this.spinHit(x, y, z, 0x7ae0ff);
+    else if (move === 'tail') this.spinHit(x, y, z, 0xc08aff);
+    else if (move === 'zap') this.zap(x, y, z);
+    this.shake(last ? 0.3 : 0.12);
+  }
+
   /** ツルのムチが当たった: 葉っぱが くるくる回りながら はじける・緑の光の輪 */
   whipHit(x: number, y: number, z: number, last: boolean): void {
     for (let i = 0; i < (last ? 16 : 10); i++) {

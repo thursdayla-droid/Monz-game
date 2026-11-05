@@ -136,7 +136,7 @@ export interface AnimeMon {
    */
   pad: { x: number; z: number } | null;
   /** 通常攻撃(形態で変わる) */
-  jab: { parts: number[]; range: number; step: number; fire: number; whip?: boolean; dash?: number; water?: number; trap?: number };
+  jab: { parts: number[]; range: number; step: number; fire: number; whip?: boolean; dash?: number; water?: number; trap?: number; moves?: string[] };
   /** ZIPP の電撃ダッシュ: こうげきボタンを押している間 true(画面が入れる。AI は使わない) */
   hold?: boolean;
   /** 受け身の予約(空中で よける を押した) */
@@ -492,6 +492,12 @@ function startTech(b: AnimeBattle, f: AnimeMon, id: TechId, byCommand: boolean):
   if (tech.kind === 'jab' && !f.jab.dash && !f.jab.water && !f.jab.trap && f.act.k === 'tech') {
     const ci = b.t < f.jabChainUntil && f.jabChain < f.jab.parts.length ? f.jabChain : 0;
     f.act.n = ci;
+    // 新しい5体: 動きごとの ため。当たるのは とびこんだ あと(打つ時間の 45%)
+    const mv = f.jab.moves && C.monMove[f.jab.moves[ci]];
+    if (mv) {
+      f.act.windup = windup * (mv.w / tech.windup);
+      f.act.next = f.act.windup + mv.d * 0.45;
+    }
     f.jabChain = ci + 1;
     const last = f.jabChain >= f.jab.parts.length;
     if (last) f.jabChain = 0;
@@ -1128,7 +1134,15 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
     case 'jab': {
       // 通常攻撃: その場で前へパンチ。当たったら続けて3連まで(外れたら そこで終わり)。空中でも出せる
       // 進化した通常攻撃: 打ちながら少し前へ出る(近すぎるときは出ない)
-      if ((!a.hit || a.t < a.next) && f.jab.step > 0 && f.y <= 0 && dist(f, o) > C.body.minGap + 0.1) {
+      const mv = f.jab.moves && C.monMove[f.jab.moves[a.hit ? a.n - 1 : a.n]];
+      if (mv) {
+        // 新しい5体: 当たるまで 相手へ とびこむ
+        if (!a.hit && f.y <= 0 && dist(f, o) > C.body.minGap + 0.1) {
+          const v = (mv.step / (mv.d * 0.45)) * dt;
+          f.x += Math.cos(f.face) * v;
+          f.z += Math.sin(f.face) * v;
+        }
+      } else if ((!a.hit || a.t < a.next) && f.jab.step > 0 && f.y <= 0 && dist(f, o) > C.body.minGap + 0.1) {
         const v = (f.jab.step / tech.duration) * dt;
         f.x += Math.cos(f.face) * v;
         f.z += Math.sin(f.face) * v;
@@ -1137,10 +1151,10 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
         const reach = f.jab.range + C.body.radius;
         const ok = dist(f, o) < reach && los(b, f, o, f.y + 0.8) && Math.abs(angDiff(angleTo(f, o), f.face)) < (f.jab.whip ? 0.6 : 0.9) && Math.abs(o.y - f.y) < 1.3;
         a.n++;
-        a.next = a.t + tech.duration;
+        a.next = a.t + (mv ? mv.d * 0.55 : tech.duration);
         b.events.push({ kind: 'comboHit', side: f.side, n: a.n });
         const parts = f.jab.parts;
-        if (ok) hit(b, f, o, a.id, (f.x + o.x) / 2, f.y + 0.8, (f.z + o.z) / 2, f.face, { last: a.n >= parts.length, part: parts[a.n - 1] });
+        if (ok) hit(b, f, o, a.id, (f.x + o.x) / 2, f.y + 0.8, (f.z + o.z) / 2, f.face, { last: a.n >= parts.length, part: parts[a.n - 1], stun: mv ? C.monStun : undefined });
         // 1回押すと1発だけ(つづきは もう一度 押す。2026-11-04 企画者)
         f.jabChainUntil = b.t + tech.duration + C.chain.press;
         {
@@ -1232,6 +1246,9 @@ function jabFor(e: AnimeEntrant): AnimeMon['jab'] {
   // PUNI は 水の玉(遠くから1発)・KLAK は はさみトラップ(前に罠を置く)(2026-11-03 企画者)
   if (e.species === 'puni') return { parts: [1], range: C.puniShot.byForm[form - 1].range, step: 0, fire: 0, water: form };
   if (e.species === 'klak') return { parts: [1], range: C.klakTrap.ahead, step: 0, fire: 0, trap: form };
+  // 新しい5体: 種族ごとの 爪・かみつき・頭突き など(2026-11-05)
+  const mj = C.monJab[e.species]?.[form - 1];
+  if (mj) return { parts: mj.parts, range: mj.range, step: 0, fire: 0, moves: mj.moves };
   const j = { ...C.jabByForm[form - 1] };
   if (e.species !== 'bunk') j.fire = 0;
   return j;
@@ -1394,7 +1411,7 @@ function applyEffect(b: AnimeBattle, o: AnimeMon, tech: ReturnType<typeof getTec
 }
 
 /** 当たり → ダメージ・吹っ飛び */
-function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y: number, z: number, dir: number, opt: { last?: boolean; part?: number; power?: number; unblockable?: boolean } = {}): boolean {
+function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y: number, z: number, dir: number, opt: { last?: boolean; part?: number; power?: number; unblockable?: boolean; stun?: number } = {}): boolean {
   if (o.act.k === 'ko' || o.act.k === 'victory') return false;
   if (b.t < o.safeUntil || o.act.k === 'down') return false;
   // 守りのドームの中 → 止める
@@ -1486,8 +1503,8 @@ function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y:
     o.act = { k: 'air', t: 0 };
   } else {
     // 長いコンボほど ひるむ時間が短い(ぬけやすい)
-    const decay = Math.max(C.chain.stunMin, 1 - C.chain.stunStep * Math.max(0, comboN - 3));
-    o.act = { k: 'hurt', t: 0, until: sleep ? C.sleep.time : (finish ? C.hurt.stun : C.combo.stun) * decay };
+    const decay = Math.max(C.chain.stunMin, 1 - C.chain.stunStep * Math.max(0, comboN - 7));
+    o.act = { k: 'hurt', t: 0, until: sleep ? C.sleep.time : (finish ? C.hurt.stun : opt.stun ?? C.combo.stun) * decay };
   }
   if (comboN >= 2) b.events.push({ kind: 'combo', side: f.side, n: comboN });
   // 長すぎるコンボは 必ず ぬけられる(少しのあいだ 当たらない)

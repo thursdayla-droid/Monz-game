@@ -87,6 +87,53 @@ export const ANIME = {
     { parts: [0.3, 0.3, 0.4, 0.6], range: 2.2, step: 0.35, fire: 1 },
     { parts: [0.28, 0.28, 0.32, 0.4, 0.72], range: 2.5, step: 0.45, fire: 2 },
   ] as { parts: number[]; range: number; step: number; fire: number }[],
+  /**
+   * 新しい5体の通常攻撃(2026-11-05 企画者「新しい5体の攻撃が良くない・その場で何してるか全然わからない」。型は docs/BATTLE.md の 10種族の表)【仮】。
+   * moves: 1発ずつの 動き(押すたびに 次)。parts: 1発の 強さ。range: とどく長さ(1発ごとに 前へ とびこむ step も 足される)
+   */
+  monJab: {
+    riot: [
+      { moves: ['clawR', 'clawL', 'bite'], parts: [0.3, 0.3, 0.45], range: 1.5 },
+      { moves: ['clawR', 'clawL', 'bite', 'head'], parts: [0.28, 0.28, 0.34, 0.55], range: 1.6 },
+      { moves: ['clawR', 'clawL', 'bite', 'head'], parts: [0.3, 0.3, 0.38, 0.7], range: 1.7 },
+    ],
+    snek: [
+      { moves: ['bite', 'bite', 'tail', 'bite'], parts: [0.22, 0.22, 0.28, 0.36], range: 1.8 },
+      { moves: ['bite', 'bite', 'tail', 'bite', 'tail'], parts: [0.22, 0.22, 0.26, 0.28, 0.42], range: 1.9 },
+      { moves: ['bite', 'bite', 'tail', 'bite', 'bite', 'tail'], parts: [0.22, 0.22, 0.26, 0.26, 0.28, 0.5], range: 2.0 },
+    ],
+    grit: [
+      { moves: ['head', 'shoulder'], parts: [0.45, 0.65], range: 1.5 },
+      { moves: ['head', 'shoulder', 'bite'], parts: [0.42, 0.5, 0.7], range: 1.6 },
+      { moves: ['head', 'shoulder', 'bite'], parts: [0.46, 0.56, 0.85], range: 1.7 },
+    ],
+    vybe: [
+      { moves: ['clawR', 'clawL', 'clawR', 'clawL', 'zap'], parts: [0.18, 0.18, 0.18, 0.2, 0.3], range: 1.5 },
+      { moves: ['clawR', 'clawL', 'clawR', 'clawL', 'zap', 'zap'], parts: [0.18, 0.18, 0.18, 0.18, 0.22, 0.34], range: 1.6 },
+      { moves: ['clawR', 'clawL', 'clawR', 'clawL', 'zap', 'clawR', 'zap'], parts: [0.18, 0.18, 0.18, 0.18, 0.22, 0.22, 0.4], range: 1.7 },
+    ],
+    shellz: [
+      { moves: ['head', 'shell'], parts: [0.45, 0.6], range: 1.5 },
+      { moves: ['head', 'shell'], parts: [0.5, 0.7], range: 1.6 },
+      { moves: ['head', 'head', 'shell'], parts: [0.42, 0.46, 0.8], range: 1.7 },
+    ],
+  } as Record<string, { moves: string[]; parts: number[]; range: number }[]>,
+  /**
+   * 動きごとの 時間(w: ため・d: 打つ〜もどる。ためが長いと 分かりやすい。w+d+0.04 が monStun より 短いこと)・step: とびこむ長さ(m)【仮】
+   * clawR/clawL: 前足で ひっかく・bite: かみつく・head: 頭突き・shoulder: 体当たり(肩)・shell: 甲羅を まわして ぶつける・tail: しっぽを まわして たたく・zap: 口から 電気
+   */
+  monMove: {
+    clawR: { w: 0.12, d: 0.2, step: 0.3 },
+    clawL: { w: 0.12, d: 0.2, step: 0.3 },
+    bite: { w: 0.13, d: 0.2, step: 0.4 },
+    head: { w: 0.15, d: 0.2, step: 0.5 },
+    shoulder: { w: 0.15, d: 0.2, step: 0.55 },
+    shell: { w: 0.12, d: 0.22, step: 0.35 },
+    tail: { w: 0.12, d: 0.22, step: 0.1 },
+    zap: { w: 0.12, d: 0.2, step: 0.15 },
+  } as Record<string, { w: number; d: number; step: number }>,
+  /** 新しい5体の 通常攻撃の とちゅうの1発で 相手が ひるむ時間(動きが 長いぶん BUNK の 0.3秒より 長い)【仮】 */
+  monStun: 0.45,
   /** 最終進化のパンチから飛ぶ火の玉が消えるまでの時間(15×0.27 ≒ 4m)【仮】 */
   punchFire: { life: 0.27 },
   /**
