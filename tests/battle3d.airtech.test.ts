@@ -39,3 +39,39 @@ it('techs that look like they can reach a launched (floating) opponent connect a
   // ほとんどが つながる(ためが とても長い技・遠くに 置く技 などは 間に合わない ことがある)
   expect(miss.length, miss.join(' ')).toBeLessThanOrEqual(Math.floor(n * 0.25));
 });
+
+it('on a floating opponent, a tech that hits can be followed at once by another tech (tech → tech combo), and they stay floating', () => {
+  const b = newAnimeBattle(e('bunk', ['バンクバッシュ', 'ネライウチバースト']), e('bunk', []), 3, 'manual');
+  const [p, q] = b.f;
+  p.pad = { x: 0, z: 0 };
+  q.pad = { x: 0, z: 0 };
+  p.x = 0; p.z = 0; q.x = 2.2; q.z = 0; p.face = 0; q.thinkT = 99;
+  q.act = { k: 'air', t: 0 }; q.y = 1.2; q.vy = 7; q.floatUntil = ANIME.juggle.floatTime; q.comboN = 2; q.comboLast = 0; q.comboStart = 0;
+  giveCommand(b, 0, 'バンクバッシュ');
+  const ev: typeof b.events = [];
+  let pressed = false;
+  for (let i = 0; i < 120; i++) {
+    b.events = []; stepAnime(b, ANIME.dt); ev.push(...b.events);
+    if (!pressed && b.events.some((x) => x.kind === 'hit' && x.side === 0)) { pressed = true; expect(q.act.k).toBe('air'); giveCommand(b, 0, 'ネライウチバースト'); }
+  }
+  expect(ev.some((x) => x.kind === 'cancel' && x.tech === 'ネライウチバースト')).toBe(true);
+  expect(ev.filter((x) => x.kind === 'hit' && x.side === 0).length).toBeGreaterThanOrEqual(2);
+});
+
+it('a floating opponent that is not hit again for a while drops and lands on its feet (no knock-down); a spike only knocks down briefly', () => {
+  const b = newAnimeBattle(e('bunk', []), e('bunk', []), 3, 'manual');
+  const q = b.f[1];
+  b.f[0].pad = { x: 0, z: 0 };
+  q.pad = { x: 0, z: 0 };
+  q.x = 3; q.act = { k: 'air', t: 0 }; q.y = 2; q.vy = 2; q.floatUntil = ANIME.juggle.floatTime; q.comboN = 2; q.comboLast = 0;
+  const ev: typeof b.events = [];
+  for (let i = 0; i < 120; i++) { b.events = []; stepAnime(b, ANIME.dt); ev.push(...b.events); }
+  expect(ev.some((x) => x.kind === 'ukemi' && x.side === 1)).toBe(true);
+  expect(q.act.k).not.toBe('down');
+  // たたきつけ: たおれるのは 短い
+  q.act = { k: 'air', t: 0 }; q.y = 1; q.vy = -14; q.spiked = true; q.ukemi = false;
+  for (let i = 0; i < 10 && q.y > 0; i++) stepAnime(b, ANIME.dt);
+  for (let i = 0; i < 3; i++) stepAnime(b, ANIME.dt);
+  const qa = q.act as { k: string; until?: number };
+  expect(qa.k === 'down' && qa.until).toBe(ANIME.juggle.spikeDown);
+});

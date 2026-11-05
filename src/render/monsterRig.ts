@@ -495,7 +495,9 @@ export class MonsterRig {
       sx = 1 + 0.2 * p;
       sy = 1 - 0.2 * p;
     } else if (a.k === 'air') {
-      rotZ = 0.6 + a.t * 10;
+      // ふっとんで 浮いている: 横に たおれた形(ころがらない。浮いているのが 分かるように 2026-11-05 企画者「横になっててほしい」)
+      rotX = (f.side ? -1 : 1) * Math.PI * 0.45;
+      rotZ = Math.sin(now * 6) * 0.08;
       direct = true;
     } else if (a.k === 'down' || a.k === 'ko') {
       rotZ = Math.PI / 2;

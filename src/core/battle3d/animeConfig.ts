@@ -140,7 +140,7 @@ export const ANIME = {
    * cancel: 通常攻撃が 当たった あと すぐ 技を押すと、すきなく 技が出る(windup: ためが この割合に 短くなる)
    * moves: 種族ごとの 強い1発・ダッシュ攻撃の 動き([ためた1発, ダッシュ])
    */
-  power: { hold: 0.22, max: 0.8, auto: 1.6, strike: 0.18, follow: 0.24, stepMin: 0.7, stepMax: 1.6, partMin: 1.0, partMax: 1.7, launchMin: 6.5, launchMax: 9, knock: 1.1 },
+  power: { hold: 0.22, max: 0.8, auto: 1.6, strike: 0.18, follow: 0.24, stepMin: 0.7, stepMax: 1.6, partMin: 1.0, partMax: 1.7, launchMin: 8, launchMax: 11, knock: 1.1 },
   dashAtk: { minSpeed: 0.7, windup: 0.05, strike: 0.26, follow: 0.26, step: 2.2, part: 1.0, knock: 2.6 },
   cancel: { windup: 0.7 },
   /**
@@ -155,9 +155,11 @@ export const ANIME = {
    * finish: コンボ(minCombo 発め 以上)の さいごの1発は しめ: 大きく ふっとばす(launch・knock)・少し強い(part)
    */
   // 2026-11-05 企画者「追い打ちよく分からなかった・できない」→ 待ち時間の間でも 押せる・ふっとんだ相手は ふわっと ゆっくり落ちる(float 倍の重さ・floatTime 秒)・こうげきボタンが 金色に光る
-  juggle: { range: 6, minY: 0.35, windup: 0.04, strike: 0.32, follow: 0.3, part: 0.9, pop: 6, max: 3, spike: -14, float: 0.45, floatTime: 1.3 },
+  juggle: { range: 6, minY: 0.35, windup: 0.04, strike: 0.32, follow: 0.3, part: 0.9, pop: 7, max: 3, spike: -14, float: 0.45, floatTime: 1.3, techPop: 4, drop: 0.8, spikeDown: 0.35, cancel: 0.6 },
   // 2026-11-05 企画者「もう少し相手浮き上がって良いかも」→ ふっとぶ高さ 6.5→8・ためた1発 5〜8→6.5〜9・追い打ち 4.5→6
-  finish: { minCombo: 4, launch: 8, knock: 1.3, part: 1.25 },
+  // 2026-11-05 企画者「もう少し上に上がって良いな」→ 8→10・ためた1発 6.5〜9→8〜11・追い打ち 6→7
+  // techPop: 浮いている相手に 技が当たると 少し浮く・drop: 浮いている相手に この秒数 当てないと コンボが切れて 落ちて 立つ・spikeDown: たたきつけた後 たおれている時間・cancel: 浮いた相手に 技が当たってから この秒数は 次の技へ つなげる
+  finish: { minCombo: 4, launch: 10, knock: 1.3, part: 1.25 },
   powerMoves: {
     bunk: ['punch', 'punch'],
     mofu: ['whip', 'whip'],

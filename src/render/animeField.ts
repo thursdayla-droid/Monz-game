@@ -2404,7 +2404,8 @@ export class AnimeField {
     const dist = 7.5 + Math.min(sep, 16) * 0.45;
     const camH = 3.6 + Math.min(sep, 16) * 0.18;
     const want = new THREE.Vector3(mid.x + Math.cos(this.camYaw) * dist, camH, mid.z + Math.sin(this.camYaw) * dist);
-    const look = new THREE.Vector3(mid.x, 0.9 + Math.max(p.y, q.y) * 0.25, mid.z);
+    // 高く ふっとんだ時は カメラも 上を 見る(画面の上から 出ないように 2026-11-05)
+    const look = new THREE.Vector3(mid.x, 0.9 + Math.max(p.y, q.y) * 0.5, mid.z);
     // マップ: 柱・壁で 自分の MONZ が かくれる時は、カメラを 見える向きへ回す。だめなら前へ・上へ。
     // 壁や柱の中・外の壁の外へも出ない(2026-11-03 ロストテンプル)
     if (this.arena) {
@@ -2462,6 +2463,7 @@ export class AnimeField {
       }
       want.y = Math.max(want.y, obstacleTop(A, want.x, want.z, 0.6) + 1.2, 1.2);
     }
+    want.y += Math.max(0, Math.max(p.y, q.y) - 1) * 0.35;
     this.camPos.lerp(want, 1 - Math.exp(-dt * 2));
     this.camLook.lerp(look, 1 - Math.exp(-dt * 2.5));
     if (this.arena) {

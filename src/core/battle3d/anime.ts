@@ -139,9 +139,11 @@ export interface AnimeMon {
   jab: { parts: number[]; range: number; step: number; fire: number; whip?: boolean; dash?: number; water?: number; trap?: number; moves?: string[] };
   /** ZIPP の電撃ダッシュ: こうげきボタンを押している間 true(画面が入れる。AI は使わない) */
   hold?: boolean;
-  /** 空中で 追い打ちを 受けた数(着地で 0)・ふわっと ゆっくり落ちる 終わり */
+  /** 空中で 追い打ちを 受けた数(着地で 0)・ふわっと ゆっくり落ちる 終わり・たたきつけられた・浮いた相手に 攻撃が 当たった時刻 */
   juggleN: number;
   floatUntil: number;
+  spiked?: boolean;
+  airHitT?: number;
   /** カウンターが できる 終わりの時刻(よけた・ジャストガードした あと) */
   counterUntil: number;
   /** 通常攻撃ボタンを 押しつづけている時間(ためる強い1発) */
@@ -678,6 +680,8 @@ function updateAirChase(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: '
         o.juggleN++;
         if (spike) {
           o.vy = J.spike;
+          o.spiked = true;
+          o.floatUntil = 0;
           b.events.push({ kind: 'spike', side: f.side, x: o.x, y: o.y, z: o.z });
         }
       }
@@ -1643,6 +1647,7 @@ function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y:
   const part = opt.part ?? 1;
   // ねむっている時に攻撃を受けると起きる。起こした攻撃では ふっとばない(ねむり＋ふっとびで長く動けなくならないように 2026-11-03)
   const wasAsleep = o.sleepUntil > 0 && b.t < o.sleepUntil + 0.3;
+  const wasFloating = floating(o);
   if (b.t < o.sleepUntil) o.sleepUntil = b.t;
   // テクニックが高いと、クリティカル(1.4倍)が出やすい
   const crit = b.rng() < Math.min(0.3, f.stats.tech / C.stat.techCritDiv);
@@ -1705,9 +1710,14 @@ function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y:
   // 追加効果(ふらつき・まひ・やけど・どく・ねむり。こおりは【未実装】)
   let sleep = false;
   if (finish && tech.effect !== 'なし' && b.rng() < EFFECT_CHANCE[tech.strength] + Math.min(0.25, f.stats.tech / C.stat.techEffectDiv)) sleep = setEffect(b, o, tech.effect, big);
-  // ふっとばした(しめ・ためた1発)・追い打ち: しばらく ふわっと ゆっくり落ちる(追い打ちしやすく)
-  if (opt.launch !== undefined || opt.juggle) o.floatUntil = b.t + C.juggle.floatTime;
-  if (opt.juggle && (o.act.k === 'air' || o.y > 0.3)) {
+  // ふっとばした・追い打ち・浮いている相手に 当てた: しばらく ふわっと ゆっくり落ちる(追い打ち・技から技へ つなぎやすく 2026-11-05)
+  if (big || opt.juggle || wasFloating) o.floatUntil = b.t + C.juggle.floatTime;
+  if (wasFloating || opt.juggle) f.airHitT = b.t;
+  if (!opt.juggle && !big && wasFloating && o.act.k === 'air') {
+    // 浮いている相手に 技が 当たった: 浮いたまま 少し 上へ
+    o.vy = Math.max(o.vy, C.juggle.techPop);
+    o.act = { k: 'air', t: 0 };
+  } else if (opt.juggle && (o.act.k === 'air' || o.y > 0.3)) {
     // 空中の 追い打ち: 少し 浮く(ふっとんだ まま)
     o.vy = Math.max(o.vy, C.juggle.pop);
     o.y = Math.max(o.y, 0.001);
@@ -1771,7 +1781,7 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
     s.x += s.vx * dt;
     s.z += s.vz * dt;
     // 浮いている相手へ 向かう弾は 上へも ねらう(2026-11-05 企画者「浮き上がってる時 技もコンボに繋がるよね？」)
-    if (s.vy === undefined && floating(foe) && dist(s, foe) < 6) s.y += clamp(foe.y + 0.7 - s.y, -8 * dt, 8 * dt);
+    if (s.vy === undefined && floating(foe) && dist(s, foe) < 8) s.y += clamp(foe.y + 0.7 - s.y, -22 * dt, 22 * dt);
     // 山なりの弾: 落ちて、地面で はねる(はねたら 次は はじける)
     if (s.vy !== undefined) {
       s.vy -= C.gravity * 0.8 * dt;
@@ -2290,7 +2300,8 @@ function updateMon(b: AnimeBattle, f: AnimeMon, dt: number): void {
           startDodge(b, f, false);
           f.safeUntil = b.t + C.ukemi.safe;
           b.events.push({ kind: 'ukemi', side: f.side });
-        } else f.act = { k: 'down', t: 0, until: C.hurt.down };
+        } else f.act = { k: 'down', t: 0, until: f.spiked ? C.juggle.spikeDown : C.hurt.down };
+        f.spiked = false;
       }
     }
   }
@@ -2374,6 +2385,20 @@ function updateMon(b: AnimeBattle, f: AnimeMon, dt: number): void {
     f.cooldown.punch = 0;
     startTech(b, f, 'punch', true);
     b.events.push({ kind: 'command', side: f.side, cmd: 'punch', state: 'done' });
+  }
+  // 浮いている相手に 技が 当たった すぐあと: 次の 技を 押すと すぐ出る(技 → 技 の コンボ。2026-11-05 企画者)
+  if (f.command && f.act.k === 'tech' && f.act.id !== f.command.cmd && !NOT_TECH.has(f.command.cmd) && b.t - (f.airHitT ?? -9) < C.juggle.cancel && floating(other(b, f)) && (f.cooldown[f.command.cmd] ?? 0) <= b.t) {
+    const c = f.command.cmd as TechId;
+    f.command = null;
+    startTech(b, f, c, true, true);
+    b.events.push({ kind: 'cancel', side: f.side, tech: c });
+    b.events.push({ kind: 'command', side: f.side, cmd: c, state: 'done' });
+  }
+  // 浮いている時: しばらく 当てられないと コンボが切れて、落ちて 立つ(たおれない)
+  if (f.act.k === 'air' && b.t < f.floatUntil && b.t - f.comboLast > C.juggle.drop) {
+    f.floatUntil = 0;
+    f.ukemi = true;
+    f.vy = Math.min(f.vy, -3);
   }
   // 通常攻撃が 当たった あと(すきの間)に 技を押すと、すぐ 技が出る(ためも 短い。2026-11-05 コンボ3段め)
   if (f.command && f.act.k === 'tech' && f.act.id === 'punch' && f.act.hit && f.y <= 0 && !NOT_TECH.has(f.command.cmd) && (f.cooldown[f.command.cmd] ?? 0) <= b.t) {
