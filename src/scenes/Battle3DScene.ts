@@ -428,7 +428,9 @@ export class Battle3DScene extends Phaser.Scene {
         if (!giveCommand(this.battle, 0, 'guard')) audio.se('beep');
         return;
       }
-      if (giveCommand(this.battle, 0, c)) audio.se('select');
+      // 技の ボタンは 企画者の音(2026-11-05 企画者「技のボタン音これにして」)
+      const isTech = c !== 'punch' && c !== 'dodge' && c !== 'jump' && c !== 'guard';
+      if (giveCommand(this.battle, 0, c)) audio.se(isTech ? 'b3dTechBtn' : 'select');
       else audio.se('beep');
     });
     if (c === 'dodge') {

@@ -54,6 +54,7 @@ export type SeName =
   | 'mcSelect'
   | 'b3dPunchHit'
   | 'b3dStrikeHit'
+  | 'b3dTechBtn'
   | 'b3dGigant';
 
 let noise: AudioBuffer | null = null;
@@ -273,6 +274,7 @@ export function playSe(ctx: AudioContext, out: AudioNode, name: SeName, pitch: n
     case 'b3dGigant': // ファイルが読めなかったときの代わり
     case 'b3dPunchHit':
     case 'b3dStrikeHit':
+    case 'b3dTechBtn':
     case 'punch': {
       // バトル: パンチが当たった「バシッ」。p: 強さ(1 ふつう)【仮】
       const o = crunch(ctx, out, 2.5);

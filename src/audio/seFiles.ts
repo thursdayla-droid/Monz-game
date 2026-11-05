@@ -36,6 +36,8 @@ export const SE_FILES: Partial<Record<SeName, { file: string; gain?: number }>> 
   mcSelect: { file: 'assets/se/mythclash/select.mp3' },
   b3dPunchHit: { file: 'assets/se/battle3d/punch_hit.mp3' },
   b3dStrikeHit: { file: 'assets/se/battle3d/strike_hit.mp3' },
+  // 2026-11-05 企画者「技のボタン音これにして」
+  b3dTechBtn: { file: 'assets/se/battle3d/tech_button.mp3' },
   // 2026-11-03 企画者「ギガントバーストこの音にして」(約4秒。ためから光線まで)
   b3dGigant: { file: 'assets/se/battle3d/gigant_burst.mp3' },
 };
