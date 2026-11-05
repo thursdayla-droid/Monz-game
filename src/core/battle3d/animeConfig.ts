@@ -132,6 +132,26 @@ export const ANIME = {
     tail: { w: 0.12, d: 0.22, step: 0.1 },
     zap: { w: 0.12, d: 0.2, step: 0.15 },
   } as Record<string, { w: number; d: number; step: number }>,
+  /**
+   * コンボ3段め(2026-11-05 企画者「進めてよい」)【仮】。BUNK・MOFU・新しい5体だけ(ZIPP・PUNI・KLAK の通常攻撃は そのまま)
+   * power: 通常攻撃ボタンを 押しつづけると ためて、はなすと 強い1発(hold: ため始めるまで 押している時間・max: いっぱいに ためる時間・auto: ここまで 押すと 自分で出る・
+   *   strike: とびこむ時間・follow: 打った あとの すき・step: とびこむ長さ(ため 0〜いっぱい)・part: 強さ(通常攻撃の1発 = 1)・launch: ふっとばす高さ・knock: 押す強さ)
+   * dash: 走りながら 押すと ダッシュ攻撃(minSpeed: 歩く速さの この割合より 速い時・step: すべりこむ長さ・相手を 大きく 押しとばす)
+   * cancel: 通常攻撃が 当たった あと すぐ 技を押すと、すきなく 技が出る(windup: ためが この割合に 短くなる)
+   * moves: 種族ごとの 強い1発・ダッシュ攻撃の 動き([ためた1発, ダッシュ])
+   */
+  power: { hold: 0.22, max: 0.8, auto: 1.6, strike: 0.18, follow: 0.24, stepMin: 0.7, stepMax: 1.6, partMin: 1.0, partMax: 1.7, launchMin: 5, launchMax: 8, knock: 1.6 },
+  dashAtk: { minSpeed: 0.7, windup: 0.05, strike: 0.26, follow: 0.26, step: 2.2, part: 1.0, knock: 2.6 },
+  cancel: { windup: 0.7 },
+  powerMoves: {
+    bunk: ['punch', 'punch'],
+    mofu: ['whip', 'whip'],
+    riot: ['clawR', 'bite'],
+    snek: ['bite', 'bite'],
+    grit: ['head', 'shoulder'],
+    vybe: ['zap', 'clawR'],
+    shellz: ['shell', 'shell'],
+  } as Record<string, [string, string]>,
   /** 新しい5体の 通常攻撃の とちゅうの1発で 相手が ひるむ時間(動きが 長いぶん BUNK の 0.3秒より 長い)【仮】 */
   monStun: 0.45,
   /** 最終進化のパンチから飛ぶ火の玉が消えるまでの時間(15×0.27 ≒ 4m)【仮】 */

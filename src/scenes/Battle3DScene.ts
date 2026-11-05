@@ -187,6 +187,7 @@ export class Battle3DScene extends Phaser.Scene {
   private slowT = 0;
   private zoomT = 0;
   private hitStop = 0;
+  private chargeT = 0;
   private ended = false;
   /** 自分の MONZ のレベル(技枠の数) */
   private level = 1;
@@ -616,6 +617,12 @@ export class Battle3DScene extends Phaser.Scene {
       this.field.zoom += (ANIME.fx.ko.zoom - this.field.zoom) * Math.min(1, real * 20);
     } else this.field.zoom += (1 - this.field.zoom) * Math.min(1, real * 6);
     this.field.render(b, dt > 0 ? dt : real * 0.05);
+    // ためている間: 光の粒(2026-11-05 コンボ3段め)
+    this.chargeT -= dt;
+    if (this.chargeT <= 0) {
+      this.chargeT = 0.05;
+      for (const f of b.f) if (f.act.k === 'tech' && f.act.sp === 'charge' && !f.act.fired) this.field.chargeFx(f.x, f.y + 0.7, f.z, !!f.act.full);
+    }
     this.drawHud();
     if (isPreview()) this.drawFps(real);
     if (animeFinished(b) && !this.ended) this.showResult();
@@ -734,7 +741,7 @@ export class Battle3DScene extends Phaser.Scene {
           F.comboHit(e.x, e.y, e.z, hdir, n, n >= ht.hits, ht.strength === '強' || ht.strength === '大技');
         } else if (ht.kind === 'beam') F.explode(e.x, e.y, e.z, e.tech, true);
         // ツルのムチ(MOFU の通常攻撃): 葉っぱがはじける
-        if (ht.kind === 'jab' && atk.jab.moves && atk.act.k === 'tech') F.monHit(e.x, e.y, e.z, hdir, atk.jab.moves[atk.act.n - 1] ?? 'clawR', atk.act.n >= atk.jab.parts.length);
+        if (ht.kind === 'jab' && atk.jab.moves && atk.act.k === 'tech') F.monHit(e.x, e.y, e.z, hdir, atk.act.mv ?? atk.jab.moves[atk.act.n - 1] ?? 'clawR', !!atk.act.sp || atk.act.n >= atk.jab.parts.length);
         const whip = ht.kind === 'jab' && !!atk.jab.whip;
         if (whip) F.whipHit(e.x, e.y, e.z, atk.act.k === 'tech' && atk.act.n >= atk.jab.parts.length);
         // 雷の技: 短い放電
@@ -752,7 +759,7 @@ export class Battle3DScene extends Phaser.Scene {
         if (ht.kind === 'jab' && b.f[e.side].jab.whip) audio.techSe('', 'whip', 'hit');
         else if (ht.kind === 'jab') {
           // 打撃(BUNK のパンチ・頭突き・体当たり・甲羅・しっぽ)は 企画者の音(2026-11-05)。爪・かみつき・電気は 前の音
-          const mv = atk.jab.moves && atk.act.k === 'tech' ? atk.jab.moves[atk.act.n - 1] : 'punch';
+          const mv = atk.act.k === 'tech' && atk.act.mv ? atk.act.mv : atk.jab.moves && atk.act.k === 'tech' ? atk.jab.moves[atk.act.n - 1] : 'punch';
           audio.se(mv === 'clawR' || mv === 'clawL' || mv === 'bite' || mv === 'zap' ? 'b3dPunchHit' : 'b3dStrikeHit');
         }
         else if (!audio.techSe(e.tech, ht.kind, 'hit')) audio.se(e.big ? 'punchHeavy' : 'punch', { pitch: 0.9 + Math.random() * 0.2 });
@@ -930,6 +937,30 @@ export class Battle3DScene extends Phaser.Scene {
         break;
       case 'comboBreak':
         break;
+      case 'chargeFull': {
+        // ためが いっぱい: 金色の輪・音(2026-11-05 コンボ3段め)
+        const cf = b.f[e.side];
+        F.shockRing(cf.x, cf.y + 0.8, cf.z, 0xffd23a, 1.2);
+        audio.se('select', { pitch: 1.8 });
+        break;
+      }
+      case 'power': {
+        // ためた強い1発・ダッシュ攻撃を 出した
+        const pf = b.f[e.side];
+        F.dust(pf.x, pf.z, true);
+        if (pf.jab.moves) F.monSwing(pf.x, pf.z, pf.face, e.mv, pf.jab.range + 1, pf.y + 0.8, true);
+        else if (pf.jab.whip) F.vineWhip(e.side, pf.face, pf.jab.range + 1.2, 1);
+        else F.shockRing(pf.x + Math.cos(pf.face) * 0.8, pf.y + 0.8, pf.z + Math.sin(pf.face) * 0.8, e.sp === 'charge' ? 0xffd23a : 0xffffff, 1 + e.c * 0.5);
+        audio.se('whoosh', { pitch: e.sp === 'charge' ? 0.6 : 0.8 });
+        break;
+      }
+      case 'cancel': {
+        // 通常攻撃から 技へ つないだ: 白い輪が ぱっと光る
+        const cf = b.f[e.side];
+        F.shockRing(cf.x, cf.y + 0.8, cf.z, 0xffffff, 0.8);
+        audio.se('select', { pitch: 1.5 });
+        break;
+      }
       case 'guardHit':
         // ガードで受けた: 青い光の盾が光る。ジャストガードは 白く強く光って すぐ動ける
         F.guardFlash(e.side, e.just);

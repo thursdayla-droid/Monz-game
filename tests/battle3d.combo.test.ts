@@ -104,3 +104,75 @@ it('new 5 species: each press is one move (claw, bite, headbutt...), mashing con
     }
   }
 });
+
+// コンボ3段め(2026-11-05): ためる強い1発・ダッシュ攻撃・通常攻撃から技へ
+const hold = (b: AnimeBattle, frames: number) => {
+  const ev: AnimeBattle['events'] = [];
+  b.f[0].hold = true;
+  giveCommand(b, 0, 'punch');
+  for (let i = 0; i < frames; i++) { b.events = []; stepAnime(b, ANIME.dt); ev.push(...b.events); }
+  b.f[0].hold = false;
+  return ev;
+};
+
+it('holding the attack button charges; releasing gives a strong hit that launches', () => {
+  for (const sp of ['bunk', 'mofu', 'riot', 'snek', 'grit', 'vybe', 'shellz']) {
+    const b = newAnimeBattle(e(sp), e(), 1, 'manual');
+    const [p, q] = setup(b, 2.2);
+    const ev = hold(b, 75);
+    expect(p.act.k === 'tech' && p.act.sp, sp).toBe('charge');
+    expect(ev.some((x) => x.kind === 'chargeFull'), sp).toBe(true);
+    ev.push(...run(b, 60, 0));
+    expect(ev.some((x) => x.kind === 'power' && x.sp === 'charge'), sp).toBe(true);
+    // ふっとんだ(空中 か たおれた)
+    expect(ev.some((x) => x.kind === 'hit' && x.big), sp).toBe(true);
+    expect(['air', 'down'].includes(q.act.k) || q.y > 0, sp).toBe(true);
+  }
+});
+
+it('a short tap does not charge', () => {
+  const b = newAnimeBattle(e(), e(), 1, 'manual');
+  const [p] = setup(b);
+  b.f[0].hold = true;
+  giveCommand(b, 0, 'punch');
+  for (let i = 0; i < 5; i++) stepAnime(b, ANIME.dt);
+  b.f[0].hold = false;
+  run(b, 40, 0);
+  expect(p.act.k === 'tech' && p.act.sp).toBeFalsy();
+});
+
+it('ZIPP / PUNI / KLAK do not get a charged hit (their normal attacks stay as they are)', () => {
+  for (const sp of ['puni', 'klak']) {
+    const b = newAnimeBattle(e(sp), e(), 1, 'manual');
+    const [p] = setup(b, 3);
+    const ev = hold(b, 75);
+    expect(ev.some((x) => x.kind === 'chargeFull' || x.kind === 'power'), sp).toBe(false);
+    expect(p.act.k === 'tech' && p.act.sp).toBeFalsy();
+  }
+});
+
+it('pressing attack while running gives a dash attack that slides in and knocks far', () => {
+  const b = newAnimeBattle(e('riot'), e(), 1, 'manual');
+  const [p, q] = setup(b, 4.5);
+  p.pad = { x: 1, z: 0 };
+  for (let i = 0; i < 20; i++) stepAnime(b, ANIME.dt);
+  const x0 = p.x;
+  giveCommand(b, 0, 'punch');
+  const ev = run(b, 50, 0);
+  expect(ev.some((x) => x.kind === 'power' && x.sp === 'dash')).toBe(true);
+  expect(p.x - x0).toBeGreaterThan(1.2);
+  expect(ev.some((x) => x.kind === 'hit')).toBe(true);
+  expect(q.x).toBeGreaterThan(4.5);
+});
+
+it('a tech pressed right after a normal hit cancels the recovery (faster wind-up)', () => {
+  const b = newAnimeBattle({ ...e(), techs: ['バンクバッシュ'] }, e(), 1, 'manual');
+  const [p] = setup(b);
+  giveCommand(b, 0, 'punch');
+  let ev = run(b, 8, 0);
+  expect(p.act.k === 'tech' && p.act.id === 'punch' && p.act.hit).toBe(true);
+  expect(giveCommand(b, 0, 'バンクバッシュ')).toBe(true);
+  ev = run(b, 1, 0);
+  expect(ev.some((x) => x.kind === 'cancel')).toBe(true);
+  expect(p.act.k === 'tech' && p.act.id).toBe('バンクバッシュ');
+});

@@ -1101,6 +1101,19 @@ export class AnimeField {
     }
   }
 
+  /** ためている間: 光の粒が 体へ すいこまれる(いっぱいに なると 金色)(2026-11-05) */
+  chargeFx(x: number, y: number, z: number, full: boolean): void {
+    for (let i = 0; i < 2; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = 1.1 + Math.random() * 0.5;
+      const h = (Math.random() - 0.3) * 1.2;
+      const s = this.sprite(full ? 0xffd23a : 0xffffff, true, this.star);
+      s.position.set(x + Math.cos(a) * r, y + h, z + Math.sin(a) * r);
+      const L = 0.22;
+      this.add(s, L, -0.6, full ? 0.3 : 0.22, { vx: (-Math.cos(a) * r) / L, vz: (-Math.sin(a) * r) / L, vy: -h / L });
+    }
+  }
+
   /** 新しい5体の 通常攻撃が 当たった(動きごとの 光。さいごの1発は 大きく ゆれる) */
   monHit(x: number, y: number, z: number, dir: number, move: string, last: boolean): void {
     const st = this.sprite(0xffffff, true, this.star);

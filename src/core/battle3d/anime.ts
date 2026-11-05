@@ -32,7 +32,7 @@ export interface AnimeEntrant {
 
 export type AnimeAct =
   | { k: 'free' }
-  | { k: 'tech'; id: TechId; t: number; dir: number; fired: boolean; hit: boolean; tx: number; tz: number; windup: number; n: number; next: number; charge?: number; len?: number; zig?: number; sx?: number; sz?: number }
+  | { k: 'tech'; id: TechId; t: number; dir: number; fired: boolean; hit: boolean; tx: number; tz: number; windup: number; n: number; next: number; charge?: number; len?: number; zig?: number; sx?: number; sz?: number; sp?: 'charge' | 'dash'; mv?: string; tf?: number; full?: boolean }
   | { k: 'dodge'; t: number; dx: number; dz: number; jump: boolean }
   /** ガード中(until: CPU が やめる時間。自分で動かす時は ボタンを はなすまで) */
   | { k: 'guard'; t: number; until: number }
@@ -139,6 +139,8 @@ export interface AnimeMon {
   jab: { parts: number[]; range: number; step: number; fire: number; whip?: boolean; dash?: number; water?: number; trap?: number; moves?: string[] };
   /** ZIPP の電撃ダッシュ: こうげきボタンを押している間 true(画面が入れる。AI は使わない) */
   hold?: boolean;
+  /** 通常攻撃ボタンを 押しつづけている時間(ためる強い1発) */
+  holdT?: number;
   /** 受け身の予約(空中で よける を押した) */
   ukemi: boolean;
 }
@@ -238,6 +240,10 @@ export type AnimeEvent =
   | { kind: 'combo'; side: Side; n: number }
   /** 長いコンボから ぬけた(受けた側 side) */
   | { kind: 'comboBreak'; side: Side }
+  /** ためた強い1発・ダッシュ攻撃を 出した(mv: 動き)・ためが いっぱい・通常攻撃から 技へ つないだ */
+  | { kind: 'power'; side: Side; sp: 'charge' | 'dash'; mv: string; c: number }
+  | { kind: 'chargeFull'; side: Side }
+  | { kind: 'cancel'; side: Side; tech: TechId }
   | { kind: 'guardBreak'; side: Side }
   /** ZIPP の電撃ダッシュが出た(c = ためた割合 0〜1) */
   | { kind: 'zdash'; side: Side; x: number; z: number; dir: number; len: number; c: number }
@@ -466,7 +472,7 @@ export function giveCommand(b: AnimeBattle, side: Side, cmd: Command): boolean {
 
 // ---------------- 行動 ----------------
 
-function startTech(b: AnimeBattle, f: AnimeMon, id: TechId, byCommand: boolean): void {
+function startTech(b: AnimeBattle, f: AnimeMon, id: TechId, byCommand: boolean, cancel = false): void {
   const o = other(b, f);
   const tech = getTech(id);
   // ねらい(習熟度が低いと少しずれる)
@@ -478,7 +484,7 @@ function startTech(b: AnimeBattle, f: AnimeMon, id: TechId, byCommand: boolean):
   const st = styleOf(id);
   // ジップタックルは 消えかける ためが長い(よける時間)
   const wmul = st === 'pinpoint' ? 1.6 : st === 'snipe' ? 1.5 : st === 'inflate' ? 1.4 : st === 'vanishTackle' ? 1.8 : 1;
-  f.act = { k: 'tech', id, t: 0, dir, fired: false, hit: false, tx: o.x, tz: o.z, windup: windup * wmul, n: 0, next: 0, sx: f.x, sz: f.z, zig: st === 'sidestep' || st === 'flankClamp' || st === 'spiral' ? (b.rng() < 0.5 ? 1 : -1) : 1 };
+  f.act = { k: 'tech', id, t: 0, dir, fired: false, hit: false, tx: o.x, tz: o.z, windup: windup * wmul * (cancel ? C.cancel.windup : 1), n: 0, next: 0, sx: f.x, sz: f.z, zig: st === 'sidestep' || st === 'flankClamp' || st === 'spiral' ? (b.rng() < 0.5 ? 1 : -1) : 1 };
   f.face = dir;
   // テクニックが高いと、技の待ち時間が少し短い(最大2割。2026-11-02 バランス)
   f.cooldown[id] = tech.kind === 'jab' && f.jab.dash
@@ -492,6 +498,17 @@ function startTech(b: AnimeBattle, f: AnimeMon, id: TechId, byCommand: boolean):
   if (tech.kind === 'jab' && !f.jab.dash && !f.jab.water && !f.jab.trap && f.act.k === 'tech') {
     const ci = b.t < f.jabChainUntil && f.jabChain < f.jab.parts.length ? f.jabChain : 0;
     f.act.n = ci;
+    // 走りながら 押した(続きの1発ではない時): ダッシュ攻撃
+    const pm = C.powerMoves[f.species];
+    if (pm && ci === 0 && f.pad && f.y <= 0 && Math.hypot(f.pad.x, f.pad.z) > 0.6 && Math.hypot(f.vx, f.vz) > walkSpeed(f) * C.pad.speed * C.dashAtk.minSpeed) {
+      f.act.sp = 'dash';
+      f.act.mv = pm[1];
+      f.act.windup = C.dashAtk.windup;
+      f.jabChain = 0;
+      f.cooldown[id] = b.t + C.dashAtk.windup + C.dashAtk.strike + C.dashAtk.follow + tech.recovery + tech.cooldown;
+      b.events.push({ kind: 'call', side: f.side, tech: id, byCommand });
+      return;
+    }
     // 新しい5体: 動きごとの ため。当たるのは とびこんだ あと(打つ時間の 45%)
     const mv = f.jab.moves && C.monMove[f.jab.moves[ci]];
     if (mv) {
@@ -523,6 +540,60 @@ function startDodge(b: AnimeBattle, f: AnimeMon, jump: boolean): void {
   if (jump) f.vy = 9;
   f.cooldown.dodge = b.t + C.dodge.cooldown * 0.5 * (b.t < (f.blinkUntil ?? 0) ? 0.4 : 1);
   b.events.push({ kind: 'dodge', side: f.side, jump });
+}
+
+/**
+ * ためた強い1発・ダッシュ攻撃(2026-11-05 コンボ3段め)。ため(ボタンを はなすまで)→ 相手へ とびこんで 1発 → すき
+ */
+function updatePower(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech' }>, dt: number): void {
+  const P = C.power;
+  const D = C.dashAtk;
+  const o = other(b, f);
+  const tech = getTech(a.id);
+  const charge = a.sp === 'charge';
+  if (!a.fired) {
+    if (charge) {
+      a.charge = Math.min(P.max, (a.charge ?? 0) + dt);
+      f.face += angDiff(angleTo(f, o), f.face) * (1 - Math.exp(-dt * 10));
+      if (a.charge >= P.max && !a.full) {
+        a.full = true;
+        b.events.push({ kind: 'chargeFull', side: f.side });
+      }
+      if (f.hold && f.pad && a.t < P.auto) return;
+    } else if (a.t < a.windup) return;
+    a.fired = true;
+    a.tf = a.t;
+    const c = charge ? (a.charge ?? 0) / P.max : 1;
+    b.events.push({ kind: 'power', side: f.side, sp: a.sp!, mv: a.mv ?? 'punch', c });
+    f.cooldown[a.id] = b.t + (charge ? P.strike + P.follow : D.strike + D.follow) + tech.recovery + tech.cooldown;
+    return;
+  }
+  const c = charge ? clamp((a.charge ?? 0) / P.max, 0, 1) : 1;
+  const strike = charge ? P.strike : D.strike;
+  const run = a.t - (a.tf ?? 0);
+  if (!a.hit) {
+    const step = charge ? lerp([P.stepMin, P.stepMax], c) : D.step;
+    if (f.y <= 0 && dist(f, o) > C.body.minGap + 0.1) {
+      const v = (step / strike) * dt;
+      f.x += Math.cos(f.face) * v;
+      f.z += Math.sin(f.face) * v;
+    }
+    const reach = f.jab.range + C.body.radius + 0.2;
+    const ok = dist(f, o) < reach && los(b, f, o, f.y + 0.8) && Math.abs(angDiff(angleTo(f, o), f.face)) < 0.9 && Math.abs(o.y - f.y) < 1.3;
+    if (ok || run >= strike) {
+      a.hit = true;
+      a.next = a.t;
+      if (ok)
+        hit(b, f, o, a.id, (f.x + o.x) / 2, f.y + 0.8, (f.z + o.z) / 2, f.face, {
+          last: true,
+          part: charge ? lerp([P.partMin, P.partMax], c) : D.part,
+          launch: charge ? lerp([P.launchMin, P.launchMax], c) : 0,
+          knock: charge ? P.knock : D.knock,
+        });
+    }
+    return;
+  }
+  if (a.t >= a.next + (charge ? P.follow : D.follow) + tech.recovery) f.act = { k: 'free' };
 }
 
 /**
@@ -804,6 +875,7 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
   const tech = getTech(a.id);
   const o = other(b, f);
   a.t += dt;
+  if (a.sp) return updatePower(b, f, a, dt);
   if (tech.kind === 'jab' && f.jab.dash) return updateDash(b, f, a, dt);
   if (tech.kind === 'jab' && (f.jab.water || f.jab.trap)) return updateRangedJab(b, f, a);
   const run = a.t - a.windup;
@@ -1167,7 +1239,15 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
           }
         }
       }
-      if (a.hit && a.t >= a.next + (a.n >= f.jab.parts.length ? tech.recovery : C.chain.gap)) f.act = { k: 'free' };
+      if (a.hit && a.t >= a.next + (a.n >= f.jab.parts.length ? tech.recovery : C.chain.gap)) {
+        f.act = { k: 'free' };
+        // ボタンを 押しつづけている: ためる(はなすと 強い1発)
+        const pm = C.powerMoves[f.species];
+        if (pm && f.pad && f.hold && (f.holdT ?? 0) >= C.power.hold && f.y <= 0) {
+          f.act = { k: 'tech', id: a.id, t: 0, dir: f.face, fired: false, hit: false, tx: o.x, tz: o.z, windup: C.power.max, n: 0, next: 0, sp: 'charge', mv: pm[0], charge: 0 };
+          f.jabChain = 0;
+        }
+      }
       return;
     }
     case 'barrage':
@@ -1411,7 +1491,7 @@ function applyEffect(b: AnimeBattle, o: AnimeMon, tech: ReturnType<typeof getTec
 }
 
 /** 当たり → ダメージ・吹っ飛び */
-function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y: number, z: number, dir: number, opt: { last?: boolean; part?: number; power?: number; unblockable?: boolean; stun?: number } = {}): boolean {
+function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y: number, z: number, dir: number, opt: { last?: boolean; part?: number; power?: number; unblockable?: boolean; stun?: number; launch?: number; knock?: number } = {}): boolean {
   if (o.act.k === 'ko' || o.act.k === 'victory') return false;
   if (b.t < o.safeUntil || o.act.k === 'down') return false;
   // 守りのドームの中 → 止める
@@ -1433,6 +1513,7 @@ function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y:
     return false;
   }
   const tech = getTech(id);
+  const launch = opt.launch ?? tech.launch;
   const part = opt.part ?? 1;
   // ねむっている時に攻撃を受けると起きる。起こした攻撃では ふっとばない(ねむり＋ふっとびで長く動けなくならないように 2026-11-03)
   const wasAsleep = o.sleepUntil > 0 && b.t < o.sleepUntil + 0.3;
@@ -1455,14 +1536,14 @@ function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y:
   }
   if (guarded) {
     // ふっとばす重い技は ガードの上からでも 強い(ガードの量が大きく へる・押される)
-    const heavy = tech.launch > 0 ? 1 + tech.launch / 6 : 1;
+    const heavy = launch > 0 ? 1 + launch / 6 : 1;
     const chipDmg = Math.max(1, Math.round(dmg * C.guard.chip));
     if (o.hp - chipDmg > 0) {
       o.hp -= chipDmg;
       o.guardGauge -= dmg * C.guard.drainMul * heavy;
       if (heavy > 1) {
-        o.kvx += Math.cos(dir) * tech.knock * C.hurt.friction * 0.25;
-        o.kvz += Math.sin(dir) * tech.knock * C.hurt.friction * 0.25;
+        o.kvx += Math.cos(dir) * tech.knock * (opt.knock ?? 1) * C.hurt.friction * 0.25;
+        o.kvz += Math.sin(dir) * tech.knock * (opt.knock ?? 1) * C.hurt.friction * 0.25;
       }
       o.guardRegenAt = b.t + C.guard.regenDelay;
       o.kvx += Math.cos(dir) * 0.6 * C.hurt.friction * 0.35;
@@ -1476,12 +1557,12 @@ function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y:
   o.hp = Math.max(0, o.hp - dmg);
   const finish = opt.last ?? true;
   // 通常攻撃(パンチの連打)は、さいごの1発だけ押す(とちゅうで とどかなくならないように)
-  const knock = tech.knock * (finish ? 1 : tech.kind === 'jab' ? 0 : 0.25) * (b.t < (f.knockUpUntil ?? 0) ? 1.7 : 1);
+  const knock = tech.knock * (opt.knock ?? 1) * (finish ? 1 : tech.kind === 'jab' ? 0 : 0.25) * (b.t < (f.knockUpUntil ?? 0) ? 1.7 : 1);
   o.kvx += Math.cos(dir) * knock * C.hurt.friction * 0.35;
   o.kvz += Math.sin(dir) * knock * C.hurt.friction * 0.35;
   o.command = null;
   o.face = angleTo(o, f);
-  const big = tech.launch > 0 && finish && !wasAsleep;
+  const big = launch > 0 && finish && !wasAsleep;
   b.events.push({ kind: 'hit', side: f.side, target: o.side, tech: id, damage: dmg, x, y, z, big, crit });
   if (o.hp <= 0) {
     o.act = { k: 'ko', t: 0 };
@@ -1498,7 +1579,7 @@ function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y:
   let sleep = false;
   if (finish && tech.effect !== 'なし' && b.rng() < EFFECT_CHANCE[tech.strength] + Math.min(0.25, f.stats.tech / C.stat.techEffectDiv)) sleep = setEffect(b, o, tech.effect, big);
   if (big) {
-    o.vy = tech.launch;
+    o.vy = launch;
     o.y = Math.max(o.y, 0.001);
     o.act = { k: 'air', t: 0 };
   } else {
@@ -2152,6 +2233,15 @@ function updateMon(b: AnimeBattle, f: AnimeMon, dt: number): void {
       b.events.push({ kind: 'ukemi', side: f.side });
     } else f.ukemi = true;
   }
+  f.holdT = f.hold ? (f.holdT ?? 0) + dt : 0;
+  // 通常攻撃が 当たった あと(すきの間)に 技を押すと、すぐ 技が出る(ためも 短い。2026-11-05 コンボ3段め)
+  if (f.command && f.act.k === 'tech' && f.act.id === 'punch' && f.act.hit && f.y <= 0 && !NOT_TECH.has(f.command.cmd) && (f.cooldown[f.command.cmd] ?? 0) <= b.t) {
+    const c = f.command.cmd as TechId;
+    f.command = null;
+    startTech(b, f, c, true, true);
+    b.events.push({ kind: 'cancel', side: f.side, tech: c });
+    b.events.push({ kind: 'command', side: f.side, cmd: c, state: 'done' });
+  }
   // 空中でも通常攻撃は出せる(2026-11-02 企画者「空中でも攻撃出せるように」)
   if (f.act.k === 'free' && f.y > 0 && f.command?.cmd === 'punch') {
     f.command = null;
@@ -2211,6 +2301,9 @@ function updateMon(b: AnimeBattle, f: AnimeMon, dt: number): void {
   }
   walk(b, f, dt);
 }
+
+/** 技ではない指示 */
+const NOT_TECH = new Set<string>(['punch', 'dodge', 'guard', 'jump']);
 
 function separate(b: AnimeBattle): void {
   const [p, q] = b.f;

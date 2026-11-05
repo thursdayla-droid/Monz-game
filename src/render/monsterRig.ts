@@ -28,6 +28,18 @@ const ease = (x: number) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
 export function monMovePose(f: AnimeMon): MonMovePose | null {
   const a = f.act;
   if (a.k !== 'tech' || !f.jab.moves || getTech(a.id).kind !== 'jab') return null;
+  if (a.sp) {
+    // ためた強い1発・ダッシュ攻撃(2026-11-05): ためる間は 体を引いたまま(ふるえる)→ 大きく とびこむ
+    const P = a.sp === 'charge' ? ANIME.power : ANIME.dashAtk;
+    if (!a.fired) {
+      const up = a.sp === 'charge' ? Math.min(1, a.t / 0.2) : ease(a.t / Math.max(0.01, a.windup));
+      return { move: a.mv ?? 'head', up, hit: 0, spin: 0 };
+    }
+    const r = a.t - (a.tf ?? 0);
+    const s = ease(r / P.strike);
+    const fo = ease((r - P.strike) / P.follow);
+    return { move: a.mv ?? 'head', up: 1 - s, hit: s * (1 - fo), spin: ease(r / (P.strike + P.follow * 0.6)) };
+  }
   const i = a.hit ? a.n - 1 : a.n;
   const move = f.jab.moves[Math.max(0, i)];
   const mv = ANIME.monMove[move];
@@ -336,6 +348,12 @@ export class MonsterRig {
         rotY = Math.sin(now * 70) * 0.06 * up;
         this.monFwd = -0.2 * up + 0.35 * hit;
       }
+      // ためた強い1発・ダッシュ攻撃: ためる間 ぶるぶる ふるえ、とびこみは 大きく
+      if (a.k === 'tech' && a.sp) {
+        if (!a.fired) rotY += Math.sin(now * 55) * (a.full ? 0.08 : 0.045);
+        this.monFwd *= 1.4;
+        rotZ *= 1.2;
+      }
     } else if (a.k === 'tech') {
       const tech = getTech(a.id);
       const w = Math.min(1, a.t / a.windup);
@@ -345,7 +363,7 @@ export class MonsterRig {
         sx = 1 + w * 0.15;
         rotZ = w * 0.35;
         arm = w * 1.2;
-        if (tech.kind === 'beam') b.position.x = Math.sin(now * 70) * 0.025 * w;
+        if (tech.kind === 'beam' || a.sp) b.position.x = Math.sin(now * 70) * (a.full ? 0.05 : 0.025) * w;
         // 突進・回転のため: ぐっと しゃがむ(企画者のモデルは形をくずさず、体ごと下げる)
         // 地面なぐりのため: 振り上げて少し反り、さいごに前へ振り下ろす
         if (tech.kind === 'pillar' || tech.kind === 'field') {
@@ -374,7 +392,7 @@ export class MonsterRig {
           sy = 1 - 0.15 * p;
           rotZ = -0.45 * p + (k > 0.18 && k < 0.4 ? 0.2 : 0) - (tech.kind === 'beam' && k < tech.duration ? 0.25 : 0);
           arm = -0.6;
-        } else if (tech.kind === 'rush') {
+        } else if (tech.kind === 'rush' || a.sp) {
           rotZ = -0.6;
           sx = 1.2;
           sy = 0.85;
@@ -538,7 +556,7 @@ export class MonsterRig {
         const tech = getTech(a.id);
         const bigDrop = tech.kind === 'drop' && tech.strength !== '中';
         const kind =
-          tech.kind === 'rush' || (bigDrop && a.fired && f.y > 0) ? 'rush'
+          tech.kind === 'rush' || a.sp || (bigDrop && a.fired && f.y > 0) ? 'rush'
           : tech.kind === 'jab' && f.jab.whip ? 'shot1'
           : tech.kind === 'combo' || tech.kind === 'jab' ? 'combo'
           : tech.kind === 'shot' && tech.strength === '弱' ? 'shot1'
@@ -632,7 +650,7 @@ export class MonsterRig {
     b.rotation.set(rx, rotY, rz);
     b.position.y = this.spring('lift', lift, dt, 400, 18);
     // (腕のないモデルのタックルは、上で前へ出している)
-    if (a.k !== 'tech' || getTech(a.id).kind !== 'beam') b.position.x = this.lungeNow * 0.35 * (this.model ? this.model.scale.x / 1.8 : 1) + this.monFwd;
+    if (a.k !== 'tech' || !(getTech(a.id).kind === 'beam' || (a.sp && !a.fired && !this.quad && !this.snake))) b.position.x = this.lungeNow * 0.35 * (this.model ? this.model.scale.x / 1.8 : 1) + this.monFwd;
     this.armL.rotation.set(0, 0, arm * 0.9 + Math.sin(now * 9) * 0.05);
     this.armR.rotation.set(0, 0, arm * 0.9 - Math.sin(now * 9) * 0.05);
     this.legL.rotation.set(0, 0, legSwing);
