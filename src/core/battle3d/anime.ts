@@ -12,6 +12,7 @@ import type { StatBlock } from '../stats';
 import type { Instinct } from '../autobattle/config';
 import type { Proficiency } from './config';
 import { ANIME as C, TECH_IDS, type TechId } from './animeConfig';
+import { BEAST, type BeastHit, type BeastStep } from './beastScripts';
 import { coverSpot, insideObstacle, lineOfSight, rayHit, resolveBody, steerAround, type ArenaMap } from './arena';
 import { EFFECT_CHANCE, getTech, SELF_FIELD_TECHS, type Effect } from './techTable';
 
@@ -32,7 +33,7 @@ export interface AnimeEntrant {
 
 export type AnimeAct =
   | { k: 'free' }
-  | { k: 'tech'; id: TechId; t: number; dir: number; fired: boolean; hit: boolean; tx: number; tz: number; windup: number; n: number; next: number; charge?: number; len?: number; zig?: number; sx?: number; sz?: number; sp?: 'charge' | 'dash' | 'air'; mv?: string; tf?: number; full?: boolean; counter?: boolean }
+  | { k: 'tech'; id: TechId; t: number; dir: number; fired: boolean; hit: boolean; tx: number; tz: number; windup: number; n: number; next: number; charge?: number; len?: number; zig?: number; sx?: number; sz?: number; sp?: 'charge' | 'dash' | 'air'; mv?: string; tf?: number; full?: boolean; counter?: boolean; step?: number; stepT?: number; hn?: number }
   | { k: 'dodge'; t: number; dx: number; dz: number; jump: boolean }
   /** ガード中(until: CPU が やめる時間。自分で動かす時は ボタンを はなすまで) */
   | { k: 'guard'; t: number; until: number }
@@ -139,6 +140,8 @@ export interface AnimeMon {
   jab: { parts: number[]; range: number; step: number; fire: number; whip?: boolean; dash?: number; water?: number; trap?: number; moves?: string[] };
   /** ZIPP の電撃ダッシュ: こうげきボタンを押している間 true(画面が入れる。AI は使わない) */
   hold?: boolean;
+  /** 体を固めて ひるまない 終わり(GRIT の 頑固ガード・踏ん張り)(2026-11-05) */
+  armorUntil?: number;
   /** 空中で 追い打ちを 受けた数(着地で 0)・ふわっと ゆっくり落ちる 終わり・たたきつけられた・浮いた相手に 攻撃が 当たった時刻 */
   juggleN: number;
   floatUntil: number;
@@ -253,6 +256,8 @@ export type AnimeEvent =
   | { kind: 'finish'; side: Side; x: number; y: number; z: number }
   | { kind: 'spike'; side: Side; x: number; y: number; z: number }
   | { kind: 'chargeFull'; side: Side }
+  /** 新しい5体の 技の 1歩の光(fx: 光の名前・hit: 当たったか) */
+  | { kind: 'beastFx'; side: Side; fx: string; mv: string; x: number; z: number; dir: number; hit: boolean; tech: TechId }
   /** カウンターが できる(よけた・ジャストガード)・カウンターを 出した */
   | { kind: 'counterReady'; side: Side; why: 'dodge' | 'just' }
   | { kind: 'counter'; side: Side; tech: TechId }
@@ -558,7 +563,7 @@ function startTech(b: AnimeBattle, f: AnimeMon, id: TechId, byCommand: boolean, 
     f.cooldown[id] = last ? b.t + windup + tech.duration + tech.recovery + tech.cooldown : b.t;
   }
   // 浮いている相手に 体で行く技(突進・回転・連続攻撃): 相手の高さへ とび上がる
-  if ((tech.kind === 'rush' || tech.kind === 'spin' || tech.kind === 'combo') && floating(o) && f.y <= 0) {
+  if ((tech.kind === 'rush' || tech.kind === 'spin' || tech.kind === 'combo') && !BEAST[id] && floating(o) && f.y <= 0) {
     f.vy = Math.sqrt(2 * C.gravity * Math.max(0.6, Math.min(3.5, o.y)));
     f.y = 0.001;
   }
@@ -654,6 +659,149 @@ function updatePower(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tec
     return;
   }
   if (a.t >= a.next + (charge ? P.follow : D.follow) + tech.recovery) f.act = { k: 'free' };
+}
+
+/** 新しい5体の 技: 1歩ずつ 動いて 当てる(beastScripts.ts) */
+function updateBeast(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech' }>, dt: number, steps: BeastStep[]): void {
+  const o = other(b, f);
+  const tech = getTech(a.id);
+  if (!a.fired) {
+    f.face += angDiff(angleTo(f, o), f.face) * (1 - Math.exp(-dt * 12));
+    if (a.t < a.windup) return;
+    a.fired = true;
+    a.step = 0;
+    a.stepT = 0;
+    a.hn = 0;
+    b.events.push({ kind: 'fire', side: f.side, tech: a.id });
+    beginBeastStep(b, f, a, steps[0]);
+    return;
+  }
+  const i = a.step ?? 0;
+  if (i >= steps.length) {
+    if (f.y <= 0 && a.t >= a.next + tech.recovery) f.act = { k: 'free' };
+    return;
+  }
+  const s = steps[i];
+  a.stepT = (a.stepT ?? 0) + dt;
+  // 動く
+  if (s.pounce && f.y > 0) {
+    f.x += (a.sx ?? 0) * dt;
+    f.z += (a.sz ?? 0) * dt;
+  } else if (s.go) {
+    const close = s.go > 0 && dist(f, o) < C.body.minGap + 0.1;
+    if (!close) {
+      const v = (s.go / s.t) * dt;
+      f.x += Math.cos(f.face) * v;
+      f.z += Math.sin(f.face) * v;
+    }
+  }
+  if (s.side) {
+    const v = (s.side / s.t) * dt;
+    f.x += Math.cos(f.face + Math.PI / 2) * v;
+    f.z += Math.sin(f.face + Math.PI / 2) * v;
+  }
+  if (s.orbit) {
+    // 相手の まわりを 回りながら 近づく
+    const r = Math.max(C.body.minGap + 0.3, dist(f, o) - (1.2 / s.t) * dt);
+    const ang = angleTo(o, f) + (s.orbit / s.t) * dt;
+    f.x = o.x + Math.cos(ang) * r;
+    f.z = o.z + Math.sin(ang) * r;
+    f.face = angleTo(f, o);
+  }
+  if (s.ghost) f.safeUntil = Math.max(f.safeUntil, b.t + 0.05);
+  // 当てる
+  const h = s.hit;
+  if (h) {
+    const last = i === steps.length - 1;
+    if (h.contact) {
+      if ((a.hn ?? 0) === 0 && beastTryHit(b, f, a, s, h, last, false)) a.hn = 1;
+    } else {
+      const n = h.n ?? 1;
+      while ((a.hn ?? 0) < n && a.stepT >= (h.at ?? 0.5) * s.t + (a.hn ?? 0) * (h.every ?? 0)) {
+        beastTryHit(b, f, a, s, h, last && (a.hn ?? 0) === n - 1, true);
+        a.hn = (a.hn ?? 0) + 1;
+      }
+    }
+  }
+  // 次の 1歩へ(とんでいる時は 着地まで)
+  if (a.stepT >= s.t && !(s.pounce && f.y > 0.05)) {
+    // さわったら 当たる 歩きで 当たらなかった: 光だけ
+    if (h?.contact && !a.hn) b.events.push({ kind: 'beastFx', side: f.side, fx: s.fx ?? s.mv, mv: s.mv, x: f.x + Math.cos(f.face) * 1.2, z: f.z + Math.sin(f.face) * 1.2, dir: f.face, hit: false, tech: a.id });
+    a.step = i + 1;
+    a.stepT = 0;
+    a.hn = 0;
+    if (a.step < steps.length) beginBeastStep(b, f, a, steps[a.step]);
+    else {
+      a.hit = true;
+      a.next = a.t;
+    }
+  }
+}
+
+function beginBeastStep(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech' }>, s: BeastStep): void {
+  const o = other(b, f);
+  if (!s.orbit && !s.side) f.face = angleTo(f, o);
+  a.sx = a.sz = 0;
+  if (s.jump) {
+    f.vy = s.jump;
+    f.y = Math.max(f.y, 0.001);
+    if (s.pounce) {
+      // 相手の いる所へ 着地する 速さ
+      const air = (2 * s.jump) / C.gravity;
+      const gap = Math.max(0, dist(f, o) - C.body.minGap - 0.1);
+      const ang = angleTo(f, o);
+      a.sx = (Math.cos(ang) * gap) / air;
+      a.sz = (Math.sin(ang) * gap) / air;
+    }
+  }
+  if (s.dive && f.y > 0) f.vy = Math.min(f.vy, -s.dive);
+  if (s.fx && !s.hit) b.events.push({ kind: 'beastFx', side: f.side, fx: s.fx, mv: s.mv, x: f.x, z: f.z, dir: f.face, hit: false, tech: a.id });
+}
+
+function beastTryHit(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech' }>, s: BeastStep, h: BeastHit, final: boolean, showMiss: boolean): boolean {
+  const o = other(b, f);
+  const cx = h.cx ?? 0;
+  const px = f.x + Math.cos(f.face) * cx;
+  const pz = f.z + Math.sin(f.face) * cx;
+  const d = Math.hypot(o.x - px, o.z - pz);
+  const arc = h.arc ?? 1;
+  const inArc = arc >= 3 || cx > 0 || Math.abs(angDiff(angleTo(f, o), f.face)) < arc;
+  const yok = h.ground ? o.y < 0.5 && !floating(o) : yOk(b, f, o, 1.4);
+  const ok = o.act.k !== 'ko' && d < h.r + C.body.radius * 0.5 && inArc && yok && los(b, f, o, f.y + 0.8);
+  if (ok || showMiss) {
+    const fx = cx > 0 ? { x: px, z: pz } : ok ? { x: (f.x + o.x) / 2, z: (f.z + o.z) / 2 } : { x: f.x + Math.cos(f.face) * Math.min(h.r, 1.4), z: f.z + Math.sin(f.face) * Math.min(h.r, 1.4) };
+    b.events.push({ kind: 'beastFx', side: f.side, fx: s.fx ?? s.mv, mv: s.mv, x: fx.x, z: fx.z, dir: f.face, hit: ok, tech: a.id });
+  }
+  if (!ok) return false;
+  if (h.throwBack) {
+    // うしろへ 投げる: 相手を 自分の うしろへ 回して ふっとばす
+    o.x = f.x - Math.cos(f.face) * (C.body.minGap + 0.2);
+    o.z = f.z - Math.sin(f.face) * (C.body.minGap + 0.2);
+  }
+  const dir = h.throwBack ? f.face + Math.PI : h.pull ? angleTo(o, f) : f.face;
+  const strong = final || !!h.launch || !!h.throwBack;
+  const landed = hit(b, f, o, a.id, (f.x + o.x) / 2, Math.max(f.y, o.y) + 0.8, (f.z + o.z) / 2, dir, {
+    last: strong,
+    part: h.part,
+    launch: h.launch ?? (strong ? undefined : 0),
+    knock: h.knock ?? (strong ? 1 : 0.4),
+    stun: C.monStun + 0.1,
+  });
+  if (landed && o.act.k === 'hurt') {
+    if (h.bind) {
+      // つかまえる: 目の前に 引きよせて、しばらく 動けない
+      o.act.until = Math.max(o.act.until, h.bind);
+      o.x = f.x + Math.cos(f.face) * (C.body.minGap + 0.15);
+      o.z = f.z + Math.sin(f.face) * (C.body.minGap + 0.15);
+      o.kvx = o.kvz = 0;
+    }
+    if (h.pull) {
+      const g = angleTo(o, f);
+      o.kvx = Math.cos(g) * 3 * C.hurt.friction * 0.35;
+      o.kvz = Math.sin(g) * 3 * C.hurt.friction * 0.35;
+    }
+  }
+  return landed;
 }
 
 /** 空中の 追い打ち: とび上がって 当たる所まで 来たら 1発。3回目は 地面へ たたきつける */
@@ -998,6 +1146,8 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
   const o = other(b, f);
   a.t += dt;
   if (a.sp) return updatePower(b, f, a, dt);
+  const bs = BEAST[a.id];
+  if (bs) return updateBeast(b, f, a, dt, bs);
   if (tech.kind === 'jab' && f.jab.dash) return updateDash(b, f, a, dt);
   if (tech.kind === 'jab' && (f.jab.water || f.jab.trap)) return updateRangedJab(b, f, a);
   const run = a.t - a.windup;
@@ -1017,6 +1167,14 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
       shot.vy = 2.6;
       shot.bounce = 4;
       shot.y = 0.6;
+    }
+    // 黒蛇玉: へびのように くねくね 進む・黒い息: 遅くて 大きい
+    if (st0 === 'weave') shot.zig = 1;
+    if (st0 === 'slowOrb') {
+      shot.vx *= 0.45;
+      shot.vz *= 0.45;
+      shot.r *= 1.9;
+      shot.life = 3.5;
     }
     // 時限ボム: 相手の近くまで ころがって止まり、少しして爆発
     if (st0 === 'bomb') {
@@ -1071,10 +1229,18 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
     } else if (tech.kind === 'field') {
       // 拳を地面にたたきつけ、相手のいる所に重力の場【案: 場所は相手の足もと】
       // 自分の場(千花天幕)は自分の足もと・ほかは相手の足もと
-      const self = SELF_FIELD.has(a.id);
+      const self = SELF_FIELD.has(a.id) || st === 'selfRing' || st === 'decoy';
+      // 影の抜け殻: 自分の いた所に 影を残して、うしろへ さっと にげる
+      if (st === 'decoy') {
+        const g = angleTo(o, f);
+        f.kvx = Math.cos(g) * 4.5 * C.hurt.friction * 0.35;
+        f.kvz = Math.sin(g) * 4.5 * C.hurt.friction * 0.35;
+        f.safeUntil = Math.max(f.safeUntil, b.t + 0.35);
+      }
       const [fx, fz] = clampField(b, self ? f.x : o.x, self ? f.z : o.z);
+      const ownField = SELF_FIELD.has(a.id);
       // 十字ワイヤー: 相手の足もとに 十字の光るワイヤー(線の上だけ効く・長い)
-      b.fields.push({ owner: f.side, tech: a.id, x: fx, z: fz, r: tech.size * (st === 'cross' ? 1.5 : 1), until: b.t + C.gfield.time, tick: b.t + C.fieldTick * 0.5, self, shape: st === 'cross' ? 'cross' : undefined, rot: a.dir, stick: st === 'stickyGoo' });
+      b.fields.push({ owner: f.side, tech: a.id, x: fx, z: fz, r: tech.size * (st === 'cross' ? 1.5 : 1), until: b.t + C.gfield.time, tick: b.t + C.fieldTick * 0.5, self: ownField, shape: st === 'cross' ? 'cross' : undefined, rot: a.dir, stick: st === 'stickyGoo' });
       b.events.push({ kind: 'field', side: f.side, x: fx, z: fz, r: tech.size, until: b.t + C.gfield.time });
     } else if (tech.kind === 'pillar') {
       // 自分の前の地面を なぐる → 使った時の相手の足もと と、そのまわり3か所から 炎の柱(地面が光ってから出る。よけられる)
@@ -1110,10 +1276,15 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
       // 残光ステップ: しばらく よけるのが 速く 遠く。超弾性チャージ: しばらく ふっとばす力が強い
       if (st === 'afterimage') f.blinkUntil = b.t + tech.duration;
       if (st === 'elastic') f.knockUpUntil = b.t + tech.duration;
+      if (st === 'armorBuff') f.armorUntil = b.t + tech.duration;
       b.events.push({ kind: 'buff', side: f.side, what: what === 'both' ? 'atk' : what });
       if (what === 'both') b.events.push({ kind: 'buff', side: f.side, what: 'def' });
     } else if (tech.kind === 'drain') shoot(a.dir);
-    else if (tech.kind === 'barrier') {
+    else if (tech.kind === 'barrier' && st === 'armor') {
+      // 頑固ガード: ドームは 出さず、体を 固める(当たっても ひるまない・ダメージ 少し へる)
+      f.armorUntil = b.t + tech.duration * 1.6;
+      b.events.push({ kind: 'buff', side: f.side, what: 'def' });
+    } else if (tech.kind === 'barrier') {
       f.barrierUntil = b.t + tech.duration;
       f.barrierR = tech.size;
       f.barrierTech = a.id;
@@ -1526,6 +1697,11 @@ function guardReact(b: AnimeBattle, o: AnimeMon, from: AnimeMon | null): void {
     return;
   }
   if (st === 'reflect') return;
+  if (st === 'burnShield') {
+    // 炎たてがみガード: 近くで 攻撃した相手が やけど(ドームは そのまま)
+    if (from && dist(from, o) < 3.5 && from.act.k !== 'ko' && b.rng() < 0.6) setEffect(b, from, 'やけど');
+    return;
+  }
   if (st === 'jellyBounce') {
     // ぷるんガード: ぷるんと ゆれて、近くで攻撃した相手を はね飛ばす(膜は そのまま)
     if (from && dist(from, o) < 3.5 && from.act.k !== 'ko') {
@@ -1694,15 +1870,18 @@ function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y:
     }
     dmg = chipDmg;
   }
+  // 体を固めている(GRIT の 頑固ガード など): ダメージ 少なめ・ひるまない・押されない
+  const armored = b.t < (o.armorUntil ?? 0) && o.act.k !== 'air';
+  if (armored) dmg = Math.max(1, Math.round(dmg * 0.6));
   o.hp = Math.max(0, o.hp - dmg);
   const finish = opt.last ?? true;
   // 通常攻撃(パンチの連打)は、さいごの1発だけ押す(とちゅうで とどかなくならないように)
-  const knock = tech.knock * (opt.knock ?? 1) * (finish ? 1 : tech.kind === 'jab' ? 0 : 0.25) * (b.t < (f.knockUpUntil ?? 0) ? 1.7 : 1);
+  const knock = (armored ? 0 : 1) * tech.knock * (opt.knock ?? 1) * (finish ? 1 : tech.kind === 'jab' ? 0 : 0.25) * (b.t < (f.knockUpUntil ?? 0) ? 1.7 : 1);
   o.kvx += Math.cos(dir) * knock * C.hurt.friction * 0.35;
   o.kvz += Math.sin(dir) * knock * C.hurt.friction * 0.35;
   o.command = null;
   o.face = angleTo(o, f);
-  const big = launch > 0 && finish && !wasAsleep;
+  const big = launch > 0 && finish && !wasAsleep && !armored;
   b.events.push({ kind: 'hit', side: f.side, target: o.side, tech: id, damage: dmg, x, y, z, big, crit, counter });
   if (o.hp <= 0) {
     o.act = { k: 'ko', t: 0 };
@@ -1713,6 +1892,10 @@ function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y:
       b.koAt = b.t;
       b.events.push({ kind: 'ko', side: o.side });
     }
+    return true;
+  }
+  if (armored) {
+    b.events.push({ kind: 'guardHit', side: o.side, x, y, z, damage: dmg, just: false });
     return true;
   }
   // 追加効果(ふらつき・まひ・やけど・どく・ねむり。こおりは【未実装】)

@@ -72,3 +72,66 @@ it('roars do not reach a floating opponent', () => {
   for (let i = 0; i < 40; i++) stepAnime(b, ANIME.dt);
   expect(q.atkDownUntil).toBe(0);
 });
+
+it('RIOT / SNEK / GRIT moves each have their own motion and hit an opponent in front', async () => {
+  const { BEAST } = await import('../src/core/battle3d/beastScripts');
+  const miss: string[] = [];
+  for (const name of Object.keys(BEAST)) {
+    const row = [...learnset('riot'), ...learnset('snek'), ...learnset('grit')].find((r) => r.name === name);
+    expect(row, name).toBeTruthy();
+    let ok = false;
+    for (const gap of [2.2, 4]) {
+      const b = newAnimeBattle(e(row!.species, [name]), e('bunk', []), 5, 'manual');
+      const [p, q] = b.f;
+      p.pad = { x: 0, z: 0 };
+      q.pad = { x: 0, z: 0 };
+      p.x = 0; q.x = gap; p.z = q.z = 0; p.face = 0; q.thinkT = 99;
+      q.cooldown.dodge = q.cooldown.guard = 99;
+      giveCommand(b, 0, name);
+      for (let i = 0; i < 240 && !ok; i++) { b.events = []; stepAnime(b, ANIME.dt); if (b.events.some((x) => x.kind === 'hit' && x.side === 0)) ok = true; }
+      if (ok) break;
+    }
+    if (!ok) miss.push(name);
+  }
+  expect(miss).toEqual([]);
+});
+
+it('GRIT 頑固ガード: hardens the body (no dome) — hits do not make it flinch and do less damage', () => {
+  const b = newAnimeBattle(e('grit', ['頑固ガード']), e('bunk', []), 3, 'manual');
+  const [p, q] = b.f;
+  p.pad = { x: 0, z: 0 };
+  q.pad = { x: 0, z: 0 };
+  p.x = 0; q.x = 1.6; q.face = Math.PI; p.face = 0;
+  giveCommand(b, 0, '頑固ガード');
+  for (let i = 0; i < 30; i++) stepAnime(b, ANIME.dt);
+  expect(p.barrierUntil).toBeLessThan(b.t);
+  expect(p.armorUntil ?? 0).toBeGreaterThan(b.t);
+  let hurt = false;
+  for (let i = 0; i < 90; i++) { if (i % 15 === 0) { q.face = Math.PI; giveCommand(b, 1, 'punch'); } stepAnime(b, ANIME.dt); if (p.act.k === 'hurt') hurt = true; }
+  expect(hurt).toBe(false);
+  expect(p.hp).toBeLessThan(p.maxHp);
+});
+
+it('SNEK 影の抜け殻 leaves the shadow where it was and slides back; 黒蛇玉 weaves; GRIT 黒い息 is slow and big', () => {
+  const b = newAnimeBattle(e('snek', ['影の抜け殻', '黒蛇玉']), e('bunk', []), 3, 'manual');
+  const [p, q] = b.f;
+  p.pad = { x: 0, z: 0 };
+  q.pad = { x: 0, z: 0 };
+  q.thinkT = 99;
+  p.x = 0; q.x = 4; p.face = 0;
+  giveCommand(b, 0, '影の抜け殻');
+  for (let i = 0; i < 60; i++) stepAnime(b, ANIME.dt);
+  expect(b.fields.some((fl) => fl.tech === '影の抜け殻' && Math.abs(fl.x) < 0.6)).toBe(true);
+  expect(p.x).toBeLessThan(-0.8);
+  giveCommand(b, 0, '黒蛇玉');
+  for (let i = 0; i < 40 && !b.shots.length; i++) stepAnime(b, ANIME.dt);
+  expect(b.shots[0]?.zig).toBe(1);
+  const g = newAnimeBattle(e('grit', ['黒い息']), e('bunk', []), 3, 'manual');
+  g.f[0].pad = { x: 0, z: 0 };
+  g.f[1].pad = { x: 0, z: 0 };
+  g.f[1].x = 8;
+  giveCommand(g, 0, '黒い息');
+  for (let i = 0; i < 40 && !g.shots.length; i++) stepAnime(g, ANIME.dt);
+  const s = g.shots[0];
+  expect(Math.hypot(s.vx, s.vz)).toBeLessThan(getTech('黒い息').speed * 0.6);
+});

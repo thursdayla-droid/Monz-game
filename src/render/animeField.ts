@@ -1043,7 +1043,7 @@ export class AnimeField {
    * (x, z): 打った側の場所・dir: 向き・reach: とどく長さ・h: 体の高さ
    * 爪 = 3本の ひっかき線 / かみつき = 上下の キバが とじる / 頭突き・体当たり = 前へ 風の輪 / 甲羅・しっぽ = 体のまわりを 回る 弧 / 電気 = 口から 稲妻
    */
-  monSwing(x: number, z: number, dir: number, move: string, reach: number, h: number, last: boolean): void {
+  monSwing(x: number, z: number, dir: number, move: string, reach: number, h: number, last: boolean, col?: number): void {
     const cx = x + Math.cos(dir) * reach * 0.75;
     const cz = z + Math.sin(dir) * reach * 0.75;
     const y = h;
@@ -1051,7 +1051,7 @@ export class AnimeField {
     if (move === 'clawR' || move === 'clawL') {
       const sgn = move === 'clawL' ? -1 : 1;
       for (let i = -1; i <= 1; i++) {
-        const m = new THREE.Mesh(new THREE.PlaneGeometry(1.25, 0.075), mat(i ? 0xffffff : 0xff5a3a));
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(1.25, 0.075), mat(i ? 0xffffff : col ?? 0xff5a3a));
         m.position.set(cx, y, cz);
         m.lookAt(this.camera.position);
         m.rotateZ(sgn * 0.85);
@@ -1063,7 +1063,7 @@ export class AnimeField {
     if (move === 'bite') {
       // 上と下の キバ(白い弧)が まん中へ とじる
       for (const up of [1, -1]) {
-        const arc = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.07, 6, 18, Math.PI), mat(0xffffff));
+        const arc = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.07, 6, 18, Math.PI), mat(col ?? 0xffffff));
         arc.position.set(cx, y, cz);
         arc.lookAt(this.camera.position);
         if (up < 0) arc.rotateZ(Math.PI);
@@ -1075,7 +1075,7 @@ export class AnimeField {
     }
     if (move === 'head' || move === 'shoulder') {
       // 前へ つっこむ 風(輪と 線)
-      this.shockRing(cx, y, cz, 0xffffff, last ? 0.9 : 0.6);
+      this.shockRing(cx, y, cz, col ?? 0xffffff, last ? 0.9 : 0.6);
       for (let i = 0; i < 5; i++) {
         const sp = this.sprite(0xfff0c0, true, this.star);
         sp.position.set(x + Math.cos(dir) * 0.4, y + (Math.random() - 0.5) * 0.5, z + Math.sin(dir) * 0.4);
@@ -1086,8 +1086,8 @@ export class AnimeField {
     }
     if (move === 'shell' || move === 'tail') {
       // 体のまわりを まわる 弧(甲羅は 水色・しっぽは 紫)
-      const col = move === 'shell' ? 0x7ae0ff : 0xc08aff;
-      const arc = new THREE.Mesh(new THREE.TorusGeometry(reach * 0.75, 0.08, 6, 32, Math.PI * 1.3), mat(col));
+      const rc = col ?? (move === 'shell' ? 0x7ae0ff : 0xc08aff);
+      const arc = new THREE.Mesh(new THREE.TorusGeometry(reach * 0.75, 0.08, 6, 32, Math.PI * 1.3), mat(rc));
       arc.position.set(x, move === 'shell' ? h * 0.8 : 0.35, z);
       arc.rotation.x = -Math.PI / 2;
       const r0 = -dir - Math.PI * 0.8;
@@ -1111,6 +1111,102 @@ export class AnimeField {
       s.position.set(x + Math.cos(a) * r, y + h, z + Math.sin(a) * r);
       const L = 0.22;
       this.add(s, L, -0.6, full ? 0.3 : 0.22, { vx: (-Math.cos(a) * r) / L, vz: (-Math.sin(a) * r) / L, vy: -h / L });
+    }
+  }
+
+  /**
+   * 新しい5体の 技の 1歩の光(2026-11-05 企画者「全部一緒でつまらない」→ 技ごとに ちがう光)。
+   * (x, z): 光の まん中・(ax, az): 打った側の場所・col: 種族・属性の色
+   */
+  beastFx(fx: string, x: number, z: number, ax: number, az: number, y: number, dir: number, hit: boolean, col: number): void {
+    const big = fx === 'nova' || fx === 'titan' || fx === 'abyssBurst';
+    switch (fx) {
+      case 'claw':
+      case 'clawUp':
+        this.monSwing(x, z, dir, Math.random() < 0.5 ? 'clawR' : 'clawL', 0, y, fx === 'clawUp', col);
+        if (fx === 'clawUp') for (let i = 0; i < 8; i++) this.flame(x, y, z, 0.4, 1);
+        break;
+      case 'bite':
+      case 'darkBite':
+      case 'fireBite':
+        this.monSwing(x, z, dir, 'bite', 0, y, false, col);
+        if (fx === 'fireBite') this.flame(x, y, z, 0.5, 4);
+        break;
+      case 'bigJaw':
+        // 大きな あご: キバが 大きく とじる
+        this.monSwing(x, z, dir, 'bite', 0, y, true, col);
+        this.monSwing(x, z, dir, 'bite', 0, y + 0.05, true, 0xffffff);
+        break;
+      case 'head':
+      case 'shove':
+        this.monSwing(x, z, dir, 'head', 0, y, fx === 'head', col);
+        if (fx === 'shove') this.dust(x, z, false);
+        break;
+      case 'flameBurst':
+        this.flameBurst(x, y, z);
+        this.monSwing(x, z, dir, 'clawR', 0, y, true, col);
+        break;
+      case 'flame':
+        // 炎の息: 口から 前へ ひろがる 炎
+        for (let k = 0; k < 4; k++) {
+          const d = 0.8 + k * 0.9;
+          this.flame(ax + Math.cos(dir) * d, y, az + Math.sin(dir) * d, 0.3 + k * 0.25, 2);
+        }
+        break;
+      case 'wave':
+        // うなり声の 地面の波(前へ 走る)
+        this.groundRing(x, z, 0.9, col, 0.35, 1.6);
+        this.dust(x, z, false);
+        break;
+      case 'stomp':
+        this.crack(x, z, 0.9);
+        this.rocks(x, z);
+        this.groundRing(x, z, 0.8, 0xc8a070, 0.3, 1.4);
+        break;
+      case 'slam':
+      case 'darkSlam':
+      case 'titan':
+      case 'nova':
+        this.impact(x, z, big ? 3.6 : 2, big, big ? 3 : 2);
+        this.groundRing(x, z, big ? 2.5 : 1.4, col, 0.5, big ? 2.6 : 1.8);
+        if (fx === 'titan') for (let i = 0; i < 3; i++) this.rocks(x + (Math.random() - 0.5) * 4, z + (Math.random() - 0.5) * 4);
+        if (fx === 'nova') for (let i = 0; i < 10; i++) { const g = (i / 10) * Math.PI * 2; this.flame(x + Math.cos(g) * 2.2, 0.5, z + Math.sin(g) * 2.2, 0.6, 3); }
+        if (fx === 'darkSlam') this.groundRing(x, z, 1, 0x9a4aff, 0.6, 2.2);
+        this.shake(big ? 0.7 : 0.4);
+        break;
+      case 'ring':
+        // しっぽ・体で まわりを はらう 弧
+        this.monSwing(ax, az, dir, 'tail', 3, y * 0.5, true, col);
+        break;
+      case 'abyss':
+        // 闇の とぐろ: まわりに 闇の 弧が 回る
+        this.monSwing(ax, az, dir + Math.random() * 6, 'tail', 4.6, 0.6, true, 0x7a3ad0);
+        this.groundRing(ax, az, 3.2, 0x5a1a9a, 0.3, 0.4);
+        break;
+      case 'abyssBurst':
+        this.shockRing(ax, 1, az, 0x9a4aff, 3);
+        this.groundRing(ax, az, 3.6, 0x7a3ad0, 0.6, 1.5);
+        this.shake(0.5);
+        break;
+      default:
+        this.monSwing(x, z, dir, 'head', 0, y, false, col);
+    }
+    if (hit && !big) {
+      const st = this.sprite(0xffffff, true, this.star);
+      st.position.set(x, y, z);
+      this.add(st, 0.18, 2.2, 0.7);
+    }
+  }
+
+  /** 歩いている間の 光(炎の 足あと・影・炎を まとう) */
+  beastTrail(fx: string, x: number, z: number): void {
+    if (fx === 'fireTrail' || fx === 'flameAura') this.flame(x, 0.3 + Math.random() * 0.6, z, fx === 'flameAura' ? 0.7 : 0.35, fx === 'flameAura' ? 3 : 2);
+    else if (fx === 'shadow') {
+      for (let i = 0; i < 2; i++) {
+        const s = this.sprite(i ? 0x2a0a40 : 0x6a2ab0, false);
+        s.position.set(x + (Math.random() - 0.5) * 0.8, 0.25, z + (Math.random() - 0.5) * 0.8);
+        this.add(s, 0.5, 0.8, 0.7, { vy: 0.6 });
+      }
     }
   }
 
@@ -1601,6 +1697,7 @@ export class AnimeField {
         }
       }
       rig.safe = f.act.k !== 'ko' && f.act.k !== 'victory' && isInvincible(b, f);
+      rig.armored = b.t < (f.armorUntil ?? 0);
       rig.update(f, dt);
       // 技のため: 口に光が集まる
       const ch = this.charge[i];

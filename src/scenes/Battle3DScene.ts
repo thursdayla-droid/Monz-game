@@ -8,6 +8,7 @@ import { formAt, growTechs, SLOT_LEVELS, slotsAt } from '../core/battle3d/techLe
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { addStats, autoGrowthAt, speciesStats, type StatKey } from '../core/stats';
 import { instinctFor } from '../core/autobattle/engine';
+import { BEAST } from '../core/battle3d/beastScripts';
 import { animeFinished, canChase, commandState, giveCommand, newAnimeBattle, stepAnime, type AnimeBattle, type AnimeEntrant, type AnimeEvent, type Command } from '../core/battle3d/anime';
 import { AnimeField, ELEMENT_HEX } from '../render/animeField';
 import { modelFor } from '../core/roster';
@@ -632,6 +633,12 @@ export class Battle3DScene extends Phaser.Scene {
     if (this.chargeT <= 0) {
       this.chargeT = 0.05;
       for (const f of b.f) if (f.act.k === 'tech' && f.act.sp === 'charge' && !f.act.fired) this.field.chargeFx(f.x, f.y + 0.7, f.z, !!f.act.full);
+      // 新しい5体の技: 歩いている間の 炎・影
+      for (const f of b.f) {
+        if (f.act.k !== 'tech' || !f.act.fired) continue;
+        const st = BEAST[f.act.id]?.[f.act.step ?? 0];
+        if (st?.fx === 'fireTrail' || st?.fx === 'shadow' || st?.fx === 'flameAura') this.field.beastTrail(st.fx, f.x, f.z);
+      }
       // カウンターが できる間: 金色の粒
       for (const f of b.f) if (b.t < f.counterUntil) this.field.chargeFx(f.x, f.y + 0.7, f.z, true);
     }
@@ -959,6 +966,24 @@ export class Battle3DScene extends Phaser.Scene {
         break;
       case 'comboBreak':
         break;
+      case 'beastFx': {
+        // 新しい5体の 技の 1歩(爪・キバ・炎・影・ドスン など。2026-11-05)
+        const bf = b.f[e.side];
+        const el = getTech(e.tech).element;
+        const SP_COL: Record<string, number> = { riot: 0xff7a2a, snek: 0x9a4aff, grit: 0xd8b070, vybe: 0xffe040, shellz: 0x5ac8ff };
+        const col = el === '無' ? SP_COL[bf.species] ?? 0xffffff : el === '闇' ? 0x9a4aff : ELEMENT_HEX[el];
+        F.beastFx(e.fx, e.x, e.z, bf.x, bf.z, bf.y + 0.8, e.dir, e.hit, col);
+        const fx = e.fx;
+        if (fx.includes('claw')) audio.se('mcSlash', { pitch: 1.2 + Math.random() * 0.2 });
+        else if (fx.includes('ite') || fx === 'bigJaw') audio.se('whoosh', { pitch: 1.6 });
+        else if (fx === 'flame') audio.se('mcFire', { pitch: 1.3 });
+        else if (fx === 'stomp' || fx === 'wave') audio.se('slam', { pitch: 1.3 });
+        else if (fx === 'slam' || fx === 'darkSlam' || fx === 'titan' || fx === 'nova') audio.se('punchHeavy', { pitch: 0.7 });
+        else if (fx === 'abyss' || fx === 'abyssBurst') audio.se('mcDark', { pitch: 1.2 });
+        else audio.se('whoosh', { pitch: 0.8 });
+        if (fx === 'titan' || fx === 'nova' || fx === 'abyssBurst') this.screenFlash(0.4);
+        break;
+      }
       case 'chargeFull': {
         // ためが いっぱい: 金色の輪・音(2026-11-05 コンボ3段め)
         const cf = b.f[e.side];

@@ -13,6 +13,7 @@ import { BunkBones, type AttackPose } from './bunkBones';
 import { getTech } from '../core/battle3d/techTable';
 import type { AnimeMon } from '../core/battle3d/anime';
 import { ANIME } from '../core/battle3d/animeConfig';
+import { BEAST } from '../core/battle3d/beastScripts';
 
 /**
  * 新しい5体の 通常攻撃の 1発の 進みぐあい(2026-11-05 企画者「その場で何してるか全然わからない」)。
@@ -27,6 +28,30 @@ export interface MonMovePose {
 const ease = (x: number) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
 export function monMovePose(f: AnimeMon): MonMovePose | null {
   const a = f.act;
+  // 新しい5体の 技(1歩ずつの 動き。beastScripts.ts): ため → 打つ → もどる を 1歩ごとに
+  const bs = a.k === 'tech' ? BEAST[a.id] : undefined;
+  if (bs && a.k === 'tech') {
+    if (!a.fired) return { move: bs[0].mv, up: ease(a.t / Math.max(0.01, a.windup)), hit: 0, spin: 0 };
+    const i = a.step ?? 0;
+    if (i >= bs.length) return null;
+    const s = bs[i];
+    const p = (a.stepT ?? 0) / s.t;
+    const h = s.hit;
+    let up = 0;
+    let hit = 0;
+    if (h?.contact) hit = Math.min(1, p * 4);
+    else if (h && (h.n ?? 1) > 1) {
+      // 何回も 当てる(炎の息・押しこみ): 当てるたびに 前へ
+      const ph = Math.max(0, (a.stepT ?? 0) - (h.at ?? 0) * s.t) / Math.max(0.05, h.every ?? 0.1);
+      hit = 0.5 + 0.5 * Math.sin((ph % 1) * Math.PI);
+      up = 1 - hit;
+    } else if (h) {
+      const at = h.at ?? 0.5;
+      if (p < at) up = ease(p / at);
+      else hit = 1 - ease((p - at) / Math.max(0.05, 1 - at));
+    } else up = ease(Math.min(1, p * 2));
+    return { move: s.mv, up, hit, spin: s.spin ? ease(p) : 0 };
+  }
   if (a.k !== 'tech' || !f.jab.moves || getTech(a.id).kind !== 'jab') return null;
   if (a.sp) {
     // ためた強い1発・ダッシュ攻撃(2026-11-05): ためる間は 体を引いたまま(ふるえる)→ 大きく とびこむ
@@ -94,6 +119,8 @@ export class MonsterRig {
   /** へび(SNEK など) */
   private snake: SnakeBones | null = null;
   private lastFace: number | null = null;
+  /** 体を固めている(ひるまない) */
+  armored = false;
   private lungeNow = 0;
   /** 新しい5体の 通常攻撃で 体を前へ出す量 */
   private monFwd = 0;
@@ -348,6 +375,8 @@ export class MonsterRig {
         rotY = Math.sin(now * 70) * 0.06 * up;
         this.monFwd = -0.2 * up + 0.35 * hit;
       }
+      // 回る技(しっぽ・甲羅 以外の 動きでも)
+      if (mp.spin > 0 && mp.move !== 'shell' && mp.move !== 'tail') rotY += -Math.PI * 2 * mp.spin;
       // ためた強い1発・ダッシュ攻撃: ためる間 ぶるぶる ふるえ、とびこみは 大きく
       if (a.k === 'tech' && a.sp) {
         if (!a.fired) rotY += Math.sin(now * 55) * (a.full ? 0.08 : 0.045);
@@ -720,12 +749,16 @@ export class MonsterRig {
     this.tail.rotation.set(0, Math.sin(now * (5 + f.speed * 2)) * (0.4 + f.speed * 0.08), 0);
     // 当たった時の白い光・よけている時の半透明
     this.flash = Math.max(0, this.flash - dt);
-    const ghost = a.k === 'dodge' && a.t < 0.28 ? 0.6 : 1;
+    const bsg = a.k === 'tech' ? BEAST[a.id] : undefined;
+    const shadowStep = !!(bsg && a.k === 'tech' && a.fired && bsg[a.step ?? 0]?.ghost);
+    const ghost = shadowStep ? 0.28 : a.k === 'dodge' && a.t < 0.28 ? 0.6 : 1;
     // 当たらない間: 白く ちかちか(当たった時の光より弱く、点滅させて ちがいが分かるように)
     const safeGlow = this.safe ? 0.25 + 0.3 * (0.5 + 0.5 * Math.sin(now * 28)) : 0;
     for (const m of this.mats) {
-      m.emissive.setHex(this.flash > 0 || safeGlow > 0 ? 0xffffff : 0x000000);
-      m.emissiveIntensity = this.flash > 0 ? 0.9 : safeGlow;
+      // 体を固めている(GRIT の 頑固ガード など): 鉄のような 灰色の光
+      const armorGlow = this.armored ? 0.25 + 0.1 * Math.sin(now * 10) : 0;
+      m.emissive.setHex(this.flash > 0 || safeGlow > 0 ? 0xffffff : armorGlow > 0 ? 0x9a8a6a : 0x000000);
+      m.emissiveIntensity = this.flash > 0 ? 0.9 : safeGlow > 0 ? safeGlow : armorGlow;
       m.transparent = ghost < 1;
       m.opacity = ghost;
     }

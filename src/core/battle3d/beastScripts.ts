@@ -1,0 +1,146 @@
+/**
+ * 新しい5体の 技の 動き(2026-11-05 企画者「新しい3匹 全部一緒でつまらない。オリジナル性がないし、攻撃の種類も全体でワンパターン化してる」)。
+ * 技ごとに「どう動いて・いつ・どこに 当てるか」を 1歩ずつ 書く。設計案(docs/NEW5_TECHS.md)の 動きの説明 どおりに【仮】
+ *
+ * 1歩(BeastStep):
+ * - mv: 体の動き(clawR/clawL = 前足で ひっかく・bite = かみつく・head = 頭突き・shoulder = 肩・tail = しっぽ・shell = 甲羅・zap = 口から 吐く/ほえる)
+ * - t: 時間(秒)・go: 相手へ 進む長さ(m。マイナスは うしろへ)・side: 横へ 進む長さ(m。+ = 右)
+ * - jump: とび上がる 速さ(pounce = 相手の 所へ 着地するように 前へも とぶ)・dive: 空中から 下へ つっこむ 速さ
+ * - spin: その場で 1回まわる・ghost: 影に もぐる(当たらない・うすく 見える)・orbit: 相手の まわりを 回る(角度)
+ * - hit: 当てる(at: 何割の 時・contact: 歩いている間 ずっと・n / every: 何回 ・何秒ごと・cx: 自分の 何m 前を まん中に・r: 広さ・
+ *   arc: 前から 左右に 何ラジアンまで(3.2 = まわり ぜんぶ)・part: 強さ(技の威力 × part)・launch: 浮かせる高さ・knock: 押す強さ・
+ *   bind: 相手を 目の前に つかまえる 秒・throwBack: うしろへ 投げる・pull: 引きよせる・ground: 地面だけ(浮いた相手に 当たらない))
+ * - fx: 光(claw = 爪の線・bite = キバ・head = 風の輪・slam = 地面に ドスン・stomp = 地面の ゆれ・flame = 炎・shadow = 影・ring = まわりの 弧・abyss = 闇の うず・nova = 大爆発)
+ */
+export interface BeastHit {
+  at?: number;
+  contact?: boolean;
+  n?: number;
+  every?: number;
+  cx?: number;
+  r: number;
+  arc?: number;
+  part: number;
+  launch?: number;
+  knock?: number;
+  bind?: number;
+  throwBack?: boolean;
+  pull?: boolean;
+  ground?: boolean;
+}
+export interface BeastStep {
+  mv: string;
+  t: number;
+  go?: number;
+  side?: number;
+  jump?: number;
+  pounce?: boolean;
+  dive?: number;
+  spin?: boolean;
+  ghost?: boolean;
+  orbit?: number;
+  hit?: BeastHit;
+  fx?: string;
+}
+
+const P = Math.PI;
+export const BEAST: Record<string, BeastStep[]> = {
+  // ---------------- RIOT(炎・無。爪と牙で 猛然と とびかかる) ----------------
+  悪噛み: [
+    { mv: 'bite', t: 0.2, go: 0.7, side: -0.4, hit: { at: 0.6, r: 1.6, arc: 0.9, part: 0.45 }, fx: 'bite' },
+    { mv: 'bite', t: 0.22, go: 0.4, side: 0.8, hit: { at: 0.6, r: 1.6, arc: 1.1, part: 0.55, knock: 1.4 }, fx: 'bite' },
+  ],
+  火花爪: [
+    { mv: 'clawR', t: 0.22, go: 0.6, hit: { at: 0.6, r: 1.7, arc: 1, part: 0.4 }, fx: 'claw' },
+    { mv: 'clawL', t: 0.3, go: 0.3, hit: { at: 0.5, r: 1.8, arc: 1.1, part: 0.6, launch: 7 }, fx: 'clawUp' },
+  ],
+  ガルルショック: [
+    { mv: 'zap', t: 0.22, hit: { at: 0.9, cx: 1.6, r: 1.3, arc: P, part: 0.4, ground: true }, fx: 'wave' },
+    { mv: 'zap', t: 0.16, hit: { at: 0.5, cx: 3.0, r: 1.5, arc: P, part: 0.35, ground: true }, fx: 'wave' },
+    { mv: 'zap', t: 0.16, hit: { at: 0.5, cx: 4.4, r: 1.7, arc: P, part: 0.35, ground: true }, fx: 'wave' },
+  ],
+  噛みつきダイブ: [{ mv: 'bite', t: 0.6, jump: 7, pounce: true, hit: { contact: true, r: 1.7, arc: 1.3, part: 1, knock: 1.6 }, fx: 'bite' }],
+  炎牙: [
+    { mv: 'bite', t: 0.22, go: 0.9, hit: { at: 0.6, r: 1.8, arc: 1, part: 0.3, bind: 0.9 }, fx: 'fireBite' },
+    { mv: 'bite', t: 0.16, hit: { at: 0.5, r: 2.4, arc: P, part: 0.22, bind: 0.7 }, fx: 'fireBite' },
+    { mv: 'bite', t: 0.16, side: 0.3, hit: { at: 0.5, r: 2.4, arc: P, part: 0.22, bind: 0.5 }, fx: 'fireBite' },
+    { mv: 'head', t: 0.26, hit: { at: 0.5, r: 2.4, arc: P, part: 0.26, knock: 2.2 }, fx: 'flameBurst' },
+  ],
+  牙王クラッシュ: [
+    { mv: 'clawR', t: 0.32, jump: 5, go: 1.2 },
+    { mv: 'head', t: 0.28, dive: 9, hit: { at: 0.5, cx: 1.2, r: 1.8, arc: P, part: 1, knock: 2.8 }, fx: 'slam' },
+  ],
+  獣跳ステップ: [
+    { mv: 'shoulder', t: 0.24, side: 2.6, jump: 4 },
+    { mv: 'bite', t: 0.3, go: 2.6, hit: { contact: true, r: 1.6, arc: 1.2, part: 1, knock: 1.6 }, fx: 'bite' },
+  ],
+  ライオファング: [
+    { mv: 'clawR', t: 0.18, go: 0.6, hit: { at: 0.6, r: 1.7, arc: 1, part: 0.25 }, fx: 'claw' },
+    { mv: 'clawL', t: 0.18, go: 0.3, hit: { at: 0.6, r: 1.7, arc: 1, part: 0.25 }, fx: 'claw' },
+    { mv: 'bite', t: 0.34, jump: 5, go: 0.4, hit: { at: 0.4, r: 1.9, arc: 1.2, part: 0.5, launch: 8 }, fx: 'flameBurst' },
+  ],
+  爆炎ブレス: [{ mv: 'zap', t: 0.75, hit: { n: 6, every: 0.11, at: 0.08, cx: 2.2, r: 2.2, arc: 0.55, part: 0.18 }, fx: 'flame' }],
+  荒神ラッシュ: [
+    { mv: 'clawR', t: 0.16, go: 0.5, hit: { at: 0.6, r: 1.7, arc: 1, part: 0.17 }, fx: 'claw' },
+    { mv: 'clawL', t: 0.16, go: 0.4, hit: { at: 0.6, r: 1.7, arc: 1, part: 0.17 }, fx: 'claw' },
+    { mv: 'bite', t: 0.18, go: 0.4, hit: { at: 0.6, r: 1.7, arc: 1, part: 0.18 }, fx: 'bite' },
+    { mv: 'clawR', t: 0.16, go: 0.4, hit: { at: 0.6, r: 1.7, arc: 1, part: 0.18 }, fx: 'claw' },
+    { mv: 'shoulder', t: 0.32, go: 1.6, hit: { at: 0.5, r: 1.8, arc: 1.2, part: 0.3, knock: 3 }, fx: 'head' },
+  ],
+  爆走牙: [{ mv: 'bite', t: 0.7, go: 8, hit: { contact: true, r: 1.6, arc: 1, part: 1, launch: 7.5 }, fx: 'fireTrail' }],
+  轟炎牙王: [
+    { mv: 'clawR', t: 0.75, jump: 12, pounce: true, fx: 'flameAura' },
+    { mv: 'head', t: 0.35, dive: 14, hit: { at: 0.4, r: 3.6, arc: P, part: 1 }, fx: 'nova' },
+  ],
+  王者の牙: [
+    { mv: 'bite', t: 0.24, go: 1, hit: { at: 0.6, r: 1.8, arc: 1, part: 0.3, bind: 1 }, fx: 'bite' },
+    { mv: 'bite', t: 0.2, side: -0.5, hit: { at: 0.5, r: 2.4, arc: P, part: 0.25, bind: 0.8 }, fx: 'bite' },
+    { mv: 'head', t: 0.34, spin: true, hit: { at: 0.6, r: 2.4, arc: P, part: 0.45, throwBack: true, knock: 3, launch: 4 }, fx: 'ring' },
+  ],
+  // ---------------- SNEK(闇・無。毒牙・とぐろ・しっぽ・影で ほんろうする) ----------------
+  毒牙: [{ mv: 'bite', t: 0.32, go: 1.2, hit: { at: 0.55, r: 2.7, arc: 0.6, part: 1 }, fx: 'darkBite' }],
+  尾払い: [{ mv: 'tail', t: 0.42, spin: true, hit: { at: 0.45, r: 2.5, arc: P, part: 1, launch: 6.5 }, fx: 'ring' }],
+  影すべり: [{ mv: 'head', t: 0.6, go: 6, ghost: true, hit: { contact: true, r: 1.5, arc: 1.3, part: 1, knock: 1.6 }, fx: 'shadow' }],
+  牙落とし: [
+    { mv: 'bite', t: 0.34, jump: 8, go: 1 },
+    { mv: 'bite', t: 0.26, dive: 12, hit: { at: 0.45, r: 1.9, arc: P, part: 1, knock: 1.4 }, fx: 'darkSlam' },
+  ],
+  蛇の閃き: [
+    { mv: 'bite', t: 0.2, side: 1.6, go: 0.6, hit: { at: 0.7, r: 1.9, arc: 1.4, part: 0.3 }, fx: 'darkBite' },
+    { mv: 'bite', t: 0.2, side: -3.2, hit: { at: 0.7, r: 1.9, arc: 1.4, part: 0.3 }, fx: 'darkBite' },
+    { mv: 'bite', t: 0.24, side: 1.6, go: 0.6, hit: { at: 0.7, r: 1.9, arc: 1.4, part: 0.4, knock: 1.6 }, fx: 'darkBite' },
+  ],
+  螺旋牙: [
+    { mv: 'bite', t: 0.24, orbit: 1.6, hit: { at: 0.7, r: 2.2, arc: 1.4, part: 0.3 }, fx: 'darkBite' },
+    { mv: 'bite', t: 0.24, orbit: 1.6, hit: { at: 0.7, r: 2.2, arc: 1.4, part: 0.3 }, fx: 'darkBite' },
+    { mv: 'tail', t: 0.36, spin: true, hit: { at: 0.5, r: 2.4, arc: P, part: 0.4, launch: 7 }, fx: 'ring' },
+  ],
+  毒蛇の顎: [{ mv: 'bite', t: 0.55, go: 6.5, hit: { contact: true, r: 2.3, arc: 1.2, part: 1, knock: 2 }, fx: 'bigJaw' }],
+  冥府のとぐろ: [
+    { mv: 'tail', t: 1.1, spin: true, hit: { n: 5, every: 0.2, at: 0.05, r: 3.6, arc: P, part: 0.14, pull: true }, fx: 'abyss' },
+    { mv: 'tail', t: 0.36, spin: true, hit: { at: 0.4, r: 3.6, arc: P, part: 0.3, knock: 3 }, fx: 'abyssBurst' },
+  ],
+  // ---------------- GRIT(無・闇。重い ブルドッグ。受け止めて 重い反撃) ----------------
+  ドスンヘッド: [{ mv: 'head', t: 0.34, go: 1.8, hit: { contact: true, r: 1.5, arc: 1, part: 1, knock: 3.2 }, fx: 'head' }],
+  地鳴らし: [
+    { mv: 'clawR', t: 0.22, hit: { at: 0.95, cx: 1.3, r: 1.1, arc: P, part: 0.3, ground: true }, fx: 'stomp' },
+    { mv: 'clawR', t: 0.12, hit: { at: 0.5, cx: 2.6, r: 1.1, arc: P, part: 0.25, ground: true }, fx: 'stomp' },
+    { mv: 'clawR', t: 0.12, hit: { at: 0.5, cx: 3.9, r: 1.2, arc: P, part: 0.25, ground: true }, fx: 'stomp' },
+    { mv: 'clawR', t: 0.12, hit: { at: 0.5, cx: 5.2, r: 1.3, arc: P, part: 0.25, ground: true }, fx: 'stomp' },
+  ],
+  肩押し: [{ mv: 'shoulder', t: 0.65, go: 3.8, hit: { n: 4, every: 0.13, at: 0.15, r: 1.6, arc: 1.2, part: 0.25, knock: 1.3 }, fx: 'shove' }],
+  ブルドーザー: [{ mv: 'shoulder', t: 1.05, go: 6.5, hit: { n: 6, every: 0.15, at: 0.08, r: 1.7, arc: 1.2, part: 0.17, knock: 1.4 }, fx: 'shove' }],
+  横ドスン: [
+    { mv: 'shoulder', t: 0.24, side: 2.4 },
+    { mv: 'shoulder', t: 0.3, go: 2.2, hit: { contact: true, r: 1.6, arc: 1.3, part: 1, knock: 2.6 }, fx: 'head' },
+  ],
+  グリットプレス: [
+    { mv: 'head', t: 0.5, jump: 7, pounce: true },
+    { mv: 'head', t: 0.24, dive: 12, hit: { at: 0.4, r: 2.3, arc: P, part: 1, knock: 2 }, fx: 'slam' },
+  ],
+  ブルクラッシャー: [{ mv: 'shoulder', t: 0.5, go: 4.2, hit: { contact: true, r: 1.6, arc: 1.1, part: 1, launch: 8 }, fx: 'head' }],
+  グリットタイタン: [
+    { mv: 'head', t: 0.85, jump: 13, pounce: true },
+    { mv: 'head', t: 0.35, dive: 16, hit: { at: 0.4, r: 4, arc: P, part: 1 }, fx: 'titan' },
+  ],
+};

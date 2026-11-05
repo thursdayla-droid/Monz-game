@@ -229,6 +229,13 @@ export const ANIME = {
     装甲砕き音波: 'shatter', 狙撃ライン: 'snipe', 連鎖トラップ: 'trapChain', 千機包囲網: 'turrets', 終端狙撃陣: 'snipeArray',
     // 2026-11-05 新しい5体: 受けて 反撃する 守り(KLAK の 鋏盾クランプ と 同じ しくみ)【仮】
     とぐろ返し: 'clampCounter', 岩鉄ボディ: 'clampCounter',
+    // 2026-11-05 企画者「新しい3匹 全部一緒でつまらない」→ 技ごとの しくみ(体で行く技の 動きは beastScripts.ts)
+    // RIOT
+    炎たてがみガード: 'burnShield',
+    // SNEK
+    黒蛇玉: 'weave', 影の抜け殻: 'decoy', 蛇行黒閃: 'sweep',
+    // GRIT: 頑固ガード = ドームを出さず 体を固める(ひるまない)・我慢の壁 = 受け止めて ためて はじける・黒い息 = 遅くて 大きな 息のかたまり・重圧の輪 = 自分の まわりに 場
+    頑固ガード: 'armor', 踏ん張り: 'armorBuff', 親分の意地: 'armorBuff', 我慢の壁: 'absorbCounter', 黒い息: 'slowOrb', 重圧の輪: 'selfRing',
   } as Record<string, string>,
   /** とくべつな動きの数字【仮】。strike: 予告のあと落ちる・立つ攻撃(落雷・光の杭)の威力(強さごと) */
   style: {
