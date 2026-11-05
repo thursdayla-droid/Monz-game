@@ -79,6 +79,7 @@ export const STORY_IMAGES: Record<number, string> = {
   7: 'assets/story/ch2_07.webp', // 2章7話 KLAK(2026-11-05 企画者)
   8: 'assets/story/ch2_08.webp', // 2章8話 BUNK(2026-11-05 企画者)
   9: 'assets/story/ch2_09.webp', // 2章9話 PUNI(2026-11-05 企画者)
+  10: 'assets/story/ch2_10.webp', // 2章10話 MOFU(中ボス。2026-11-05 企画者)
 };
 
 /** 話(企画者が 書いた 文。ステージの 番号 → 題名と 行) */
