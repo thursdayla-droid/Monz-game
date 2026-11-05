@@ -1360,7 +1360,7 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
       };
       if (st === 'fireRing') {
         // 炎環走り: 相手の まわりに 炎の輪(8つの 小さな 炎)
-        for (let k = 0; k < 8; k++) add(o.x + Math.cos((k * Math.PI) / 4) * 2.4, o.z + Math.sin((k * Math.PI) / 4) * 2.4, { r: 0.85, power: 3 });
+        for (let k = 0; k < 8; k++) add(o.x + Math.cos((k * Math.PI) / 4) * 2.4, o.z + Math.sin((k * Math.PI) / 4) * 2.4, { r: 1.1, power: 3 });
       } else if (st === 'clawLines') {
         // 炎の爪痕: 前へ 3本の 炎の 爪あと(線)
         for (const off of [-0.9, 0, 0.9]) {

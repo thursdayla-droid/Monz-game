@@ -2439,7 +2439,8 @@ export class AnimeField {
       ring.rotation.z -= dt * 1.4;
       (wall.material as THREE.MeshBasicMaterial).opacity = 0.08 + Math.sin(performance.now() / 150) * 0.03;
       // 新しい5体の場: 炎は 火の粉・水は しぶき・闇は 毒の あわ・雷は 火花
-      if (neo && !fl.self && dt > 0 && Math.random() < dt * (fl.mine ? 6 : 18)) {
+      const magma = ANIME.techStyle[fl.tech] === 'fireRing';
+      if (neo && !fl.self && dt > 0 && Math.random() < dt * (fl.mine ? 6 : magma ? 3 : 18)) {
         const a2 = Math.random() * Math.PI * 2;
         const r2 = Math.random() * fl.r;
         const px = fl.x + Math.cos(a2) * r2;
@@ -2453,6 +2454,35 @@ export class AnimeField {
         }
       }
       if (fl.pull) disc.rotation.z += dt * 4;
+      // RIOT 炎環走り: 足もとは マグマ(2026-11-05 企画者「炎って分かりにくいから下がマグマにしよう」)
+      if (ANIME.techStyle[fl.tech] === 'fireRing') {
+        const glowK = 0.85 + Math.sin(performance.now() / 180 + fl.x) * 0.15;
+        dm.blending = THREE.NormalBlending;
+        dm.color.setRGB(0.95, 0.22 * glowK, 0.02);
+        dm.opacity = 0.95;
+        (ring.material as THREE.MeshBasicMaterial).color.setHex(0x5a0e00);
+        (wall.material as THREE.MeshBasicMaterial).color.setHex(0xff3a00);
+        // マグマは 低い(立ちのぼる 光の壁は 出さない)
+        (wall.material as THREE.MeshBasicMaterial).opacity = 0;
+        disc.rotation.z += dt * 0.3;
+        if (dt > 0) {
+          // ぶくぶく はじける マグマの あわ と、黒い かたまり
+          if (Math.random() < dt * 10) {
+            const a3 = Math.random() * Math.PI * 2;
+            const r3 = Math.random() * fl.r * 0.8;
+            const bub = this.sprite(Math.random() < 0.5 ? 0xffa030 : 0xffe080);
+            bub.position.set(fl.x + Math.cos(a3) * r3, 0.12, fl.z + Math.sin(a3) * r3);
+            this.add(bub, 0.35, 1.6, 0.18, { vy: 0.4 });
+          }
+          if (Math.random() < dt * 4) {
+            const a3 = Math.random() * Math.PI * 2;
+            const r3 = Math.random() * fl.r * 0.7;
+            const crust = this.sprite(0x2a0600, false);
+            crust.position.set(fl.x + Math.cos(a3) * r3, 0.08, fl.z + Math.sin(a3) * r3);
+            this.add(crust, 0.9, 0.2, 0.3);
+          }
+        }
+      } else if (plain) dm.opacity = 0.55;
       // 自分の場: 花びらと光の粒が ふわふわ のぼる
       if (fl.self) {
         if (dt > 0 && Math.random() < dt * 40) {
