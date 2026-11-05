@@ -956,10 +956,13 @@ export class AnimeField {
    * ツルのムチ(MOFU の通常攻撃。2026-11-03 企画者「ツルの鞭みたいな中距離」): 体の前(手があれば手)から、
    * 緑のツルが しなりながら前へのびる。n で左右に しなる向きを変える
    */
-  vineWhip(side: number, dir: number, len: number, n: number): void {
+  vineWhip(side: number, dir: number, len: number, n: number, look: 'vine' | 'tongue' = 'vine'): void {
     const rig = this.rigs[side];
     const start = new THREE.Vector3();
-    if (!rig.glove(start)) rig.mouth.getWorldPosition(start);
+    // SNEK 闇の舌(2026-11-05 企画者「モフの つるのムチみたいに」): 口から 出す・むらさきの 舌
+    const tg = look === 'tongue';
+    if (tg || !rig.glove(start)) rig.mouth.getWorldPosition(start);
+    const C1 = tg ? 0x9a3aa0 : 0x6adf4a, C2 = tg ? 0x2a0a34 : 0x1a4a1a, C3 = tg ? 0xc04a9a : 0x4fc04f, C4 = tg ? 0xffb8e8 : 0xe0ffb8;
     start.y = Math.max(0.5, start.y - 0.1);
     const sideX = -Math.sin(dir);
     const sideZ = Math.cos(dir);
@@ -984,14 +987,14 @@ export class AnimeField {
       this.add(m, life, 0, 1, { must: true, tick: (k) => geo.setDrawRange(0, Math.floor((total * Math.max(0, Math.min(1, (k - delay) / grow))) / 6) * 6) });
     };
     // 残像(大きく しなった前の位置) → 本体
-    tube(vinePts(sgn * 2.4, len * 0.85), 0.12, 0x6adf4a, 0.25, true, 0, 0.18);
-    tube(vinePts(sgn * 1.5, len * 0.95), 0.13, 0x6adf4a, 0.4, true, 0.05, 0.2);
+    tube(vinePts(sgn * 2.4, len * 0.85), 0.12, C1, 0.25, true, 0, 0.18);
+    tube(vinePts(sgn * 1.5, len * 0.95), 0.13, C1, 0.4, true, 0.05, 0.2);
     const main = vinePts(sgn * 0.7, len);
-    tube(main, 0.19, 0x1a4a1a, 1, false, 0.1, 0.22);
-    tube(main, 0.13, 0x4fc04f, 1, false, 0.1, 0.22);
-    tube(main, 0.055, 0xe0ffb8, 1, true, 0.1, 0.22);
-    // ツルのトゲのような葉っぱ
-    for (let i = 2; i <= 9; i += 2) {
+    tube(main, 0.19, C2, 1, false, 0.1, 0.22);
+    tube(main, 0.13, C3, 1, false, 0.1, 0.22);
+    tube(main, 0.055, C4, 1, true, 0.1, 0.22);
+    // ツルのトゲのような葉っぱ(舌には ない)
+    for (let i = 2; i <= 9 && !tg; i += 2) {
       const lp = this.sprite(0x8aef6a, false, this.leafTex);
       lp.position.copy(main[i]);
       lp.material.rotation = Math.random() * Math.PI;
@@ -999,16 +1002,16 @@ export class AnimeField {
     }
     // 先: 緑の斬撃の弧(カメラを向く)と光
     const tip = main[main.length - 1];
-    const arc = new THREE.Mesh(new THREE.TorusGeometry(0.9, 0.09, 6, 28, Math.PI * 0.85), new THREE.MeshBasicMaterial({ color: 0xb8ff7a, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+    const arc = new THREE.Mesh(new THREE.TorusGeometry(0.9, 0.09, 6, 28, Math.PI * 0.85), new THREE.MeshBasicMaterial({ color: tg ? 0xd070ff : 0xb8ff7a, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
     arc.position.copy(tip);
     arc.lookAt(this.camera.position);
     arc.rotateZ(sgn > 0 ? 0.3 : Math.PI - 0.3);
     this.add(arc, 0.24, 0.9, 1, { must: true });
-    const flash = this.sprite(0xeaffc0, true, this.star);
+    const flash = this.sprite(tg ? 0xf0c0ff : 0xeaffc0, true, this.star);
     flash.position.copy(tip);
     this.add(flash, 0.22, 2.4, 0.9, { must: true });
     for (let i = 0; i < 8; i++) {
-      const p = this.sprite(i % 2 ? 0x7adf5a : 0xffffff);
+      const p = this.sprite(i % 2 ? (tg ? 0xb070ff : 0x7adf5a) : 0xffffff);
       p.position.copy(tip);
       const a2 = Math.random() * Math.PI * 2;
       this.add(p, 0.35, -0.4, 0.35, { vx: Math.cos(a2) * 3, vz: Math.sin(a2) * 3, vy: 1 + Math.random() * 2.5 });
@@ -1234,11 +1237,8 @@ export class AnimeField {
         this.shockRing(x, 0.9, z, 0xff3030, 1.2);
         break;
       case 'tongue':
-        // SNEK 闇の舌: 舌の 本体は tongueLash(毎フレーム)。ここは 当たった所の 光だけ
-        if (hit) {
-          this.monSwing(x, z, dir, 'head', 0, y, true, 0x9a4aff);
-          this.shockRing(x, y, z, 0xb070ff, 1);
-        }
+        // SNEK 闇の舌: 舌の 本体は vineWhip(look: tongue。場面から)。ここは 当たった所の 光だけ
+        if (hit) this.shockRing(x, y, z, 0xb070ff, 1);
         break;
       case 'sparkAura':
         this.bolt(ax, 0.2, az, ax, y + 1.6, az, 1);
@@ -1828,56 +1828,6 @@ export class AnimeField {
     if (Math.random() < 0.5) this.flame(f.x + Math.cos(f.face) * len * grow, f.y + 0.85, f.z + Math.sin(f.face) * len * grow, 0.9, 1);
   }
 
-  /** SNEK 闇の舌: 口から のびて もどる 長い 舌(企画者 2026-11-05「ベロで 攻撃」) */
-  private tongues: (THREE.Group | undefined)[] = [];
-  private tongueLash(i: number, f: AnimeMon): void {
-    const a = f.act;
-    const st = a.k === 'tech' && a.fired ? BEAST[a.id]?.[a.step ?? 0] : undefined;
-    const len = st?.fx === 'tongue' ? st.hit?.line : undefined;
-    let g = this.tongues[i];
-    if (!st || !len || a.k !== 'tech') {
-      if (g) g.visible = false;
-      return;
-    }
-    if (!g) {
-      g = new THREE.Group();
-      const mat = new THREE.MeshToonMaterial({ color: 0x9a2a8a, gradientMap: this.gradient });
-      const tipMat = new THREE.MeshToonMaterial({ color: 0x5a1a6a, gradientMap: this.gradient });
-      // 舌の 本体(長さ 1 → scale.x で のばす)
-      const geo = new THREE.CylinderGeometry(0.09, 0.13, 1, 10, 1);
-      geo.rotateZ(-Math.PI / 2);
-      geo.translate(0.5, 0, 0);
-      const body = new THREE.Mesh(geo, mat);
-      g.add(body);
-      g.userData.body = body;
-      // 先の ふたまた
-      const tip = new THREE.Group();
-      for (const sd of [-1, 1]) {
-        const c = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.45, 6), tipMat);
-        c.rotation.z = -Math.PI / 2;
-        c.rotation.y = sd * 0.45;
-        c.position.set(0.18, 0, sd * 0.09);
-        tip.add(c);
-      }
-      g.add(tip);
-      g.userData.tip = tip;
-      this.scene.add(g);
-      this.tongues[i] = g;
-    }
-    const k = Math.min(1, (a.stepT ?? 0) / st.t);
-    // のびる(半分で いちばん 先)→ もどる
-    const at = st.hit?.at ?? 0.5;
-    const ext = k < at ? Math.sin((k / at) * Math.PI * 0.5) : Math.cos(((k - at) / (1 - at)) * Math.PI * 0.5);
-    const L = Math.max(0.05, len * ext);
-    const now = performance.now() / 1000;
-    g.visible = true;
-    g.position.set(f.x + Math.cos(f.face) * 0.6, f.y + 0.55, f.z + Math.sin(f.face) * 0.6);
-    // 少し うねる
-    g.rotation.set(Math.sin(now * 30) * 0.15, -f.face, Math.sin(now * 22) * 0.05);
-    (g.userData.body as THREE.Mesh).scale.set(L, 1, 1);
-    (g.userData.tip as THREE.Group).position.set(L, 0, 0);
-  }
-
   render(b: AnimeBattle, dt: number): void {
     b.f.forEach((f, i) => {
       const rig = this.rigs[i];
@@ -1904,7 +1854,6 @@ export class AnimeField {
       rig.armored = b.t < (f.armorUntil ?? 0);
       rig.update(f, dt);
       this.breathBeam(i, f);
-      this.tongueLash(i, f);
       // 技のため: 口に光が集まる
       const ch = this.charge[i];
       const a = f.act;

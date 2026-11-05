@@ -802,6 +802,8 @@ function beginBeastStep(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: '
     }
   }
   if (s.dive && f.y > 0) f.vy = Math.min(f.vy, -s.dive);
+  // 闇の舌: 舌を 出す 見た目は 1歩の はじめに(当たる時に 先が とどくように)
+  if (s.fx === 'tongue') b.events.push({ kind: 'beastFx', side: f.side, fx: 'tongueOut', mv: s.mv, x: f.x, z: f.z, dir: f.face, hit: false, tech: a.id });
   if (s.fx && !s.hit) b.events.push({ kind: 'beastFx', side: f.side, fx: s.fx, mv: s.mv, x: f.x, z: f.z, dir: f.face, hit: false, tech: a.id });
 }
 

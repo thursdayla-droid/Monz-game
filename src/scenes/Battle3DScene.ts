@@ -1009,7 +1009,13 @@ export class Battle3DScene extends Phaser.Scene {
         const el = getTech(e.tech).element;
         const SP_COL: Record<string, number> = { riot: 0xff7a2a, snek: 0x9a4aff, grit: 0xd8b070, vybe: 0xffe040, shellz: 0x5ac8ff };
         const col = el === '無' ? SP_COL[bf.species] ?? 0xffffff : el === '闇' ? 0x9a4aff : ELEMENT_HEX[el];
-        F.beastFx(e.fx, e.x, e.z, bf.x, bf.z, bf.y + 0.8, e.dir, e.hit, col);
+        if (e.fx !== 'tongueOut') F.beastFx(e.fx, e.x, e.z, bf.x, bf.z, bf.y + 0.8, e.dir, e.hit, col);
+        // SNEK 闇の舌: 口から のびる 舌(MOFU の ツルのムチと 同じ 見せ方。2026-11-05 企画者)
+        if (e.fx === 'tongueOut') {
+          const L = BEAST[e.tech]?.[0]?.hit?.line ?? 8;
+          F.vineWhip(e.side, e.dir, L + 0.4, bf.act.k === 'tech' ? (bf.act.step ?? 0) + 1 : 1, 'tongue');
+          audio.techSe('', 'whip', 'fire');
+        }
         const fx = e.fx;
         if (fx.includes('claw')) audio.se('mcSlash', { pitch: 1.2 + Math.random() * 0.2 });
         else if (fx.includes('ite') || fx === 'bigJaw') audio.se('whoosh', { pitch: 1.6 });

@@ -182,9 +182,10 @@ export const BEAST: Record<string, BeastStep[]> = {
   // GRIT 押し出し: 肩で ぶつかって 遠くまで 押しとばす
   押し出し: [{ mv: 'shoulder', t: 0.4, go: 2.2, hit: { contact: true, r: 1.6, arc: 1.2, part: 0.7, knock: 6 }, fx: 'shove' }],
   // SNEK 闇の舌: 長い 舌(ベロ)を のばして 中くらいの 距離から 2回 たたく(2026-11-05 企画者「中距離の 打撃・ベロで 攻撃」)
+  // 2026-11-05 企画者「からだから 舌が出てる → モフの つるのムチみたいに・距離は 2倍ぐらい」→ 口から しなる 舌・約8m
   闇の舌: [
-    { mv: 'zap', t: 0.34, hit: { at: 0.5, line: 5.5, r: 0.9, part: 0.4 }, fx: 'tongue' },
-    { mv: 'zap', t: 0.38, hit: { at: 0.5, line: 5.5, r: 0.9, part: 0.6, knock: 2.4 }, fx: 'tongue' },
+    { mv: 'zap', t: 0.4, hit: { at: 0.3, line: 8, r: 0.9, part: 0.4 }, fx: 'tongue' },
+    { mv: 'zap', t: 0.44, hit: { at: 0.3, line: 8, r: 0.9, part: 0.6, knock: 2.4 }, fx: 'tongue' },
   ],
   // SNEK 影すべり: 影に もぐって 相手の うしろへ → うしろから かみつく
   影すべり: [
