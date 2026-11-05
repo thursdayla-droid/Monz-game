@@ -97,12 +97,21 @@ describe('MOFU の技 (2026-11-03)', () => {
       // 押すたびに1発(2026-11-04)。続けて押すと 2発・3発
       let n = 0;
       for (let i = 0; i < 72; i++) { if (i % 9 === 0) giveCommand(bf, 0, 'punch'); n += run(bf, 1 / 60).filter((x) => x.kind === 'hit').length; }
-      expect(n).toBe(want);
+      // 2026-11-05 から 待ち時間なし: 押し続ければ 何回でも 出る
+      expect(n).toBeGreaterThanOrEqual(want);
     }
     const b2 = newAnimeBattle(e('bunk', [], 1), e('bunk', [], 1), 4, 'manual');
     quiet(b2);
     b2.f[0].x = 0; b2.f[1].x = 3; b2.f[0].z = b2.f[1].z = 0; b2.f[0].face = 0;
     giveCommand(b2, 0, 'punch');
     expect(run(b2, 1).filter((x) => x.kind === 'hit').length).toBe(0);
+  });
+  it('MOFU の通常攻撃(ツルのムチ)は 待ち時間なし(2026-11-05 企画者)', () => {
+    const b = newAnimeBattle(e('mofu', [], 1), e('bunk', [], 1), 4, 'manual');
+    quiet(b);
+    b.f[0].x = 0; b.f[1].x = 3; b.f[0].z = b.f[1].z = 0; b.f[0].face = 0;
+    giveCommand(b, 0, 'punch');
+    run(b, 0.6);
+    expect(giveCommand(b, 0, 'punch')).toBe(true);
   });
 });

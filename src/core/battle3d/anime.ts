@@ -571,7 +571,8 @@ function startTech(b: AnimeBattle, f: AnimeMon, id: TechId, byCommand: boolean, 
     f.jabChain = ci + 1;
     const last = f.jabChain >= f.jab.parts.length;
     if (last) f.jabChain = 0;
-    f.cooldown[id] = last ? b.t + windup + tech.duration + tech.recovery + tech.cooldown : b.t;
+    // MOFU の ツルのムチは 待ち時間なし(2026-11-05 企画者「モフの攻撃はクールタイムいらない」)
+    f.cooldown[id] = last && !f.jab.whip ? b.t + windup + tech.duration + tech.recovery + tech.cooldown : b.t;
   }
   // 浮いている相手に 体で行く技(突進・回転・連続攻撃): 相手の高さへ とび上がる
   if ((tech.kind === 'rush' || tech.kind === 'spin' || tech.kind === 'combo') && !BEAST[id] && floating(o) && f.y <= 0) {
