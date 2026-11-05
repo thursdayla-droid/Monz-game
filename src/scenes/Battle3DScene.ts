@@ -786,7 +786,8 @@ export class Battle3DScene extends Phaser.Scene {
         else if (!audio.techSe(e.tech, ht.kind, 'hit')) audio.se(e.big ? 'punchHeavy' : 'punch', { pitch: 0.9 + Math.random() * 0.2 });
         this.hitStop = Math.max(this.hitStop, [0.06, 0.08, 0.11, 0.15][lvS]);
         if (!e.big && !whip && !mofuHit && !own) F.explode(e.x, e.y, e.z, e.tech, false);
-        this.pop(e.crit ? `クリティカル！ -${e.damage}` : `-${e.damage}`, e.target === 0 ? '#ff8a8a' : '#ffd23a');
+        // クリティカルは 英語で 小さく(2026-11-05 企画者)
+        this.pop(`-${e.damage}`, e.target === 0 ? '#ff8a8a' : '#ffd23a', e.crit ? 'CRITICAL' : undefined);
         break;
       }
       case 'explode':
@@ -943,7 +944,7 @@ export class Battle3DScene extends Phaser.Scene {
       case 'domeBurst':
         F.impact(e.x, e.z, 2.2, true);
         this.screenFlash(0.4);
-        this.pop(e.side === 0 ? 'ドームはんげき！' : 'あいてのドームはんげき！', '#9ad8ff');
+        // 文字は 出さない(2026-11-05 企画者「ドーム反撃って真ん中に出るのやめよう」)
         audio.se('koBlast', { pitch: 1.2 });
         break;
       case 'ukemi':
@@ -1042,7 +1043,7 @@ export class Battle3DScene extends Phaser.Scene {
         break;
       }
       case 'command':
-        if (e.side === 0 && e.state === 'expired') this.pop('いまは 出せない…', '#ffb070');
+        // 「いまは 出せない」は 出さない(2026-11-05 企画者)
         break;
       case 'ko':
         this.slowT = ANIME.fx.ko.slow;
@@ -1107,9 +1108,15 @@ export class Battle3DScene extends Phaser.Scene {
     );
   }
 
-  private pop(text: string, color: string): void {
+  private pop(text: string, color: string, sub?: string): void {
     const el = this.ui.pop;
     el.textContent = text;
+    if (sub) {
+      const s = document.createElement('small');
+      s.textContent = sub;
+      s.style.cssText = 'display:block;font-size:13px;letter-spacing:.12em;text-align:center;line-height:1;margin-bottom:2px';
+      el.prepend(s);
+    }
     el.style.color = color;
     el.animate(
       [
