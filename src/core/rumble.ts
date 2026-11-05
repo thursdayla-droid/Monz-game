@@ -116,7 +116,7 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
     ],
   },
   4: {
-    title: '第4話',
+    title: '第4話「燃える挑戦者」',
     lines: [
       { who: null, text: '3連勝を飾り、草原のはずれまでたどり着いた挑戦者。' },
       { who: null, text: '夕焼けに染まる岩場で、突然、激しい雄叫びが響き渡る。' },
