@@ -277,4 +277,19 @@ describe('each new move works in its own way', () => {
     giveCommand(b, 0, '大瀑布砲'); run(b, 150);
     expect(q.x).toBeGreaterThan(7);
   });
+  it('RIOT (2026-11-05): 火花 lobs a fireball onto the foe, 王者の爪 fires 3 fire slashes, 爆走牙 leaves magma', () => {
+    let { b } = setup('riot', ['火花'], 5);
+    giveCommand(b, 0, '火花');
+    let ev = run(b, 30);
+    expect(b.shots.some((s) => s.tech === '火花' && s.vy !== undefined)).toBe(true);
+    ev = ev.concat(run(b, 60));
+    expect(ev.some((x) => x.kind === 'hit' && x.side === 0)).toBe(true);
+    ({ b } = setup('riot', ['王者の爪'], 8));
+    giveCommand(b, 0, '王者の爪');
+    for (let i = 0; i < 60 && !b.shots.length; i++) run(b, 1);
+    expect(b.shots.filter((s) => s.tech === '王者の爪' && s.look === 'slash').length).toBe(3);
+    ({ b } = setup('riot', ['爆走牙'], 8));
+    giveCommand(b, 0, '爆走牙'); run(b, 50);
+    expect(b.fields.some((f) => f.tech === '爆走牙' && f.magma)).toBe(true);
+  });
 });

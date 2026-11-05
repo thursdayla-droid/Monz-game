@@ -704,7 +704,13 @@ export class Battle3DScene extends Phaser.Scene {
           F.shake(0.12);
         }
         // 2026-11-03 企画者の演出指示: 撃つ技は発射の光の輪
-        if (k === 'shot' || k === 'barrage' || k === 'beam') F.muzzle(e.side, e.tech);
+        // 新しい5体は 発射の 光の輪を 出さない(みんな 同じに 見えるので。2026-11-05)。炎は 口から 火の粉
+        const neoSp = ['riot', 'snek', 'grit', 'vybe', 'shellz'].includes(b.f[e.side].species);
+        if ((k === 'shot' || k === 'barrage' || k === 'beam') && !neoSp) F.muzzle(e.side, e.tech);
+        else if (neoSp && getTech(e.tech).element === '炎') {
+          const fa = b.f[e.side];
+          F.flame(fa.x + Math.cos(fa.face) * 0.9, fa.y + 1, fa.z + Math.sin(fa.face) * 0.9, 0.4, 4);
+        }
         // 落下: 跳ぶ時に足もとから砂けむり
         if (k === 'drop') {
           const fa = b.f[e.side];

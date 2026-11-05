@@ -52,10 +52,6 @@ export const BEAST: Record<string, BeastStep[]> = {
     { mv: 'bite', t: 0.2, go: 0.7, side: -0.4, hit: { at: 0.6, r: 1.6, arc: 0.9, part: 0.45 }, fx: 'bite' },
     { mv: 'bite', t: 0.22, go: 0.4, side: 0.8, hit: { at: 0.6, r: 1.6, arc: 1.1, part: 0.55, knock: 1.4 }, fx: 'bite' },
   ],
-  火花爪: [
-    { mv: 'clawR', t: 0.22, go: 0.6, hit: { at: 0.6, r: 1.7, arc: 1, part: 0.4 }, fx: 'claw' },
-    { mv: 'clawL', t: 0.3, go: 0.3, hit: { at: 0.5, r: 1.8, arc: 1.1, part: 0.6, launch: 7 }, fx: 'clawUp' },
-  ],
   ガルルショック: [
     { mv: 'zap', t: 0.22, hit: { at: 0.9, cx: 1.6, r: 1.3, arc: P, part: 0.4, ground: true }, fx: 'wave' },
     { mv: 'zap', t: 0.16, hit: { at: 0.5, cx: 3.0, r: 1.5, arc: P, part: 0.35, ground: true }, fx: 'wave' },
@@ -76,11 +72,6 @@ export const BEAST: Record<string, BeastStep[]> = {
   轟炎牙王: [
     { mv: 'clawR', t: 0.75, jump: 12, pounce: true, fx: 'flameAura' },
     { mv: 'head', t: 0.35, dive: 14, hit: { at: 0.4, r: 3.6, arc: P, part: 1 }, fx: 'nova' },
-  ],
-  王者の牙: [
-    { mv: 'bite', t: 0.24, go: 1, hit: { at: 0.6, r: 1.8, arc: 1, part: 0.3, bind: 1 }, fx: 'bite' },
-    { mv: 'bite', t: 0.2, side: -0.5, hit: { at: 0.5, r: 2.4, arc: P, part: 0.25, bind: 0.8 }, fx: 'bite' },
-    { mv: 'head', t: 0.34, spin: true, hit: { at: 0.6, r: 2.4, arc: P, part: 0.45, throwBack: true, knock: 3, launch: 4 }, fx: 'ring' },
   ],
   // ---------------- SNEK(闇・無。毒牙・とぐろ・しっぽ・影で ほんろうする) ----------------
   毒牙: [{ mv: 'bite', t: 0.32, go: 1.2, hit: { at: 0.55, r: 2.7, arc: 0.6, part: 1 }, fx: 'darkBite' }],

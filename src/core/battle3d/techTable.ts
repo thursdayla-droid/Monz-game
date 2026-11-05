@@ -156,6 +156,8 @@ export const isSupportTech = (id: string): boolean => ['heal', 'buff', 'barrier'
  * 前の名前で 保存された 技も 読めるように(lifeSave の fixTechs・getTech で 使う)
  */
 export const TECH_RENAME: Record<string, string> = {
+  火花爪: '火花',
+  王者の牙: '王者の爪',
   ハネツキラッシュ: '跳ねつき連撃',
   ゴウリキクラッシュ: '剛力クラッシュ',
   ガンジョウドーム: '頑丈ドーム',

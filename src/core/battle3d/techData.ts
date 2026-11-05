@@ -92,7 +92,7 @@ export const TECH_ROWS: TechRow[] = [
   {"species": "klak", "name": "終端狙撃陣", "type": "ビーム", "element": "光", "strength": "大技", "level": 70, "condition": "第2進化", "effect": "なし", "memo": "照準の光が相手のまわりにいくつも出て、短い予告のあと集中砲撃（2026-11-03 技リスト案から【仮】）"},
   // 2026-11-05 新しい5体(RIOT・SNEK・GRIT・VYBE・SHELLZ)。企画者の設計案(docs/NEW5_TECHS.md)。lift: 相手を浮かせるか(企画者「浮かせ技はそれでいい」= 設計案で 浮かせる・打ち上げる と 書いてある技だけ)
   {"species": "riot", "name": "悪噛み", "type": "連続攻撃", "element": "無", "strength": "弱", "level": 1, "condition": "なし", "effect": "なし", "memo": "左右から2回かみつく。つなぎ（2026-11-05 企画者の設計案。名前は Claude）", "lift": false},
-  {"species": "riot", "name": "火花爪", "type": "連続攻撃", "element": "炎", "strength": "弱", "level": 1, "condition": "なし", "effect": "なし", "memo": "前脚の爪で 火花を散らして 切り上げる。浮かせる（2026-11-05 企画者の設計案。名前は Claude）", "lift": true},
+  {"species": "riot", "name": "火花", "type": "弾", "element": "炎", "strength": "弱", "level": 1, "condition": "なし", "effect": "なし", "memo": "上を向いて、相手へ 炎の玉を 山なりに 吐く（遠く・浮かせる）（2026-11-05 企画者「火花爪やめて、火花にして上に相手に向かって炎の球を吐く遠隔攻撃に」）", "lift": true},
   {"species": "riot", "name": "ガルルショック", "type": "衝撃波", "element": "無", "strength": "弱", "level": 5, "condition": "なし", "effect": "ふらつき", "memo": "うなり声で 地面に波を走らせる。じゃま（2026-11-05 企画者の設計案。名前は Claude）", "lift": false},
   {"species": "riot", "name": "噛みつきダイブ", "type": "突進", "element": "無", "strength": "中", "level": 10, "condition": "なし", "effect": "なし", "memo": "跳んで 牙で とびかかる。空中に当たる（2026-11-05 企画者の設計案。名前は Claude）", "lift": false},
   {"species": "riot", "name": "炎環走り", "type": "設置", "element": "炎", "strength": "中", "level": 15, "condition": "なし", "effect": "やけど", "memo": "相手のまわりを ぐるっと 走り、炎の輪で かこむ（出ようとすると やける）（2026-11-05 企画者「同じような技ばっかりもやめて」で 炎牙 から 変えた）"},
@@ -107,7 +107,7 @@ export const TECH_ROWS: TechRow[] = [
   {"species": "riot", "name": "ヒートハウル", "type": "弱体", "element": "炎", "strength": "中", "level": 45, "condition": "なし", "effect": "防御ダウン", "memo": "熱いうなりで 相手を弱らせる（2026-11-05 企画者の設計案。名前は Claude）", "lift": false},
   {"species": "riot", "name": "爆走牙", "type": "突進", "element": "炎", "strength": "強", "level": 50, "condition": "なし", "effect": "なし", "memo": "炎を引いて走り、牙で 打ち上げる（2026-11-05 企画者の設計案。名前は Claude）", "lift": true},
   {"species": "riot", "name": "轟炎牙王", "type": "落下", "element": "炎", "strength": "大技", "level": 60, "condition": "第2進化", "effect": "やけど", "memo": "大きな炎の獣をまとって跳び、爆炎（2026-11-05 企画者の設計案。名前は Claude）"},
-  {"species": "riot", "name": "王者の牙", "type": "連続攻撃", "element": "無", "strength": "強", "level": 70, "condition": "第2進化", "effect": "防御ダウン", "memo": "かみついて 首をふり、投げとばす（2026-11-05 企画者の設計案。名前は Claude）", "lift": false},
+  {"species": "riot", "name": "王者の爪", "type": "弾", "element": "炎", "strength": "強", "level": 70, "condition": "第2進化", "effect": "防御ダウン", "memo": "前へ 炎の 横の斬撃を、相手の方と ななめ 2つ、いっしょに 3発（遠く）（2026-11-05 企画者「王者の牙は王者の爪に名前を変えて前に炎の横斬撃を相手方面と斜めに同時に3発撃つ遠隔攻撃に」）"},
   {"species": "snek", "name": "毒牙", "type": "連続攻撃", "element": "闇", "strength": "弱", "level": 1, "condition": "なし", "effect": "どく", "memo": "首をのばして 毒の牙で かみつく（2026-11-05 企画者の設計案。名前は Claude）", "lift": false},
   {"species": "snek", "name": "尾払い", "type": "回転", "element": "無", "strength": "弱", "level": 1, "condition": "なし", "effect": "なし", "memo": "とぐろを軸に しっぽをふる。浮かせる（2026-11-05 企画者の設計案。名前は Claude）", "lift": true},
   {"species": "snek", "name": "黒蛇玉", "type": "弾", "element": "闇", "strength": "弱", "level": 5, "condition": "なし", "effect": "なし", "memo": "黒い玉を 口から吐く（2026-11-05 企画者の設計案。名前は Claude）", "lift": false},

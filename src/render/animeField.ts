@@ -1815,7 +1815,7 @@ export class AnimeField {
       const ch = this.charge[i];
       const a = f.act;
       // 新しい5体の技(1歩ずつの動き)は 光の玉・力の光・スピードラインを 出さない(みんな 同じに 見えるので。2026-11-05)
-      const own = a.k === 'tech' && !!BEAST[a.id];
+      const own = a.k === 'tech' && (!!BEAST[a.id] || ['riot', 'snek', 'grit', 'vybe', 'shellz'].includes(f.species));
       if (a.k === 'tech' && !a.fired && !own) {
         const tech = getTech(a.id);
         const k = Math.min(1, a.t / a.windup);
@@ -2251,6 +2251,14 @@ export class AnimeField {
         if (dt > 0 && s.look === 'ring' && Math.random() < dt * 14) this.bolt(s.x - s.r, s.y, s.z, s.x + s.r, s.y, s.z, 0.6, 0.1);
         continue;
       }
+      if (s.look === 'slash') {
+        // 王者の爪: 炎の 横の 三日月(進む向きに 横長)
+        g.children[0].scale.set(s.r * 5.2, s.r * 1.2, 1);
+        (g.children[0] as THREE.Sprite).material.rotation = 0;
+        (g.children[0] as THREE.Sprite).material.color.setHex(0xff5a10);
+        if (dt > 0) this.flame(s.x, s.y, s.z, s.r * 1.6, 2);
+        continue;
+      }
       if (s.look === 'wolf') {
         g.children[0].scale.set(s.r * 4.4, s.r * 2.6, 1);
         if (dt > 0) for (let n = 0; n < 2; n++) {
@@ -2439,7 +2447,7 @@ export class AnimeField {
       ring.rotation.z -= dt * 1.4;
       (wall.material as THREE.MeshBasicMaterial).opacity = 0.08 + Math.sin(performance.now() / 150) * 0.03;
       // 新しい5体の場: 炎は 火の粉・水は しぶき・闇は 毒の あわ・雷は 火花
-      const magma = ANIME.techStyle[fl.tech] === 'fireRing';
+      const magma = !!fl.magma;
       if (neo && !fl.self && dt > 0 && Math.random() < dt * (fl.mine ? 6 : magma ? 3 : 18)) {
         const a2 = Math.random() * Math.PI * 2;
         const r2 = Math.random() * fl.r;
@@ -2455,7 +2463,7 @@ export class AnimeField {
       }
       if (fl.pull) disc.rotation.z += dt * 4;
       // RIOT 炎環走り: 足もとは マグマ(2026-11-05 企画者「炎って分かりにくいから下がマグマにしよう」)
-      if (ANIME.techStyle[fl.tech] === 'fireRing') {
+      if (fl.magma) {
         const glowK = 0.85 + Math.sin(performance.now() / 180 + fl.x) * 0.15;
         dm.blending = THREE.NormalBlending;
         dm.color.setRGB(0.95, 0.22 * glowK, 0.02);

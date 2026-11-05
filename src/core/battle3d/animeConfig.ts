@@ -243,6 +243,7 @@ export const ANIME = {
     // SHELLZ: 水圧弾 = 重い 大きな 水の玉・大地の構え = 体を固める・水の鎧 = 弾を はね返す・潮の渦 = 自分の まわりに 渦
     水圧弾: 'slowOrb', 水の鎧: 'reflect',
     // 2026-11-05 企画者「同じような技ばっかりもやめて」→ 技ごとに ちがう しくみ
+    火花: 'fireLob', 王者の爪: 'slash3',
     炎環走り: 'fireRing', 獣性ブースト: 'fireJab', 炎の爪痕: 'clawLines', 火岩けり: 'lob3',
     鱗の膜: 'shed', 見切りの影: 'evadeCounter', 黒鱗: 'poisonTrail', とぐろの罠: 'stickyGoo',
     大岩おこし: 'onePillar', 踏ん張り: 'refill',

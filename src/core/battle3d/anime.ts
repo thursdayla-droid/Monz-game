@@ -184,7 +184,7 @@ export interface Shot {
   fuse?: number;
   wait?: number;
   /** 見た目(残像)・いちばん上で 何個に分かれるか */
-  look?: 'ghost' | 'wolf' | 'bubble' | 'ring';
+  look?: 'ghost' | 'wolf' | 'bubble' | 'ring' | 'slash';
   split?: number;
   /** 大きくなる 速さ(雷紋)・当てた相手を つかまえる 秒(泡のつぶて)(2026-11-05) */
   grow?: number;
@@ -331,6 +331,8 @@ export interface Field {
   mine?: boolean;
   pull?: boolean;
   wall?: boolean;
+  /** マグマの 見た目(炎環走り・爆走牙のあと)(2026-11-05) */
+  magma?: boolean;
 }
 
 export interface Pillar {
@@ -735,7 +737,7 @@ function updateBeast(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tec
   // 爆走牙: 走ったあとに 炎(ふむと やける)
   if (s.fx === 'fireTrail' && f.y <= 0 && b.t >= (f.trailNext ?? 0)) {
     f.trailNext = b.t + 0.1;
-    b.fields.push({ owner: f.side, tech: a.id, x: f.x, z: f.z, r: 0.65, until: b.t + 2.5, tick: b.t + 0.2, power: 2.5, effect: 'やけど' });
+    b.fields.push({ owner: f.side, tech: a.id, x: f.x, z: f.z, r: 0.85, until: b.t + 3, tick: b.t + 0.2, power: 2.5, effect: 'やけど', magma: true });
   }
   // 当てる
   const h = s.hit;
@@ -1084,6 +1086,20 @@ function fireSpecial(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tec
     b.shots.push({ id: b.seq, owner: f.side, tech: a.id, x, y: 0.8, z, vx: Math.cos(dir) * sp, vz: Math.sin(dir) * sp, r: tech.size, t: 0, alive: true, ...extra });
   };
   switch (st) {
+    case 'fireLob': {
+      // 火花: 上を向いて、相手へ 炎の玉を 山なりに(相手の 所に 落ちる)
+      const d = Math.max(1.5, dist(f, o));
+      const sp = tech.speed * 0.6;
+      const tt = d / sp;
+      const g = C.gravity * 0.8;
+      const vy = (o.y + 0.7 - 1.3 + 0.5 * g * tt * tt) / tt;
+      mk(f.x + Math.cos(a.dir) * 0.8, f.z + Math.sin(a.dir) * 0.8, a.dir, sp, { vy, y: 1.3, bounce: 0, r: tech.size * 1.3 });
+      return true;
+    }
+    case 'slash3':
+      // 王者の爪: 炎の 横の斬撃を 相手の方と ななめ 2つ、いっしょに 3発
+      for (let k = -1; k <= 1; k++) mk(f.x + Math.cos(a.dir + k * 0.45) * 0.9, f.z + Math.sin(a.dir + k * 0.45) * 0.9, a.dir + k * 0.45, tech.speed * 1.15, { r: tech.size * 1.7, look: 'slash', life: 1.3, part: k === 0 ? 0.6 : 0.45 });
+      return true;
     case 'burst3':
       // 水玉ショット: すばやく 3連射
       for (let k = 0; k < 3; k++) mk(f.x + Math.cos(a.dir) * 0.9, f.z + Math.sin(a.dir) * 0.9, a.dir + (k - 1) * 0.04, tech.speed * 1.1, { wait: k * 0.12, part: 0.45 });
@@ -1360,7 +1376,7 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
       };
       if (st === 'fireRing') {
         // 炎環走り: 相手の まわりに 炎の輪(8つの 小さな 炎)
-        for (let k = 0; k < 8; k++) add(o.x + Math.cos((k * Math.PI) / 4) * 2.4, o.z + Math.sin((k * Math.PI) / 4) * 2.4, { r: 1.1, power: 3 });
+        for (let k = 0; k < 8; k++) add(o.x + Math.cos((k * Math.PI) / 4) * 2.4, o.z + Math.sin((k * Math.PI) / 4) * 2.4, { r: 1.1, power: 3, magma: true });
       } else if (st === 'clawLines') {
         // 炎の爪痕: 前へ 3本の 炎の 爪あと(線)
         for (const off of [-0.9, 0, 0.9]) {
