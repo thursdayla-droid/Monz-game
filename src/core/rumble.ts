@@ -91,7 +91,7 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
     ],
   },
   2: {
-    title: '第2話',
+    title: '第2話「草むらの待ち伏せ」',
     lines: [
       { who: null, text: 'GRITとの初戦を制し、草原の奥へと進む挑戦者。' },
       { who: null, text: 'そのとき、草むらから不気味な笑い声が聞こえてきた。' },
@@ -103,7 +103,7 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
     ],
   },
   3: {
-    title: '第3話',
+    title: '第3話「小川の番人」',
     lines: [
       { who: null, text: 'GRIT、SNEKとの戦いを勝ち抜き、草原の奥へと進む挑戦者。' },
       { who: null, text: '目の前に現れたのは、キラキラと輝く小川。' },
