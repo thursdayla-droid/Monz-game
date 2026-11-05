@@ -312,3 +312,26 @@ it('SHELLZ 甲羅のトゲ charges forward, hits hard and returns to where it st
   expect(far).toBeGreaterThan(1.5);
   expect(Math.abs(p.x)).toBeLessThan(0.4);
 });
+
+it('SHELLZ 甲羅タイフーン spins around the foe in a big circle and hits several times (2026-11-05)', () => {
+  const b = newAnimeBattle(e('shellz', ['甲羅タイフーン']), e('bunk', []), 3, 'manual');
+  const [p, q] = b.f;
+  p.pad = { x: 0, z: 0 };
+  q.pad = { x: 0, z: 0 };
+  q.thinkT = 99;
+  q.cooldown.dodge = q.cooldown.guard = 99;
+  p.x = 0; q.x = 2.2; p.z = q.z = 0; p.face = 0;
+  giveCommand(b, 0, '甲羅タイフーン');
+  let turned = 0;
+  let last = Math.atan2(p.z - q.z, p.x - q.x);
+  let hits = 0;
+  for (let i = 0; i < 150; i++) {
+    b.events = []; stepAnime(b, ANIME.dt);
+    const g = Math.atan2(p.z - q.z, p.x - q.x);
+    turned += Math.abs(Math.atan2(Math.sin(g - last), Math.cos(g - last)));
+    last = g;
+    hits += b.events.filter((x) => x.kind === 'hit' && x.side === 0).length;
+  }
+  expect(turned).toBeGreaterThan(4);
+  expect(hits).toBeGreaterThanOrEqual(3);
+});

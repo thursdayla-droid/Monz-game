@@ -50,7 +50,7 @@ export function monMovePose(f: AnimeMon): MonMovePose | null {
       if (p < at) up = ease(p / at);
       else hit = 1 - ease((p - at) / Math.max(0.05, 1 - at));
     } else up = ease(Math.min(1, p * 2));
-    return { move: s.mv, up, hit, spin: s.spin ? ease(p) : 0 };
+    return { move: s.mv, up, hit, spin: s.spin ? (s.spinN ? Math.min(1, p) * s.spinN : ease(p)) : 0 };
   }
   if (a.k !== 'tech' || !f.jab.moves || getTech(a.id).kind !== 'jab') return null;
   if (a.sp) {

@@ -43,6 +43,9 @@ export interface BeastStep {
   behind?: boolean;
   /** 技を はじめた 場所へ もどる(甲羅のトゲ) */
   home?: boolean;
+  /** 相手の まわりを 回る 半径(決めると 近づかずに 円を かく)・その歩きで 何回 まわるか */
+  orbitR?: number;
+  spinN?: number;
   hit?: BeastHit;
   fx?: string;
 }
@@ -153,9 +156,10 @@ export const BEAST: Record<string, BeastStep[]> = {
     { mv: 'shell', t: 0.2, go: -0.4 },
     { mv: 'shell', t: 0.36, go: 3.6, hit: { contact: true, r: 1.7, arc: 1.2, part: 1, launch: 7.5 }, fx: 'spikes' },
   ],
+  // 2026-11-05 企画者「甲羅タイフーン 円を描くように甲羅でクルクル回って攻撃したい」→ 甲羅で くるくる 回りながら、相手の まわりを 大きく 1周
   甲羅タイフーン: [
-    { mv: 'shell', t: 0.95, spin: true, hit: { n: 4, every: 0.2, at: 0.1, r: 3, arc: 3.2, part: 0.2, knock: 0.8 }, fx: 'whirl' },
-    { mv: 'shell', t: 0.3, spin: true, hit: { at: 0.4, r: 3.2, arc: 3.2, part: 0.25, knock: 2.6 }, fx: 'splashSlam' },
+    { mv: 'shell', t: 1.3, spin: true, spinN: 4, orbit: Math.PI * 2, orbitR: 2.1, hit: { n: 6, every: 0.2, at: 0.05, r: 2.4, arc: 3.2, part: 0.15, knock: 0.6 }, fx: 'whirl' },
+    { mv: 'shell', t: 0.3, spin: true, hit: { at: 0.4, r: 3, arc: 3.2, part: 0.25, knock: 2.6 }, fx: 'splashSlam' },
   ],
   // ---- 2026-11-05 企画者「同じような技ばっかりもやめて」で 入れかえた技 ----
   // RIOT 跳び退き火炎: 足もとで 炎を はじけさせ、うしろへ 跳んで にげる(当たらない)

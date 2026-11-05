@@ -736,7 +736,8 @@ function updateBeast(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tec
   }
   if (s.orbit) {
     // 相手の まわりを 回りながら 近づく
-    const r = Math.max(C.body.minGap + 0.3, dist(f, o) - (1.2 / s.t) * dt);
+    const d0 = dist(f, o);
+    const r = s.orbitR ? d0 + (s.orbitR - d0) * Math.min(1, dt * 6) : Math.max(C.body.minGap + 0.3, d0 - (1.2 / s.t) * dt);
     const ang = angleTo(o, f) + (s.orbit / s.t) * dt;
     f.x = o.x + Math.cos(ang) * r;
     f.z = o.z + Math.sin(ang) * r;
