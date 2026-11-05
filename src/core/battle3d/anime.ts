@@ -2846,6 +2846,12 @@ function updateMon(b: AnimeBattle, f: AnimeMon, dt: number): void {
     startTech(b, f, 'punch', true);
     b.events.push({ kind: 'command', side: f.side, cmd: 'punch', state: 'done' });
   }
+  // 守り(ドームなど)の とちゅうでも、よける・ガードで やめられる(2026-11-05 企画者「防御のドーム系はよけるで途中キャンセルできるように」)
+  if ((f.command?.cmd === 'dodge' || f.command?.cmd === 'guard') && f.act.k === 'tech' && f.act.fired && getTech(f.act.id).kind === 'barrier' && f.y <= 0) {
+    f.barrierUntil = Math.min(f.barrierUntil, b.t);
+    f.armorUntil = Math.min(f.armorUntil ?? 0, b.t);
+    f.act = { k: 'free' };
+  }
   if (f.act.k !== 'free' || f.y > 0) {
     // 動けないあいだは、歩く勢いが少しのこって止まる(ジャンプ中は勢いのまま)
     const k = f.act.k === 'free' ? 1 : Math.exp(-dt * C.move.stop);

@@ -64,7 +64,7 @@ const CSS = `
 .b3d canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 .b3d .top{position:absolute;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top) + 8px) calc(env(safe-area-inset-right) + 10px) 0 calc(env(safe-area-inset-left) + 10px);display:flex;gap:10px;align-items:flex-start;pointer-events:none;z-index:3}
 .b3d .back{pointer-events:auto;background:#16101ccc;border:0;color:#fff;font:900 15px ${UI_FONT};padding:8px 12px;border-radius:10px}
-/* 2026-11-05 企画者「体力の枠と技を出したセリフが被ってる。体力の枠をもう少し上に狭めて」→ 低く 小さく */
+/* 2026-11-05 企画者「体力の枠と技を出したセリフが被ってる。体力の枠をもう少し上に狭めて」→ 低く 小さく。「ゲージ潰れてて変。白い枠だけを少し狭く」→ ゲージは もとの太さ・白い枠の すきまだけ せまく */
 .b3d .card{flex:0 1 250px;min-width:0;background:#fffffff0;color:#16101c;border-radius:10px;padding:2px 8px 3px;border:2px solid #16101c;box-shadow:0 2px 0 #16101c}
 .b3d .card.r{margin-left:auto}
 .b3d .card{position:relative}
@@ -76,9 +76,9 @@ const CSS = `
 .b3d .chit.big b{font-size:28px}
 .b3d .name{font-weight:900;font-size:12px;line-height:1.25;display:flex;justify-content:space-between;align-items:baseline;gap:6px}
 .b3d .name small{font-size:10px;color:#6a6070}
-.b3d .bar{height:8px;border-radius:4px;background:#3a3040;overflow:hidden;margin-top:1px}
+.b3d .bar{height:10px;border-radius:5px;background:#3a3040;overflow:hidden;margin-top:2px}
 .b3d .bar>i{display:block;height:100%;background:#3ad070;transition:width .25s}
-.b3d .gbar{height:3px;border-radius:2px;background:#2a2838;overflow:hidden;margin-top:1px}
+.b3d .gbar{height:4px;border-radius:2px;background:#2a2838;overflow:hidden;margin-top:2px}
 .b3d .gbar>i{display:block;height:100%;background:#7ad0ff}
 .b3d .num{font-size:10px;line-height:1.1;font-weight:900;text-align:right;margin-top:0}
 .b3d .timer{font-weight:900;font-size:20px;min-width:36px;text-align:center;text-shadow:0 2px 0 #16101c;padding-top:10px;margin:0 auto}
@@ -88,8 +88,9 @@ const CSS = `
 .b3d .cutin.r{right:0;flex-direction:row-reverse;padding-right:env(safe-area-inset-right);clip-path:polygon(12% 0,100% 0,100% 100%,0 100%);background:linear-gradient(270deg,#5a0a1ae6,#ff4a6acc 70%,#ff4a6a00)}
 .b3d .cutin img{height:100%;width:auto;flex:none}
 .b3d .cutin b{font:900 19px ${UI_FONT};color:#fff;-webkit-text-stroke:1px #16101c;text-shadow:0 3px 0 #16101c;white-space:nowrap}
-.b3d .call{position:absolute;top:calc(env(safe-area-inset-top) + 80px);font-weight:900;font-size:15px;white-space:nowrap;padding:4px 12px;border-radius:9px;background:#16101cd0;border:2px solid #fff;opacity:0;pointer-events:none}
-.b3d .call.l{left:calc(env(safe-area-inset-left) + 60px)}
+/* 技の名前の札: 白い枠の すぐ下に 小さく(2026-11-05 企画者「技のセリフはもう少し白い枠寄りで画面の邪魔にならないように」) */
+.b3d .call{position:absolute;top:calc(env(safe-area-inset-top) + 66px);font-weight:900;font-size:12px;white-space:nowrap;padding:2px 9px;border-radius:7px;background:#16101cc0;border:1.5px solid #fff;opacity:0;pointer-events:none}
+.b3d .call.l{left:calc(env(safe-area-inset-left) + 122px)}
 .b3d .call.r{right:calc(env(safe-area-inset-right) + 12px)}
 .b3d .pop{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);font-weight:900;font-size:30px;color:#fff;text-shadow:0 3px 0 #16101c;pointer-events:none;opacity:0;white-space:nowrap}
 .b3d .big{position:absolute;left:0;right:0;top:36%;text-align:center;font-weight:900;font-size:68px;color:#ffd23a;text-shadow:0 5px 0 #16101c,0 0 24px #f40;pointer-events:none;opacity:0}

@@ -271,3 +271,16 @@ it('right after a charged launch, the attack button works at once (no waiting) a
     void p;
   }
 });
+
+it('a guard dome can be cancelled midway with dodge (2026-11-05)', () => {
+  const b = newAnimeBattle({ ...e(), techs: ['頑丈ドーム'] }, e(), 1, 'manual');
+  const [p] = setup(b, 4);
+  giveCommand(b, 0, '頑丈ドーム');
+  run(b, 20, 0);
+  expect(p.barrierUntil).toBeGreaterThan(b.t);
+  p.pad = { x: 0, z: 1 };
+  expect(giveCommand(b, 0, 'dodge')).toBe(true);
+  run(b, 2, 0);
+  expect(p.act.k).toBe('dodge');
+  expect(p.barrierUntil).toBeLessThanOrEqual(b.t);
+});

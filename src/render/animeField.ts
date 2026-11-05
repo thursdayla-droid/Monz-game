@@ -1658,13 +1658,6 @@ export class AnimeField {
         // 炎の爪痕(RIOT)は オレンジの 炎の線(2026-11-05)
         const el2 = getTech(fl.tech).element;
         const col = fl.shape === 'line' ? (el2 === '炎' ? 0xff6a1a : el2 === '水' ? 0x5ac8ff : 0xffd23a) : 0x80e8ff;
-        // 潮の壁: 線から 水しぶきが 立ちのぼる(壁)
-        if (fl.wall && dt > 0 && fl.x2 !== undefined && fl.z2 !== undefined) for (let n = 0; n < 3; n++) {
-          const k = Math.random();
-          const sp = this.sprite(n ? 0x8ad8ff : 0xffffff);
-          sp.position.set(fl.x + (fl.x2 - fl.x) * k, 0.2 + Math.random() * 1.6, fl.z + (fl.z2 - fl.z) * k);
-          this.add(sp, 0.35, -0.3, 0.5, { vy: 2 });
-        }
         const mk = () => {
           const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.7, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
           m.rotation.x = -Math.PI / 2;
@@ -1676,6 +1669,19 @@ export class AnimeField {
           m.scale.set(len, fl.r * 1.2, 1);
           m.rotation.z = -Math.atan2(fl.z2 - fl.z, fl.x2 - fl.x);
           g.add(m);
+          if (fl.wall) {
+            // 潮の壁: 立った 水の壁(2026-11-05 企画者「壁出す系はちゃんと壁を作ってほしい」)
+            const ang = -Math.atan2(fl.z2 - fl.z, fl.x2 - fl.x);
+            const wall = new THREE.Mesh(new THREE.BoxGeometry(len, 2.2, 0.35), new THREE.MeshToonMaterial({ color: 0x3aa8ff, transparent: true, opacity: 0.55, gradientMap: this.gradient, depthWrite: false }));
+            wall.position.y = 1.1;
+            wall.rotation.y = ang;
+            const top = new THREE.Mesh(new THREE.BoxGeometry(len, 0.18, 0.45), new THREE.MeshBasicMaterial({ color: 0xe8f8ff, transparent: true, opacity: 0.85, depthWrite: false }));
+            top.position.y = 2.2;
+            top.rotation.y = ang;
+            g.add(wall, top);
+            g.userData.wall = wall;
+            g.userData.born = b.t;
+          }
           g.position.set((fl.x + fl.x2) / 2, 0.04, (fl.z + fl.z2) / 2);
         } else {
           for (const r of [0, Math.PI / 2]) {
@@ -1698,6 +1704,23 @@ export class AnimeField {
         this.shapeFields.set(fl, g);
       }
       const left = fl.until - b.t;
+      // 潮の壁: 出る時に 下から のび、上から 水しぶき
+      if (fl.wall && fl.x2 !== undefined && fl.z2 !== undefined) {
+        const w = g.userData.wall as THREE.Mesh | undefined;
+        const up = Math.min(1, (b.t - (g.userData.born ?? b.t)) / 0.25) * (left < 0.3 ? Math.max(0, left / 0.3) : 1);
+        if (w) {
+          w.scale.y = Math.max(0.01, up);
+          w.position.y = 1.1 * up;
+          (w.material as THREE.MeshToonMaterial).opacity = 0.45 + Math.sin(performance.now() / 120) * 0.08;
+          (g.children[2] as THREE.Mesh).position.y = 2.2 * up;
+        }
+        if (dt > 0 && Math.random() < dt * 30) {
+          const k = Math.random();
+          const sp = this.sprite(Math.random() < 0.5 ? 0x8ad8ff : 0xffffff);
+          sp.position.set(fl.x + (fl.x2 - fl.x) * k, 2.2 * up, fl.z + (fl.z2 - fl.z) * k);
+          this.add(sp, 0.4, -0.3, 0.4, { vy: 1.5 });
+        }
+      }
       for (const c of g.children) {
         const m = (c as THREE.Mesh).material as THREE.MeshBasicMaterial;
         if (m.blending === THREE.AdditiveBlending) m.opacity = (0.45 + Math.sin(performance.now() / 45) * 0.2) * Math.min(1, left / 0.4);
