@@ -63,7 +63,9 @@ export function monMovePose(f: AnimeMon): MonMovePose | null {
     const r = a.t - (a.tf ?? 0);
     const s = ease(r / P.strike);
     const fo = ease((r - P.strike) / P.follow);
-    return { move: a.mv ?? 'head', up: 1 - s, hit: s * (1 - fo), spin: ease(r / (P.strike + P.follow * 0.6)) };
+    // 回るのは しっぽ・甲羅の 動きだけ(2026-11-05 企画者「くるくる回ってるだけ」→ ほかの 動きは 回らない)
+    const spinMv = a.mv === 'tail' || a.mv === 'shell';
+    return { move: a.mv ?? 'head', up: 1 - s, hit: s * (1 - fo), spin: spinMv ? ease(r / (P.strike + P.follow * 0.6)) : 0 };
   }
   const i = a.hit ? a.n - 1 : a.n;
   const move = f.jab.moves[Math.max(0, i)];
@@ -76,7 +78,7 @@ export function monMovePose(f: AnimeMon): MonMovePose | null {
   const w = ease(t / tW);
   const s = ease((t - tW) / (tI - tW));
   const fo = ease((t - tI) / (tE - tI));
-  return { move, up: w * (1 - s), hit: s * (1 - fo), spin: ease((t - tW * 0.6) / (tE - tW * 0.6)) };
+  return { move, up: w * (1 - s), hit: s * (1 - fo), spin: move === 'tail' || move === 'shell' ? ease((t - tW * 0.6) / (tE - tW * 0.6)) : 0 };
 }
 
 /** 色違い: テクスチャの色の色相を回す(明るさは同じ) */
