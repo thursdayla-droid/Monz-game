@@ -809,13 +809,19 @@ function beastTryHit(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tec
   const cx = h.cx ?? 0;
   const px = f.x + Math.cos(f.face) * cx;
   const pz = f.z + Math.sin(f.face) * cx;
-  const d = Math.hypot(o.x - px, o.z - pz);
+  let d = Math.hypot(o.x - px, o.z - pz);
   const arc = h.arc ?? 1;
-  const inArc = arc >= 3 || cx > 0 || Math.abs(angDiff(angleTo(f, o), f.face)) < arc;
+  let inArc = arc >= 3 || cx > 0 || Math.abs(angDiff(angleTo(f, o), f.face)) < arc;
+  if (h.line) {
+    // まっすぐ 前の 帯(炎の息): 前へ どれだけ・横に どれだけ
+    const fwd = (o.x - f.x) * Math.cos(f.face) + (o.z - f.z) * Math.sin(f.face);
+    d = Math.abs(-(o.x - f.x) * Math.sin(f.face) + (o.z - f.z) * Math.cos(f.face));
+    inArc = fwd > -0.3 && fwd < h.line + C.body.radius;
+  }
   const yok = h.ground ? o.y < 0.5 && !floating(o) : yOk(b, f, o, 1.4);
   const ok = o.act.k !== 'ko' && d < h.r + C.body.radius * 0.5 && inArc && yok && los(b, f, o, f.y + 0.8);
   if (ok || showMiss) {
-    const fx = cx > 0 ? { x: px, z: pz } : ok ? { x: (f.x + o.x) / 2, z: (f.z + o.z) / 2 } : { x: f.x + Math.cos(f.face) * Math.min(h.r, 1.4), z: f.z + Math.sin(f.face) * Math.min(h.r, 1.4) };
+    const fx = h.line ? (ok ? { x: o.x, z: o.z } : { x: f.x + Math.cos(f.face) * h.line, z: f.z + Math.sin(f.face) * h.line }) : cx > 0 ? { x: px, z: pz } : ok ? { x: (f.x + o.x) / 2, z: (f.z + o.z) / 2 } : { x: f.x + Math.cos(f.face) * Math.min(h.r, 1.4), z: f.z + Math.sin(f.face) * Math.min(h.r, 1.4) };
     b.events.push({ kind: 'beastFx', side: f.side, fx: s.fx ?? s.mv, mv: s.mv, x: fx.x, z: fx.z, dir: f.face, hit: ok, tech: a.id });
   }
   // 轟炎牙王: 着地の まわりに 炎の柱・雷撃ダイブ: まわりに 落雷

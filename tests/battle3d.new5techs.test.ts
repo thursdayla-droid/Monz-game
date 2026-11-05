@@ -335,3 +335,20 @@ it('SHELLZ 甲羅タイフーン spins around the foe in a big circle and hits s
   expect(turned).toBeGreaterThan(4);
   expect(hits).toBeGreaterThanOrEqual(3);
 });
+
+it('RIOT flame breath reaches far (about 12m) in a straight line (2026-11-05)', () => {
+  for (const [dx, dz, want] of [[10, 0, true], [4, 0, true], [15, 0, false], [8, 3, false]] as const) {
+    const b = newAnimeBattle(e('riot', ['爆炎ブレス']), e('bunk', []), 5, 'manual');
+    const [p, q] = b.f;
+    p.pad = { x: 0, z: 0 };
+    q.pad = { x: 0, z: 0 };
+    p.x = -8; p.z = 0; q.x = -8 + dx; q.z = dz; p.face = 0;
+    const hp = q.hp;
+    giveCommand(b, 0, '爆炎ブレス');
+    for (let i = 0; i < 200; i++) {
+      stepAnime(b, ANIME.dt);
+      p.face = 0;
+    }
+    expect(q.hp < hp, `${dx},${dz}`).toBe(want);
+  }
+});

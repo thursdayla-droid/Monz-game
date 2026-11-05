@@ -1148,11 +1148,8 @@ export class AnimeField {
         this.monSwing(x, z, dir, 'clawR', 0, y, true, col);
         break;
       case 'flame':
-        // 炎の息: 口から 前へ ひろがる 炎
-        for (let k = 0; k < 4; k++) {
-          const d = 0.8 + k * 0.9;
-          this.flame(ax + Math.cos(dir) * d, y, az + Math.sin(dir) * d, 0.3 + k * 0.25, 2);
-        }
+        // 炎の息: 太い炎の かたまりは breathBeam(毎フレーム)。ここは 当たった所・先の 火の手だけ(2026-11-05)
+        this.flame(x, y, z, hit ? 0.9 : 0.6, hit ? 3 : 1);
         break;
       case 'wave':
         // うなり声の 地面の波(前へ 走る)
@@ -1786,6 +1783,53 @@ export class AnimeField {
   /** 足もとの まるい影(空中にいる時 どこに 落ちるか 分かるように。2026-11-05 企画者「着地してるか分かりにくい」) */
   private blobs: THREE.Object3D[] = [];
 
+  /** 炎の息(爆炎ブレス)の 太い炎。粒でなく 濃い 炎の かたまり(企画者 2026-11-05) */
+  private beams: (THREE.Group | undefined)[] = [];
+  private breathBeam(i: number, f: AnimeMon): void {
+    const a = f.act;
+    const st = a.k === 'tech' && a.fired ? BEAST[a.id]?.[a.step ?? 0] : undefined;
+    const len = st?.fx === 'flame' ? st.hit?.line : undefined;
+    let g = this.beams[i];
+    if (!st || !len || a.k !== 'tech') {
+      if (g) g.visible = false;
+      return;
+    }
+    if (!g) {
+      g = new THREE.Group();
+      const geo = new THREE.CylinderGeometry(1, 0.22, 1, 20, 6, true);
+      geo.rotateZ(-Math.PI / 2);
+      geo.translate(0.5, 0, 0);
+      const layer = (color: number, opacity: number, s: number, add: boolean) => {
+        const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide, blending: add ? THREE.AdditiveBlending : THREE.NormalBlending }));
+        m.scale.set(1, s, s);
+        m.userData.base = opacity;
+        g!.add(m);
+      };
+      layer(0xd8300a, 0.6, 1, false);
+      layer(0xff7a1a, 0.75, 0.72, false);
+      layer(0xffc040, 0.8, 0.45, true);
+      layer(0xfff6c8, 0.9, 0.2, true);
+      this.scene.add(g);
+      this.beams[i] = g;
+    }
+    const k = (a.stepT ?? 0) / st.t;
+    const grow = Math.min(1, k / 0.18);
+    const fade = k > 0.82 ? Math.max(0, (1 - k) / 0.18) : 1;
+    const now = performance.now() / 1000;
+    const w = 1.35 * (1 + Math.sin(now * 38) * 0.07);
+    g.visible = true;
+    g.position.set(f.x + Math.cos(f.face) * 0.7, f.y + 0.85, f.z + Math.sin(f.face) * 0.7);
+    g.rotation.set(0, -f.face, 0);
+    g.scale.set(len * grow, w, w);
+    g.children.forEach((c, n) => {
+      const m = (c as THREE.Mesh).material as THREE.MeshBasicMaterial;
+      m.opacity = (c.userData.base as number) * fade * (0.9 + Math.sin(now * 50 + n * 2) * 0.1);
+      c.rotation.x = now * (6 + n * 3);
+    });
+    // 炎の 先で ゆらぐ 火の手
+    if (Math.random() < 0.5) this.flame(f.x + Math.cos(f.face) * len * grow, f.y + 0.85, f.z + Math.sin(f.face) * len * grow, 0.9, 1);
+  }
+
   render(b: AnimeBattle, dt: number): void {
     b.f.forEach((f, i) => {
       const rig = this.rigs[i];
@@ -1811,6 +1855,7 @@ export class AnimeField {
       rig.safe = f.act.k !== 'ko' && f.act.k !== 'victory' && isInvincible(b, f);
       rig.armored = b.t < (f.armorUntil ?? 0);
       rig.update(f, dt);
+      this.breathBeam(i, f);
       // 技のため: 口に光が集まる
       const ch = this.charge[i];
       const a = f.act;

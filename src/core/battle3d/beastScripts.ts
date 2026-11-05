@@ -27,6 +27,8 @@ export interface BeastHit {
   throwBack?: boolean;
   pull?: boolean;
   ground?: boolean;
+  /** 前へ まっすぐの 長さ(炎の息など)。向いている方へ 0〜line の間で、横に r まで 当たる */
+  line?: number;
 }
 export interface BeastStep {
   mv: string;
@@ -72,7 +74,8 @@ export const BEAST: Record<string, BeastStep[]> = {
     { mv: 'clawL', t: 0.18, go: 0.3, hit: { at: 0.6, r: 1.7, arc: 1, part: 0.25 }, fx: 'claw' },
     { mv: 'bite', t: 0.34, jump: 5, go: 0.4, hit: { at: 0.4, r: 1.9, arc: 1.2, part: 0.5, launch: 8 }, fx: 'flameBurst' },
   ],
-  爆炎ブレス: [{ mv: 'zap', t: 0.75, hit: { n: 6, every: 0.11, at: 0.08, cx: 2.2, r: 2.2, arc: 0.55, part: 0.18 }, fx: 'flame' }],
+  // 2026-11-05 企画者: 距離を 約3倍(12m)に・濃い炎の かたまり(粒でなく)
+  爆炎ブレス: [{ mv: 'zap', t: 1.0, hit: { n: 7, every: 0.12, at: 0.12, line: 12, r: 1.3, part: 0.15 }, fx: 'flame' }],
   爆走牙: [{ mv: 'bite', t: 0.7, go: 8, hit: { contact: true, r: 1.6, arc: 1, part: 1, launch: 7.5 }, fx: 'fireTrail' }],
   轟炎牙王: [
     { mv: 'clawR', t: 0.75, jump: 12, pounce: true, fx: 'flameAura' },
