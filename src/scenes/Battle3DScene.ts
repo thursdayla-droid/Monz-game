@@ -1276,13 +1276,13 @@ export class Battle3DScene extends Phaser.Scene {
     // ストーリー: 勝ったら そのマスをクリア(保存)
     if (this.params.mode === 'story' && w === 0 && this.params.stage) new LifeRecord(loadLife()).clearStage(this.params.stage);
     const leaveBtn = this.root?.querySelector('.leave') as HTMLElement | null;
-    if (leaveBtn) leaveBtn.textContent = this.params.mode === 'story' ? (w === 0 ? 'すすむ' : 'すごろくへ') : 'もどる';
+    if (leaveBtn) leaveBtn.textContent = this.params.mode === 'story' ? (w === 0 ? 'すすむ' : 'ストーリーへ') : 'もどる';
     this.ui.result.style.display = 'flex';
   }
 
   private leave(): void {
     audio.se('back');
-    // ストーリーは すごろくへ・バトルモードは モードえらびへ
+    // ストーリーは ストーリーの画面へ・バトルモードは モードえらびへ
     this.scene.start(this.params.mode === 'story' ? 'RumbleStory' : this.params.mode === 'free' ? 'RumbleMode' : 'BattleMenu', this.params.mode === 'story' ? { justPlayed: this.params.stage, won: this.battle.winner === 0 } : undefined);
   }
 

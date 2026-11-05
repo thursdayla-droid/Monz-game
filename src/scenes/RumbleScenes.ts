@@ -7,7 +7,7 @@ import { UI_FONT } from '../ui/paint';
 import type { RumbleParams } from './Battle3DScene';
 
 /**
- * MONZ RUMBLE のモードえらび と ストーリーのすごろく(2026-11-03 企画者)。
+ * MONZ RUMBLE のモードえらび と ストーリー(2026-11-03 企画者。2026-11-05 すごろくを やめて 一枚絵で 進める)。
  * 見た目は仮(企画者が さいごに背景・セレクト画面の絵を作る)。画面は HTML で作る(3Dバトルと同じ)
  */
 const CSS = `
@@ -25,17 +25,6 @@ const CSS = `
 .rmb .cpu small{font-size:12px;font-weight:700;color:#5a4a66}
 .rmb .cpu .stars{color:#ff8a1f;font-size:16px;letter-spacing:2px}
 .rmb .note{font-size:12px;color:#c8bcd8;text-align:center}
-.rmb .board{width:min(100%,520px);display:grid;grid-template-columns:repeat(5,1fr);gap:10px;position:relative}
-.rmb .sq{aspect-ratio:1;border-radius:14px;border:3px solid #16101c;background:#4a3a5a;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font:900 18px ${UI_FONT};position:relative;box-shadow:0 4px 0 #16101c;padding:0}
-.rmb .sq small{font-size:10px;font-weight:700}
-.rmb .sq.done{background:#3ad070;color:#16101c}
-.rmb .sq.next{background:#ffd23a;color:#16101c;animation:rmbGlow 1s ease-in-out infinite alternate}
-.rmb .sq.lock{background:#2a2033;color:#6a5a7a}
-.rmb .sq.boss{border-color:#ff4a6a}
-.rmb .sq.final{background:linear-gradient(135deg,#ff4a6a,#a040ff);color:#fff}
-.rmb .sq.final.lock{background:#3a1a2a;color:#8a5a7a}
-.rmb .me{position:absolute;width:44px;height:44px;border-radius:50%;border:3px solid #fff;background:#16101c center/cover no-repeat;box-shadow:0 3px 8px #0008;transition:left .45s ease,top .45s ease;pointer-events:none;z-index:2}
-@keyframes rmbGlow{from{box-shadow:0 4px 0 #16101c,0 0 0 #ffd23a}to{box-shadow:0 4px 0 #16101c,0 0 18px #ffd23a}}
 .rmb .panel{position:fixed;inset:0;z-index:3;background:#0d0614e8;display:flex;align-items:center;justify-content:center;padding:calc(env(safe-area-inset-top) + 12px) calc(env(safe-area-inset-right) + 16px) calc(env(safe-area-inset-bottom) + 12px) calc(env(safe-area-inset-left) + 16px)}
 .rmb .card{width:min(100%,560px);max-height:100%;overflow:auto;background:#fff;color:#16101c;border:4px solid #16101c;border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:10px;box-sizing:border-box}
 .rmb .pic{aspect-ratio:16/9;border-radius:12px;background:#e8e0f0;display:flex;align-items:center;justify-content:center;color:#7a6a8a;font-size:14px;font-weight:700;text-align:center;overflow:hidden}
@@ -46,6 +35,28 @@ const CSS = `
 .rmb .row{display:flex;gap:10px}
 .rmb .go{flex:1;border:3px solid #16101c;border-radius:12px;padding:10px;font:900 20px ${UI_FONT};background:#ff4a6a;color:#fff;box-shadow:0 4px 0 #16101c}
 .rmb .no{border:3px solid #16101c;border-radius:12px;padding:10px 14px;font:900 16px ${UI_FONT};background:#fff;color:#16101c}
+/* ストーリー: 一枚絵で 進める(2026-11-05 企画者) */
+.rmb .story{position:fixed;inset:0;display:flex;flex-direction:column;justify-content:flex-end}
+.rmb .story.in2{animation:rmbIn .45s ease}
+@keyframes rmbIn{from{opacity:0}to{opacity:1}}
+.rmb .spic{position:absolute;inset:0;background:#2a1a3a;display:flex;align-items:center;justify-content:center;color:#a898b8;font-size:15px;font-weight:700}
+.rmb .spic img{width:100%;height:100%;object-fit:cover}
+.rmb .stop{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 10px) calc(env(safe-area-inset-right) + 14px) 10px calc(env(safe-area-inset-left) + 14px);background:linear-gradient(#000a,#0000)}
+.rmb .stop .back{align-self:center}
+.rmb .sno{flex:1;text-align:center;font:900 20px ${UI_FONT};color:#ffd23a;-webkit-text-stroke:1px #16101c}
+.rmb .sno small{font-size:13px;color:#fff}
+.rmb .sno em{font-style:normal;font-size:12px;background:#3ad070;color:#16101c;border-radius:8px;padding:2px 8px;margin-left:8px;-webkit-text-stroke:0}
+.rmb .nav{display:flex;gap:6px}
+.rmb .nav button{width:40px;height:36px;border:2px solid #16101c;border-radius:10px;background:#fff;color:#16101c;font:900 16px ${UI_FONT}}
+.rmb .nav button:disabled{opacity:.3}
+.rmb .sclear{position:absolute;top:calc(env(safe-area-inset-top) + 58px);left:50%;transform:translateX(-50%);white-space:nowrap}
+.rmb .stext{position:relative;margin:0 calc(env(safe-area-inset-right) + 12px) calc(env(safe-area-inset-bottom) + 12px) calc(env(safe-area-inset-left) + 12px);background:#fffffff0;color:#16101c;border:4px solid #16101c;border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;max-height:55%;overflow:auto}
+.rmb .stext h3{margin:0;font-size:18px}
+.rmb .stext p{margin:0;font-size:15px;line-height:1.6}
+.rmb .srow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.rmb .srow .foe{flex:1;min-width:180px}
+.rmb .srow .stars{color:#ff8a1f}
+.rmb .srow .go{flex:0 0 auto;padding:10px 22px}
 .rmb .clear{background:#ffd23a;color:#16101c;border:3px solid #16101c;border-radius:12px;padding:6px 14px;font-weight:900}
 `;
 
@@ -76,7 +87,7 @@ export class RumbleModeScene extends Phaser.Scene {
       this,
       `<button class="back">◀ もどる</button>
        <h1>MONZ RUMBLE</h1>
-       <button class="big story">ストーリーモード<small>すごろくで1マスずつ すすむ・ぜんぶで${STORY_COUNT}バトル</small></button>
+       <button class="big story">ストーリーモード<small>一枚絵で 話が すすむ・ぜんぶで${STORY_COUNT}ステージ</small></button>
        <button class="big free">バトルモード<small>CPU の強さを えらんで たたかう</small></button>`,
     );
     const $ = (s: string) => root.querySelector(s) as HTMLElement;
@@ -116,7 +127,7 @@ export class RumbleModeScene extends Phaser.Scene {
   }
 }
 
-/** ストーリーのすごろく(20マス)。クリアした所は何度でも遊べる */
+/** ストーリー(30ステージ・一枚絵で 進める)。クリアした所は何度でも遊べる */
 export class RumbleStoryScene extends Phaser.Scene {
   private from: { justPlayed?: number; won?: boolean } = {};
 
@@ -133,83 +144,52 @@ export class RumbleStoryScene extends Phaser.Scene {
     const cleared = loadLife().rumble?.cleared ?? 0;
     const next = nextStage(cleared);
     const allClear = cleared >= STORY_COUNT;
-    // マスを じぐざぐに ならべる(5マスずつ。2行目は右から左)
-    const order: number[] = [];
-    for (let row = 0; row < STORY_COUNT / 5; row++) {
-      const r = Array.from({ length: 5 }, (_, i) => row * 5 + i + 1);
-      order.push(...(row % 2 ? r.reverse() : r));
-    }
-    const squares = order
-      .map((no) => {
-        const st = STORY_STAGES[no - 1];
-        const cls = [no <= cleared ? 'done' : no === next && !allClear ? 'next' : 'lock', st.enemy.boss ? 'boss' : '', no === STORY_COUNT ? 'final' : ''].join(' ');
-        const label = no === STORY_COUNT ? '👑' : st.enemy.boss ? '★' : '';
-        return `<button class="sq ${cls}" data-no="${no}">${label || no}<small>${no === STORY_COUNT ? 'ボス' : st.enemy.boss ? '中ボス' : no <= cleared ? 'クリア' : ''}</small></button>`;
-      })
-      .join('');
-    const root = mount(
-      this,
-      `<button class="back">◀ もどる</button>
-       <h2>ストーリー　<span style="color:#ffd23a">${Math.min(cleared, STORY_COUNT)} / ${STORY_COUNT}</span> クリア</h2>
-       ${allClear ? '<div class="clear">ストーリー クリア！ 好きなマスを もう一度あそべます</div>' : ''}
-       <div class="board">${squares}<div class="me"></div></div>
-       <div class="note">光っているマスを さわると すすむ・クリアしたマスは もう一度あそべる</div>`,
-    );
-    const $ = (s: string) => root.querySelector(s) as HTMLElement;
-    $('.back').addEventListener('click', () => {
-      audio.se('back');
-      this.scene.start('RumbleMode');
-    });
-    // 自分のコマ(いちばん先のクリアしたマス。まだなら1マスめの手前)
-    const me = $('.me');
-    me.style.backgroundImage = `url("${assetUrl('assets/battle3d/cutin_bunk_1.webp')}")`;
-    const place = (no: number) => {
-      const sq = root.querySelector(`.sq[data-no="${Math.max(1, no)}"]`) as HTMLElement | null;
-      if (!sq) return;
-      me.style.left = `${sq.offsetLeft + sq.offsetWidth / 2 - 22}px`;
-      me.style.top = `${sq.offsetTop - (no < 1 ? 26 : 14)}px`;
-    };
-    // 勝って もどってきた時は、前のマスから1マス進む
-    const moved = this.from.won && this.from.justPlayed === cleared;
-    place(moved ? cleared - 1 : cleared);
-    if (moved) window.setTimeout(() => place(cleared), 350);
-    for (const b of [...root.querySelectorAll('.sq')] as HTMLElement[])
-      b.addEventListener('click', () => {
-        const no = Number(b.dataset.no);
-        if (!canPlay(no, cleared)) {
-          audio.se('beep');
-          return;
-        }
-        audio.unlock();
-        audio.se('tap');
-        // 次のマスなら、コマが1マス進んでから話を出す
-        if (no === next && !allClear && no > cleared) {
-          place(no);
-          window.setTimeout(() => this.openStage(root, no), 500);
-        } else this.openStage(root, no);
+    // 2026-11-05 企画者「すごろく風はやめて、1枚絵でストーリーを進めていく感じに」:
+    // 今の ステージの 一枚絵と 話を 大きく 出す → バトル。勝つと 次の 話へ。◀ ▶ で 前の 話も 見られる(もう一度 遊べる)
+    let no = this.from.justPlayed && !this.from.won ? this.from.justPlayed : allClear ? STORY_COUNT : next;
+    const root = mount(this, '<div class="story"></div>');
+    const box = root.querySelector('.story') as HTMLDivElement;
+    const draw = (fade: boolean) => {
+      const st = STORY_STAGES[no - 1];
+      const done = no <= cleared;
+      box.innerHTML = `<div class="spic">${st.image ? `<img src="${assetUrl(st.image)}" alt="">` : '<span>一枚絵（企画者が作ります）</span>'}</div>
+        <div class="stop"><button class="back">◀ もどる</button><div class="sno">STAGE ${st.no} <small>/ ${STORY_COUNT}</small>${done ? '<em>クリア</em>' : ''}</div>
+          <div class="nav"><button class="prev" ${no <= 1 ? 'disabled' : ''}>◀</button><button class="nxt" ${!canPlay(no + 1, cleared) ? 'disabled' : ''}>▶</button></div></div>
+        ${allClear && no === STORY_COUNT ? '<div class="clear sclear">ストーリー クリア！ ◀ で 前の話も 遊べます</div>' : ''}
+        <div class="stext">
+          <h3>${st.title}</h3>
+          <p>${st.text}</p>
+          <div class="srow"><div class="foe">あいて：${st.enemy.name}　Lv.${st.enemy.level}　<span class="stars">${'★'.repeat(st.enemy.prof)}${'☆'.repeat(5 - st.enemy.prof)}</span>${st.enemy.boss ? '　<b>ボス</b>' : ''}</div>
+          <button class="go">${done ? 'もう一度 バトル' : 'バトル！'}</button></div>
+        </div>`;
+      if (fade) {
+        box.classList.remove('in2');
+        void box.offsetWidth;
+        box.classList.add('in2');
+      }
+      const $ = (q: string) => box.querySelector(q) as HTMLButtonElement;
+      $('.back').addEventListener('click', () => {
+        audio.se('back');
+        this.scene.start('RumbleMode');
       });
-  }
-
-  /** 一枚絵と話 → バトル */
-  private openStage(root: HTMLDivElement, no: number): void {
-    const st = STORY_STAGES[no - 1];
-    const panel = document.createElement('div');
-    panel.className = 'panel';
-    panel.innerHTML = `<div class="card">
-      <div class="pic">${st.image ? `<img src="${assetUrl(st.image)}" alt="">` : '一枚絵（企画者が作ります）'}</div>
-      <h3>${st.no}. ${st.title}</h3>
-      <p>${st.text}</p>
-      <div class="foe">あいて：${st.enemy.name}　Lv.${st.enemy.level}　${'★'.repeat(st.enemy.prof)}${'☆'.repeat(5 - st.enemy.prof)}${st.enemy.boss ? '　HP が多い' : ''}</div>
-      <div class="row"><button class="no">やめる</button><button class="go">バトル！</button></div>
-    </div>`;
-    root.appendChild(panel);
-    (panel.querySelector('.no') as HTMLElement).addEventListener('click', () => {
-      audio.se('back');
-      panel.remove();
-    });
-    (panel.querySelector('.go') as HTMLElement).addEventListener('click', () => {
-      audio.se('select');
-      this.scene.start('Battle3D', { mode: 'story', stage: no } satisfies RumbleParams);
-    });
+      $('.prev').addEventListener('click', () => {
+        if (no <= 1) return;
+        audio.se('tap');
+        no--;
+        draw(true);
+      });
+      $('.nxt').addEventListener('click', () => {
+        if (!canPlay(no + 1, cleared)) return audio.se('beep');
+        audio.se('tap');
+        no++;
+        draw(true);
+      });
+      $('.go').addEventListener('click', () => {
+        audio.unlock();
+        audio.se('select');
+        this.scene.start('Battle3D', { mode: 'story', stage: no } satisfies RumbleParams);
+      });
+    };
+    draw(true);
   }
 }
