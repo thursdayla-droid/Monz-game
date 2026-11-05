@@ -1575,9 +1575,31 @@ export class AnimeField {
     this.shakeAmp = Math.max(this.shakeAmp, n);
   }
 
+  /** 足もとの まるい影(空中にいる時 どこに 落ちるか 分かるように。2026-11-05 企画者「着地してるか分かりにくい」) */
+  private blobs: THREE.Object3D[] = [];
+
   render(b: AnimeBattle, dt: number): void {
     b.f.forEach((f, i) => {
       const rig = this.rigs[i];
+      if (!this.blobs[i]) {
+        const g = new THREE.Group();
+        const disc = new THREE.Mesh(new THREE.CircleGeometry(0.75, 32), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false }));
+        const ring = new THREE.Mesh(new THREE.RingGeometry(0.78, 0.9, 40), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, depthWrite: false }));
+        disc.rotation.x = ring.rotation.x = -Math.PI / 2;
+        g.add(disc, ring);
+        this.scene.add(g);
+        this.blobs[i] = g;
+      }
+      {
+        const g = this.blobs[i];
+        const air = f.y > 0.15 && f.act.k !== 'ko';
+        g.visible = air;
+        if (air) {
+          g.position.set(f.x, 0.03, f.z);
+          // 高いほど 少し小さく(近づくと 大きく)
+          g.scale.setScalar(Math.max(0.55, 1 - f.y * 0.12));
+        }
+      }
       rig.safe = f.act.k !== 'ko' && f.act.k !== 'victory' && isInvincible(b, f);
       rig.update(f, dt);
       // 技のため: 口に光が集まる

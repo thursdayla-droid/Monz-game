@@ -691,7 +691,9 @@ function updateAirChase(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: '
     a.hit = false;
     a.tf = a.t;
     const ang = angleTo(f, o);
-    f.vy = Math.max(f.vy, clamp((o.y - f.y) * 4 + 2, 1.5, 6));
+    // 相手の 少し先の 高さまで とどく 速さ
+    const dy = o.y + Math.max(0, o.vy) * 0.15 - f.y;
+    f.vy = Math.max(f.vy, clamp(dy > 0 ? Math.sqrt(2 * C.gravity * dy) + 1 : 2, 2, 12));
     const gap = Math.max(0, dist(f, o) - C.body.minGap - 0.2);
     f.vx = Math.cos(ang) * gap * 4;
     f.vz = Math.sin(ang) * gap * 4;

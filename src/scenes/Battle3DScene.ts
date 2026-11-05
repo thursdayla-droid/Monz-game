@@ -1033,6 +1033,12 @@ export class Battle3DScene extends Phaser.Scene {
         const f = b.f[e.side];
         F.dust(f.x, f.z, e.hard);
         if (e.hard) audio.se('land');
+        // ふっとんだ相手が 地面に おちた: 地面の輪・ゆれ・音(着地が 分かるように 2026-11-05)
+        if (e.hard && (f.act.k === 'down' || f.act.k === 'ko' || f.act.k === 'dodge')) {
+          F.groundRing(f.x, f.z, 0.9, 0xffffff, 0.4, 2.2);
+          F.shake(0.25);
+          audio.se('slam', { pitch: 1.2 });
+        }
         break;
       }
       case 'command':
