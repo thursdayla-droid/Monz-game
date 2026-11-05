@@ -227,6 +227,8 @@ export const ANIME = {
     カチンショット: 'soundRing', 横這いタックル: 'sidestep', ピンポイント弾: 'pinpoint', カチカチトラップ: 'miniTraps', 挟撃スナップ: 'snapThrow', 照準ライン: 'sweep',
     重甲クラッシュ: 'crackLine', 鋏盾クランプ: 'clampCounter', 背面クランプ: 'flankClamp', 十字ワイヤー: 'cross', 精密包囲陣: 'stakes', 時限ボム: 'bomb',
     装甲砕き音波: 'shatter', 狙撃ライン: 'snipe', 連鎖トラップ: 'trapChain', 千機包囲網: 'turrets', 終端狙撃陣: 'snipeArray',
+    // 2026-11-05 新しい5体: 受けて 反撃する 守り(KLAK の 鋏盾クランプ と 同じ しくみ)【仮】
+    とぐろ返し: 'clampCounter', 岩鉄ボディ: 'clampCounter',
   } as Record<string, string>,
   /** とくべつな動きの数字【仮】。strike: 予告のあと落ちる・立つ攻撃(落雷・光の杭)の威力(強さごと) */
   style: {

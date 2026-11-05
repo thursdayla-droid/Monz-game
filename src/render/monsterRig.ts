@@ -549,6 +549,66 @@ export class MonsterRig {
         legSwing = 0.6;
       }
     }
+    // 四つ足・へびの 技(2026-11-05 新しい5体の技): BUNK 向けの 宙返り・前転がり を やめて、体に合った 動きに
+    let tp: MonMovePose | null = mp;
+    if (!mp && a.k === 'tech' && (this.quad || this.snake)) {
+      const tech = getTech(a.id);
+      const k = tech.kind;
+      const w = a.fired ? 0 : Math.min(1, a.t / Math.max(0.01, a.windup));
+      const run = a.t - a.windup;
+      const strike = a.fired ? Math.max(0, 1 - run / 0.35) : 0;
+      const sw = (this.snake ? 'tail' : f.species === 'shellz' ? 'shell' : 'tail') as string;
+      sx = 1;
+      sy = 1;
+      rotY = 0;
+      rotX = 0;
+      lift = 0;
+      direct = true;
+      if (k === 'rush') {
+        // 突進: ためで 低く かまえ → 頭を下げて つっこむ
+        rotZ = 0.12 * w - (a.fired && !a.hit ? 0.22 : 0);
+        lift = -0.05 * w;
+        tp = { move: f.species === 'grit' || f.species === 'shellz' ? 'head' : 'bite', up: w, hit: a.fired && !a.hit ? 1 : strike, spin: 0 };
+      } else if (k === 'combo') {
+        // 連続攻撃: 1発ごとに かみつき・爪(左右)を くりかえす
+        const seq = this.snake ? ['bite', 'tail', 'bite'] : ['bite', 'clawR', 'clawL'];
+        const pp = a.n > 0 ? Math.min(1, Math.max(0, 1 - (a.next - a.t) / Math.max(0.05, tech.duration))) : 0;
+        const mv = seq[(Math.max(1, a.n) - 1) % seq.length];
+        const hitk = a.n > 0 ? Math.sin(pp * Math.PI) : 0;
+        tp = { move: mv, up: a.fired ? 1 - hitk : w, hit: hitk, spin: 0 };
+        rotZ = 0.15 * (a.fired ? 0 : w) - 0.15 * hitk;
+        this.monFwd = 0.3 * hitk;
+      } else if (k === 'spin') {
+        // 回転: 立ったまま その場で 横に ぐるぐる(しっぽ・甲羅で はらう)
+        rotY = a.fired && !a.hit ? -a.t * 16 : 0;
+        tp = { move: sw, up: w, hit: a.fired ? 1 : 0, spin: 0 };
+      } else if (k === 'drop') {
+        // 落下: 宙返りしない。のぼる時は 前を上げ、おりる時は 頭から とびかかる
+        rotZ = f.y > 0 ? (f.vy > 0 ? 0.3 : -0.4) : 0.12 * w;
+        tp = { move: this.snake ? 'bite' : 'clawR', up: f.y > 0 && f.vy > 0 ? 1 : w, hit: f.y > 0 && f.vy <= 0 ? 1 : 0, spin: 0 };
+      } else if (k === 'quake' || k === 'field' || k === 'pillar') {
+        // 地面を ふむ・たたく: 前を 起こして → ドスンと おろす
+        rotZ = 0.3 * w - 0.12 * strike;
+        lift = 0.08 * w;
+        tp = { move: this.snake ? 'tail' : 'clawR', up: w, hit: strike, spin: 0 };
+      } else if (k === 'shot' || k === 'barrage' || k === 'beam' || k === 'drain' || k === 'debuff') {
+        // 口から 吐く・ほえる: 頭を 引いて → 前へ つきだす(ほえる は 上を 向く)
+        const roar = k === 'debuff';
+        const hold = k === 'beam' && a.fired && run < tech.duration ? 1 : strike;
+        rotZ = (roar ? 0.25 : 0.12) * w + (roar ? 0.18 : -0.08) * hold;
+        tp = { move: 'zap', up: w, hit: hold, spin: 0 };
+        if (roar) rotY = Math.sin(now * 50) * 0.04 * hold;
+      } else if (k === 'barrier') {
+        // 守り: 低く ふんばる(亀は 首を すくめる・へびは とぐろを 巻く)
+        lift = -0.06;
+        rotZ = 0.05;
+        tp = { move: f.species === 'shellz' ? 'shell' : 'head', up: 1, hit: 0, spin: 0 };
+      } else {
+        // 回復・強化: 体を ぶるっと ふるわせる
+        rotY = Math.sin(now * 40) * 0.05 * (a.fired ? 1 : w);
+        lift = 0.04 * Math.abs(Math.sin(now * 9));
+      }
+    }
     // 骨で動かす(待機・移動だけ。ほかの動きは骨を休ませ、体全体で動かす)
     if (this.bones) {
       const mode = a.k === 'free' && f.y <= 0 ? (f.speed > 0.3 ? 'move' : 'idle') : 'other';
@@ -588,7 +648,7 @@ export class MonsterRig {
       const turn = this.lastFace === null || dt <= 0 ? 0 : Math.atan2(Math.sin(f.face - this.lastFace), Math.cos(f.face - this.lastFace)) / dt;
       this.lastFace = f.face;
       const sp = a.k === 'dodge' && a.t < 0.3 ? 8 : a.k === 'free' ? f.speed : 0;
-      this.quad.update(now, dt, { speed: sp, air: f.y > 0.05, rising: f.vy > 0, dodge: a.k === 'dodge', hurt: a.k === 'hurt' || a.k === 'air', down: a.k === 'down' || a.k === 'ko', turn, atk: mp });
+      this.quad.update(now, dt, { speed: sp, air: f.y > 0.05, rising: f.vy > 0, dodge: a.k === 'dodge', hurt: a.k === 'hurt' || a.k === 'air', down: a.k === 'down' || a.k === 'ko', turn, atk: tp });
       // 四つ足は ぴょこぴょこ はねない(歩く はずみ だけ)。体は 息をするように 少し ふくらむ。重い種族は 左右に ゆれる
       if (a.k === 'free' && f.y <= 0) {
         lift = this.quad.bob;
@@ -610,7 +670,7 @@ export class MonsterRig {
       const turn = this.lastFace === null || dt <= 0 ? 0 : Math.atan2(Math.sin(f.face - this.lastFace), Math.cos(f.face - this.lastFace)) / dt;
       this.lastFace = f.face;
       const sp = a.k === 'dodge' && a.t < 0.3 ? 8 : a.k === 'free' ? f.speed : 0;
-      this.snake.update(now, dt, { speed: sp, air: f.y > 0.05, dodge: a.k === 'dodge', hurt: a.k === 'hurt' || a.k === 'air', down: a.k === 'down' || a.k === 'ko', turn, atk: mp });
+      this.snake.update(now, dt, { speed: sp, air: f.y > 0.05, dodge: a.k === 'dodge', hurt: a.k === 'hurt' || a.k === 'air', down: a.k === 'down' || a.k === 'ko', turn, atk: tp });
       // へびは はねない。地面を すべるように、体ごと 左右に くねる。息で 少し ふくらむ
       if (a.k === 'free' && f.y <= 0) {
         lift = 0;

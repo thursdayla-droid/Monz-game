@@ -252,7 +252,9 @@ export class QuadBones {
     // しっぽ: いつも ゆらゆら(歩くと 大きく・曲がる時は 外へ)
     this.tail.forEach((j, i) => {
       const sw = Math.sin(t * (S.tailSpd + sm.walk * 3) - i * 0.6) * (S.tailAmp + sm.walk * S.tailAmp * 0.8) - sm.turn * 0.3;
-      this.rot(j, AX_Y, sw * (1 + i * 0.2), { axis: AX_Z, angle: 0.08 * Math.sin(t * 1.7 - i * 0.5) + sm.run * 0.15 });
+      // しっぽで はらう(回る技): しっぽを 外へ 大きく のばす
+      const tailAtk = s.atk && (s.atk.move === 'tail' || s.atk.move === 'shell') ? 0.5 * (s.atk.up + s.atk.hit) * (1 + i * 0.3) : 0;
+      this.rot(j, AX_Y, sw * (1 + i * 0.2) + tailAtk, { axis: AX_Z, angle: 0.08 * Math.sin(t * 1.7 - i * 0.5) + sm.run * 0.15 });
     });
     // 頭: 息をするように 少し うなずく・曲がる方を 向く・やられると のけぞる
     if (this.head) {
