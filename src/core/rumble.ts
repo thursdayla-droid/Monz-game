@@ -74,6 +74,7 @@ export const STORY_IMAGES: Record<number, string> = {
   2: 'assets/story/ch1_02.webp', // 1章2話 SNEK(2026-11-05 企画者)
   3: 'assets/story/ch1_03.webp', // 1章3話 SHELLZ(2026-11-05 企画者)
   4: 'assets/story/ch1_04.webp', // 1章4話 RIOT(2026-11-05 企画者)
+  5: 'assets/story/ch1_05.webp', // 1章5話 VYBE(中ボス。2026-11-05 企画者)
 };
 
 /** 話(企画者が 書いた 文。ステージの 番号 → 題名と 行) */
@@ -126,6 +127,19 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
       { who: 'RIOT', text: '「俺はあんな連中とは違うぜ！」' },
       { who: 'RIOT', text: '「その連勝記録、ここで燃やし尽くしてやる！」' },
       { who: null, text: 'RIOTが牙をむき出しにし、岩の上から飛びかかる！' },
+    ],
+  },
+  5: {
+    title: '第5話「雷鳴の支配者」',
+    lines: [
+      { who: null, text: '4連勝を飾り、ついに草原の最奥へたどり着いた挑戦者。' },
+      { who: null, text: '夜空を引き裂く稲妻。' },
+      { who: null, text: '丘の頂上には、雷をまとった一匹のMONZが待ち構えていた。' },
+      { who: 'VYBE', text: '「……来たか。噂の挑戦者。」' },
+      { who: 'VYBE', text: '「ここまで全勝とは、なかなかやるじゃねぇか。」' },
+      { who: 'VYBE', text: '「だが、ここから先は遊びじゃねぇ。」' },
+      { who: 'VYBE', text: '「この丘を越えたければ、俺を超えてみろ。」' },
+      { who: 'VYBE', text: '「見せてみな。お前の本当の力を！」' },
     ],
   },
 };

@@ -22,7 +22,7 @@
 - 既存のゲームデータ・コード・企画者の絵を消したり初期化したりしない。使わなくなった絵は `unused/` などに移して残す。保存データの形を変えるときは古いデータが読めるようにする（`migrateLife`）。
 - 決まったことは日付つきで `docs/VISION.md` か `docs/ROOM_PLAN.md` に書き、`docs/SPEC.md` も直す。
 - 作業ブランチは `claude/monz-game-development-pztk8y`。main への公開は企画者の許可が出てから（公開前に開発用ボタンを外す）。
-- 企画者に見せるときは確認用ページ（`tools/build_preview.py`、Artifact）を更新する。絵を軽くするのはよいが、ゲーム画面の見た目（大きさ）は小さくしない。絵はページに埋め込む（別ファイルは iPhone のアプリで絵が出なかった。2026-10-28）。ページは15MBより小さくする。確認用ページは2つ（2026-10-29）：ゲーム（https://claude.ai/artifact/9qauCQZ9xmdERAFrzwkeLh、カードの絵なし）と MYTHCLASH（https://claude.ai/artifact/2RpHDeUoZMYJBa7ZWKm2gh、`--myth`）。カードを足したら MYTHCLASH のほうを更新する。3つめ（2026-11-01）：3Dバトル（https://claude.ai/artifact/Rv4aV9XjHP97Rrp5H5B1Sw、`--b3d`。仮の人形の3D試作）。4つめ（2026-11-04）：3Dバトル2（https://claude.ai/artifact/J54piu7PP8DddeJbYd4b7B、`--b3d2`。新しい5体 RIOT など。10体のモデルは1ページに入らないため）。カード一覧のページ（`tools/build_cards_page.py`）は今は使わない。
+- 企画者に見せるときは確認用ページ（`tools/build_preview.py`、Artifact）を更新する。絵を軽くするのはよいが、ゲーム画面の見た目（大きさ）は小さくしない。絵はページに埋め込む（別ファイルは iPhone のアプリで絵が出なかった。2026-10-28）。ページは15MBより小さくする。確認用ページは2つ（2026-10-29）：ゲーム（https://claude.ai/artifact/9qauCQZ9xmdERAFrzwkeLh、カードの絵なし）と MYTHCLASH（https://claude.ai/artifact/2RpHDeUoZMYJBa7ZWKm2gh、`--myth`）。カードを足したら MYTHCLASH のほうを更新する。3つめ（2026-11-01）：3Dバトル（https://claude.ai/artifact/Rv4aV9XjHP97Rrp5H5B1Sw、`--b3d`。仮の人形の3D試作）。4つめ（2026-11-04）：3Dバトル2（https://claude.ai/artifact/J54piu7PP8DddeJbYd4b7B、`--b3d2`。新しい5体 RIOT など。10体のモデルは1ページに入らないため）。5つめ（2026-11-05）：STREET KING（https://claude.ai/artifact/Vs5drxR7fhbEwFcu83unsu、`--story`。ストーリーの一枚絵・話と、1〜2章の敵10体〔第1形態〕のモデル。一枚絵を足したらこのページを更新する）。カード一覧のページ（`tools/build_cards_page.py`）は今は使わない。
 
 ## 技術
 - Phaser 4 + TypeScript + Vite。テストは Vitest（`npm test`）、型チェックは `npm run typecheck`。

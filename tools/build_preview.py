@@ -15,12 +15,14 @@ root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 out = sys.argv[1]
 MYTH = '--myth' in sys.argv[2:]
 # 3Dオートバトルの確認用ページ(2026-11-01)。絵は入れない(仮の人形なので)。曲はバトルの1曲だけ
-B3D = '--b3d' in sys.argv[2:] or '--b3d2' in sys.argv[2:]
+# 2026-11-05: STREET KING(ストーリー)の 確認用ページ(--story)。10種族の 第1形態の モデル + 一枚絵
+STORY = '--story' in sys.argv[2:]
+B3D = '--b3d' in sys.argv[2:] or '--b3d2' in sys.argv[2:] or STORY
 # 2026-11-04: 10体の3Dモデルは 1ページ(15MB)に入らないので、新しい5体(RIOT など)は 2つめのページ(--b3d2)。相手の BUNK の3体は 両方に入れる
 B3D2 = '--b3d2' in sys.argv[2:]
 NEW5 = ('riot', 'rioter', 'riotrax', 'grit', 'gritter', 'gritbull', 'snek', 'sneker', 'snekxus', 'vybe', 'vyga', 'vygard', 'shellz', 'sheld', 'sheldozer')
 if not os.path.exists(out):
-    open(out, 'w').write('<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>' + ('3Dバトル 確認用2' if B3D2 else '3Dバトル 確認用' if B3D else 'MYTHCLASH 確認用' if MYTH else 'MONZ') + '</title>'
+    open(out, 'w').write('<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>' + ('STREET KING 確認用' if STORY else '3Dバトル 確認用2' if B3D2 else '3Dバトル 確認用' if B3D else 'MYTHCLASH 確認用' if MYTH else 'MONZ') + '</title>'
                          '<style>html,body{margin:0;height:100%;background:#1b1024;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none}#game{width:100%;height:100%}</style></head>'
                          '<body><div id="boot" style="color:#fff;font:20px sans-serif;text-align:center;padding-top:40vh">よみこみ中…</div><div id="game"></div>\n<script type="module"></script></body></html>')
 js = open(glob.glob(root + '/dist/assets/index-*.js')[0]).read()
@@ -33,9 +35,13 @@ if B3D:
     paths = sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/battle3d/*.glb') + glob.glob(pub + 'assets/battle3d/*.webp'))
     is_new = lambda p: os.path.basename(p)[:-4] in NEW5
     is_bunk = lambda p: os.path.basename(p).startswith('bunk') or p.endswith('.webp')
-    paths = [p for p in paths if (is_new(p) or is_bunk(p))] if B3D2 else [p for p in paths if not is_new(p)]
-    # STREET KING の 一枚絵(2026-11-05)
-    paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/story/*.webp'))
+    FORM1 = ('bunk', 'mofu', 'zipp', 'puni', 'klak', 'riot', 'snek', 'grit', 'vybe', 'shellz')
+    if STORY:
+        # 1〜2章(第1形態)の 10体 + 一枚絵。3章から(第2・最終形態)の モデルは 入らないので 仮の人形
+        paths = [p for p in paths if p.endswith('.webp') or os.path.basename(p)[:-4] in FORM1]
+        paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/story/*.webp'))
+    else:
+        paths = [p for p in paths if (is_new(p) or is_bunk(p))] if B3D2 else [p for p in paths if not is_new(p)]
 elif MYTH:
     paths = myth_paths + card_paths
 else:
