@@ -78,6 +78,7 @@ export const STORY_IMAGES: Record<number, string> = {
   6: 'assets/story/ch2_06.webp', // 2章6話 ZIPP(2026-11-05 企画者)
   7: 'assets/story/ch2_07.webp', // 2章7話 KLAK(2026-11-05 企画者)
   8: 'assets/story/ch2_08.webp', // 2章8話 BUNK(2026-11-05 企画者)
+  9: 'assets/story/ch2_09.webp', // 2章9話 PUNI(2026-11-05 企画者)
 };
 
 /** 話(企画者が 書いた 文。ステージの 番号 → 題名と 行) */
@@ -184,6 +185,20 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
       { who: 'BUNK', text: '「へへっ！ ずっと強ぇヤツと戦いたかったんだ！」' },
       { who: 'BUNK', text: '「小細工も罠もいらねぇ！」' },
       { who: 'BUNK', text: '「正面から、全力でぶつかろうぜ！」' },
+    ],
+  },
+  9: {
+    title: '第9話「笑顔のファイター」',
+    lines: [
+      { who: null, text: 'BUNKとの熱い勝負を終え、挑戦者は草原の奥へと進む。' },
+      { who: null, text: '雨上がりの朝。虹のかかる池に、楽しそうな声が響いていた。' },
+      { who: null, text: '大きなハスの葉の上で、ぷるぷると跳ねる小さなMONZ。' },
+      { who: 'PUNI', text: '「ぷにっ！ あっ、お客さんだ〜！」' },
+      { who: 'PUNI', text: '「キミがみんなを倒してきた挑戦者？」' },
+      { who: 'PUNI', text: '「えへへっ！ ボクも勝負したかったんだ〜！」' },
+      { who: 'PUNI', text: '「でもね、かわいいからって油断しちゃダメだよ？」' },
+      { who: 'PUNI', text: '「ボクの水玉、けっこう痛いんだから！」' },
+      { who: 'PUNI', text: '「それじゃあ……いっくよ〜！」' },
     ],
   },
 };
