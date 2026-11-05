@@ -88,6 +88,18 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
       { who: 'GRIT', text: '「だったらまず、俺を倒してみな！」' },
     ],
   },
+  2: {
+    title: '第2話',
+    lines: [
+      { who: null, text: 'GRITとの初戦を制し、草原の奥へと進む挑戦者。' },
+      { who: null, text: 'そのとき、草むらから不気味な笑い声が聞こえてきた。' },
+      { who: 'SNEK', text: '「シャシャシャ……」' },
+      { who: 'SNEK', text: '「お前か？ あのGRITを倒したってヤツは。」' },
+      { who: 'SNEK', text: '「へぇ〜、なかなかやるじゃねぇか。」' },
+      { who: 'SNEK', text: '「でもよぉ……ここから先は俺の縄張りだぜ？」' },
+      { who: 'SNEK', text: '「通りたきゃ、俺を倒してみな！」' },
+    ],
+  },
 };
 
 /** 種族・形態の 名前(rosterData の 表と 同じ) */
