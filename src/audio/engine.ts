@@ -13,8 +13,8 @@ import { playSe, playTechSe, type SeName, type TechPhase } from './sfx';
  * - 全部の音は最後にリミッター(DynamicsCompressor)を通す。たくさん同時に鳴っても音が割れないように(2026-10-26)
  */
 /** 企画者の音のファイルを使う技(技の名前 → 効果音)。2026-11-03 */
-// 2026-11-04 企画者「ライトレールのビームの音ダサイ。バンクのビームの音にして」→ ライトレールも ギガントバーストの音
-const TECH_SE_FILES: Record<string, SeName> = { ギガントバースト: 'b3dGigant', ライトレール: 'b3dGigant' };
+// 2026-11-04 企画者「光軌レールのビームの音ダサイ。バンクのビームの音にして」→ 光軌レールも ギガントバーストの音
+const TECH_SE_FILES: Record<string, SeName> = { ギガントバースト: 'b3dGigant', 光軌レール: 'b3dGigant' };
 
 class AudioEngine {
   private ctx: AudioContext | null = null;

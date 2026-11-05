@@ -442,7 +442,7 @@ export class MonsterRig {
           rotZ = 0.06;
           sx = 1;
           sy = 1;
-          // 中の連続攻撃(ハネツキラッシュ): 近づく間は 小きざみに跳ねる(企画者の演出指示)
+          // 中の連続攻撃(跳ねつき連撃): 近づく間は 小きざみに跳ねる(企画者の演出指示)
           if (tech.kind === 'combo' && tech.strength === '中') lift = Math.abs(Math.sin(k * (a.n === 0 ? 18 : 12))) * (a.n === 0 ? 0.32 : 0.12);
         } else if (tech.kind === 'combo') {
           // 連続攻撃: 小きざみに跳ねて、何回もぶつかる

@@ -41,7 +41,7 @@ it('techs that look like they can reach a launched (floating) opponent connect a
 });
 
 it('on a floating opponent, a tech that hits can be followed at once by another tech (tech → tech combo), and they stay floating', () => {
-  const b = newAnimeBattle(e('bunk', ['バンクバッシュ', 'ネライウチバースト']), e('bunk', []), 3, 'manual');
+  const b = newAnimeBattle(e('bunk', ['バンクバッシュ', '狙い撃ちバースト']), e('bunk', []), 3, 'manual');
   const [p, q] = b.f;
   p.pad = { x: 0, z: 0 };
   q.pad = { x: 0, z: 0 };
@@ -52,9 +52,9 @@ it('on a floating opponent, a tech that hits can be followed at once by another 
   let pressed = false;
   for (let i = 0; i < 120; i++) {
     b.events = []; stepAnime(b, ANIME.dt); ev.push(...b.events);
-    if (!pressed && b.events.some((x) => x.kind === 'hit' && x.side === 0)) { pressed = true; expect(q.act.k).toBe('air'); giveCommand(b, 0, 'ネライウチバースト'); }
+    if (!pressed && b.events.some((x) => x.kind === 'hit' && x.side === 0)) { pressed = true; expect(q.act.k).toBe('air'); giveCommand(b, 0, '狙い撃ちバースト'); }
   }
-  expect(ev.some((x) => x.kind === 'cancel' && x.tech === 'ネライウチバースト')).toBe(true);
+  expect(ev.some((x) => x.kind === 'cancel' && x.tech === '狙い撃ちバースト')).toBe(true);
   expect(ev.filter((x) => x.kind === 'hit' && x.side === 0).length).toBeGreaterThanOrEqual(2);
 });
 

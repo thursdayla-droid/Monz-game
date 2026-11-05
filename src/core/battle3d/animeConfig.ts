@@ -64,7 +64,7 @@ export const ANIME = {
    * debuff: 攻撃ダウンの割合と時間 / field: 遅くなる割合・場の残る時間・場から出たあと遅いままの時間
    */
   debuff: { atkDown: 0.75, time: 5 },
-  // 防御ダウン: 受けるダメージ +25%・10秒・重ならない(企画者 2026-11-02 アーマーブレイク音波)
+  // 防御ダウン: 受けるダメージ +25%・10秒・重ならない(企画者 2026-11-02 装甲砕き音波)
   defDown: { mul: 1.25, time: 10 },
   gfield: { slow: 0.6, time: 5, linger: 0.5 },
   /**
@@ -217,16 +217,16 @@ export const ANIME = {
    */
   techStyle: {
     // ZIPP(雷・速さ)
-    ジップタックル: 'vanishTackle', クイックリープ: 'lowLeap', スパークレイン: 'fan', 雷走ブレイカー: 'boltTrail', 帯電シールド: 'zapShield', 残光ステップ: 'afterimage',
-    稲妻マーキング: 'strike1', 閃電三連: 'homing3', 電光スパイラル: 'spiral', ライトレール: 'rail', 帯電フィールド: 'net', 迅雷乱舞: 'ghostRush', 千閃雷走: 'multiPass', 天網雷獄: 'strikeNet',
+    ジップタックル: 'vanishTackle', 跳雷リープ: 'lowLeap', 雷針スパーク: 'fan', 雷走ブレイカー: 'boltTrail', 帯電シールド: 'zapShield', 残光ステップ: 'afterimage',
+    稲妻マーキング: 'strike1', 閃電三連: 'homing3', 電光スパイラル: 'spiral', 光軌レール: 'rail', 帯電フィールド: 'net', 迅雷乱舞: 'ghostRush', 千閃雷走: 'multiPass', 天網雷獄: 'strikeNet',
     // PUNI(自然・弾力・吸う)
-    ぷにタッチ: 'stretch', ぽよん玉: 'arc', ぷにバウンド: 'multiBounce', ぷるんガード: 'jellyBounce', ぽよぽよ連弾: 'skip', ぷにっと吸引: 'pull', ビッグぷにプレス: 'bigPress',
-    ぷにぷにウォール: 'reflect', ぽよんスパイラル: 'droplets', ぷにトラップ: 'stickyGoo', バウンドウェーブ: 'tripleWave', ぐにゃりスリップ: 'slip', ぷに分裂弾: 'split',
-    エナジーぷにドレイン: 'tether', 超弾性チャージ: 'elastic', 超膨張インパクト: 'inflate', 万象ぷにドーム: 'absorbCounter',
+    ぷにタッチ: 'stretch', ぽよん玉: 'arc', ぷにバウンド: 'multiBounce', ぷるんガード: 'jellyBounce', ぽよぽよ連弾: 'skip', ぷにっと吸引: 'pull', 大ぷにプレス: 'bigPress',
+    ぷにぷに防壁: 'reflect', ぽよんスパイラル: 'droplets', ぷにトラップ: 'stickyGoo', ぽよん三重波: 'tripleWave', ぐにゃりスリップ: 'slip', ぷに分裂弾: 'split',
+    ぷに触手ドレイン: 'tether', 超弾性チャージ: 'elastic', 超膨張インパクト: 'inflate', 万象ぷにドーム: 'absorbCounter',
     // KLAK(罠・ねらい)
-    カチンショット: 'soundRing', クラップタックル: 'sidestep', ピンポイント弾: 'pinpoint', カチカチトラップ: 'miniTraps', スナップラッシュ: 'snapThrow', ロックオンライン: 'sweep',
-    ヘビークラッシュ: 'crackLine', クランプシェル: 'clampCounter', クイッククランプ: 'flankClamp', クロスワイヤー: 'cross', 精密包囲陣: 'stakes', ディレイボム: 'bomb',
-    アーマーブレイク音波: 'shatter', スナイプライン: 'snipe', トラップチェイン: 'trapChain', 千機包囲網: 'turrets', 終端狙撃陣: 'snipeArray',
+    カチンショット: 'soundRing', 横這いタックル: 'sidestep', ピンポイント弾: 'pinpoint', カチカチトラップ: 'miniTraps', 挟撃スナップ: 'snapThrow', 照準ライン: 'sweep',
+    重甲クラッシュ: 'crackLine', 鋏盾クランプ: 'clampCounter', 背面クランプ: 'flankClamp', 十字ワイヤー: 'cross', 精密包囲陣: 'stakes', 時限ボム: 'bomb',
+    装甲砕き音波: 'shatter', 狙撃ライン: 'snipe', 連鎖トラップ: 'trapChain', 千機包囲網: 'turrets', 終端狙撃陣: 'snipeArray',
   } as Record<string, string>,
   /** とくべつな動きの数字【仮】。strike: 予告のあと落ちる・立つ攻撃(落雷・光の杭)の威力(強さごと) */
   style: {
@@ -259,7 +259,7 @@ export const ANIME = {
   burn: { time: 3, every: 1, pct: 0.02 },
   poison: { time: 8, every: 1, pct: 0.01 },
   sleep: { time: 2.0, immune: 5 },  // 2026-11-03 2.5→2.0(MOFU の技で、ねむり＋攻撃で3秒こえて動けなくなったため)
-  /** グラビティプレスの場の中にいると、1秒ごとに少しダメージ(よろけない。2026-11-03 企画者「ダメージを少し」)【案】 */
+  /** 重力プレスの場の中にいると、1秒ごとに少しダメージ(よろけない。2026-11-03 企画者「ダメージを少し」)【案】 */
   fieldTick: 1.0,
   /**
    * 回復・強化・吸収(2026-11-03 MOFU の技。技リスト案 docs/TECHS_ALL_DRAFT.md)【案】
@@ -324,8 +324,8 @@ export const TECHS = {
   puniWater: { name: 'ぷに玉', element: '自然', kind: 'shot', power: 6.5, cooldown: 0, windup: 0, recovery: 0, speed: 15, range: 13, size: 0.42, duration: 0, launch: 0, knock: 2.5 },
   klakTrap: { name: 'はさみトラップ', element: '無', kind: 'field', power: 7, cooldown: 0, windup: 0, recovery: 0, speed: 0, range: 2, size: 0.85, duration: 0, launch: 0, knock: 0 },
   punch: { name: 'パンチ', element: '無', kind: 'jab', power: 7, cooldown: 0.5, windup: 0.06, recovery: 0.16, speed: 0, range: 1.9, size: 0.9, duration: 0.14, launch: 0, knock: 2 },
-  /** ガンジョウドームの爆発(反撃)。ドームが攻撃を受けると広がる衝撃波【仮】威力10・届く長さ4.5 */
-  domeBurst: { name: 'ガンジョウドーム', element: '無', kind: 'quake', power: 10, cooldown: 0, windup: 0, recovery: 0, speed: 14, range: 4.5, size: 0.6, duration: 0, launch: 5, knock: 5 },
+  /** 頑丈ドームの爆発(反撃)。ドームが攻撃を受けると広がる衝撃波【仮】威力10・届く長さ4.5 */
+  domeBurst: { name: '頑丈ドーム', element: '無', kind: 'quake', power: 10, cooldown: 0, windup: 0, recovery: 0, speed: 14, range: 4.5, size: 0.6, duration: 0, launch: 5, knock: 5 },
   dash: { name: 'ダッシュアタック', element: '無', kind: 'rush', power: 13, cooldown: 3.5, windup: 0.25, recovery: 0.4, speed: 13, range: 9, size: 1.0, duration: 0, launch: 5, knock: 4 },
   fire: { name: 'ファイアショット', element: '炎', kind: 'shot', power: 11, cooldown: 2.8, windup: 0.3, recovery: 0.25, speed: 15, range: 20, size: 0.6, duration: 0, launch: 0, knock: 3 },
   beam: { name: 'ライトニングビーム', element: '雷', kind: 'beam', power: 20, cooldown: 7, windup: 0.75, recovery: 0.5, speed: 0, range: 22, size: 0.7, duration: 0.55, launch: 4, knock: 6 },

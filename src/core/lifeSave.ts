@@ -15,6 +15,7 @@ import { battleReward, TOWER_FLOORS, towerReward } from './mythclash/modes';
 import { addCards, deckOwned, fixCollection, newCollection, openPacks, PACK_PRICE, type MythCollection } from './mythclash/packs';
 import type { Rng } from './rng';
 import { growTechs, hasTechTable, setEquip, type TechState } from './battle3d/techLearn';
+import { renameTech } from './battle3d/techTable';
 import { instinctFor } from './autobattle/engine';
 import { addStats, autoGrowthAt, currentStats, FREE_POINTS_PER_LEVEL, levelUpRng, LOVE_RULES, rollAutoGrowth, STAT_KEYS, STAT_MAX, zeroStats, type StatBlock, type StatKey } from './stats';
 
@@ -162,7 +163,12 @@ function fixTechs(m: MonzData): TechState | undefined {
   const stats = currentStats(m);
   const ok = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === 'string');
   const t = m.techs;
-  if (t && ok(t.learned) && ok(t.equipped) && t.learned.length) return { learned: t.learned, equipped: t.equipped.filter((n) => t.learned.includes(n)), ...(t.manual ? { manual: true } : {}) };
+  if (t && ok(t.learned) && ok(t.equipped) && t.learned.length) {
+    // 名前を かえた技(2026-11-05)は 今の名前に
+    const learned = [...new Set(t.learned.map(renameTech))];
+    const equipped = t.equipped.map(renameTech);
+    return { learned, equipped: equipped.filter((n) => learned.includes(n)), ...(t.manual ? { manual: true } : {}) };
+  }
   return growTechs(m.species, m.level, stats, undefined, instinctFor(m.species, stats)).state;
 }
 

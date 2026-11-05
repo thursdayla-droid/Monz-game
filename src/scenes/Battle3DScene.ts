@@ -705,7 +705,7 @@ export class Battle3DScene extends Phaser.Scene {
             F.launch(fa.x, fa.z, fa.face + Math.PI);
           }
         }
-        // 設置(グラビティプレス): 拳を地面にたたきつけた所にヒビと砂けむり・紫の輪
+        // 設置(重力プレス): 拳を地面にたたきつけた所にヒビと砂けむり・紫の輪
         if (k === 'field') {
           const fa = b.f[e.side];
           const gx = fa.x + Math.cos(fa.face) * 0.6;
@@ -715,7 +715,7 @@ export class Battle3DScene extends Phaser.Scene {
           F.groundRing(gx, gz, 0.8, 0xb060ff, 0.4, 2.5);
           F.shake(0.3);
         }
-        // ほえる(ブレイクロア): 画面が ゆれる
+        // ほえる(威圧ロア): 画面が ゆれる
         if (k === 'debuff') {
           F.shake(0.35);
           audio.se('koBlast', { pitch: 0.6 });
@@ -812,7 +812,7 @@ export class Battle3DScene extends Phaser.Scene {
         F.rocks(e.x, e.z);
         F.crack(e.x, e.z, qt.range * 0.35);
         F.groundRing(e.x, e.z, 0.8, 0xffffff, 0.3, 3);
-        // 大技(テンチゴウサイ): 紫の光の柱・岩・画面の光(企画者の演出指示)
+        // 大技(天地轟砕): 紫の光の柱・岩・画面の光(企画者の演出指示)
         if (qt.strength === '大技') {
           F.lightPillar(e.x, e.z, qt.element === '無' ? 0xa040ff : ELEMENT_HEX[qt.element]);
           F.rocks(e.x, e.z);
@@ -827,7 +827,7 @@ export class Battle3DScene extends Phaser.Scene {
         break;
       case 'impact': {
         const it = getTech(e.tech);
-        // 落下の強さで着地を変える(バウンドプレスは控えめ・バンクブレイカーは強い。企画者の演出指示)
+        // 落下の強さで着地を変える(跳躍プレスは控えめ・バンクブレイカーは強い。企画者の演出指示)
         const lvl = it.kind === 'drop' && it.strength === '中' ? 0 : it.strength === '大技' ? 2 : 1;
         const soft = b.f[e.side].species === 'mofu';
         F.impact(e.x, e.z, e.r, it.strength === '大技', lvl, soft);
@@ -878,7 +878,7 @@ export class Battle3DScene extends Phaser.Scene {
         this.pop(e.what === 'def' ? 'まもりアップ！' : e.what === 'atk' ? 'こうげきアップ！' : 'すばやさアップ！', '#ffe040');
         break;
       case 'chip':
-        // 少しのダメージ(やけど・どく・グラビティプレスの場)。よろけないので、数字だけ小さく
+        // 少しのダメージ(やけど・どく・重力プレスの場)。よろけないので、数字だけ小さく
         this.pop(`-${e.damage}`, e.why === 'やけど' ? '#ff9a4a' : e.why === 'どく' ? '#c070ff' : '#b080ff');
         F.flash(e.target);
         break;
@@ -919,7 +919,7 @@ export class Battle3DScene extends Phaser.Scene {
           break;
         }
         if (e.look === 'rock') {
-          // ヘビークラッシュの地割れ: 岩が つき出る
+          // 重甲クラッシュの地割れ: 岩が つき出る
           F.rocks(e.x, e.z);
           F.crack(e.x, e.z, 1);
           F.dust(e.x, e.z, true);
@@ -938,7 +938,7 @@ export class Battle3DScene extends Phaser.Scene {
         F.flameBurst(e.x, 0.4, e.z);
         F.rocks(e.x, e.z);
         F.shake(0.2);
-        if (!audio.techSe('レンゴクホウケン', 'pillar', 'land')) audio.se('mcFire', { pitch: 0.8 });
+        if (!audio.techSe('煉獄崩拳', 'pillar', 'land')) audio.se('mcFire', { pitch: 0.8 });
         break;
       case 'domeBurst':
         F.impact(e.x, e.z, 2.2, true);

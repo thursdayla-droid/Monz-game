@@ -144,7 +144,7 @@ function crackTexture(): THREE.CanvasTexture {
   return new THREE.CanvasTexture(c);
 }
 
-/** 重力の魔法陣(グラビティプレス): 二重の円・六芒星・文字のような印。紫と黒(2026-11-03 企画者の演出指示「紫と黒の重力フィールド」「円形の魔法陣」) */
+/** 重力の魔法陣(重力プレス): 二重の円・六芒星・文字のような印。紫と黒(2026-11-03 企画者の演出指示「紫と黒の重力フィールド」「円形の魔法陣」) */
 function magicCircleTexture(): THREE.CanvasTexture {
   const c = document.createElement('canvas');
   c.width = c.height = 512;
@@ -810,7 +810,7 @@ export class AnimeField {
 
   /**
    * 落下技・大技の着地: 岩・輪・大きなゆれ。
-   * level(2026-11-03 企画者の演出指示): 0 = 控えめ(バウンドプレス: 土けむりと小さな輪)・1 = 強い(バンクブレイカー: 岩・強い輪2つ)・2 = 大技
+   * level(2026-11-03 企画者の演出指示): 0 = 控えめ(跳躍プレス: 土けむりと小さな輪)・1 = 強い(バンクブレイカー: 岩・強い輪2つ)・2 = 大技
    */
   impact(x: number, z: number, r: number, big: boolean, level = big ? 2 : 1, soft = false): void {
     // MOFU の着地(もふどっかん など): 岩ではなく、綿毛と花びらが ぶわっと
@@ -892,7 +892,7 @@ export class AnimeField {
   }
   private stoneChipMat = new THREE.MeshToonMaterial({ color: 0xcdb27a });
 
-  /** 光の柱(大技の着地。テンチゴウサイ) */
+  /** 光の柱(大技の着地。天地轟砕) */
   lightPillar(x: number, z: number, color: number): void {
     for (const [w, c, life] of [[1.6, color, 0.7], [0.7, 0xffffff, 0.5]] as const) {
       const m = new THREE.Mesh(new THREE.CylinderGeometry(w, w, 14, 20, 1, true), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
@@ -1299,7 +1299,7 @@ export class AnimeField {
 
   /**
    * 技ごとの とくべつな見た目(2026-11-03 企画者「そのキャラにあった技を」):
-   * ねらう技の赤い線・ライトレールの地面の線・ぷにタッチの のびる体・超膨張インパクト/ビッグぷにプレスで ふくらむ体
+   * ねらう技の赤い線・光軌レールの地面の線・ぷにタッチの のびる体・超膨張インパクト/大ぷにプレスで ふくらむ体
    */
   private styleFx(b: AnimeBattle, f: AnimeMon, i: number, dt: number): void {
     const a = f.act;
@@ -1324,7 +1324,7 @@ export class AnimeField {
     if (a.k === 'tech') {
       const aiming = !a.fired && (st === 'sweep' || st === 'snipe' || st === 'pinpoint' || st === 'rail');
       if (aiming) {
-        // ねらいの線: 赤く(ライトレールは 地面に 光の線)。ためるほど 太く 明るく
+        // ねらいの線: 赤く(光軌レールは 地面に 光の線)。ためるほど 太く 明るく
         const w = Math.min(1, a.t / a.windup);
         const len = st === 'rail' ? getTech(a.id).range : Math.max(1, Math.hypot(o.x - f.x, o.z - f.z));
         const y = st === 'rail' ? 0.05 : 0.85;
@@ -1441,7 +1441,7 @@ export class AnimeField {
   }
 
   private tetherObjs: THREE.Mesh[] = [];
-  /** エナジーぷにドレイン: PUNI から相手へ のびる 緑の触手(ぴくぴく 動いて、光の粒が PUNI へ もどる) */
+  /** ぷに触手ドレイン: PUNI から相手へ のびる 緑の触手(ぴくぴく 動いて、光の粒が PUNI へ もどる) */
   private drawTethers(b: AnimeBattle, dt: number): void {
     while (this.tetherObjs.length < b.tethers.length) {
       const m = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 8), new THREE.MeshToonMaterial({ color: 0x7ad85a, gradientMap: this.gradient }));
@@ -1470,7 +1470,7 @@ export class AnimeField {
     });
   }
 
-  /** 十字・線の場(クロスワイヤー・雷走ブレイカーの電気の線) */
+  /** 十字・線の場(十字ワイヤー・雷走ブレイカーの電気の線) */
   private drawShapeFields(b: AnimeBattle, dt: number): void {
     const alive = new Set<object>();
     for (const fl of b.fields) {
@@ -1706,9 +1706,9 @@ export class AnimeField {
         const big = at.strength === '大技' ? 1.5 : at.strength === '強' ? 1.2 : 1;
         aura.position.set(f.x, f.y + 0.85, f.z);
         aura.scale.set(1.1 * pulse * big, 1.25 * pulse * big, 1.1 * pulse * big);
-        // 大技(無)は大きな紫の力(テンチゴウサイ。企画者の演出指示)
+        // 大技(無)は大きな紫の力(天地轟砕。企画者の演出指示)
         (aura.material as THREE.MeshBasicMaterial).color.setHex(f.species === 'mofu' ? 0xfff0fa : at.strength === '大技' && at.element === '無' ? 0xa040ff : auraColor(at.element));
-        // 強い突進(ゴウリキクラッシュ): オレンジの光に、紫の粒をまぜる(企画者「紫とオレンジのエネルギー」)
+        // 強い突進(剛力クラッシュ): オレンジの光に、紫の粒をまぜる(企画者「紫とオレンジのエネルギー」)
         if ((at.kind === 'rush' && at.strength === '強') || at.strength === '大技') {
           if (dt > 0 && Math.random() < dt * 40) {
             const p = this.sprite(0xa040ff);
@@ -1921,7 +1921,7 @@ export class AnimeField {
       const stl = ANIME.techStyle[s.tech];
       if (!g && (owner.species === 'puni' && getTech(s.tech).kind !== 'drain')) this.gooIds.add(s.id);
       if (!g && s.look !== 'ghost' && (s.stop !== undefined || (s.wait !== undefined && s.t < s.wait) || stl === 'soundRing')) {
-        // ディレイボム(黒い玉)・千機包囲網(小さな砲台)・カチンショット(音の輪)
+        // 時限ボム(黒い玉)・千機包囲網(小さな砲台)・カチンショット(音の輪)
         g = new THREE.Group();
         if (s.stop !== undefined) {
           const ball = new THREE.Mesh(this.blobGeo, new THREE.MeshToonMaterial({ color: 0x2a2a34, gradientMap: this.gradient }));
@@ -2101,9 +2101,9 @@ export class AnimeField {
   private roarObjs: THREE.Group[] = [];
   private fieldObjs: THREE.Group[] = [];
   /**
-   * ほえる声の輪(ブレイクロア)と、重力の場(グラビティプレス)。2026-11-03 企画者の演出指示:
-   * ブレイクロア「口元から円形の音波・紫色の空気の揺らぎ」→ 紫の輪が3重に広がり、前に立った音の輪、紫のゆらぎの粒
-   * グラビティプレス「紫と黒の重力フィールド・円形の魔法陣」→ 回る魔法陣・逆に回る輪・上から押しつける紫の粒
+   * ほえる声の輪(威圧ロア)と、重力の場(重力プレス)。2026-11-03 企画者の演出指示:
+   * 威圧ロア「口元から円形の音波・紫色の空気の揺らぎ」→ 紫の輪が3重に広がり、前に立った音の輪、紫のゆらぎの粒
+   * 重力プレス「紫と黒の重力フィールド・円形の魔法陣」→ 回る魔法陣・逆に回る輪・上から押しつける紫の粒
    */
   private drawRoarsFields(b: AnimeBattle, dt: number): void {
     while (this.roarObjs.length < b.roars.length) {

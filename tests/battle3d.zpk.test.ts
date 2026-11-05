@@ -42,12 +42,12 @@ describe('ZIPP・PUNI・KLAK の技', () => {
       }
     });
   }
-  it('防御ダウン: 受けるダメージが上がる(アーマーブレイク音波)', () => {
-    expect(getTech('アーマーブレイク音波').effect).toBe('防御ダウン');
-    const b = newAnimeBattle(e('klak', ['アーマーブレイク音波'], 2), e('bunk', [], 1), 5, 'manual');
+  it('防御ダウン: 受けるダメージが上がる(装甲砕き音波)', () => {
+    expect(getTech('装甲砕き音波').effect).toBe('防御ダウン');
+    const b = newAnimeBattle(e('klak', ['装甲砕き音波'], 2), e('bunk', [], 1), 5, 'manual');
     b.f[0].x = -2; b.f[1].x = 2;
     b.f[1].thinkT = 1e9; b.f[1].cooldown.dodge = 1e9;
-    giveCommand(b, 0, 'アーマーブレイク音波');
+    giveCommand(b, 0, '装甲砕き音波');
     const ev = run(b, 3);
     expect(ev.some((x) => x.kind === 'status' && x.effect === '防御ダウン')).toBe(true);
     expect(b.f[1].defDownUntil).toBeGreaterThan(b.t);
@@ -217,8 +217,8 @@ describe('技ごとの とくべつな動き (2026-11-03 企画者「そのキ�
     use(b, 0, '雷走ブレイカー', 1.5);
     expect(b.fields.some((fl) => fl.shape === 'line')).toBe(true);
   });
-  it('閃電三連・スパークレイン: 3つ いっせいに出る', () => {
-    for (const id of ['閃電三連', 'スパークレイン']) {
+  it('閃電三連・雷針スパーク: 3つ いっせいに出る', () => {
+    for (const id of ['閃電三連', '雷針スパーク']) {
       const b = duel('zipp', [id], [], 12);
       giveCommand(b, 0, id);
       let most = 0;
@@ -234,16 +234,16 @@ describe('技ごとの とくべつな動き (2026-11-03 企画者「そのキ�
     const ev = use(duel('puni', ['ぷにバウンド'], [], 4), 0, 'ぷにバウンド', 4);
     expect(ev.filter((x) => x.kind === 'impact').length).toBe(3);
   });
-  it('バウンドウェーブ: 波の輪が3つ', () => {
-    const b = duel('puni', ['バウンドウェーブ'], [], 4);
-    giveCommand(b, 0, 'バウンドウェーブ');
+  it('ぽよん三重波: 波の輪が3つ', () => {
+    const b = duel('puni', ['ぽよん三重波'], [], 4);
+    giveCommand(b, 0, 'ぽよん三重波');
     let most = 0;
     for (let i = 0; i < 2 / ANIME.dt; i++) { b.events = []; stepAnime(b, ANIME.dt); most = Math.max(most, b.quakes.length); }
     expect(most).toBe(3);
   });
-  it('ぷにぷにウォール: 弾を はね返す', () => {
-    const b = duel('puni', ['ぷにぷにウォール'], ['ポンポンショット'], 10);
-    use(b, 0, 'ぷにぷにウォール', 0.3);
+  it('ぷにぷに防壁: 弾を はね返す', () => {
+    const b = duel('puni', ['ぷにぷに防壁'], ['ポンポンショット'], 10);
+    use(b, 0, 'ぷにぷに防壁', 0.3);
     giveCommand(b, 1, 'ポンポンショット');
     run(b, 1.5);
     expect(b.f[1].hp).toBeLessThan(999);
@@ -269,18 +269,18 @@ describe('技ごとの とくべつな動き (2026-11-03 企画者「そのキ�
     for (let i = 0; i < 1 / ANIME.dt; i++) { b.events = []; stepAnime(b, ANIME.dt); for (const s of b.shots) top = Math.max(top, s.y); }
     expect(top).toBeGreaterThan(1.3);
   });
-  it('ディレイボム: 止まって 少しあとに 爆発', () => {
-    const b = duel('klak', ['ディレイボム'], [], 7);
-    const ev = use(b, 0, 'ディレイボム', 3);
+  it('時限ボム: 止まって 少しあとに 爆発', () => {
+    const b = duel('klak', ['時限ボム'], [], 7);
+    const ev = use(b, 0, '時限ボム', 3);
     expect(hits(ev)).toBe(1);
   });
   it('千機包囲網: まわりの砲台から 何発も', () => {
     const ev = use(duel('klak', ['千機包囲網'], [], 6), 0, '千機包囲網', 3);
     expect(hits(ev)).toBeGreaterThanOrEqual(3);
   });
-  it('トラップチェイン: 1つ ふむと 全部作動', () => {
-    const b = duel('klak', ['トラップチェイン'], [], 8);
-    use(b, 0, 'トラップチェイン', 0.8);
+  it('連鎖トラップ: 1つ ふむと 全部作動', () => {
+    const b = duel('klak', ['連鎖トラップ'], [], 8);
+    use(b, 0, '連鎖トラップ', 0.8);
     expect(b.traps.length).toBe(3);
     b.f[1].pad = { x: -1, z: 0 };
     const ev = run(b, 3);
@@ -291,9 +291,9 @@ describe('技ごとの とくべつな動き (2026-11-03 企画者「そのキ�
     expect(hits(use(duel('klak', ['精密包囲陣']), 0, '精密包囲陣', 2.5))).toBe(1);
     expect(hits(use(duel('klak', ['終端狙撃陣']), 0, '終端狙撃陣', 3))).toBe(1);
   });
-  it('クロスワイヤー: 十字の場', () => {
-    const b = duel('klak', ['クロスワイヤー']);
-    use(b, 0, 'クロスワイヤー', 1);
+  it('十字ワイヤー: 十字の場', () => {
+    const b = duel('klak', ['十字ワイヤー']);
+    use(b, 0, '十字ワイヤー', 1);
     expect(b.fields.some((fl) => fl.shape === 'cross')).toBe(true);
   });
 });
@@ -352,51 +352,51 @@ describe('のこりの技も それぞれ ちがう動き (2026-11-04 企画者�
     const ev = use(b, 0, 'ぐにゃりスリップ', 1.5);
     expect(ev.some((x) => x.kind === 'status' && x.effect === 'すべる')).toBe(true);
   });
-  it('エナジーぷにドレイン: つないで 何回も吸う', () => {
-    const b = duel('puni', ['エナジーぷにドレイン'], [], 5);
+  it('ぷに触手ドレイン: つないで 何回も吸う', () => {
+    const b = duel('puni', ['ぷに触手ドレイン'], [], 5);
     b.f[0].hp = 50;
-    const ev = use(b, 0, 'エナジーぷにドレイン', 2.5);
+    const ev = use(b, 0, 'ぷに触手ドレイン', 2.5);
     expect(hits(ev)).toBeGreaterThanOrEqual(3);
     expect(b.f[0].hp).toBeGreaterThan(50);
   });
-  it('スナップラッシュ: さいごに うしろへ 投げる', () => {
-    const b = duel('klak', ['スナップラッシュ'], [], 2.4);
-    use(b, 0, 'スナップラッシュ', 2.5);
+  it('挟撃スナップ: さいごに うしろへ 投げる', () => {
+    const b = duel('klak', ['挟撃スナップ'], [], 2.4);
+    use(b, 0, '挟撃スナップ', 2.5);
     expect(b.f[1].x).toBeLessThan(b.f[0].x + 1);
   });
-  it('ヘビークラッシュ: 着地で 前へ 地割れ', () => {
-    const ev = use(duel('klak', ['ヘビークラッシュ'], [], 6), 0, 'ヘビークラッシュ', 2.5);
+  it('重甲クラッシュ: 着地で 前へ 地割れ', () => {
+    const ev = use(duel('klak', ['重甲クラッシュ'], [], 6), 0, '重甲クラッシュ', 2.5);
     expect(ev.filter((x) => x.kind === 'pillar' && x.look === 'rock').length).toBe(3);
   });
-  it('クランプシェル: 受けて はさみ返す', () => {
-    const b = duel('klak', ['クランプシェル'], ['バンクバッシュ'], 4);
-    use(b, 0, 'クランプシェル', 0.3);
+  it('鋏盾クランプ: 受けて はさみ返す', () => {
+    const b = duel('klak', ['鋏盾クランプ'], ['バンクバッシュ'], 4);
+    use(b, 0, '鋏盾クランプ', 0.3);
     giveCommand(b, 1, 'バンクバッシュ');
     const ev = run(b, 1.2);
     expect(hits(ev, 0)).toBe(1);
   });
-  it('クイッククランプ: うしろへ 回りこんで はさむ', () => {
-    const b = duel('klak', ['クイッククランプ'], [], 4);
-    const ev = use(b, 0, 'クイッククランプ', 1);
+  it('背面クランプ: うしろへ 回りこんで はさむ', () => {
+    const b = duel('klak', ['背面クランプ'], [], 4);
+    const ev = use(b, 0, '背面クランプ', 1);
     expect(hits(ev)).toBe(1);
     expect(b.f[0].x).toBeGreaterThan(b.f[1].x - 0.5);
   });
-  it('アーマーブレイク音波: 守りを こわす', () => {
-    const b = duel('klak', ['アーマーブレイク音波'], ['ガンジョウドーム'], 4);
-    use(b, 1, 'ガンジョウドーム', 0.3);
-    use(b, 0, 'アーマーブレイク音波', 1.5);
+  it('装甲砕き音波: 守りを こわす', () => {
+    const b = duel('klak', ['装甲砕き音波'], ['頑丈ドーム'], 4);
+    use(b, 1, '頑丈ドーム', 0.3);
+    use(b, 0, '装甲砕き音波', 1.5);
     expect(b.f[1].barrierUntil).toBeLessThanOrEqual(b.t);
   });
-  it('ロックオンライン: 撃っている間も 追いかける', () => {
-    const b = duel('klak', ['ロックオンライン'], [], 8);
-    giveCommand(b, 0, 'ロックオンライン');
+  it('照準ライン: 撃っている間も 追いかける', () => {
+    const b = duel('klak', ['照準ライン'], [], 8);
+    giveCommand(b, 0, '照準ライン');
     let tracked = false;
     for (let i = 0; i < 1.5 / ANIME.dt; i++) { b.events = []; stepAnime(b, ANIME.dt); if (b.beams[0]?.track) tracked = true; }
     expect(tracked).toBe(true);
   });
 });
 
-describe('どの技も 出したあと また動ける (2026-11-04 企画者「クイッククランプ使ったら動かなくなる」)', () => {
+describe('どの技も 出したあと また動ける (2026-11-04 企画者「背面クランプ使ったら動かなくなる」)', () => {
   for (const sp of ['zipp', 'puni', 'klak', 'bunk', 'mofu']) {
     it(`${sp}: 17技 すべて 8秒以内に 技が終わる`, () => {
       for (const r of learnset(sp)) {

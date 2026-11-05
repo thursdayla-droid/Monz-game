@@ -523,26 +523,26 @@ const TECH_SND: Record<string, Partial<Record<TechPhase, (ctx: AudioContext, out
     fire: (c, o, t) => tone(c, o, t, 'sine', [[0, 300], [0.15, 600]], [[0, 0.25], [0.18, 0.0001]], 0.2),
     land: (c, o, t) => boom(c, o, t, 1),
   },
-  バウンドプレス: {
+  跳躍プレス: {
     fire: (c, o, t) => tone(c, o, t, 'triangle', [[0, 180], [0.25, 620]], [[0, 0.45], [0.3, 0.0001]], 0.32),
     land: (c, o, t) => boom(c, o, t, 0.4),
   },
-  ハネツキラッシュ: {
+  跳ねつき連撃: {
     fire: (c, o, t) => { for (let i = 0; i < 3; i++) tone(c, o, t + i * 0.12, 'triangle', [[0, 260], [0.08, 520]], [[0, 0.3], [0.1, 0.0001]], 0.11); },
     hit: (c, o, t) => hitPunch(c, o, t, 0.95 + Math.random() * 0.25, false),
   },
-  ゴウリキクラッシュ: {
+  剛力クラッシュ: {
     fire: (c, o, t) => { fireSnd(c, o, t, 0.6, 0.8); whoosh(c, o, t + 0.1, 300, 1200, 0.35, 0.5); },
     hit: (c, o, t) => { hitPunch(c, o, t, 0.8, true); fireSnd(c, o, t, 0.4, 0.6); },
   },
-  ガンジョウドーム: {
+  頑丈ドーム: {
     fire: (c, o, t) => { tone(c, reverb(c, o, 0.4), t, 'sine', [[0, 660], [0.4, 990]], [[0, 0.3], [0.5, 0.0001]], 0.52); tone(c, o, t + 0.05, 'sine', [[0, 1320], [0.3, 1760]], [[0, 0.12], [0.35, 0.0001]], 0.36); },
   },
-  シュンソクスピン: {
+  瞬速スピン: {
     fire: (c, o, t) => zapSnd(c, o, t, 0.8),
     hit: (c, o, t) => { hitPunch(c, o, t, 1.2, false); zapSnd(c, o, t, 0.25); },
   },
-  ネライウチバースト: {
+  狙い撃ちバースト: {
     fire: (c, o, t) => { tone(c, o, t, 'sine', [[0, 700], [0.18, 1900]], [[0, 0.35], [0.2, 0.0001]], 0.22); tone(c, o, t + 0.04, 'triangle', [[0, 1400]], [[0, 0.15], [0.15, 0.0001]], 0.16); },
     hit: (c, o, t) => { tone(c, o, t, 'sine', [[0, 1800], [0.25, 400]], [[0, 0.45], [0.28, 0.0001]], 0.3); hiss(c, o, t, 'highpass', [[0, 3000]], 0.7, [[0, 0.5], [0.08, 0.0001]], 0.1); },
   },
@@ -550,7 +550,7 @@ const TECH_SND: Record<string, Partial<Record<TechPhase, (ctx: AudioContext, out
     fire: (c, o, t) => whoosh(c, o, t, 200, 1800, 0.45, 0.7),
     land: (c, o, t) => boom(c, o, t, 1.6),
   },
-  ブレイクロア: {
+  威圧ロア: {
     fire: (c, o, t) => {
       const g = crunch(c, reverb(c, o, 0.35), 5);
       tone(c, g, t, 'sawtooth', [[0, 95], [0.3, 120], [0.9, 70]], [[0, 0.0001], [0.08, 0.6], [0.8, 0.3], [1.0, 0.0001]], 1.02);
@@ -561,7 +561,7 @@ const TECH_SND: Record<string, Partial<Record<TechPhase, (ctx: AudioContext, out
     fire: (c, o, t) => whoosh(c, o, t, 300, 1000, 0.25, 0.5),
     hit: (c, o, t) => hitPunch(c, o, t, 0.75 + Math.random() * 0.15, true),
   },
-  グラビティプレス: {
+  重力プレス: {
     fire: (c, o, t) => {
       boom(c, o, t, 0.3);
       const r = reverb(c, o, 0.6);
@@ -576,11 +576,11 @@ const TECH_SND: Record<string, Partial<Record<TechPhase, (ctx: AudioContext, out
     },
     hit: (c, o, t) => boom(c, o, t, 0.8),
   },
-  テンチゴウサイ: {
+  天地轟砕: {
     fire: (c, o, t) => { tone(c, reverb(c, o, 0.5), t, 'sawtooth', [[0, 60], [0.5, 110]], [[0, 0.0001], [0.4, 0.4], [0.6, 0.0001]], 0.62); whoosh(c, o, t, 150, 900, 0.5, 0.5); },
     land: (c, o, t) => { boom(c, o, t, 2.2); boom(c, o, t + 0.25, 1); },
   },
-  レンゴクホウケン: {
+  煉獄崩拳: {
     fire: (c, o, t) => boom(c, o, t, 0.5),
     land: (c, o, t) => { fireSnd(c, o, t, 0.7, 0.9); tone(c, o, t, 'sine', [[0, 90], [0.4, 40]], [[0, 0.6], [0.5, 0.0001]], 0.52); },
   },
@@ -590,16 +590,16 @@ const TECH_SND: Record<string, Partial<Record<TechPhase, (ctx: AudioContext, out
 const KIND_SND: Record<string, Partial<Record<TechPhase, (ctx: AudioContext, out: AudioNode, t: number) => void>>> = {
   rush: TECH_SND.バンクバッシュ,
   spin: TECH_SND.コロガン,
-  shot: TECH_SND.ネライウチバースト,
+  shot: TECH_SND.狙い撃ちバースト,
   barrage: TECH_SND.ポンポンショット,
   beam: TECH_SND.ギガントバースト,
   quake: TECH_SND.ドスンパクト,
-  drop: TECH_SND.バウンドプレス,
-  combo: TECH_SND.ハネツキラッシュ,
-  barrier: TECH_SND.ガンジョウドーム,
-  debuff: TECH_SND.ブレイクロア,
-  field: TECH_SND.グラビティプレス,
-  pillar: TECH_SND.レンゴクホウケン,
+  drop: TECH_SND.跳躍プレス,
+  combo: TECH_SND.跳ねつき連撃,
+  barrier: TECH_SND.頑丈ドーム,
+  debuff: TECH_SND.威圧ロア,
+  field: TECH_SND.重力プレス,
+  pillar: TECH_SND.煉獄崩拳,
   // ツルのムチ(MOFU の通常攻撃): ひゅっ → ぴしっ
   whip: {
     fire: (c, o, t) => whoosh(c, o, t, 1200, 3500, 0.12, 0.4),

@@ -80,12 +80,12 @@ describe('やけど・どく・ねむり・場のダメージ (2026-11-03)', () 
       t.effect = old;
     }
   });
-  it('グラビティプレス: 場の中にいると1秒ごとに少しダメージ(よろけない)', () => {
-    const b = newAnimeBattle(e(['グラビティプレス']), e(), 1, 'manual');
+  it('重力プレス: 場の中にいると1秒ごとに少しダメージ(よろけない)', () => {
+    const b = newAnimeBattle(e(['重力プレス']), e(), 1, 'manual');
     quiet(b);
     const [p, q] = b.f;
     p.x = -3; q.x = 3; p.z = q.z = 0; p.face = 0; q.cooldown.dodge = 1e9;
-    giveCommand(b, 0, 'グラビティプレス');
+    giveCommand(b, 0, '重力プレス');
     const ev = run(b, 4);
     const chips = ev.filter((x) => x.kind === 'chip');
     expect(chips.length).toBeGreaterThanOrEqual(3);

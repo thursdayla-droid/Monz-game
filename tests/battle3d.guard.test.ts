@@ -83,13 +83,13 @@ describe('ガード', () => {
     }
   });
   it('はさむ技・罠は ガードできない', () => {
-    const b = newAnimeBattle(e('bunk', []), e('klak', ['クイッククランプ'], 3), 5, 'manual');
+    const b = newAnimeBattle(e('bunk', []), e('klak', ['背面クランプ'], 3), 5, 'manual');
     for (const f of b.f) { f.pad = { x: 0, z: 0 }; f.techMode = 'manual'; f.thinkT = 1e9; f.cooldown.dodge = 1e9; f.z = 0; }
     b.f[0].x = -2; b.f[1].x = 2;
     b.f[0].guardHold = true;
     giveCommand(b, 0, 'guard');
     run(b, 0.3);
-    giveCommand(b, 1, 'クイッククランプ');
+    giveCommand(b, 1, '背面クランプ');
     const ev = run(b, 1.5);
     expect(ev.some((x) => x.kind === 'hit' && x.target === 0)).toBe(true);
   });

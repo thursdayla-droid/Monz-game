@@ -307,7 +307,7 @@ export class BunkBones {
       const p = a.active ? 1 : a.wind > 0 ? -0.5 * a.wind : 1 - a.recover;
       punch(1, p);
     } else if (a.kind === 'roar') {
-      // ほえる(ブレイクロア): ためで大きく息を吸う(胸を反らし、頭を上げ、腕を広げる) → 前へ乗り出して ほえる
+      // ほえる(威圧ロア): ためで大きく息を吸う(胸を反らし、頭を上げ、腕を広げる) → 前へ乗り出して ほえる
       const inhale = a.active || a.recover > 0 ? 0 : a.wind;
       const out = a.active ? 1 : a.recover > 0 ? 1 - a.recover : 0;
       this.rot('Spine01', 'side', (0.18 * inhale - 0.25 * out) * w);

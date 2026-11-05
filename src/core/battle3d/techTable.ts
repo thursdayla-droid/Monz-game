@@ -56,9 +56,9 @@ const BASE: Record<TechKind, Omit<Tech, 'name' | 'element' | 'kind'>> = {
   quake: { power: 13, cooldown: 5, windup: 0.4, recovery: 0.45, speed: 9, range: 6, size: 0.6, duration: 0, launch: 6, knock: 3 },
   drop: { power: 16, cooldown: 5.5, windup: 0.35, recovery: 0.5, speed: 0, range: 12, size: 2.4, duration: 0, launch: 6, knock: 3 },
   combo: { power: 14, cooldown: 4.5, windup: 0.2, recovery: 0.4, speed: 12, range: 7, size: 1.0, duration: 0.15, launch: 4, knock: 2 },
-  // 2026-11-02 追加(ブレイクロア・グラビティプレス)【案・未承認】
+  // 2026-11-02 追加(威圧ロア・重力プレス)【案・未承認】
   debuff: { power: 0, cooldown: 8, windup: 0.6, recovery: 0.4, speed: 10, range: 7, size: 0, duration: 0, launch: 0, knock: 0 },
-  // 設置の power は「場の中にいる間、1秒ごとのダメージ」(2026-11-03 企画者「グラビティプレスにもダメージを少し」)【案】
+  // 設置の power は「場の中にいる間、1秒ごとのダメージ」(2026-11-03 企画者「重力プレスにもダメージを少し」)【案】
   field: { power: 2.5, cooldown: 7, windup: 0.45, recovery: 0.45, speed: 0, range: 14, size: 3.2, duration: 0, launch: 0, knock: 0 },
   // 通常攻撃(パンチ。animeConfig の TECHS.punch。表の技には使わない)
   jab: { power: 7, cooldown: 0.5, windup: 0.06, recovery: 0.16, speed: 0, range: 1.9, size: 0.9, duration: 0.14, launch: 0, knock: 2 },
@@ -149,8 +149,44 @@ export const SELF_FIELD_TECHS = new Set(['千花天幕']);
 export const isSupportTech = (id: string): boolean => ['heal', 'buff', 'barrier', 'debuff'].includes(getTech(id).kind) || SELF_FIELD_TECHS.has(id);
 
 /** 技の id(= 技の名前)から、技の数字を出す。前の試作の4つ(dash など)も使える */
+/**
+ * 技の名前を かえた時の 前の名前 → 今の名前(2026-11-05 企画者「全部カタカナも変なので、バランスよく漢字に」「技の名前は任せます」)。
+ * 前の名前で 保存された 技も 読めるように(lifeSave の fixTechs・getTech で 使う)
+ */
+export const TECH_RENAME: Record<string, string> = {
+  ハネツキラッシュ: '跳ねつき連撃',
+  ゴウリキクラッシュ: '剛力クラッシュ',
+  ガンジョウドーム: '頑丈ドーム',
+  シュンソクスピン: '瞬速スピン',
+  ネライウチバースト: '狙い撃ちバースト',
+  バウンドプレス: '跳躍プレス',
+  ブレイクロア: '威圧ロア',
+  グラビティプレス: '重力プレス',
+  テンチゴウサイ: '天地轟砕',
+  レンゴクホウケン: '煉獄崩拳',
+  クイックリープ: '跳雷リープ',
+  スパークレイン: '雷針スパーク',
+  ライトレール: '光軌レール',
+  ビッグぷにプレス: '大ぷにプレス',
+  バウンドウェーブ: 'ぽよん三重波',
+  エナジーぷにドレイン: 'ぷに触手ドレイン',
+  ぷにぷにウォール: 'ぷにぷに防壁',
+  クラップタックル: '横這いタックル',
+  スナップラッシュ: '挟撃スナップ',
+  ロックオンライン: '照準ライン',
+  ヘビークラッシュ: '重甲クラッシュ',
+  クランプシェル: '鋏盾クランプ',
+  クイッククランプ: '背面クランプ',
+  クロスワイヤー: '十字ワイヤー',
+  ディレイボム: '時限ボム',
+  アーマーブレイク音波: '装甲砕き音波',
+  スナイプライン: '狙撃ライン',
+  トラップチェイン: '連鎖トラップ',
+};
+export const renameTech = (name: string): string => TECH_RENAME[name] ?? name;
+
 export function getTech(id: string): TableTech {
-  const t = TABLE.get(id);
+  const t = TABLE.get(renameTech(id));
   if (t) return t;
   const old = (TECHS as Record<string, Tech>)[id];
   if (old) return { ...old, strength: '中', effect: 'なし', hits: 1 };
