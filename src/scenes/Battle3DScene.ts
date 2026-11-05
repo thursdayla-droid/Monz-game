@@ -826,7 +826,7 @@ export class Battle3DScene extends Phaser.Scene {
           audio.se(mv === 'clawR' || mv === 'clawL' || mv === 'bite' || mv === 'zap' ? 'b3dPunchHit' : 'b3dStrikeHit');
         }
         // 爆炎ブレスの 食らう音は 打撃の音(2026-11-05 企画者)
-        else if (e.tech === '爆炎ブレス') audio.se('b3dStrikeHit');
+        else if (e.tech === '爆炎ブレス' || e.tech === '闇の舌') audio.se('b3dStrikeHit');
         else if (!audio.techSe(e.tech, ht.kind, 'hit')) audio.se(e.big ? 'punchHeavy' : 'punch', { pitch: 0.9 + Math.random() * 0.2 });
         this.hitStop = Math.max(this.hitStop, [0.06, 0.08, 0.11, 0.15][lvS]);
         if (!e.big && !whip && !mofuHit && !own) F.explode(e.x, e.y, e.z, e.tech, false);

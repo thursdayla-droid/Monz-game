@@ -1234,12 +1234,10 @@ export class AnimeField {
         this.shockRing(x, 0.9, z, 0xff3030, 1.2);
         break;
       case 'tongue':
-        // SNEK 闇の舌: むらさきの 舌が のびる
-        this.monSwing(ax, az, dir, 'head', 0, y, true, 0x9a4aff);
-        for (let k = 1; k <= 4; k++) {
-          const t2 = this.sprite(0xb070ff);
-          t2.position.set(ax + Math.cos(dir) * k * 0.8, y - 0.2, az + Math.sin(dir) * k * 0.8);
-          this.add(t2, 0.22, -0.3, 0.45);
+        // SNEK 闇の舌: 舌の 本体は tongueLash(毎フレーム)。ここは 当たった所の 光だけ
+        if (hit) {
+          this.monSwing(x, z, dir, 'head', 0, y, true, 0x9a4aff);
+          this.shockRing(x, y, z, 0xb070ff, 1);
         }
         break;
       case 'sparkAura':
@@ -1830,6 +1828,56 @@ export class AnimeField {
     if (Math.random() < 0.5) this.flame(f.x + Math.cos(f.face) * len * grow, f.y + 0.85, f.z + Math.sin(f.face) * len * grow, 0.9, 1);
   }
 
+  /** SNEK 闇の舌: 口から のびて もどる 長い 舌(企画者 2026-11-05「ベロで 攻撃」) */
+  private tongues: (THREE.Group | undefined)[] = [];
+  private tongueLash(i: number, f: AnimeMon): void {
+    const a = f.act;
+    const st = a.k === 'tech' && a.fired ? BEAST[a.id]?.[a.step ?? 0] : undefined;
+    const len = st?.fx === 'tongue' ? st.hit?.line : undefined;
+    let g = this.tongues[i];
+    if (!st || !len || a.k !== 'tech') {
+      if (g) g.visible = false;
+      return;
+    }
+    if (!g) {
+      g = new THREE.Group();
+      const mat = new THREE.MeshToonMaterial({ color: 0x9a2a8a, gradientMap: this.gradient });
+      const tipMat = new THREE.MeshToonMaterial({ color: 0x5a1a6a, gradientMap: this.gradient });
+      // 舌の 本体(長さ 1 → scale.x で のばす)
+      const geo = new THREE.CylinderGeometry(0.09, 0.13, 1, 10, 1);
+      geo.rotateZ(-Math.PI / 2);
+      geo.translate(0.5, 0, 0);
+      const body = new THREE.Mesh(geo, mat);
+      g.add(body);
+      g.userData.body = body;
+      // 先の ふたまた
+      const tip = new THREE.Group();
+      for (const sd of [-1, 1]) {
+        const c = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.45, 6), tipMat);
+        c.rotation.z = -Math.PI / 2;
+        c.rotation.y = sd * 0.45;
+        c.position.set(0.18, 0, sd * 0.09);
+        tip.add(c);
+      }
+      g.add(tip);
+      g.userData.tip = tip;
+      this.scene.add(g);
+      this.tongues[i] = g;
+    }
+    const k = Math.min(1, (a.stepT ?? 0) / st.t);
+    // のびる(半分で いちばん 先)→ もどる
+    const at = st.hit?.at ?? 0.5;
+    const ext = k < at ? Math.sin((k / at) * Math.PI * 0.5) : Math.cos(((k - at) / (1 - at)) * Math.PI * 0.5);
+    const L = Math.max(0.05, len * ext);
+    const now = performance.now() / 1000;
+    g.visible = true;
+    g.position.set(f.x + Math.cos(f.face) * 0.6, f.y + 0.55, f.z + Math.sin(f.face) * 0.6);
+    // 少し うねる
+    g.rotation.set(Math.sin(now * 30) * 0.15, -f.face, Math.sin(now * 22) * 0.05);
+    (g.userData.body as THREE.Mesh).scale.set(L, 1, 1);
+    (g.userData.tip as THREE.Group).position.set(L, 0, 0);
+  }
+
   render(b: AnimeBattle, dt: number): void {
     b.f.forEach((f, i) => {
       const rig = this.rigs[i];
@@ -1856,6 +1904,7 @@ export class AnimeField {
       rig.armored = b.t < (f.armorUntil ?? 0);
       rig.update(f, dt);
       this.breathBeam(i, f);
+      this.tongueLash(i, f);
       // 技のため: 口に光が集まる
       const ch = this.charge[i];
       const a = f.act;

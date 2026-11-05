@@ -352,3 +352,20 @@ it('RIOT flame breath reaches far (about 12m) in a straight line (2026-11-05)', 
     expect(q.hp < hp, `${dx},${dz}`).toBe(want);
   }
 });
+
+it('SNEK dark tongue hits from middle range (about 5m), not far (2026-11-05)', () => {
+  for (const [dx, want] of [[4.5, true], [2.5, true], [7.5, false]] as const) {
+    const b = newAnimeBattle(e('snek', ['闇の舌']), e('bunk', []), 5, 'manual');
+    const [p, q] = b.f;
+    p.pad = { x: 0, z: 0 };
+    q.pad = { x: 0, z: 0 };
+    p.x = -4; p.z = 0; q.x = -4 + dx; q.z = 0; p.face = 0;
+    const hp = q.hp;
+    giveCommand(b, 0, '闇の舌');
+    for (let i = 0; i < 150; i++) {
+      stepAnime(b, ANIME.dt);
+      p.face = 0;
+    }
+    expect(q.hp < hp, `${dx}`).toBe(want);
+  }
+});
