@@ -285,7 +285,24 @@ it('a guard dome can be cancelled midway with dodge (2026-11-05)', () => {
   expect(p.barrierUntil).toBeLessThanOrEqual(b.t);
 });
 
-it('ZIPP electric dash has no wait afterwards (2026-11-05)', () => {
+it('ZIPP electric dash chains like a combo (form 2: 3 in a row), then a short wait — no endless lock (2026-11-05)', () => {
+  const b = newAnimeBattle(e('zipp', 2), e(), 1, 'manual');
+  const [p, q] = setup(b, 5);
+  const dashes: boolean[] = [];
+  for (let k = 0; k < 4; k++) {
+    q.x = p.x + 5; q.z = p.z; q.act = { k: 'free' };
+    const ok = giveCommand(b, 0, 'punch');
+    dashes.push(ok);
+    if (!ok) break;
+    let used = false;
+    for (let i = 0; i < 200; i++) { stepAnime(b, ANIME.dt); if (p.act.k === 'tech') used = true; if (used && p.act.k === 'free') break; }
+  }
+  expect(dashes).toEqual([true, true, true, false]);
+  for (let i = 0; i < 60; i++) stepAnime(b, ANIME.dt);
+  expect(giveCommand(b, 0, 'punch')).toBe(true);
+});
+
+it('ZIPP electric dash has no wait between dashes of a chain (2026-11-05)', () => {
   const b = newAnimeBattle(e('zipp'), e(), 1, 'manual');
   const [p] = setup(b, 5);
   giveCommand(b, 0, 'punch');

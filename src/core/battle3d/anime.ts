@@ -526,6 +526,12 @@ function startTech(b: AnimeBattle, f: AnimeMon, id: TechId, byCommand: boolean, 
     : tech.kind === 'jab'
     ? b.t + (f.jab.water ? tech.windup + tech.duration + tech.recovery + tech.cooldown : 0) // PUNI の水の玉は 今までどおり待つ。ほかは 押すたびに1発(さいごの1発のあとだけ 待つ。下)
     : b.t + tech.cooldown * (1 - Math.min(C.stat.techCdMax, f.stats.tech / C.stat.techCdDiv));
+  // ZIPP の 電撃ダッシュ: 続けて 押すと コンボ(回数は 形ごと)
+  if (tech.kind === 'jab' && f.jab.dash && f.act.k === 'tech') {
+    if (b.t >= f.jabChainUntil) f.jabChain = 0;
+    f.jabChain++;
+    f.act.n = f.jabChain - 1;
+  }
   // 通常攻撃(BUNK・MOFU など): 1回押すと1発。すぐ また押すと 次の1発(さいごまで 行ったら 少し待つ)
   if (tech.kind === 'jab' && !f.jab.dash && !f.jab.water && !f.jab.trap && f.act.k === 'tech') {
     const ci = b.t < f.jabChainUntil && f.jabChain < f.jab.parts.length ? f.jabChain : 0;
@@ -1040,7 +1046,15 @@ function updateDash(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
   }
   if (a.t >= a.next + Z.recover) {
     f.act = { k: 'free' };
-    f.cooldown[a.id] = b.t + Z.cool + tech.windup * 0;
+    // コンボの さいごの ダッシュの あとだけ 待つ(ハメに ならないように)
+    const max = Z.chain[(f.jab.dash ?? 1) - 1];
+    if (f.jabChain >= max) {
+      f.cooldown[a.id] = b.t + Z.chainCool + tech.windup * 0;
+      f.jabChain = 0;
+    } else {
+      f.cooldown[a.id] = b.t + Z.cool;
+      f.jabChainUntil = b.t + C.chain.press;
+    }
   }
 }
 
