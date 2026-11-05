@@ -369,3 +369,26 @@ it('SNEK dark tongue hits from middle range (about 5m), not far (2026-11-05)', (
     expect(q.hp < hp, `${dx}`).toBe(want);
   }
 });
+
+it('GRIT bulldozer / bull crusher break the guard when every hit lands (2026-11-05)', () => {
+  for (const name of ['ブルドーザー', 'ブルクラッシャー']) {
+    for (const guarding of [true, false]) {
+      const b = newAnimeBattle(e('grit', [name]), e('bunk', []), 5, 'manual');
+      const [p, q] = b.f;
+      p.pad = { x: 0, z: 0 };
+      q.pad = { x: 0, z: 0 };
+      p.x = -4; p.z = 0; q.x = -1.5; q.z = 0; p.face = 0;
+      q.guardGauge = ANIME.guard.max;
+      giveCommand(b, 0, name);
+      let broke = false;
+      for (let i = 0; i < 200; i++) {
+        b.events = [];
+        if (guarding && q.act.k === 'free') q.act = { k: 'guard', t: 1, until: 99 };
+        stepAnime(b, ANIME.dt);
+        p.face = Math.atan2(q.z - p.z, q.x - p.x);
+        if (b.events.some((x) => x.kind === 'guardBreak' && x.side === 1)) broke = true;
+      }
+      expect(broke, `${name} guard=${guarding}`).toBe(true);
+    }
+  }
+});

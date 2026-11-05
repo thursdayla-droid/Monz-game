@@ -29,6 +29,8 @@ export interface BeastHit {
   ground?: boolean;
   /** 前へ まっすぐの 長さ(炎の息など)。向いている方へ 0〜line の間で、横に r まで 当たる */
   line?: number;
+  /** この技の 当たりが 全部 当たったら(ガードの上からでも) 相手の 防御を くずす(2026-11-05 企画者) */
+  crush?: boolean;
 }
 export interface BeastStep {
   mv: string;
@@ -107,12 +109,18 @@ export const BEAST: Record<string, BeastStep[]> = {
     { mv: 'clawR', t: 0.12, hit: { at: 0.5, cx: 3.9, r: 1.2, arc: P, part: 0.25, ground: true }, fx: 'stomp' },
     { mv: 'clawR', t: 0.12, hit: { at: 0.5, cx: 5.2, r: 1.3, arc: P, part: 0.25, ground: true }, fx: 'stomp' },
   ],
-  ブルドーザー: [{ mv: 'shoulder', t: 1.05, go: 6.5, hit: { n: 6, every: 0.15, at: 0.08, r: 1.7, arc: 1.2, part: 0.17, knock: 1.4 }, fx: 'shove' }],
+  // 2026-11-05 企画者: 全部 当たれば 相手の 防御を くずす(crush)
+  ブルドーザー: [{ mv: 'shoulder', t: 1.05, go: 6.5, hit: { n: 6, every: 0.15, at: 0.08, r: 1.8, arc: 1.2, part: 0.17, knock: 1.4, crush: true }, fx: 'shove' }],
   グリットプレス: [
     { mv: 'head', t: 0.5, jump: 7, pounce: true },
     { mv: 'head', t: 0.24, dive: 12, hit: { at: 0.4, r: 2.3, arc: P, part: 1, knock: 2 }, fx: 'slam' },
   ],
-  ブルクラッシャー: [{ mv: 'shoulder', t: 0.5, go: 4.2, hit: { contact: true, r: 1.6, arc: 1.1, part: 1, launch: 8 }, fx: 'head' }],
+  // 2026-11-05 企画者: 肩で 2回 ぶつかって → 突き上げ。全部 当たれば 相手の 防御を くずす(crush)
+  ブルクラッシャー: [
+    { mv: 'shoulder', t: 0.34, go: 4.2, hit: { contact: true, r: 1.6, arc: 1.1, part: 0.3, knock: 0.3 }, fx: 'shove' },
+    { mv: 'shoulder', t: 0.24, go: 0.6, hit: { at: 0.5, r: 1.9, arc: 1.2, part: 0.3, knock: 0.3 }, fx: 'shove' },
+    { mv: 'head', t: 0.3, go: 0.4, hit: { at: 0.45, r: 2, arc: 1.2, part: 0.5, launch: 8, crush: true }, fx: 'head' },
+  ],
   グリットタイタン: [
     { mv: 'head', t: 0.85, jump: 13, pounce: true },
     { mv: 'head', t: 0.35, dive: 16, hit: { at: 0.4, r: 4, arc: P, part: 1 }, fx: 'titan' },

@@ -33,7 +33,7 @@ export interface AnimeEntrant {
 
 export type AnimeAct =
   | { k: 'free' }
-  | { k: 'tech'; id: TechId; t: number; dir: number; fired: boolean; hit: boolean; tx: number; tz: number; windup: number; n: number; next: number; charge?: number; len?: number; zig?: number; sx?: number; sz?: number; sp?: 'charge' | 'dash' | 'air'; mv?: string; tf?: number; full?: boolean; counter?: boolean; step?: number; stepT?: number; hn?: number; hx?: number; hz?: number }
+  | { k: 'tech'; id: TechId; t: number; dir: number; fired: boolean; hit: boolean; tx: number; tz: number; windup: number; n: number; next: number; charge?: number; len?: number; zig?: number; sx?: number; sz?: number; sp?: 'charge' | 'dash' | 'air'; mv?: string; tf?: number; full?: boolean; counter?: boolean; step?: number; stepT?: number; hn?: number; hc?: number; hx?: number; hz?: number }
   | { k: 'dodge'; t: number; dx: number; dz: number; jump: boolean }
   /** ガード中(until: CPU が やめる時間。自分で動かす時は ボタンを はなすまで) */
   | { k: 'guard'; t: number; until: number }
@@ -697,6 +697,7 @@ function updateBeast(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tec
     a.step = 0;
     a.stepT = 0;
     a.hn = 0;
+    a.hc = 0;
     a.hx = f.x;
     a.hz = f.z;
     b.events.push({ kind: 'fire', side: f.side, tech: a.id });
@@ -804,6 +805,26 @@ function beginBeastStep(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: '
   if (s.fx && !s.hit) b.events.push({ kind: 'beastFx', side: f.side, fx: s.fx, mv: s.mv, x: f.x, z: f.z, dir: f.face, hit: false, tech: a.id });
 }
 
+/** 技の 当たりの 数(全部で) */
+function beastHitCount(id: TechId): number {
+  return (BEAST[id] ?? []).reduce((n, s) => n + (s.hit ? (s.hit.contact ? 1 : s.hit.n ?? 1) : 0), 0);
+}
+
+/** 防御を くずす(GRIT の ブルドーザー・ブルクラッシャーを 全部 当てた。2026-11-05 企画者):
+ * ガード中なら ガードが こわれて 動けない。ガードしていなくても ガードの量が 0・体を固める・バリアが とける */
+function crushGuard(b: AnimeBattle, o: AnimeMon): void {
+  if (o.act.k === 'ko') return;
+  if (o.act.k === 'guard') {
+    guardBreak(b, o);
+    return;
+  }
+  o.guardGauge = 0;
+  o.guardRegenAt = b.t + C.guard.regenDelay * 2;
+  o.armorUntil = 0;
+  if (b.t < o.barrierUntil) o.barrierUntil = b.t;
+  b.events.push({ kind: 'guardBreak', side: o.side });
+}
+
 function beastTryHit(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech' }>, s: BeastStep, h: BeastHit, final: boolean, showMiss: boolean): boolean {
   const o = other(b, f);
   const cx = h.cx ?? 0;
@@ -847,6 +868,9 @@ function beastTryHit(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tec
     knock: h.knock ?? (strong ? 1 : 0.4),
     stun: C.monStun + 0.1,
   });
+  if (landed) a.hc = (a.hc ?? 0) + 1;
+  // 全部 当たった(ガードの上からでも): 防御を くずす
+  if (landed && h.crush && final && (a.hc ?? 0) >= beastHitCount(a.id)) crushGuard(b, o);
   if (landed && o.act.k === 'hurt') {
     if (h.bind) {
       // つかまえる: 目の前に 引きよせて、しばらく 動けない
