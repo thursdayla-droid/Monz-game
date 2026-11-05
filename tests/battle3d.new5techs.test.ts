@@ -392,3 +392,40 @@ it('GRIT bulldozer / bull crusher break the guard when every hit lands (2026-11-
     }
   }
 });
+
+it('SHELLZ tide wall stops the opponent attacks and the opponent cannot pass (2026-11-05)', () => {
+  const b = newAnimeBattle(e('shellz', ['潮の壁']), e('riot', ['爆炎ブレス', '牙王クラッシュ']), 5, 'manual');
+  const [p, q] = b.f;
+  p.pad = { x: 0, z: 0 };
+  q.pad = { x: 0, z: 0 };
+  p.x = -4; p.z = 0; q.x = 3; q.z = 0; p.face = 0; q.face = Math.PI;
+  giveCommand(b, 0, '潮の壁');
+  for (let i = 0; i < 40; i++) stepAnime(b, ANIME.dt);
+  expect(b.fields.some((f) => f.wall)).toBe(true);
+  const hp = p.hp;
+  // 炎の息も 体当たりも とどかない
+  for (const t of ['爆炎ブレス', '牙王クラッシュ']) {
+    q.cooldown[t] = 0;
+    giveCommand(b, 1, t);
+    for (let i = 0; i < 55; i++) {
+      stepAnime(b, ANIME.dt);
+      q.face = Math.PI;
+    }
+  }
+  expect(p.hp).toBe(hp);
+});
+
+it('the opponent cannot walk through the SHELLZ tide wall (2026-11-05)', () => {
+  for (const wall of [true, false]) {
+    const b = newAnimeBattle(e('shellz', ['潮の壁']), e('riot', []), 5, 'manual');
+    const [p, q] = b.f;
+    p.pad = { x: 0, z: 0 };
+    q.pad = { x: 0, z: 0 };
+    p.x = -4; p.z = 0; q.x = 0; q.z = 0; p.face = 0;
+    if (wall) giveCommand(b, 0, '潮の壁');
+    for (let i = 0; i < 40; i++) stepAnime(b, ANIME.dt);
+    q.pad = { x: -1, z: 0 };
+    for (let i = 0; i < 150; i++) stepAnime(b, ANIME.dt);
+    expect(q.x > -2.3, `wall=${wall} x=${q.x}`).toBe(wall);
+  }
+});

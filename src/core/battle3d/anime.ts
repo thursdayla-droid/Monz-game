@@ -2049,6 +2049,52 @@ function addStrike(b: AnimeBattle, f: AnimeMon, id: TechId, x: number, z: number
 }
 
 /** 場の中にいるか(円・十字・線) */
+/** 線分 A→B が 潮の壁(owner 以外の 側から)を こえるか。こえる時は A からの 割合(0〜1) */
+function wallCross(b: AnimeBattle, owner: Side | null, ax: number, az: number, bx: number, bz: number): number | null {
+  let best: number | null = null;
+  for (const fl of b.fields) {
+    if (!fl.wall || fl.owner === owner || fl.x2 === undefined || fl.z2 === undefined || b.t >= fl.until) continue;
+    const rx = bx - ax, rz = bz - az, sx = fl.x2 - fl.x, sz = fl.z2 - fl.z;
+    const den = rx * sz - rz * sx;
+    if (Math.abs(den) < 1e-6) continue;
+    const t = ((fl.x - ax) * sz - (fl.z - az) * sx) / den;
+    const u = ((fl.x - ax) * rz - (fl.z - az) * rx) / den;
+    if (t >= 0 && t <= 1 && u >= -0.05 && u <= 1.05 && (best === null || t < best)) best = t;
+  }
+  return best;
+}
+
+/** 潮の壁: 相手は 通れない(2026-11-05 企画者「相手も通れなくして」)。前の 場所の 側へ もどす */
+function wallBlock(b: AnimeBattle, prev: { x: number; z: number }[]): void {
+  const R = C.body.radius * 0.6;
+  for (const fl of b.fields) {
+    if (!fl.wall || fl.x2 === undefined || fl.z2 === undefined || b.t >= fl.until) continue;
+    const dx = fl.x2 - fl.x, dz = fl.z2 - fl.z;
+    const L = Math.hypot(dx, dz) || 1;
+    const nx = -dz / L, nz = dx / L;
+    for (const f of b.f) {
+      if (f.side === fl.owner || f.act.k === 'ko') continue;
+      const p0 = prev[f.side];
+      const along = ((f.x - fl.x) * dx + (f.z - fl.z) * dz) / L;
+      if (along < -R || along > L + R) continue;
+      const s0 = (p0.x - fl.x) * nx + (p0.z - fl.z) * nz;
+      const s1 = (f.x - fl.x) * nx + (f.z - fl.z) * nz;
+      const th = fl.r + R;
+      if (Math.abs(s1) >= th && Math.sign(s1) === Math.sign(s0 || s1)) continue;
+      const sg = Math.sign(s0) || Math.sign(s1) || 1;
+      const push = sg * th - s1;
+      f.x += nx * push;
+      f.z += nz * push;
+      // 壁へ 向かう 速さを 消す
+      const vn = f.kvx * nx + f.kvz * nz;
+      if (vn * sg < 0) {
+        f.kvx -= nx * vn;
+        f.kvz -= nz * vn;
+      }
+    }
+  }
+}
+
 function inField(fl: Field, p: { x: number; z: number }): boolean {
   if (fl.shape === 'line' && fl.x2 !== undefined && fl.z2 !== undefined) {
     const dx = fl.x2 - fl.x;
@@ -2113,6 +2159,11 @@ function applyEffect(b: AnimeBattle, o: AnimeMon, tech: ReturnType<typeof getTec
 function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y: number, z: number, dir: number, opt: { last?: boolean; part?: number; power?: number; unblockable?: boolean; stun?: number; launch?: number; knock?: number; juggle?: boolean } = {}): boolean {
   if (o.act.k === 'ko' || o.act.k === 'victory') return false;
   if (b.t < o.safeUntil || o.act.k === 'down') return false;
+  // 潮の壁の むこうから の 攻撃は 通らない(2026-11-05 企画者)
+  if (b.fields.length && wallCross(b, f.side, f.x, f.z, o.x, o.z) !== null) {
+    b.events.push({ kind: 'blocked', side: o.side, x, y, z });
+    return false;
+  }
   // 守りのドームの中 → 止める
   if (b.t < o.barrierUntil) {
     b.events.push({ kind: 'blocked', side: o.side, x, y, z });
@@ -2283,9 +2334,11 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
     const pz = s.z;
     s.x += s.vx * dt;
     if (s.grow) s.r += s.grow * dt;
-    if (b.fields.some((fl) => fl.wall && fl.owner !== s.owner && inField(fl, s))) {
+    if (b.fields.some((fl) => fl.wall && fl.owner !== s.owner && inField(fl, s)) || (b.fields.length && wallCross(b, s.owner, px, pz, s.x, s.z + s.vz * dt) !== null)) {
       s.alive = false;
       b.events.push({ kind: 'explode', x: s.x, y: s.y, z: s.z, tech: s.tech, big: false });
+      b.events.push({ kind: 'wallHit', x: s.x, y: s.y, z: s.z });
+      continue;
     }
     s.z += s.vz * dt;
     // 浮いている相手へ 向かう弾は 上へも ねらう(2026-11-05 企画者「浮き上がってる時 技もコンボに繋がるよね？」)
@@ -2396,6 +2449,9 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
     const bh = b.arena ? rayHit(b.arena, beam.x, beam.z, beam.x + cos * tech.range, beam.z + sin * tech.range, 0.8, 0) : null;
     const prevLen = beam.len;
     beam.len = bh ? bh.t * tech.range : tech.range;
+    // 潮の壁で 止まる
+    const wt = b.fields.length ? wallCross(b, beam.owner, beam.x, beam.z, beam.x + cos * tech.range, beam.z + sin * tech.range) : null;
+    if (wt !== null && wt * tech.range < beam.len) beam.len = wt * tech.range;
     if (bh && (prevLen === undefined || prevLen > beam.len + 0.3 || beam.t < 0.05)) b.events.push({ kind: 'wallHit', x: bh.x, y: 0.8, z: bh.z });
     const onBeam = (p: { x: number; z: number }, r: number) => {
       const dx = p.x - beam.x;
@@ -3121,10 +3177,12 @@ function step(b: AnimeBattle): void {
   const dt = C.dt;
   b.t += dt;
   const order = Math.round(b.t / dt) % 2 === 0 ? b.f : [b.f[1], b.f[0]];
+  const prev = b.f.map((f) => ({ x: f.x, z: f.z }));
   for (const f of order) updateMon(b, f, dt);
   for (const f of b.f) statusTick(b, f);
   updateProjectiles(b, dt);
   separate(b);
+  if (b.fields.some((fl) => fl.wall)) wallBlock(b, prev);
   const [p, q] = b.f;
   if (b.winner === null && b.t >= C.timeLimit) {
     const rp = p.hp / p.maxHp;
