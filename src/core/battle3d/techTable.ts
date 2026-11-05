@@ -92,6 +92,12 @@ export interface TableTech extends Tech {
   hits: number;
 }
 
+/** 技ごとの 待ち時間の 倍率(強すぎる技を 調整)【仮】 */
+const CD_MUL: Record<string, number> = {
+  // 2026-11-05 企画者「シェルズ甲羅タイフーンもう少しクールタイムあっていい。強すぎる」
+  甲羅タイフーン: 1.8,
+};
+
 export function buildTech(row: TechRow): TableTech {
   const kind = TYPE_KIND[row.type];
   if (!kind) throw new Error(`まだ作っていない型: ${row.type}(${row.name})`);
@@ -104,7 +110,7 @@ export function buildTech(row: TechRow): TableTech {
     element: row.element as Element,
     kind,
     power: base.power * m.power,
-    cooldown: base.cooldown * m.cooldown,
+    cooldown: base.cooldown * m.cooldown * (CD_MUL[row.name] ?? 1),
     windup: base.windup * m.windup,
     range: base.range * (kind === 'quake' || kind === 'drop' ? m.area : 1),
     size: base.size * (kind === 'beam' || kind === 'drop' || kind === 'barrier' || kind === 'shot' || kind === 'field' || kind === 'pillar' ? m.area : 1),
