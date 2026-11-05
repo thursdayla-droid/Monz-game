@@ -34,6 +34,8 @@ if B3D:
     is_new = lambda p: os.path.basename(p)[:-4] in NEW5
     is_bunk = lambda p: os.path.basename(p).startswith('bunk') or p.endswith('.webp')
     paths = [p for p in paths if (is_new(p) or is_bunk(p))] if B3D2 else [p for p in paths if not is_new(p)]
+    # STREET KING の 一枚絵(2026-11-05)
+    paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/story/*.webp'))
 elif MYTH:
     paths = myth_paths + card_paths
 else:

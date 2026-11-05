@@ -55,11 +55,17 @@ export const BOSS_HP = 1.4;
  * 順番は CPU どうしの バランス調べ(tests/balance.sim.test.ts)で 弱い → 強い の順。さいご(10・20・30)が いちばん強い
  */
 export const STORY_ORDER: Record<1 | 2 | 3, string[]> = {
-  1: ['grit', 'snek', 'shellz', 'riot', 'vybe', 'zipp', 'klak', 'bunk', 'puni', 'mofu'],
+  // 2026-11-05 企画者の 1章1話の 一枚絵が RIOT → 1戦目は RIOT(GRIT と 入れかえ)
+  1: ['riot', 'snek', 'shellz', 'grit', 'vybe', 'zipp', 'klak', 'bunk', 'puni', 'mofu'],
   2: ['vybe', 'klak', 'zipp', 'shellz', 'grit', 'snek', 'riot', 'bunk', 'mofu', 'puni'],
   // 30戦目は KROWN(代わりの 体は BUNKLORD)。PUNISHROOM は 28戦目
   3: ['snek', 'shellz', 'vybe', 'klak', 'riot', 'zipp', 'grit', 'puni', 'mofu', 'bunk'],
 };
+/** ストーリーの 一枚絵(企画者が ChatGPT で 作った絵。元の PNG は design/story/)。ステージの 番号 → 絵 */
+export const STORY_IMAGES: Record<number, string> = {
+  1: 'assets/story/ch1_01.webp', // 1章1話(2026-11-05 企画者)
+};
+
 /** 種族・形態の 名前(rosterData の 表と 同じ) */
 const FORM_NAME: Record<string, [string, string, string]> = {
   bunk: ['BUNK', 'BUNKER', 'BUNKLORD'], mofu: ['MOFU', 'MOFUR', 'MOFUGARD'], zipp: ['ZIPP', 'ZIPRO', 'ZIPRAX'], puni: ['PUNI', 'PUNISH', 'PUNISHROOM'], klak: ['KLAK', 'KLAKER', 'KLAKTRAP'],
@@ -87,7 +93,7 @@ export const STORY_STAGES: StoryStage[] = Array.from({ length: STORY_COUNT }, (_
     no,
     title: last ? 'KROWN戦' : mid ? `ステージ${no}（中ボス）` : `ステージ${no}`,
     text: '（ここに話が入ります。企画者が一枚絵と文を作ります）',
-    image: null,
+    image: STORY_IMAGES[no] ?? null,
     map: CHAPTER_MAP[chapter - 1],
     chapter,
     enemy: {

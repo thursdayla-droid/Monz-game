@@ -40,10 +40,10 @@ const CSS = `
 .rmb .stl.in2{animation:rmbIn .45s ease}
 @keyframes rmbIn{from{opacity:0}to{opacity:1}}
 .rmb .spic{position:absolute;inset:0;background:#2a1a3a;display:flex;align-items:center;justify-content:center;color:#a898b8;font-size:15px;font-weight:700}
-.rmb .spic img{width:100%;height:100%;object-fit:cover}
-.rmb .stop{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 10px) calc(env(safe-area-inset-right) + 14px) 10px calc(env(safe-area-inset-left) + 14px);background:linear-gradient(#000a,#0000)}
+.rmb .spic img{width:100%;height:100%;object-fit:cover;object-position:50% 18%}
+.rmb .stop{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 10px) calc(env(safe-area-inset-right) + 14px) 10px calc(env(safe-area-inset-left) + 14px);background:linear-gradient(#000c,#0000)}
 .rmb .stop .back{align-self:center}
-.rmb .sno{flex:1;text-align:center;font:900 20px ${UI_FONT};color:#ffd23a;-webkit-text-stroke:1px #16101c}
+.rmb .sno{flex:1;text-align:center;font:900 18px ${UI_FONT};color:#ffd23a;text-shadow:0 2px 0 #16101c,0 0 6px #000}
 .rmb .sname{display:block;font-size:11px;letter-spacing:.2em;color:#fff;-webkit-text-stroke:0;opacity:.85}
 .rmb .sno small{font-size:13px;color:#fff}
 .rmb .sno em{font-style:normal;font-size:12px;background:#3ad070;color:#16101c;border-radius:8px;padding:2px 8px;margin-left:8px;-webkit-text-stroke:0}
@@ -51,13 +51,13 @@ const CSS = `
 .rmb .nav button{width:40px;height:36px;border:2px solid #16101c;border-radius:10px;background:#fff;color:#16101c;font:900 16px ${UI_FONT}}
 .rmb .nav button:disabled{opacity:.3}
 .rmb .sclear{position:absolute;top:calc(env(safe-area-inset-top) + 58px);left:50%;transform:translateX(-50%);white-space:nowrap}
-.rmb .stext{position:relative;margin:0 calc(env(safe-area-inset-right) + 12px) calc(env(safe-area-inset-bottom) + 12px) calc(env(safe-area-inset-left) + 12px);background:#fffffff0;color:#16101c;border:4px solid #16101c;border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;max-height:55%;overflow:auto}
-.rmb .stext h3{margin:0;font-size:18px}
-.rmb .stext p{margin:0;font-size:15px;line-height:1.6}
+.rmb .stext{position:relative;margin:0 calc(env(safe-area-inset-right) + 12px) calc(env(safe-area-inset-bottom) + 12px) calc(env(safe-area-inset-left) + 12px);background:#fffffff0;color:#16101c;border:4px solid #16101c;border-radius:16px;padding:8px 14px;display:flex;flex-direction:column;gap:4px;max-height:42%;overflow:auto}
+.rmb .stext h3{margin:0;font-size:15px}
+.rmb .stext p{margin:0;font-size:14px;line-height:1.5}
 .rmb .srow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .rmb .srow .foe{flex:1;min-width:180px}
 .rmb .srow .stars{color:#ff8a1f}
-.rmb .srow .go{flex:0 0 auto;padding:10px 22px}
+.rmb .srow .go{flex:0 0 auto;padding:6px 22px;font-size:18px}
 .rmb .rot{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;background:#0d0614f5}
 .rmb .rot div{border:4px solid #ffd23a;border-radius:18px;background:#16101c;color:#ffd23a;font-weight:900;font-size:26px;padding:22px 30px;text-align:center}
 .rmb .rot small{display:block;color:#fff;font-size:14px;margin-top:8px}
