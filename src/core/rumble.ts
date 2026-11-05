@@ -77,6 +77,7 @@ export const STORY_IMAGES: Record<number, string> = {
   5: 'assets/story/ch1_05.webp', // 1章5話 VYBE(中ボス。2026-11-05 企画者)
   6: 'assets/story/ch2_06.webp', // 2章6話 ZIPP(2026-11-05 企画者)
   7: 'assets/story/ch2_07.webp', // 2章7話 KLAK(2026-11-05 企画者)
+  8: 'assets/story/ch2_08.webp', // 2章8話 BUNK(2026-11-05 企画者)
 };
 
 /** 話(企画者が 書いた 文。ステージの 番号 → 題名と 行) */
@@ -169,6 +170,20 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
       { who: 'KLAK', text: '「ZIPPを倒したんだってな？ でもよぉ……」' },
       { who: 'KLAK', text: '「速さも力も、頭を使わなきゃ意味ねぇんだよ！」' },
       { who: 'KLAK', text: '「ケケッ！ さあ、俺の罠を全部かわせるかな？」' },
+    ],
+  },
+  8: {
+    title: '第8話「拳で語るライバル」',
+    lines: [
+      { who: null, text: '罠だらけの遺跡を突破し、夕日に染まる丘へとたどり着いた挑戦者。' },
+      { who: null, text: '大きな木の下から、激しいパンチの音が響いてくる。' },
+      { who: null, text: 'そこには、ひたすら拳を打ち込む一匹のMONZがいた。' },
+      { who: 'BUNK', text: '「シュッ！ シュッ！ ……ふぅ！」' },
+      { who: 'BUNK', text: '「ん？ お前、もしかして噂の挑戦者か？」' },
+      { who: 'BUNK', text: '「GRITもVYBEも倒したって聞いたぜ！」' },
+      { who: 'BUNK', text: '「へへっ！ ずっと強ぇヤツと戦いたかったんだ！」' },
+      { who: 'BUNK', text: '「小細工も罠もいらねぇ！」' },
+      { who: 'BUNK', text: '「正面から、全力でぶつかろうぜ！」' },
     ],
   },
 };
