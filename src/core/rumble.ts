@@ -31,7 +31,19 @@ export interface StoryStage {
   enemy: { species: string; form: 1 | 2 | 3; name: string; level: number; prof: number; boss: boolean; hp: number };
   /** そのマスで戦うマップ(arena.ts の ARENAS。2026-11-03 企画者「ストーリーモードでは指定マップ」) */
   map: string;
+  /** 章(1〜6。5戦ずつ) */
+  chapter: number;
 }
+
+/** ストーリーの 名前(2026-11-05 企画者) */
+export const STORY_NAME = 'STREET KING';
+/** 章ごとの ステージ(2026-11-05 企画者: 1〜2章 草原・3〜4章 ストリート・5〜6章 チャンピオン と KROWN戦) */
+export const CHAPTER_MAP = ['grassland', 'grassland', 'street', 'street', 'champion', 'champion'];
+/**
+ * KROWN(さいごの ボス・敵専用。2026-11-05 企画者「今後作る。今いるキャラで代用」)【仮】:
+ * 体は 今いる キャラ(下の species・form)を 使う。名前だけ KROWN
+ */
+export const KROWN = { name: 'KROWN', species: 'bunk', form: 3 as const };
 
 /** 2026-11-05 企画者「ストーリーは全30ステージ」 */
 export const STORY_COUNT = 30;
@@ -45,7 +57,8 @@ export const BOSS_HP = 1.4;
 export const STORY_ORDER: Record<1 | 2 | 3, string[]> = {
   1: ['grit', 'snek', 'shellz', 'riot', 'vybe', 'zipp', 'klak', 'bunk', 'puni', 'mofu'],
   2: ['vybe', 'klak', 'zipp', 'shellz', 'grit', 'snek', 'riot', 'bunk', 'mofu', 'puni'],
-  3: ['snek', 'shellz', 'vybe', 'klak', 'riot', 'zipp', 'grit', 'bunk', 'mofu', 'puni'],
+  // 30戦目は KROWN(代わりの 体は BUNKLORD)。PUNISHROOM は 28戦目
+  3: ['snek', 'shellz', 'vybe', 'klak', 'riot', 'zipp', 'grit', 'puni', 'mofu', 'bunk'],
 };
 /** 種族・形態の 名前(rosterData の 表と 同じ) */
 const FORM_NAME: Record<string, [string, string, string]> = {
@@ -67,18 +80,20 @@ export const STORY_STAGES: StoryStage[] = Array.from({ length: STORY_COUNT }, (_
   const mid = no % 5 === 0 && !last;
   const form = (no <= 10 ? 1 : no <= 20 ? 2 : 3) as 1 | 2 | 3;
   const k = (no - 1) % 10;
-  const species = STORY_ORDER[form][k];
+  const species = last ? KROWN.species : STORY_ORDER[form][k];
+  const chapter = Math.ceil(no / 5);
   const level = last ? 100 : form === 1 ? 1 + k * 3 : form === 2 ? 30 + k * 3 : 60 + k * 4;
   return {
     no,
-    title: last ? 'さいごのボス' : mid ? `ステージ${no}（中ボス）` : `ステージ${no}`,
+    title: last ? 'KROWN戦' : mid ? `ステージ${no}（中ボス）` : `ステージ${no}`,
     text: '（ここに話が入ります。企画者が一枚絵と文を作ります）',
     image: null,
-    map: 'grassland', // 2026-11-04 企画者「草原を基本に」(マスごとに あとで変えられる)
+    map: CHAPTER_MAP[chapter - 1],
+    chapter,
     enemy: {
       species,
       form,
-      name: formName(species, form),
+      name: last ? KROWN.name : formName(species, form),
       level,
       prof: last ? 5 : Math.min(5, 1 + Math.floor((no - 1) / 6) + (mid ? 1 : 0)),
       boss: last || mid,

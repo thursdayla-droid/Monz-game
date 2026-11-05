@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { assetUrl } from '../assetUrl';
-import { canPlay, CPU_LEVELS, nextStage, STORY_COUNT, STORY_STAGES } from '../core/rumble';
+import { canPlay, CPU_LEVELS, nextStage, STORY_COUNT, STORY_NAME, STORY_STAGES } from '../core/rumble';
 import { loadLife } from '../core/lifeSave';
 import { UI_FONT } from '../ui/paint';
 import type { RumbleParams } from './Battle3DScene';
@@ -36,14 +36,15 @@ const CSS = `
 .rmb .go{flex:1;border:3px solid #16101c;border-radius:12px;padding:10px;font:900 20px ${UI_FONT};background:#ff4a6a;color:#fff;box-shadow:0 4px 0 #16101c}
 .rmb .no{border:3px solid #16101c;border-radius:12px;padding:10px 14px;font:900 16px ${UI_FONT};background:#fff;color:#16101c}
 /* ストーリー: 一枚絵で 進める(2026-11-05 企画者) */
-.rmb .story{position:fixed;inset:0;display:flex;flex-direction:column;justify-content:flex-end}
-.rmb .story.in2{animation:rmbIn .45s ease}
+.rmb .stl{position:fixed;inset:0;display:flex;flex-direction:column;justify-content:flex-end}
+.rmb .stl.in2{animation:rmbIn .45s ease}
 @keyframes rmbIn{from{opacity:0}to{opacity:1}}
 .rmb .spic{position:absolute;inset:0;background:#2a1a3a;display:flex;align-items:center;justify-content:center;color:#a898b8;font-size:15px;font-weight:700}
 .rmb .spic img{width:100%;height:100%;object-fit:cover}
 .rmb .stop{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 10px) calc(env(safe-area-inset-right) + 14px) 10px calc(env(safe-area-inset-left) + 14px);background:linear-gradient(#000a,#0000)}
 .rmb .stop .back{align-self:center}
 .rmb .sno{flex:1;text-align:center;font:900 20px ${UI_FONT};color:#ffd23a;-webkit-text-stroke:1px #16101c}
+.rmb .sname{display:block;font-size:11px;letter-spacing:.2em;color:#fff;-webkit-text-stroke:0;opacity:.85}
 .rmb .sno small{font-size:13px;color:#fff}
 .rmb .sno em{font-style:normal;font-size:12px;background:#3ad070;color:#16101c;border-radius:8px;padding:2px 8px;margin-left:8px;-webkit-text-stroke:0}
 .rmb .nav{display:flex;gap:6px}
@@ -87,7 +88,7 @@ export class RumbleModeScene extends Phaser.Scene {
       this,
       `<button class="back">◀ もどる</button>
        <h1>MONZ RUMBLE</h1>
-       <button class="big story">ストーリーモード<small>一枚絵で 話が すすむ・ぜんぶで${STORY_COUNT}ステージ</small></button>
+       <button class="big story">${STORY_NAME}<small>ストーリー・一枚絵で 話が すすむ・ぜんぶで${STORY_COUNT}ステージ</small></button>
        <button class="big free">バトルモード<small>CPU の強さを えらんで たたかう</small></button>`,
     );
     const $ = (s: string) => root.querySelector(s) as HTMLElement;
@@ -147,13 +148,13 @@ export class RumbleStoryScene extends Phaser.Scene {
     // 2026-11-05 企画者「すごろく風はやめて、1枚絵でストーリーを進めていく感じに」:
     // 今の ステージの 一枚絵と 話を 大きく 出す → バトル。勝つと 次の 話へ。◀ ▶ で 前の 話も 見られる(もう一度 遊べる)
     let no = this.from.justPlayed && !this.from.won ? this.from.justPlayed : allClear ? STORY_COUNT : next;
-    const root = mount(this, '<div class="story"></div>');
-    const box = root.querySelector('.story') as HTMLDivElement;
+    const root = mount(this, '<div class="stl"></div>');
+    const box = root.querySelector('.stl') as HTMLDivElement;
     const draw = (fade: boolean) => {
       const st = STORY_STAGES[no - 1];
       const done = no <= cleared;
       box.innerHTML = `<div class="spic">${st.image ? `<img src="${assetUrl(st.image)}" alt="">` : '<span>一枚絵（企画者が作ります）</span>'}</div>
-        <div class="stop"><button class="back">◀ もどる</button><div class="sno">STAGE ${st.no} <small>/ ${STORY_COUNT}</small>${done ? '<em>クリア</em>' : ''}</div>
+        <div class="stop"><button class="back">◀ もどる</button><div class="sno"><span class="sname">${STORY_NAME}</span>第${st.chapter}章　STAGE ${st.no} <small>/ ${STORY_COUNT}</small>${done ? '<em>クリア</em>' : ''}</div>
           <div class="nav"><button class="prev" ${no <= 1 ? 'disabled' : ''}>◀</button><button class="nxt" ${!canPlay(no + 1, cleared) ? 'disabled' : ''}>▶</button></div></div>
         ${allClear && no === STORY_COUNT ? '<div class="clear sclear">ストーリー クリア！ ◀ で 前の話も 遊べます</div>' : ''}
         <div class="stext">

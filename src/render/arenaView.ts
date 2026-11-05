@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { ArenaMap, Obstacle } from '../core/battle3d/arena';
+import { buildChampion, buildStreet } from './stageViews';
 
 /**
  * マップの見た目(2026-11-03 ロストテンプル)。当たりは core/battle3d/arena.ts のデータと同じ場所・大きさで作る。
@@ -101,6 +102,8 @@ function brickTex(): THREE.CanvasTexture {
 
 export interface ArenaView {
   group: THREE.Group;
+  /** 毎フレーム(ネオン・照明など) */
+  tick?: (t: number) => void;
   /** 体の当たりと同じ物(カメラが埋まらないように使う) */
   obstacles: Obstacle[];
 }
@@ -231,6 +234,31 @@ function buildGrass(map: ArenaMap, gradient: THREE.Texture): ArenaView {
     crownLine.setMatrixAt(i, dummy.matrix);
   }
   g.add(trunks, crowns, crownLine);
+  // 岩場(2026-11-05 STREET KING の 草原: 広い草原・岩場・遠くの山)。戦う所の 外に 岩の かたまり
+  const rockGeo = new THREE.DodecahedronGeometry(1, 0);
+  const rocks = new THREE.InstancedMesh(rockGeo, toon(0x9a96a4), 60);
+  const rockLine = new THREE.InstancedMesh(rockGeo, new THREE.MeshBasicMaterial({ color: 0x2a2630, side: THREE.BackSide }), 60);
+  let ri = 0;
+  for (let k = 0; k < 9; k++) {
+    const a = (k / 9) * Math.PI * 2 + 0.3 + rnd() * 0.2;
+    const rr = R + 4 + rnd() * 6;
+    const n = 4 + Math.floor(rnd() * 4);
+    for (let j = 0; j < n && ri < 60; j++) {
+      const sc = j === 0 ? 1.6 + rnd() * 1.4 : 0.5 + rnd() * 0.9;
+      dummy.position.set(Math.cos(a) * rr + (rnd() - 0.5) * 3.5, sc * 0.45, Math.sin(a) * rr + (rnd() - 0.5) * 3.5);
+      dummy.rotation.set(rnd() * 3, rnd() * 3, rnd() * 3);
+      dummy.scale.set(sc * (1 + rnd() * 0.4), sc * (0.7 + rnd() * 0.4), sc);
+      dummy.updateMatrix();
+      rocks.setMatrixAt(ri, dummy.matrix);
+      dummy.scale.multiplyScalar(1.06);
+      dummy.updateMatrix();
+      rockLine.setMatrixAt(ri, dummy.matrix);
+      ri++;
+    }
+  }
+  rocks.count = rockLine.count = ri;
+  rocks.castShadow = true;
+  g.add(rocks, rockLine);
   // もっと遠くの なだらかな丘
   const hillMat = toon(0x6abf48);
   for (let i = 0; i < 9; i++) {
@@ -247,6 +275,8 @@ function buildGrass(map: ArenaMap, gradient: THREE.Texture): ArenaView {
 /** マップを作る(シーンに足す物を group にまとめて返す) */
 export function buildArena(map: ArenaMap, gradient: THREE.Texture): ArenaView {
   if (map.theme === 'grass') return buildGrass(map, gradient);
+  if (map.theme === 'street') return { ...buildStreet(map, gradient), obstacles: map.obstacles };
+  if (map.theme === 'champion') return { ...buildChampion(map, gradient), obstacles: map.obstacles };
   const g = new THREE.Group();
   const toon = (color: number, map2?: THREE.Texture) => new THREE.MeshToonMaterial({ color, gradientMap: gradient, map: map2 ?? null });
   const outline = new THREE.MeshBasicMaterial({ color: 0x2a1e14, side: THREE.BackSide });

@@ -45,7 +45,7 @@ export interface ArenaMap {
   /** はじめの位置(自分・相手) */
   start: [{ x: number; z: number }, { x: number; z: number }];
   /** 見た目(遺跡・草原)。なければ遺跡 */
-  theme?: 'temple' | 'grass';
+  theme?: 'temple' | 'grass' | 'street' | 'champion';
 }
 
 /**
@@ -88,7 +88,15 @@ export const LOST_TEMPLE: ArenaMap = {
   ],
 };
 
-export const ARENAS: Record<string, ArenaMap> = { grassland: GRASSLAND, lostTemple: LOST_TEMPLE };
+/**
+ * STREET KING の ステージ(2026-11-05 企画者「ステージはクロードに作ってほしい」)。広さ・はじめの位置は 草原と 同じ。さえぎる物なし(飾りは 外がわ)
+ * - ストリート: 落書き・倉庫・工業地帯・ネオン(第3〜4章)
+ * - チャンピオン: 巨大な 大会会場・照明・観客席。黒・紫・金(第5〜6章・KROWN戦)
+ */
+export const STREET: ArenaMap = { ...GRASSLAND, id: 'street', name: 'ストリート', theme: 'street' };
+export const CHAMPION: ArenaMap = { ...GRASSLAND, id: 'champion', name: 'チャンピオン', theme: 'champion' };
+
+export const ARENAS: Record<string, ArenaMap> = { grassland: GRASSLAND, lostTemple: LOST_TEMPLE, street: STREET, champion: CHAMPION };
 /** ふつうに使うマップ(2026-11-04 企画者「それを基本にしよう」)。ロストテンプルは 残してある */
 export const DEFAULT_MAP = 'grassland';
 

@@ -18,6 +18,7 @@ import type { modelFor } from '../core/roster';
 type ModelPick = ReturnType<typeof modelFor>;
 import { MonsterRig } from './monsterRig';
 import { buildArena } from './arenaView';
+import { STAGE_ENV } from './stageViews';
 import { obstacleTop, rayHit, type ArenaMap } from '../core/battle3d/arena';
 
 /** 企画者の BUNK の3Dモデル(軽くしたもの。design/battle3d/README.md) */
@@ -97,16 +98,16 @@ function courtTexture(): THREE.CanvasTexture {
   return t;
 }
 
-function skyTexture(): THREE.CanvasTexture {
+function skyTexture(cols: [string, string, string, string] = ['#2a7ae0', '#6ab8f5', '#cfe9ff', '#9ad07a']): THREE.CanvasTexture {
   const c = document.createElement('canvas');
   c.width = 8;
   c.height = 256;
   const g = c.getContext('2d')!;
   const gr = g.createLinearGradient(0, 0, 0, 256);
-  gr.addColorStop(0, '#2a7ae0');
-  gr.addColorStop(0.45, '#6ab8f5');
-  gr.addColorStop(0.5, '#cfe9ff');
-  gr.addColorStop(1, '#9ad07a');
+  gr.addColorStop(0, cols[0]);
+  gr.addColorStop(0.45, cols[1]);
+  gr.addColorStop(0.5, cols[2]);
+  gr.addColorStop(1, cols[3]);
   g.fillStyle = gr;
   g.fillRect(0, 0, 8, 256);
   const t = new THREE.CanvasTexture(c);
@@ -439,14 +440,16 @@ export class AnimeField {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.scene.background = new THREE.Color(0x8ac8f5);
-    this.scene.fog = new THREE.Fog(0xbfe0f5, 40, 110);
-    const sky = new THREE.Mesh(new THREE.SphereGeometry(150, 24, 12), new THREE.MeshBasicMaterial({ map: skyTexture(), side: THREE.BackSide, fog: false }));
+    // ステージごとの 空・光・霧(2026-11-05 STREET KING の ステージ)
+    const env = STAGE_ENV[arena?.theme ?? 'grass'];
+    this.scene.background = new THREE.Color(env.fog);
+    this.scene.fog = new THREE.Fog(env.fog, env.fogNear, env.fogFar);
+    const sky = new THREE.Mesh(new THREE.SphereGeometry(150, 24, 12), new THREE.MeshBasicMaterial({ map: skyTexture(env.sky), side: THREE.BackSide, fog: false }));
     this.scene.add(sky);
-    // 光(晴れた昼)
-    this.scene.add(new THREE.HemisphereLight(0xdff0ff, 0x6a9a50, 1.5));
-    const sun = new THREE.DirectionalLight(0xfff6e0, 2.6);
-    sun.position.set(-8, 20, 10);
+    // 光(草原は 晴れた昼)
+    this.scene.add(new THREE.HemisphereLight(env.hemi[0], env.hemi[1], env.hemi[2]));
+    const sun = new THREE.DirectionalLight(env.sun.color, env.sun.power);
+    sun.position.set(env.sun.x, env.sun.y, env.sun.z);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
     const sc = sun.shadow.camera;
@@ -458,14 +461,18 @@ export class AnimeField {
     sc.bottom = arena ? -shR : -12;
     this.scene.add(sun);
     // 地面(コートの外は草原)
-    const ground = new THREE.Mesh(new THREE.CircleGeometry(140, 48), new THREE.MeshLambertMaterial({ color: 0x6aa84a }));
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(140, 48), new THREE.MeshLambertMaterial({ color: env.ground }));
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.02;
     ground.receiveShadow = true;
     this.scene.add(ground);
     const F = ANIME.field;
     // マップ(2026-11-03 ロストテンプル): 石だたみ・柱・壁・外の遺跡。前のコート・木・岩は出さない
-    if (arena) this.scene.add(buildArena(arena, this.gradient).group);
+    if (arena) {
+      const av = buildArena(arena, this.gradient);
+      this.scene.add(av.group);
+      this.stageTick = av.tick;
+    }
     const rnd = (a: number, b: number) => a + Math.random() * (b - a);
     if (!arena) {
     const court = new THREE.Mesh(new THREE.PlaneGeometry(F.halfX * 2 + 2, F.halfZ * 2 + 2), new THREE.MeshLambertMaterial({ map: courtTexture() }));
@@ -501,6 +508,7 @@ export class AnimeField {
       this.scene.add(m);
     }
     }
+    if (env.outdoor) {
     const mtn = new THREE.MeshLambertMaterial({ color: 0x7a9ab8 });
     for (let i = 0; i < 9; i++) {
       const ang = (i / 9) * Math.PI * 2;
@@ -515,6 +523,7 @@ export class AnimeField {
       s.position.set(Math.cos(ang) * rnd(50, 90), rnd(22, 40), Math.sin(ang) * rnd(50, 90));
       s.scale.set(rnd(16, 26), rnd(8, 12), 1);
       this.scene.add(s);
+    }
     }
     // モンスター(青 = 自分・赤 = 相手)【仮】
     const looks = [
@@ -1861,7 +1870,11 @@ export class AnimeField {
     if (Math.random() < 0.5) this.flame(f.x + Math.cos(f.face) * len * grow, f.y + 0.85, f.z + Math.sin(f.face) * len * grow, 0.9, 1);
   }
 
+  /** ステージの 動く 飾り(ネオン・照明) */
+  private stageTick?: (t: number) => void;
+
   render(b: AnimeBattle, dt: number): void {
+    this.stageTick?.(performance.now() / 1000);
     b.f.forEach((f, i) => {
       const rig = this.rigs[i];
       if (!this.blobs[i]) {

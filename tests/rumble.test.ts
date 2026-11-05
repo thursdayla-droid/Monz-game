@@ -22,6 +22,10 @@ describe('MONZ RUMBLE のモード (2026-11-03)', () => {
       expect(st.enemy.hp).toBeGreaterThan(1);
     }
     expect(seen.size).toBe(30);
+    // 6章(5戦ずつ)。1〜2章 草原・3〜4章 ストリート・5〜6章 チャンピオン。30戦目は KROWN
+    expect(STORY_STAGES.map((st) => st.chapter)).toEqual(Array.from({ length: 30 }, (_, i) => Math.ceil((i + 1) / 5)));
+    for (const st of STORY_STAGES) expect(st.map).toBe(st.chapter <= 2 ? 'grassland' : st.chapter <= 4 ? 'street' : 'champion');
+    expect(last.enemy.name).toBe('KROWN');
     // HP は だんだん 多く
     expect(STORY_STAGES[29].enemy.hp).toBeGreaterThan(STORY_STAGES[0].enemy.hp * 2);
   });
