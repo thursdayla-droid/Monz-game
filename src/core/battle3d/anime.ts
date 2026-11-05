@@ -1046,18 +1046,29 @@ function updateDash(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
     a.tx = 0; // 走った長さ
     a.n = c; // ためた割合(威力に使う)
     f.face = a.dir;
+    // コンボの 何回目か で 走り方を 変える(2026-11-05 企画者「ジップも通常攻撃コンボ、地上の全部一緒だからモーション変えて」)
+    // 1回目 = まっすぐ・2回目 = いなずまの ジグザグ・3回目 = とび上がって 上から(相手を 浮かせる)
+    a.zig = f.jabChain;
+    if (f.jabChain >= 3 && f.y <= 0) {
+      f.vy = 7.5;
+      f.y = 0.001;
+    }
     b.events.push({ kind: 'zdash', side: f.side, x: f.x, z: f.z, dir: a.dir, len: a.len, c });
     return;
   }
   if (!a.hit && a.tx < (a.len ?? 0)) {
     const step = Math.min(Z.speed * dt, (a.len ?? 0) - a.tx);
-    f.x += Math.cos(a.dir) * step;
-    f.z += Math.sin(a.dir) * step;
+    // 2回目: 3つに 区切って 左右へ 折れる(全体では 相手の 方へ)
+    const seg = Math.floor((a.tx / Math.max(0.1, a.len ?? 1)) * 3);
+    const bend = a.zig === 2 ? (seg % 2 ? -0.75 : 0.75) : 0;
+    f.x += Math.cos(a.dir + bend) * step;
+    f.z += Math.sin(a.dir + bend) * step;
+    if (bend) f.face = a.dir + bend;
     a.tx += step;
     a.next = a.t;
     if (dist(f, o) < C.body.minGap + 0.35 && yOk(b, f, o, 1.3)) {
       a.hit = true;
-      hit(b, f, o, a.id, (f.x + o.x) / 2, f.y + 0.7, (f.z + o.z) / 2, a.dir, { last: true, part: P.p0 + (P.p1 - P.p0) * a.n });
+      hit(b, f, o, a.id, (f.x + o.x) / 2, f.y + 0.7, (f.z + o.z) / 2, a.dir, { last: true, part: (P.p0 + (P.p1 - P.p0) * a.n) * (a.zig === 3 ? 1.2 : 1), launch: a.zig === 3 ? 6.5 : undefined });
     }
     if (a.tx >= (a.len ?? 0)) a.hit = true;
     return;

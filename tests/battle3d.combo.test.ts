@@ -328,3 +328,27 @@ it('GRIT (2026-11-05): short reach, few-hit normal combo that connects, each hit
   expect(g.combo).toBe(2);
   expect(g.hits[0]).toBeGreaterThan(k.hits[0] * 1.5);
 });
+
+it('ZIPP dash combo: 1st straight, 2nd zigzags, 3rd jumps up and launches (2026-11-05)', () => {
+  const b = newAnimeBattle(e('zipp', 2), e(), 1, 'manual');
+  const [p, q] = setup(b, 5);
+  const info: { side: number; air: number; big: boolean }[] = [];
+  for (let k = 0; k < 3; k++) {
+    p.x = 0; p.z = 0; q.x = 3.4; q.z = 0; q.act = { k: 'free' }; q.y = 0;
+    giveCommand(b, 0, 'punch');
+    let side = 0, air = 0, big = false, used = false;
+    for (let i = 0; i < 200; i++) {
+      b.events = []; stepAnime(b, ANIME.dt);
+      if (p.act.k === 'tech') used = true;
+      side = Math.max(side, Math.abs(p.z));
+      air = Math.max(air, p.y);
+      if (b.events.some((x) => x.kind === 'hit' && x.side === 0 && x.big)) big = true;
+      if (used && p.act.k === 'free') break;
+    }
+    info.push({ side, air, big });
+  }
+  expect(info[0].side).toBeLessThan(0.3);
+  expect(info[1].side).toBeGreaterThan(0.6);
+  expect(info[2].air).toBeGreaterThan(0.5);
+  expect(info[2].big).toBe(true);
+});
