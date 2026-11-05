@@ -1396,7 +1396,7 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
         for (let k = 0; k < 3; k++) {
           const d = a.dir + (k - 1) * 0.35;
           const L = Math.min(dist(f, o), 2.5 + k * 1);
-          add(f.x + Math.cos(d) * L, f.z + Math.sin(d) * L, { r: 0.7, mine: true, power: 0 });
+          add(f.x + Math.cos(d) * L, f.z + Math.sin(d) * L, { r: 1, mine: true, power: 0 });
         }
       }
     } else if (tech.kind === 'field') {
@@ -2413,11 +2413,11 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
       tgt.trapSafeUntil = b.t + 3;
       b.events.push({ kind: 'status', side: tgt.side, effect: 'くっついた' });
     }
-    // 電気の種: ふむと はじける(1回)
-    if (fl.mine && inField(fl, tgt) && tgt.y < 0.5 && !isInvincible(b, tgt) && tgt.act.k !== 'ko' && b.t >= fl.until - 8.6) {
-      fl.until = b.t;
-      b.events.push({ kind: 'explode', x: fl.x, y: 0.4, z: fl.z, tech: fl.tech, big: false });
-      hit(b, b.f[fl.owner], tgt, fl.tech, fl.x, 0.5, fl.z, angleTo(fl, tgt), { power: 9 });
+    // 電気の種: 上に 雷雲。下に 入ると 雲から 雷が 落ちる(1回)(2026-11-05 企画者「電気の種は雲発生させて」)
+    if (fl.mine && inField(fl, tgt) && !isInvincible(b, tgt) && tgt.act.k !== 'ko' && b.t >= fl.until - 8.6) {
+      fl.until = b.t + 0.3;
+      fl.mine = false;
+      addStrike(b, b.f[fl.owner], fl.tech, tgt.x, tgt.z, 1.1, b.t + 0.12, 'bolt', 10);
     }
     // 潮の壁: さわった相手を 押し返す
     if (fl.wall && inField(fl, tgt) && tgt.act.k !== 'ko') {

@@ -2462,6 +2462,17 @@ export class AnimeField {
         }
       }
       if (fl.pull) disc.rotation.z += dt * 4;
+      // VYBE 電気の種: 上に 黒い 雷雲(中で 小さな いなずまが 光る)
+      if (fl.mine && dt > 0) {
+        if (Math.random() < dt * 22) {
+          const a3 = Math.random() * Math.PI * 2;
+          const r3 = Math.random() * fl.r;
+          const cl = this.sprite(Math.random() < 0.5 ? 0x4a4a62 : 0x6a6a86, false, this.puffTex);
+          cl.position.set(fl.x + Math.cos(a3) * r3, 2.8 + Math.random() * 0.4, fl.z + Math.sin(a3) * r3);
+          this.add(cl, 0.7, 0.4, 0.9 + Math.random() * 0.4);
+        }
+        if (Math.random() < dt * 3) this.bolt(fl.x + (Math.random() - 0.5) * fl.r, 2.9, fl.z + (Math.random() - 0.5) * fl.r, fl.x + (Math.random() - 0.5) * fl.r, 2.6, fl.z + (Math.random() - 0.5) * fl.r, 0.5, 0.1);
+      }
       // RIOT 炎環走り: 足もとは マグマ(2026-11-05 企画者「炎って分かりにくいから下がマグマにしよう」)
       if (fl.magma) {
         const glowK = 0.85 + Math.sin(performance.now() / 180 + fl.x) * 0.15;

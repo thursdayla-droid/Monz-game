@@ -201,8 +201,10 @@ describe('each new move works in its own way', () => {
     giveCommand(b, 0, '電気の種'); run(b, 40);
     const m = b.fields.find((f) => f.mine)!;
     expect(m).toBeTruthy();
+    run(b, 20);
     q.x = m.x; q.z = m.z;
-    expect(run(b, 10).some((x) => x.kind === 'hit' && x.side === 0)).toBe(true);
+    // 雲の下に 入ると 雷が 落ちる
+    expect(run(b, 40).some((x) => x.kind === 'hit' && x.side === 0)).toBe(true);
     ({ b } = setup('vybe', ['連鎖いなずま']));
     giveCommand(b, 0, '連鎖いなずま'); run(b, 30);
     expect(b.pillars.filter((p) => p.look === 'bolt').length).toBeGreaterThanOrEqual(4);
