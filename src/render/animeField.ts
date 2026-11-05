@@ -1663,7 +1663,27 @@ export class AnimeField {
           const m = mk();
           m.scale.set(len, fl.r * 1.2, 1);
           m.rotation.z = -Math.atan2(fl.z2 - fl.z, fl.x2 - fl.x);
-          g.add(m);
+          if (fl.magma) {
+            // 炎の爪痕: 地面が 裂けて マグマ(黒い ふち → 赤 → まん中が 明るい。2026-11-05 企画者「マグマで」)
+            // 爪あとの 形: まん中が 太く、両はしが 細い
+            const shp = new THREE.Shape();
+            const N = 12;
+            for (let i = 0; i <= N; i++) shp[i ? 'lineTo' : 'moveTo'](i / N - 0.5, 0.5 * Math.pow(Math.sin((Math.PI * i) / N), 0.6));
+            for (let i = N; i >= 0; i--) shp.lineTo(i / N - 0.5, -0.5 * Math.pow(Math.sin((Math.PI * i) / N), 0.6));
+            const clawGeo = new THREE.ShapeGeometry(shp);
+            const layer = (c: number, w: number, add: boolean, y: number) => {
+              const q = new THREE.Mesh(clawGeo, new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: add ? 0.8 : 0.95, depthWrite: false, blending: add ? THREE.AdditiveBlending : THREE.NormalBlending, side: THREE.DoubleSide }));
+              q.rotation.x = -Math.PI / 2;
+              q.rotation.z = m.rotation.z;
+              q.scale.set(len + w * 0.6, fl.r * w, 1);
+              q.position.y = y;
+              g!.add(q);
+              return q;
+            };
+            layer(0x2a0800, 1.45, false, 0);
+            g.userData.lava = layer(0xe8360a, 1.05, false, 0.01);
+            layer(0xffb030, 0.4, true, 0.02);
+          } else g.add(m);
           if (fl.wall) {
             // 潮の壁: 立った 水の壁(2026-11-05 企画者「壁出す系はちゃんと壁を作ってほしい」)
             const ang = -Math.atan2(fl.z2 - fl.z, fl.x2 - fl.x);
@@ -1719,6 +1739,19 @@ export class AnimeField {
       for (const c of g.children) {
         const m = (c as THREE.Mesh).material as THREE.MeshBasicMaterial;
         if (m.blending === THREE.AdditiveBlending) m.opacity = (0.45 + Math.sin(performance.now() / 45) * 0.2) * Math.min(1, left / 0.4);
+      }
+      // マグマの 爪あと: 赤が ゆらいで、あわが はじける
+      if (fl.magma && fl.x2 !== undefined && fl.z2 !== undefined) {
+        const lava = g.userData.lava as THREE.Mesh | undefined;
+        if (lava) (lava.material as THREE.MeshBasicMaterial).color.setRGB(0.92, 0.2 + Math.sin(performance.now() / 160 + fl.x) * 0.06, 0.03);
+        for (const c of g.children) ((c as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = Math.min(1, left / 0.4) * (((c as THREE.Mesh).material as THREE.MeshBasicMaterial).blending === THREE.AdditiveBlending ? 0.55 + Math.sin(performance.now() / 90) * 0.2 : 0.95);
+        if (dt > 0 && Math.random() < dt * 9) {
+          const k = Math.random();
+          const bub = this.sprite(Math.random() < 0.5 ? 0xffa030 : 0xffe080);
+          bub.position.set(fl.x + (fl.x2 - fl.x) * k, 0.1, fl.z + (fl.z2 - fl.z) * k);
+          this.add(bub, 0.35, 1.4, 0.16, { vy: 0.4 });
+        }
+        continue;
       }
       // 電気の線: ところどころ 稲妻がはしる
       if (dt > 0 && fl.shape === 'line' && fl.x2 !== undefined && fl.z2 !== undefined && Math.random() < dt * 16) {

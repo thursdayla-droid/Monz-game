@@ -1438,12 +1438,12 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
         // 炎環走り: 相手の まわりに 炎の輪(8つの 小さな 炎)
         for (let k = 0; k < 8; k++) add(o.x + Math.cos((k * Math.PI) / 4) * 2.4, o.z + Math.sin((k * Math.PI) / 4) * 2.4, { r: 1.1, power: 3, magma: true });
       } else if (st === 'clawLines') {
-        // 炎の爪痕: 前へ 3本の 炎の 爪あと(線)
+        // 炎の爪痕: 前へ 3本の マグマの 爪あと(線)(2026-11-05 企画者「電気っぽい → マグマで」)
         for (const off of [-0.9, 0, 0.9]) {
           const sx = f.x + Math.cos(a.dir) * 0.8 - Math.sin(a.dir) * off;
           const sz = f.z + Math.sin(a.dir) * 0.8 + Math.cos(a.dir) * off;
           const [x2, z2] = clampField(b, sx + Math.cos(a.dir) * 5, sz + Math.sin(a.dir) * 5);
-          add(sx, sz, { r: 0.45, shape: 'line', x2, z2, power: 3 });
+          add(sx, sz, { r: 0.45, shape: 'line', x2, z2, power: 3, magma: true });
         }
       } else if (st === 'puddles') {
         // 潮だまり: 相手の まわりに 水たまり 3つ(遅くなる)
