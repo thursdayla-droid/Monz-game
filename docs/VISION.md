@@ -340,3 +340,4 @@
 - 2026-11-05：企画者の STREET KING 1章1話の 一枚絵（GRIT が 岩の上で 腕組み）を 入れた（元の PNG は design/story/ch1_01.png・ゲームは public/assets/story/ch1_01.webp）（企画者: 絵は GRIT）
 - 2026-11-05：企画者の 第1話「最初の挑戦」の 文を 入れた。話は 1行ずつ 読んで、さいごに BATTLE START!
 - 2026-11-05：企画者「1話の絵はグリット。ライオットはこれから出てくる形に」→ 1戦目は GRIT に もどした（RIOT は 4戦目）
+- 2026-11-05：企画者の 1章2話の 一枚絵（SNEK が 草の道で 舌を出す）を 入れた（design/story/ch1_02.png → public/assets/story/ch1_02.webp）
