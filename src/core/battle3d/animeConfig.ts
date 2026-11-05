@@ -235,6 +235,10 @@ export const ANIME = {
     // SNEK
     黒蛇玉: 'weave', 影の抜け殻: 'decoy', 蛇行黒閃: 'sweep',
     // GRIT: 頑固ガード = ドームを出さず 体を固める(ひるまない)・我慢の壁 = 受け止めて ためて はじける・黒い息 = 遅くて 大きな 息のかたまり・重圧の輪 = 自分の まわりに 場
+    // VYBE: 放電コート = 近くで 攻撃した相手が まひ・ビリバウンド = はねる電気玉
+    放電コート: 'shockCoat', ビリバウンド: 'arc',
+    // SHELLZ: 水圧弾 = 重い 大きな 水の玉・大地の構え = 体を固める・水の鎧 = 弾を はね返す・潮の渦 = 自分の まわりに 渦
+    水圧弾: 'slowOrb', 大地の構え: 'armorBuff', 水の鎧: 'reflect', 潮の渦: 'selfRing',
     頑固ガード: 'armor', 踏ん張り: 'armorBuff', 親分の意地: 'armorBuff', 我慢の壁: 'absorbCounter', 黒い息: 'slowOrb', 重圧の輪: 'selfRing',
   } as Record<string, string>,
   /** とくべつな動きの数字【仮】。strike: 予告のあと落ちる・立つ攻撃(落雷・光の杭)の威力(強さごと) */

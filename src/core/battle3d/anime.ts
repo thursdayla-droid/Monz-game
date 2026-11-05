@@ -1697,6 +1697,11 @@ function guardReact(b: AnimeBattle, o: AnimeMon, from: AnimeMon | null): void {
     return;
   }
   if (st === 'reflect') return;
+  if (st === 'shockCoat') {
+    // 放電コート: 近くで 攻撃した相手が まひ(ドームは そのまま)
+    if (from && dist(from, o) < 3.5 && from.act.k !== 'ko' && b.rng() < 0.6) setEffect(b, from, 'まひ');
+    return;
+  }
   if (st === 'burnShield') {
     // 炎たてがみガード: 近くで 攻撃した相手が やけど(ドームは そのまま)
     if (from && dist(from, o) < 3.5 && from.act.k !== 'ko' && b.rng() < 0.6) setEffect(b, from, 'やけど');

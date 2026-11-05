@@ -637,7 +637,7 @@ export class Battle3DScene extends Phaser.Scene {
       for (const f of b.f) {
         if (f.act.k !== 'tech' || !f.act.fired) continue;
         const st = BEAST[f.act.id]?.[f.act.step ?? 0];
-        if (st?.fx === 'fireTrail' || st?.fx === 'shadow' || st?.fx === 'flameAura') this.field.beastTrail(st.fx, f.x, f.z);
+        if (st?.fx === 'fireTrail' || st?.fx === 'shadow' || st?.fx === 'flameAura' || st?.fx === 'waterTrail') this.field.beastTrail(st.fx, f.x, f.z);
       }
       // カウンターが できる間: 金色の粒
       for (const f of b.f) if (b.t < f.counterUntil) this.field.chargeFx(f.x, f.y + 0.7, f.z, true);
@@ -977,6 +977,8 @@ export class Battle3DScene extends Phaser.Scene {
         if (fx.includes('claw')) audio.se('mcSlash', { pitch: 1.2 + Math.random() * 0.2 });
         else if (fx.includes('ite') || fx === 'bigJaw') audio.se('whoosh', { pitch: 1.6 });
         else if (fx === 'flame') audio.se('mcFire', { pitch: 1.3 });
+        else if (fx.includes('spark') || fx === 'cross') audio.se('mcThunder', { pitch: 1.5 });
+        else if (fx.includes('splash') || fx === 'waterTrail' || fx === 'whirl') audio.se('mcWater', { pitch: 1.3 });
         else if (fx === 'stomp' || fx === 'wave') audio.se('slam', { pitch: 1.3 });
         else if (fx === 'slam' || fx === 'darkSlam' || fx === 'titan' || fx === 'nova') audio.se('punchHeavy', { pitch: 0.7 });
         else if (fx === 'abyss' || fx === 'abyssBurst') audio.se('mcDark', { pitch: 1.2 });

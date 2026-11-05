@@ -73,11 +73,11 @@ it('roars do not reach a floating opponent', () => {
   expect(q.atkDownUntil).toBe(0);
 });
 
-it('RIOT / SNEK / GRIT moves each have their own motion and hit an opponent in front', async () => {
+it('new 5 species moves each have their own motion and hit an opponent in front', async () => {
   const { BEAST } = await import('../src/core/battle3d/beastScripts');
   const miss: string[] = [];
   for (const name of Object.keys(BEAST)) {
-    const row = [...learnset('riot'), ...learnset('snek'), ...learnset('grit')].find((r) => r.name === name);
+    const row = NEW5.flatMap((sp) => learnset(sp)).find((r) => r.name === name);
     expect(row, name).toBeTruthy();
     let ok = false;
     for (const gap of [2.2, 4]) {

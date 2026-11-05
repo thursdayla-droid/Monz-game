@@ -143,4 +143,60 @@ export const BEAST: Record<string, BeastStep[]> = {
     { mv: 'head', t: 0.85, jump: 13, pounce: true },
     { mv: 'head', t: 0.35, dive: 16, hit: { at: 0.4, r: 4, arc: P, part: 1 }, fx: 'titan' },
   ],
+  // ---------------- VYBE(雷・光。軽い狼。爪・牙・しっぽ・口の電気を つなぐ。ZIPP = 電撃ダッシュの 一撃離脱 とは ちがう) ----------------
+  ビリカミ: [
+    { mv: 'bite', t: 0.16, go: 0.7, hit: { at: 0.6, r: 1.6, arc: 1, part: 0.45 }, fx: 'sparkBite' },
+    { mv: 'bite', t: 0.16, go: 0.3, hit: { at: 0.6, r: 1.6, arc: 1, part: 0.55 }, fx: 'sparkBite' },
+  ],
+  閃爪: [
+    { mv: 'clawR', t: 0.15, side: 0.7, go: 0.5, hit: { at: 0.6, r: 1.6, arc: 1.2, part: 0.5 }, fx: 'spark' },
+    { mv: 'clawL', t: 0.15, side: -1.4, hit: { at: 0.6, r: 1.6, arc: 1.2, part: 0.5 }, fx: 'spark' },
+  ],
+  光牙バイト: [{ mv: 'bite', t: 0.42, jump: 4, pounce: true, hit: { contact: true, r: 1.7, arc: 1.2, part: 1, knock: 1.5 }, fx: 'lightBite' }],
+  雷牙ファング: [
+    { mv: 'bite', t: 0.2, go: 0.8, hit: { at: 0.6, r: 1.7, arc: 1, part: 0.4 }, fx: 'sparkBite' },
+    { mv: 'clawR', t: 0.24, go: 1.6, hit: { at: 0.7, r: 1.8, arc: 1.1, part: 0.3 }, fx: 'spark' },
+    { mv: 'clawL', t: 0.2, go: 0.4, hit: { at: 0.6, r: 1.8, arc: 1.1, part: 0.3, knock: 1.6 }, fx: 'spark' },
+  ],
+  早足クロー: [
+    { mv: 'clawR', t: 0.13, orbit: 0.9, hit: { at: 0.6, r: 1.9, arc: 1.5, part: 0.25 }, fx: 'spark' },
+    { mv: 'clawL', t: 0.13, orbit: 0.9, hit: { at: 0.6, r: 1.9, arc: 1.5, part: 0.25 }, fx: 'spark' },
+    { mv: 'clawR', t: 0.13, orbit: 0.9, hit: { at: 0.6, r: 1.9, arc: 1.5, part: 0.25 }, fx: 'spark' },
+    { mv: 'clawL', t: 0.13, orbit: 0.9, hit: { at: 0.6, r: 1.9, arc: 1.5, part: 0.25 }, fx: 'spark' },
+  ],
+  ヴァイガスラッシュ: [
+    { mv: 'clawR', t: 0.16, go: 0.6, hit: { at: 0.6, r: 1.7, arc: 1, part: 0.25 }, fx: 'spark' },
+    { mv: 'tail', t: 0.3, spin: true, hit: { at: 0.5, r: 2.2, arc: 3.2, part: 0.3 }, fx: 'sparkRing' },
+    { mv: 'clawL', t: 0.3, jump: 5, hit: { at: 0.4, r: 1.9, arc: 1.2, part: 0.45, launch: 7.5 }, fx: 'sparkUp' },
+  ],
+  サンダークロス: [
+    { mv: 'clawR', t: 0.16, go: 0.6, hit: { at: 0.6, r: 1.7, arc: 1, part: 0.3 }, fx: 'cross' },
+    { mv: 'clawL', t: 0.16, go: 0.2, hit: { at: 0.6, r: 1.7, arc: 1, part: 0.3 }, fx: 'cross' },
+    { mv: 'zap', t: 0.32, hit: { at: 0.4, r: 2, arc: 1.2, part: 0.4, launch: 7 }, fx: 'sparkUp' },
+  ],
+  光の牙: [
+    { mv: 'bite', t: 0.18, go: 0.8, hit: { at: 0.6, r: 1.7, arc: 1, part: 0.3 }, fx: 'lightBite' },
+    { mv: 'tail', t: 0.3, spin: true, hit: { at: 0.5, r: 2.2, arc: 3.2, part: 0.3 }, fx: 'lightRing' },
+    { mv: 'bite', t: 0.22, go: 0.5, hit: { at: 0.6, r: 1.8, arc: 1.1, part: 0.4, knock: 1.8 }, fx: 'lightBite' },
+  ],
+  // ---------------- SHELLZ(水・無。甲羅で守り、水で 距離をとる 亀。GRIT = 近くで 受け止めて 反撃) ----------------
+  甲羅ドン: [{ mv: 'shell', t: 0.36, side: 0.6, spin: true, hit: { at: 0.5, r: 2, arc: 3.2, part: 1, knock: 1.6 }, fx: 'shellRing' }],
+  甲羅のトゲ: [
+    { mv: 'shell', t: 0.24, hit: { at: 0.5, r: 2, arc: 1.6, part: 0.5 }, fx: 'spikes' },
+    { mv: 'shell', t: 0.24, hit: { at: 0.5, r: 2, arc: 1.6, part: 0.5, knock: 1.4 }, fx: 'spikes' },
+  ],
+  どっしりプレス: [
+    { mv: 'head', t: 0.34, jump: 5.5, pounce: true },
+    { mv: 'shell', t: 0.24, dive: 11, hit: { at: 0.4, r: 2.1, arc: 3.2, part: 1, knock: 1.8 }, fx: 'splashSlam' },
+  ],
+  亀スライド: [{ mv: 'head', t: 0.55, go: 6, hit: { contact: true, r: 1.6, arc: 1.2, part: 1, knock: 1.8 }, fx: 'waterTrail' }],
+  シェルブレイカー: [
+    { mv: 'shell', t: 0.2, go: -0.4 },
+    { mv: 'shell', t: 0.36, go: 3.6, hit: { contact: true, r: 1.7, arc: 1.2, part: 1, launch: 7.5 }, fx: 'spikes' },
+  ],
+  ハイドロヘッド: [{ mv: 'head', t: 0.5, go: 7.5, hit: { contact: true, r: 1.7, arc: 1.1, part: 1, launch: 7.5 }, fx: 'waterTrail' }],
+  甲羅タイフーン: [
+    { mv: 'shell', t: 0.95, spin: true, hit: { n: 4, every: 0.2, at: 0.1, r: 3, arc: 3.2, part: 0.2, knock: 0.8 }, fx: 'whirl' },
+    { mv: 'shell', t: 0.3, spin: true, hit: { at: 0.4, r: 3.2, arc: 3.2, part: 0.25, knock: 2.6 }, fx: 'splashSlam' },
+  ],
 };

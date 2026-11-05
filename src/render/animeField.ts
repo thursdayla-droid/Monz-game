@@ -1178,6 +1178,51 @@ export class AnimeField {
         // しっぽ・体で まわりを はらう 弧
         this.monSwing(ax, az, dir, 'tail', 3, y * 0.5, true, col);
         break;
+      case 'spark':
+      case 'sparkUp':
+      case 'cross':
+        // VYBE: 電気の 爪(サンダークロスは 2本 交差)
+        this.monSwing(x, z, dir, Math.random() < 0.5 ? 'clawR' : 'clawL', 0, y, fx !== 'spark', col);
+        if (fx === 'cross') this.monSwing(x, z, dir, 'clawL', 0, y, true, 0xffffff);
+        this.zap(x, y, z);
+        if (fx === 'sparkUp') this.bolt(x, y - 0.4, z, x, y + 2.2, z, 1.2);
+        break;
+      case 'sparkBite':
+      case 'lightBite':
+        this.monSwing(x, z, dir, 'bite', 0, y, false, col);
+        if (fx === 'sparkBite') this.zap(x, y, z);
+        else this.shockRing(x, y, z, 0xfff6c0, 0.7);
+        break;
+      case 'sparkRing':
+      case 'lightRing':
+      case 'shellRing':
+        this.monSwing(ax, az, dir, 'tail', 2.8, y * 0.6, true, col);
+        if (fx === 'sparkRing') this.bolt(ax - 1.4, y, az, ax + 1.4, y, az, 0.8);
+        break;
+      case 'spikes':
+        // SHELLZ: 甲羅の トゲ
+        this.monSwing(ax, az, dir, 'shell', 2.4, y * 0.7, true, 0xe0d0b0);
+        for (let i = 0; i < 6; i++) {
+          const st = this.sprite(0xffffff, true, this.star);
+          st.position.set(x + (Math.random() - 0.5), y, z + (Math.random() - 0.5));
+          this.add(st, 0.2, 1.2, 0.35);
+        }
+        break;
+      case 'splashSlam':
+        this.impact(x, z, 2, false, 2, true);
+        this.splash(x, 0.6, z);
+        this.groundRing(x, z, 1.6, 0x5ac8ff, 0.5, 2);
+        this.shake(0.4);
+        break;
+      case 'whirl':
+        // 甲羅タイフーン: 水の うず
+        this.monSwing(ax, az, dir + Math.random() * 6, 'tail', 4, 0.5, true, 0x5ac8ff);
+        this.splash(ax + (Math.random() - 0.5) * 3, 0.5, az + (Math.random() - 0.5) * 3);
+        break;
+      case 'waterTrail':
+        this.splash(x, y, z);
+        this.monSwing(x, z, dir, 'head', 0, y, true, col);
+        break;
       case 'abyss':
         // 闇の とぐろ: まわりに 闇の 弧が 回る
         this.monSwing(ax, az, dir + Math.random() * 6, 'tail', 4.6, 0.6, true, 0x7a3ad0);
@@ -1201,7 +1246,11 @@ export class AnimeField {
   /** 歩いている間の 光(炎の 足あと・影・炎を まとう) */
   beastTrail(fx: string, x: number, z: number): void {
     if (fx === 'fireTrail' || fx === 'flameAura') this.flame(x, 0.3 + Math.random() * 0.6, z, fx === 'flameAura' ? 0.7 : 0.35, fx === 'flameAura' ? 3 : 2);
-    else if (fx === 'shadow') {
+    else if (fx === 'waterTrail') {
+      const s = this.sprite(0x8ad8ff, true);
+      s.position.set(x + (Math.random() - 0.5) * 0.6, 0.2, z + (Math.random() - 0.5) * 0.6);
+      this.add(s, 0.4, 0.6, 0.5, { vy: 1.5 });
+    } else if (fx === 'shadow') {
       for (let i = 0; i < 2; i++) {
         const s = this.sprite(i ? 0x2a0a40 : 0x6a2ab0, false);
         s.position.set(x + (Math.random() - 0.5) * 0.8, 0.25, z + (Math.random() - 0.5) * 0.8);
