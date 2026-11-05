@@ -40,32 +40,32 @@ const CSS = `
 .rmb .stl.in2{animation:rmbIn .45s ease}
 @keyframes rmbIn{from{opacity:0}to{opacity:1}}
 .rmb .spic{position:absolute;inset:0;background:#2a1a3a;display:flex;align-items:center;justify-content:center;color:#a898b8;font-size:15px;font-weight:700}
-.rmb .spic img{width:100%;height:100%;object-fit:cover;object-position:50% 18%}
+.rmb .spic img{width:100%;height:100%;object-fit:cover;object-position:50% 8%}
 .rmb .stop{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 10px) calc(env(safe-area-inset-right) + 14px) 10px calc(env(safe-area-inset-left) + 14px);background:linear-gradient(#000c,#0000)}
 .rmb .stop .back{align-self:center}
 .rmb .sno{flex:1;text-align:center;font:900 18px ${UI_FONT};color:#ffd23a;text-shadow:0 2px 0 #16101c,0 0 6px #000}
 .rmb .sname{display:block;font-size:11px;letter-spacing:.2em;color:#fff;-webkit-text-stroke:0;opacity:.85}
+.rmb .stitle{display:block;font-size:13px;color:#fff;margin-top:1px}
+.rmb .sfoe{display:block;font-size:11px;color:#e8dcf4;font-weight:700;text-shadow:0 1px 2px #000}
+.rmb .sfoe .stars{color:#ffb03a}
+.rmb .nav .skip{width:auto;padding:0 10px;font-size:12px}
+/* 2026-11-05 企画者「文字の枠と被ってキャラが見えない」→ 下は 細い 半とうめいの 帯だけ(題名・あいては 上へ) */
+.rmb .stext{position:relative;display:flex;align-items:center;gap:12px;padding:8px calc(env(safe-area-inset-right) + 14px) calc(env(safe-area-inset-bottom) + 8px) calc(env(safe-area-inset-left) + 14px);background:linear-gradient(#0000,#000b 35%,#000d);color:#fff;min-height:52px}
+.rmb .stext .tx{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
+.rmb .stext .who{align-self:flex-start;background:#ffd23a;color:#16101c;font-weight:900;font-size:12px;border-radius:7px;padding:1px 9px}
+.rmb .stext .line{margin:0;font-size:15px;line-height:1.45;font-weight:700;text-shadow:0 1px 3px #000}
+.rmb .stext .line.narr{font-style:italic;color:#e0d4ee;font-weight:500}
+.rmb .stext .go{flex:0 0 auto;padding:6px 18px;font-size:16px}
+.rmb .stext .go.fight{background:#ffd23a;color:#16101c}
 .rmb .sno small{font-size:13px;color:#fff}
 .rmb .sno em{font-style:normal;font-size:12px;background:#3ad070;color:#16101c;border-radius:8px;padding:2px 8px;margin-left:8px;-webkit-text-stroke:0}
 .rmb .nav{display:flex;gap:6px}
 .rmb .nav button{width:40px;height:36px;border:2px solid #16101c;border-radius:10px;background:#fff;color:#16101c;font:900 16px ${UI_FONT}}
 .rmb .nav button:disabled{opacity:.3}
 .rmb .sclear{position:absolute;top:calc(env(safe-area-inset-top) + 58px);left:50%;transform:translateX(-50%);white-space:nowrap}
-.rmb .stext{position:relative;margin:0 calc(env(safe-area-inset-right) + 12px) calc(env(safe-area-inset-bottom) + 12px) calc(env(safe-area-inset-left) + 12px);background:#fffffff0;color:#16101c;border:4px solid #16101c;border-radius:16px;padding:8px 14px;display:flex;flex-direction:column;gap:4px;max-height:42%;overflow:auto}
-.rmb .stext h3{margin:0;font-size:15px;display:flex;align-items:center;gap:8px}
-.rmb .stext .skip{margin-left:auto;border:2px solid #16101c;border-radius:8px;background:#fff;color:#16101c;font:900 12px ${UI_FONT};padding:2px 8px}
-.rmb .stext .who{align-self:flex-start;background:#16101c;color:#ffd23a;font-weight:900;font-size:13px;border-radius:8px;padding:2px 10px}
-.rmb .stext .line{min-height:1.5em;font-weight:700}
-.rmb .stext .line.narr{font-style:italic;color:#4a3a5a;font-weight:500}
-.rmb .srow .go.fight{background:#ffd23a;color:#16101c}
 .rmb .bstart{position:absolute;left:0;right:0;top:38%;text-align:center;font:900 54px ${UI_FONT};color:#ffd23a;-webkit-text-stroke:3px #16101c;text-shadow:0 6px 0 #16101c;opacity:0;transform:scale(2);pointer-events:none;z-index:3}
 .rmb .stl.starting .bstart{animation:rmbStart .7s ease-out forwards}
 @keyframes rmbStart{0%{opacity:0;transform:scale(2.2)}40%{opacity:1;transform:scale(1)}100%{opacity:1;transform:scale(1.05)}}
-.rmb .stext p{margin:0;font-size:14px;line-height:1.5}
-.rmb .srow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.rmb .srow .foe{flex:1;min-width:180px}
-.rmb .srow .stars{color:#ff8a1f}
-.rmb .srow .go{flex:0 0 auto;padding:6px 22px;font-size:18px}
 .rmb .rot{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;background:#0d0614f5}
 .rmb .rot div{border:4px solid #ffd23a;border-radius:18px;background:#16101c;color:#ffd23a;font-weight:900;font-size:26px;padding:22px 30px;text-align:center}
 .rmb .rot small{display:block;color:#fff;font-size:14px;margin-top:8px}
@@ -170,16 +170,13 @@ export class RumbleStoryScene extends Phaser.Scene {
       let li = 0;
       const lines = st.lines.length ? st.lines : [{ who: null, text: st.text }];
       box.innerHTML = `<div class="spic">${st.image ? `<img src="${assetUrl(st.image)}" alt="">` : '<span>一枚絵（企画者が作ります）</span>'}</div>
-        <div class="stop"><button class="back">◀ もどる</button><div class="sno"><span class="sname">${STORY_NAME}</span>第${st.chapter}章　STAGE ${st.no} <small>/ ${STORY_COUNT}</small>${done ? '<em>クリア</em>' : ''}</div>
-          <div class="nav"><button class="prev" ${no <= 1 ? 'disabled' : ''}>◀</button><button class="nxt" ${!canPlay(no + 1, cleared) ? 'disabled' : ''}>▶</button></div></div>
+        <div class="stop"><button class="back">◀ もどる</button><div class="sno"><span class="sname">${STORY_NAME}</span>第${st.chapter}章　STAGE ${st.no} <small>/ ${STORY_COUNT}</small>${done ? '<em>クリア</em>' : ''}<span class="stitle">${st.title}</span><span class="sfoe">あいて：${st.enemy.name}　Lv.${st.enemy.level}　<span class="stars">${'★'.repeat(st.enemy.prof)}${'☆'.repeat(5 - st.enemy.prof)}</span>${st.enemy.boss ? '　ボス' : ''}</span></div>
+          <div class="nav"><button class="prev" ${no <= 1 ? 'disabled' : ''}>◀</button><button class="nxt" ${!canPlay(no + 1, cleared) ? 'disabled' : ''}>▶</button><button class="skip">とばす ▶▶</button></div></div>
         ${allClear && no === STORY_COUNT ? '<div class="clear sclear">ストーリー クリア！ ◀ で 前の話も 遊べます</div>' : ''}
         <div class="bstart">BATTLE START!</div>
         <div class="stext">
-          <h3>${st.title}<button class="skip">とばす ▶▶</button></h3>
-          <div class="who"></div>
-          <p class="line"></p>
-          <div class="srow"><div class="foe">あいて：${st.enemy.name}　Lv.${st.enemy.level}　<span class="stars">${'★'.repeat(st.enemy.prof)}${'☆'.repeat(5 - st.enemy.prof)}</span>${st.enemy.boss ? '　<b>ボス</b>' : ''}</div>
-          <button class="go"></button></div>
+          <div class="tx"><div class="who"></div><p class="line"></p></div>
+          <button class="go"></button>
         </div>`;
       if (fade) {
         box.classList.remove('in2');
