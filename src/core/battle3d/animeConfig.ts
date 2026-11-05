@@ -125,15 +125,16 @@ export const ANIME = {
    * clawR/clawL: 前足で ひっかく・bite: かみつく・head: 頭突き・shoulder: 体当たり(肩)・shell: 甲羅を まわして ぶつける・tail: しっぽを まわして たたく・zap: 口から 電気
    */
   monMove: {
-    clawR: { w: 0.12, d: 0.2, step: 0.3 },
-    clawL: { w: 0.12, d: 0.2, step: 0.3 },
-    bite: { w: 0.13, d: 0.2, step: 0.4 },
-    head: { w: 0.15, d: 0.2, step: 0.5 },
+    // 2026-11-05 企画者「ヴァイブ地上のコンボもモーション一緒すぎる」→ 動きごとに 進み方も ちがう(side: 横へ とぶ m・hop: とび上がる 速さ・step が マイナス = うしろへ 下がる)
+    clawR: { w: 0.12, d: 0.2, step: 0.25, side: 0.6 },
+    clawL: { w: 0.12, d: 0.2, step: 0.25, side: -0.6 },
+    bite: { w: 0.13, d: 0.2, step: 0.55 },
+    head: { w: 0.15, d: 0.2, step: 0.5, hop: 4 },
     shoulder: { w: 0.15, d: 0.2, step: 0.55 },
     shell: { w: 0.12, d: 0.22, step: 0.35 },
-    tail: { w: 0.12, d: 0.22, step: 0.1 },
-    zap: { w: 0.12, d: 0.2, step: 0.15 },
-  } as Record<string, { w: number; d: number; step: number }>,
+    tail: { w: 0.12, d: 0.22, step: 0.15 },
+    zap: { w: 0.12, d: 0.2, step: -0.4 },
+  } as Record<string, { w: number; d: number; step: number; side?: number; hop?: number }>,
   /**
    * コンボ3段め(2026-11-05 企画者「進めてよい」)【仮】。BUNK・MOFU・新しい5体だけ(ZIPP・PUNI・KLAK の通常攻撃は そのまま)
    * power: 通常攻撃ボタンを 押しつづけると ためて、はなすと 強い1発(hold: ため始めるまで 押している時間・max: いっぱいに ためる時間・auto: ここまで 押すと 自分で出る・

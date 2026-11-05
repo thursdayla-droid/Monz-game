@@ -295,3 +295,20 @@ describe('each new move works in its own way', () => {
     expect(b.fields.some((f) => f.tech === '爆走牙' && f.magma)).toBe(true);
   });
 });
+
+it('SHELLZ 甲羅のトゲ charges forward, hits hard and returns to where it started (2026-11-05)', () => {
+  const b = newAnimeBattle(e('shellz', ['甲羅のトゲ']), e('bunk', []), 3, 'manual');
+  const [p, q] = b.f;
+  p.pad = { x: 0, z: 0 };
+  q.pad = { x: 0, z: 0 };
+  q.thinkT = 99;
+  q.cooldown.dodge = q.cooldown.guard = 99;
+  p.x = 0; q.x = 3.5; p.z = q.z = 0; p.face = 0;
+  giveCommand(b, 0, '甲羅のトゲ');
+  let far = 0;
+  let hit = false;
+  for (let i = 0; i < 120; i++) { b.events = []; stepAnime(b, ANIME.dt); far = Math.max(far, p.x); if (b.events.some((x) => x.kind === 'hit' && x.side === 0)) hit = true; }
+  expect(hit).toBe(true);
+  expect(far).toBeGreaterThan(1.5);
+  expect(Math.abs(p.x)).toBeLessThan(0.4);
+});

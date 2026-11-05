@@ -41,6 +41,8 @@ export interface BeastStep {
   orbit?: number;
   /** 影に もぐって 相手の うしろへ 回る(1歩の はじめに) */
   behind?: boolean;
+  /** 技を はじめた 場所へ もどる(甲羅のトゲ) */
+  home?: boolean;
   hit?: BeastHit;
   fx?: string;
 }
@@ -137,9 +139,10 @@ export const BEAST: Record<string, BeastStep[]> = {
   ],
   // ---------------- SHELLZ(水・無。甲羅で守り、水で 距離をとる 亀。GRIT = 近くで 受け止めて 反撃) ----------------
   甲羅ドン: [{ mv: 'shell', t: 0.36, side: 0.6, spin: true, hit: { at: 0.5, r: 2, arc: 3.2, part: 1, knock: 1.6 }, fx: 'shellRing' }],
+  // 2026-11-05 企画者「甲羅のトゲ弱すぎる。前に突進して、元の位置に戻るかんじに」→ トゲの 甲羅で 前へ つっこみ、もとの 場所へ もどる(強く)
   甲羅のトゲ: [
-    { mv: 'shell', t: 0.24, hit: { at: 0.5, r: 2, arc: 1.6, part: 0.5 }, fx: 'spikes' },
-    { mv: 'shell', t: 0.24, hit: { at: 0.5, r: 2, arc: 1.6, part: 0.5, knock: 1.4 }, fx: 'spikes' },
+    { mv: 'shell', t: 0.34, go: 4.2, hit: { contact: true, r: 2, arc: 1.4, part: 1.35, knock: 2.6 }, fx: 'spikes' },
+    { mv: 'shell', t: 0.4, home: true },
   ],
   どっしりプレス: [
     { mv: 'head', t: 0.34, jump: 5.5, pounce: true },

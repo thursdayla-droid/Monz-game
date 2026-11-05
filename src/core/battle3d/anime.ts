@@ -33,7 +33,7 @@ export interface AnimeEntrant {
 
 export type AnimeAct =
   | { k: 'free' }
-  | { k: 'tech'; id: TechId; t: number; dir: number; fired: boolean; hit: boolean; tx: number; tz: number; windup: number; n: number; next: number; charge?: number; len?: number; zig?: number; sx?: number; sz?: number; sp?: 'charge' | 'dash' | 'air'; mv?: string; tf?: number; full?: boolean; counter?: boolean; step?: number; stepT?: number; hn?: number }
+  | { k: 'tech'; id: TechId; t: number; dir: number; fired: boolean; hit: boolean; tx: number; tz: number; windup: number; n: number; next: number; charge?: number; len?: number; zig?: number; sx?: number; sz?: number; sp?: 'charge' | 'dash' | 'air'; mv?: string; tf?: number; full?: boolean; counter?: boolean; step?: number; stepT?: number; hn?: number; hx?: number; hz?: number }
   | { k: 'dodge'; t: number; dx: number; dz: number; jump: boolean }
   /** ガード中(until: CPU が やめる時間。自分で動かす時は ボタンを はなすまで) */
   | { k: 'guard'; t: number; until: number }
@@ -697,6 +697,8 @@ function updateBeast(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tec
     a.step = 0;
     a.stepT = 0;
     a.hn = 0;
+    a.hx = f.x;
+    a.hz = f.z;
     b.events.push({ kind: 'fire', side: f.side, tech: a.id });
     beginBeastStep(b, f, a, steps[0]);
     return;
@@ -719,6 +721,13 @@ function updateBeast(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tec
       f.x += Math.cos(f.face) * v;
       f.z += Math.sin(f.face) * v;
     }
+  }
+  if (s.home && a.hx !== undefined && a.hz !== undefined) {
+    // はじめた 場所へ もどる(のこりの 時間で)
+    const left = Math.max(dt, s.t - (a.stepT ?? 0) + dt);
+    const k = Math.min(1, dt / left);
+    f.x += (a.hx - f.x) * k;
+    f.z += (a.hz - (f.z)) * k;
   }
   if (s.side) {
     const v = (s.side / s.t) * dt;
@@ -1699,10 +1708,23 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
       const mv = f.jab.moves && C.monMove[f.jab.moves[a.hit ? a.n - 1 : a.n]];
       if (mv) {
         // 新しい5体: 当たるまで 相手へ とびこむ
-        if (!a.hit && f.y <= 0 && dist(f, o) > C.body.minGap + 0.1) {
+        if (!a.hit && (mv.step < 0 || dist(f, o) > C.body.minGap + 0.1)) {
           const v = (mv.step / (mv.d * 0.45)) * dt;
           f.x += Math.cos(f.face) * v;
           f.z += Math.sin(f.face) * v;
+          // 横へ とぶ(爪は 右・左へ)
+          if (mv.side) {
+            const sv = (mv.side / (mv.d * 0.45)) * dt;
+            f.x += Math.cos(f.face + Math.PI / 2) * sv;
+            f.z += Math.sin(f.face + Math.PI / 2) * sv;
+            f.face = angleTo(f, o);
+          }
+          // とび上がる(頭突き)
+          if (mv.hop && f.species === 'vybe' && a.len === undefined && f.y <= 0) {
+            a.len = 1;
+            f.vy = mv.hop;
+            f.y = 0.001;
+          }
         }
       } else if ((!a.hit || a.t < a.next) && f.jab.step > 0 && f.y <= 0 && dist(f, o) > C.body.minGap + 0.1) {
         const v = (f.jab.step / tech.duration) * dt;
