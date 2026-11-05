@@ -228,7 +228,7 @@ export const ANIME = {
     重甲クラッシュ: 'crackLine', 鋏盾クランプ: 'clampCounter', 背面クランプ: 'flankClamp', 十字ワイヤー: 'cross', 精密包囲陣: 'stakes', 時限ボム: 'bomb',
     装甲砕き音波: 'shatter', 狙撃ライン: 'snipe', 連鎖トラップ: 'trapChain', 千機包囲網: 'turrets', 終端狙撃陣: 'snipeArray',
     // 2026-11-05 新しい5体: 受けて 反撃する 守り(KLAK の 鋏盾クランプ と 同じ しくみ)【仮】
-    とぐろ返し: 'clampCounter', 岩鉄ボディ: 'clampCounter',
+    とぐろ返し: 'clampCounter',
     // 2026-11-05 企画者「新しい3匹 全部一緒でつまらない」→ 技ごとの しくみ(体で行く技の 動きは beastScripts.ts)
     // RIOT
     炎たてがみガード: 'burnShield',
@@ -245,7 +245,12 @@ export const ANIME = {
     大岩おこし: 'onePillar', 踏ん張り: 'refill',
     電気の種: 'mines', 連鎖いなずま: 'chain', 雷紋: 'ringShot', ヴァイガルドライブ: 'spread8', 光狼のキバ: 'homingWolf',
     甲羅こもり: 'shellHide', 泡のつぶて: 'bubble', 潮の渦: 'whirlpool', 間欠泉: 'onePillar',
-    頑固ガード: 'armor', 親分の意地: 'armorBuff', 我慢の壁: 'absorbCounter', 黒い息: 'slowOrb', 重圧の輪: 'selfRing',
+    // 2026-11-05 企画者「グリットとシェルズがまだ弱い感じ」→
+    // GRIT: ドスグロウル = うなって まわりを 押しとばす・凄みの眼 = にらんで 動けなくする・岩鉄ボディ = 受けると 地面に 衝撃波・黒い息 = 当たった所に 黒い けむり(遅くなる)
+    ドスグロウル: 'growlPush', 凄みの眼: 'glare', 岩鉄ボディ: 'rockBurst', 黒い息: 'smogOrb',
+    // SHELLZ: 水玉ショット = 3連射・潮の壁 = 前に 水の壁(弾を 止める・相手を 押し返す)・鉄甲羅 = トゲの甲羅(近くで 攻撃した相手が いたい)・潮だまり = 水たまり 3つ・大瀑布砲 = 遠くまで 押し流す
+    水玉ショット: 'burst3', 潮の壁: 'waterWall', 鉄甲羅: 'thorns', 潮だまり: 'puddles', 大瀑布砲: 'torrent',
+    頑固ガード: 'armor', 親分の意地: 'armorBuff', 我慢の壁: 'absorbCounter', 重圧の輪: 'selfRing',
   } as Record<string, string>,
   /** とくべつな動きの数字【仮】。strike: 予告のあと落ちる・立つ攻撃(落雷・光の杭)の威力(強さごと) */
   style: {

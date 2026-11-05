@@ -327,9 +327,10 @@ export interface Field {
   /** ぷにトラップ: はじめて ふんだ時に くっついて 少し動けない */
   stick?: boolean;
   stuck?: boolean;
-  /** 電気の種: ふむと はじける・潮の渦: まん中へ 引きよせる(2026-11-05) */
+  /** 電気の種: ふむと はじける・潮の渦: まん中へ 引きよせる・潮の壁: 弾を 止めて 相手を 押し返す(2026-11-05) */
   mine?: boolean;
   pull?: boolean;
+  wall?: boolean;
 }
 
 export interface Pillar {
@@ -1062,6 +1063,30 @@ function fireSpecial(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tec
     b.shots.push({ id: b.seq, owner: f.side, tech: a.id, x, y: 0.8, z, vx: Math.cos(dir) * sp, vz: Math.sin(dir) * sp, r: tech.size, t: 0, alive: true, ...extra });
   };
   switch (st) {
+    case 'burst3':
+      // 水玉ショット: すばやく 3連射
+      for (let k = 0; k < 3; k++) mk(f.x + Math.cos(a.dir) * 0.9, f.z + Math.sin(a.dir) * 0.9, a.dir + (k - 1) * 0.04, tech.speed * 1.1, { wait: k * 0.12, part: 0.45 });
+      return true;
+    case 'growlPush': {
+      // ドスグロウル: 低く うなって、まわりの 相手を 押しとばす(攻撃ダウン)。浮いている相手には とどかない
+      b.events.push({ kind: 'beastFx', side: f.side, fx: 'growl', mv: 'zap', x: f.x, z: f.z, dir: f.face, hit: false, tech: a.id });
+      if (dist(f, o) < 4.8 && !floating(o) && hit(b, f, o, a.id, o.x, 0.8, o.z, angleTo(f, o), { power: 7, launch: 0 })) {
+        const g = angleTo(f, o);
+        o.kvx = Math.cos(g) * 5 * C.hurt.friction * 0.35;
+        o.kvz = Math.sin(g) * 5 * C.hurt.friction * 0.35;
+        setEffect(b, o, '攻撃ダウン');
+      }
+      return true;
+    }
+    case 'glare': {
+      // 凄みの眼: 前の 相手を にらんで 少し 動けなくする(防御ダウン)
+      b.events.push({ kind: 'beastFx', side: f.side, fx: 'glare', mv: 'zap', x: o.x, z: o.z, dir: f.face, hit: false, tech: a.id });
+      if (dist(f, o) < 7 && Math.abs(angDiff(angleTo(f, o), f.face)) < 0.8 && !isInvincible(b, o) && o.act.k !== 'ko') {
+        if (hit(b, f, o, a.id, o.x, 0.8, o.z, f.face, { power: 3, knock: 0.1, launch: 0, stun: 1 }) && o.act.k === 'hurt') o.act.until = Math.max(o.act.until, 1);
+        setEffect(b, o, '防御ダウン');
+      }
+      return true;
+    }
     case 'lob3':
       // 火岩けり: 燃える岩を 3つ 山なりに
       for (let k = -1; k <= 1; k++) {
@@ -1248,7 +1273,7 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
       shot.life = 3;
       shot.look = 'bubble';
     }
-    if (st0 === 'slowOrb') {
+    if (st0 === 'slowOrb' || st0 === 'smogOrb') {
       shot.vx *= 0.45;
       shot.vz *= 0.45;
       shot.r *= 1.9;
@@ -1304,7 +1329,7 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
       // ほえる: 口もとから声の輪が広がる
       b.roars.push({ owner: f.side, tech: a.id, x: f.x, z: f.z, r: 0.5, hit: false });
       b.events.push({ kind: 'roar', side: f.side, x: f.x, z: f.z });
-    } else if (tech.kind === 'field' && (st === 'fireRing' || st === 'clawLines' || st === 'mines')) {
+    } else if (tech.kind === 'field' && (st === 'fireRing' || st === 'clawLines' || st === 'mines' || st === 'puddles')) {
       // いくつも 置く 場(2026-11-05)
       const until = b.t + (st === 'mines' ? 9 : 5);
       const add = (x: number, z: number, extra: Partial<Field> = {}) => {
@@ -1322,6 +1347,12 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
           const sz = f.z + Math.sin(a.dir) * 0.8 + Math.cos(a.dir) * off;
           const [x2, z2] = clampField(b, sx + Math.cos(a.dir) * 5, sz + Math.sin(a.dir) * 5);
           add(sx, sz, { r: 0.45, shape: 'line', x2, z2, power: 3 });
+        }
+      } else if (st === 'puddles') {
+        // 潮だまり: 相手の まわりに 水たまり 3つ(遅くなる)
+        for (let k = 0; k < 3; k++) {
+          const g = (k * Math.PI * 2) / 3 + b.rng();
+          add(o.x + Math.cos(g) * 1.4, o.z + Math.sin(g) * 1.4, { r: 1.3, effect: '遅くする', power: 1 });
         }
       } else {
         // 電気の種: 相手の ほうへ 3つ まく(ふむと はじける)
@@ -1345,7 +1376,7 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
       const [fx, fz] = clampField(b, self ? f.x : o.x, self ? f.z : o.z);
       const ownField = SELF_FIELD.has(a.id);
       // 十字ワイヤー: 相手の足もとに 十字の光るワイヤー(線の上だけ効く・長い)
-      b.fields.push({ owner: f.side, tech: a.id, x: fx, z: fz, r: tech.size * (st === 'cross' ? 1.5 : 1), until: b.t + C.gfield.time, tick: b.t + C.fieldTick * 0.5, self: ownField, shape: st === 'cross' ? 'cross' : undefined, rot: a.dir, stick: st === 'stickyGoo', pull: st === 'whirlpool' });
+      b.fields.push({ owner: f.side, tech: a.id, x: fx, z: fz, r: tech.size * (st === 'cross' ? 1.5 : st === 'selfRing' ? 1.7 : 1), power: st === 'selfRing' ? 4 : undefined, until: b.t + C.gfield.time, tick: b.t + C.fieldTick * 0.5, self: ownField, shape: st === 'cross' ? 'cross' : undefined, rot: a.dir, stick: st === 'stickyGoo', pull: st === 'whirlpool' });
       b.events.push({ kind: 'field', side: f.side, x: fx, z: fz, r: tech.size, until: b.t + C.gfield.time });
     } else if (tech.kind === 'pillar') {
       // 自分の前の地面を なぐる → 使った時の相手の足もと と、そのまわり3か所から 炎の柱(地面が光ってから出る。よけられる)
@@ -1385,7 +1416,11 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
       // 獣性ブースト: 通常攻撃が 炎に・黒鱗: 歩いたあとに 毒・踏ん張り: ガードの量が もどる・甲羅こもり: しばらく 当たらない・少し 回復
       if (st === 'fireJab') f.fireJabUntil = b.t + tech.duration;
       if (st === 'poisonTrail') f.trailUntil = b.t + tech.duration;
-      if (st === 'refill') f.guardGauge = C.guard.max;
+      if (st === 'refill') {
+        f.guardGauge = C.guard.max;
+        f.armorUntil = b.t + 2;
+        b.events.push({ kind: 'beastFx', side: f.side, fx: 'stomp', mv: 'clawR', x: f.x, z: f.z, dir: f.face, hit: false, tech: a.id });
+      }
       if (st === 'shellHide') {
         f.safeUntil = Math.max(f.safeUntil, b.t + 1.6);
         healMon(b, f, f.maxHp * 0.08, '回復');
@@ -1393,7 +1428,14 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
       b.events.push({ kind: 'buff', side: f.side, what: what === 'both' ? 'atk' : what });
       if (what === 'both') b.events.push({ kind: 'buff', side: f.side, what: 'def' });
     } else if (tech.kind === 'drain') shoot(a.dir);
-    else if (tech.kind === 'barrier' && st === 'armor') {
+    else if (tech.kind === 'barrier' && st === 'waterWall') {
+      // 潮の壁: 前に 水の壁(相手の 弾を 止める・さわると 押し返される)
+      const cx = f.x + Math.cos(a.dir) * 1.8;
+      const cz = f.z + Math.sin(a.dir) * 1.8;
+      const px = -Math.sin(a.dir) * 1.8;
+      const pz = Math.cos(a.dir) * 1.8;
+      b.fields.push({ owner: f.side, tech: a.id, x: cx - px, z: cz - pz, x2: cx + px, z2: cz + pz, r: 0.45, shape: 'line', until: b.t + 3.5, wall: true, power: 0 });
+    } else if (tech.kind === 'barrier' && st === 'armor') {
       // 頑固ガード: ドームは 出さず、体を 固める(当たっても ひるまない・ダメージ 少し へる)
       f.armorUntil = b.t + tech.duration * 1.6;
       b.events.push({ kind: 'buff', side: f.side, what: 'def' });
@@ -1815,6 +1857,21 @@ function guardReact(b: AnimeBattle, o: AnimeMon, from: AnimeMon | null): void {
     return;
   }
   if (st === 'reflect') return;
+  if (st === 'rockBurst') {
+    // 岩鉄ボディ: 受けた力を 地面へ → 自分の まわりに 衝撃波(1回)
+    b.quakes.push({ owner: o.side, tech: 'domeBurst', x: o.x, z: o.z, r: 0.3, hit: false, power: 12 });
+    b.events.push({ kind: 'beastFx', side: o.side, fx: 'stomp', mv: 'clawR', x: o.x, z: o.z, dir: o.face, hit: false, tech: o.barrierTech ?? 'punch' });
+    o.barrierUntil = b.t;
+    return;
+  }
+  if (st === 'thorns') {
+    // 鉄甲羅: トゲの甲羅。近くで 攻撃した相手が いたい(ドームは そのまま)
+    if (from && dist(from, o) < 3 && from.act.k !== 'ko' && b.t >= (o.absorbN ?? 0)) {
+      o.absorbN = b.t + 0.4;
+      hit(b, o, from, o.barrierTech ?? 'klakTrap', (o.x + from.x) / 2, 0.8, (o.z + from.z) / 2, angleTo(o, from), { power: 8, knock: 2.5, launch: 0 });
+    }
+    return;
+  }
   if (st === 'shed' && from) {
     // 鱗の膜: 脱皮して うしろへ にげる(抜け殻が のこる)
     const g = angleTo(from, o);
@@ -2114,6 +2171,10 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
     const pz = s.z;
     s.x += s.vx * dt;
     if (s.grow) s.r += s.grow * dt;
+    if (b.fields.some((fl) => fl.wall && fl.owner !== s.owner && inField(fl, s))) {
+      s.alive = false;
+      b.events.push({ kind: 'explode', x: s.x, y: s.y, z: s.z, tech: s.tech, big: false });
+    }
     s.z += s.vz * dt;
     // 浮いている相手へ 向かう弾は 上へも ねらう(2026-11-05 企画者「浮き上がってる時 技もコンボに繋がるよね？」)
     if (s.vy === undefined && floating(foe) && dist(s, foe) < 8) s.y += clamp(foe.y + 0.7 - s.y, -22 * dt, 22 * dt);
@@ -2237,7 +2298,7 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
       }
     const tgt = b.f[beam.owner === 0 ? 1 : 0];
     if (!beam.hit && onBeam(tgt, C.body.radius) && (tgt.y < 1.5 || floating(tgt))) {
-      if (hit(b, owner, tgt, beam.tech, tgt.x, 0.8, tgt.z, beam.dir)) {
+      if (hit(b, owner, tgt, beam.tech, tgt.x, 0.8, tgt.z, beam.dir, styleOf(beam.tech) === 'torrent' ? { knock: 3.2, launch: 2 } : {})) {
         beam.hit = true;
         b.events.push({ kind: 'explode', x: tgt.x, y: 0.9, z: tgt.z, tech: beam.tech, big: true });
       }
@@ -2319,6 +2380,12 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
       b.events.push({ kind: 'explode', x: fl.x, y: 0.4, z: fl.z, tech: fl.tech, big: false });
       hit(b, b.f[fl.owner], tgt, fl.tech, fl.x, 0.5, fl.z, angleTo(fl, tgt), { power: 9 });
     }
+    // 潮の壁: さわった相手を 押し返す
+    if (fl.wall && inField(fl, tgt) && tgt.act.k !== 'ko') {
+      const g = angleTo(b.f[fl.owner], tgt);
+      tgt.kvx = Math.cos(g) * 2.2 * C.hurt.friction * 0.35;
+      tgt.kvz = Math.sin(g) * 2.2 * C.hurt.friction * 0.35;
+    }
     // 潮の渦: まん中へ 引きよせる
     if (fl.pull && inField(fl, tgt) && tgt.y < 0.5 && tgt.act.k !== 'ko') {
       const g = Math.atan2(fl.z - tgt.z, fl.x - tgt.x);
@@ -2371,6 +2438,13 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
     }
   }
   b.pillars = b.pillars.filter((p) => b.t < p.at + C.pillar.life);
+  // 黒い息: 消えた所に 黒い けむり(中は 遅くなる)
+  for (const s of b.shots)
+    if (!s.alive && styleOf(s.tech) === 'smogOrb') {
+      const [cx, cz] = clampField(b, s.x, s.z);
+      b.fields.push({ owner: s.owner, tech: s.tech, x: cx, z: cz, r: 1.8, until: b.t + 4, tick: b.t + 0.4, effect: '遅くする', power: 1.5 });
+      b.events.push({ kind: 'field', side: s.owner, x: cx, z: cz, r: 1.8, until: b.t + 4 });
+    }
   b.shots = b.shots.filter((s) => s.alive);
 }
 

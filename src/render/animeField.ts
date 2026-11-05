@@ -1224,6 +1224,18 @@ export class AnimeField {
         this.splash(x, y, z);
         this.monSwing(x, z, dir, 'head', 0, y, true, col);
         break;
+      case 'growl':
+        // GRIT ドスグロウル: 低い うなりの 黒い輪が 地面を 広がる
+        this.groundRing(ax, az, 1.2, 0x4a2a6a, 0.5, 3.2);
+        this.groundRing(ax, az, 0.8, 0xd8b070, 0.4, 3.6);
+        this.dust(ax, az, true);
+        this.shake(0.4);
+        break;
+      case 'glare':
+        // GRIT 凄みの眼: 赤い 目の光が 相手へ
+        this.bolt(ax, y + 0.3, az, x, 0.9, z, 0.5, 0.3);
+        this.shockRing(x, 0.9, z, 0xff3030, 1.2);
+        break;
       case 'tongue':
         // SNEK 闇の舌: むらさきの 舌が のびる
         this.monSwing(ax, az, dir, 'head', 0, y, true, 0x9a4aff);
@@ -1644,7 +1656,15 @@ export class AnimeField {
       if (!g) {
         g = new THREE.Group();
         // 炎の爪痕(RIOT)は オレンジの 炎の線(2026-11-05)
-        const col = fl.shape === 'line' ? (getTech(fl.tech).element === '炎' ? 0xff6a1a : 0xffd23a) : 0x80e8ff;
+        const el2 = getTech(fl.tech).element;
+        const col = fl.shape === 'line' ? (el2 === '炎' ? 0xff6a1a : el2 === '水' ? 0x5ac8ff : 0xffd23a) : 0x80e8ff;
+        // 潮の壁: 線から 水しぶきが 立ちのぼる(壁)
+        if (fl.wall && dt > 0 && fl.x2 !== undefined && fl.z2 !== undefined) for (let n = 0; n < 3; n++) {
+          const k = Math.random();
+          const sp = this.sprite(n ? 0x8ad8ff : 0xffffff);
+          sp.position.set(fl.x + (fl.x2 - fl.x) * k, 0.2 + Math.random() * 1.6, fl.z + (fl.z2 - fl.z) * k);
+          this.add(sp, 0.35, -0.3, 0.5, { vy: 2 });
+        }
         const mk = () => {
           const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.7, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
           m.rotation.x = -Math.PI / 2;

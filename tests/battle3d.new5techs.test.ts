@@ -235,4 +235,46 @@ describe('each new move works in its own way', () => {
     giveCommand(b, 0, '間欠泉'); run(b, 50);
     expect(b.pillars.some((p) => p.look === 'water')).toBe(true);
   });
+  it('GRIT (stronger): ドスグロウル pushes the foe away, 凄みの眼 freezes, 岩鉄ボディ sends a shockwave, 黒い息 leaves smoke', () => {
+    let { b, q } = setup('grit', ['ドスグロウル'], 2.5);
+    giveCommand(b, 0, 'ドスグロウル'); run(b, 70);
+    expect(q.x).toBeGreaterThan(3.5);
+    expect(q.atkDownUntil).toBeGreaterThan(0);
+    ({ b, q } = setup('grit', ['凄みの眼'], 4));
+    giveCommand(b, 0, '凄みの眼');
+    let frozen = false;
+    for (let i = 0; i < 60; i++) { run(b, 1); if (q.act.k === 'hurt') frozen = true; }
+    expect(frozen).toBe(true);
+    let p;
+    ({ b, p, q } = setup('grit', ['岩鉄ボディ'], 1.6));
+    giveCommand(b, 0, '岩鉄ボディ'); run(b, 15);
+    for (let i = 0; i < 90 && !b.quakes.length; i++) { if (i % 15 === 0) { q.face = Math.PI; giveCommand(b, 1, 'punch'); } run(b, 1); }
+    expect(b.quakes.some((k) => k.owner === 0)).toBe(true);
+    void p;
+    ({ b } = setup('grit', ['黒い息'], 5));
+    giveCommand(b, 0, '黒い息'); run(b, 150);
+    expect(b.fields.some((f) => f.tech === '黒い息')).toBe(true);
+  });
+  it('SHELLZ (stronger): 水玉ショット fires 3, 潮の壁 stops shots, 鉄甲羅 hurts a close attacker, 潮だまり makes 3 puddles, 大瀑布砲 pushes far', () => {
+    let { b, q } = setup('shellz', ['水玉ショット'], 8);
+    giveCommand(b, 0, '水玉ショット'); run(b, 30);
+    expect(b.shots.filter((s) => s.tech === '水玉ショット').length).toBe(3);
+    let p;
+    ({ b, p, q } = setup('shellz', ['潮の壁'], 8));
+    giveCommand(b, 0, '潮の壁'); run(b, 20);
+    expect(b.fields.some((f) => f.wall)).toBe(true);
+    b.shots.push({ id: 999, owner: 1, tech: 'punchFire', x: 4, y: 0.8, z: 0, vx: -10, vz: 0, r: 0.4, t: 0, alive: true });
+    run(b, 40);
+    expect(p.hp).toBe(p.maxHp);
+    ({ b, p, q } = setup('shellz', ['鉄甲羅'], 1.6));
+    giveCommand(b, 0, '鉄甲羅'); run(b, 15);
+    for (let i = 0; i < 60 && q.hp === q.maxHp; i++) { if (i % 15 === 0) { q.face = Math.PI; giveCommand(b, 1, 'punch'); } run(b, 1); }
+    expect(q.hp).toBeLessThan(q.maxHp);
+    ({ b } = setup('shellz', ['潮だまり'], 4));
+    giveCommand(b, 0, '潮だまり'); run(b, 40);
+    expect(b.fields.filter((f) => f.tech === '潮だまり').length).toBe(3);
+    ({ b, q } = setup('shellz', ['大瀑布砲'], 4));
+    giveCommand(b, 0, '大瀑布砲'); run(b, 150);
+    expect(q.x).toBeGreaterThan(7);
+  });
 });

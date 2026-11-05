@@ -64,7 +64,8 @@ const CSS = `
 .b3d canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 .b3d .top{position:absolute;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top) + 8px) calc(env(safe-area-inset-right) + 10px) 0 calc(env(safe-area-inset-left) + 10px);display:flex;gap:10px;align-items:flex-start;pointer-events:none;z-index:3}
 .b3d .back{pointer-events:auto;background:#16101ccc;border:0;color:#fff;font:900 15px ${UI_FONT};padding:8px 12px;border-radius:10px}
-.b3d .card{flex:0 1 260px;min-width:0;background:#fffffff0;color:#16101c;border-radius:12px;padding:5px 10px 7px;border:3px solid #16101c;box-shadow:0 3px 0 #16101c}
+/* 2026-11-05 企画者「体力の枠と技を出したセリフが被ってる。体力の枠をもう少し上に狭めて」→ 低く 小さく */
+.b3d .card{flex:0 1 250px;min-width:0;background:#fffffff0;color:#16101c;border-radius:10px;padding:2px 8px 3px;border:2px solid #16101c;box-shadow:0 2px 0 #16101c}
 .b3d .card.r{margin-left:auto}
 .b3d .card{position:relative}
 /* コンボの数: HPの下に 小さく(2発目から。じゃまに ならないように すぐ消える。10発から 少し大きく明るく 2026-11-04 企画者) */
@@ -73,13 +74,13 @@ const CSS = `
 .b3d .chit b{font-size:22px;margin-right:3px}
 .b3d .chit.big{color:#ffe14a}
 .b3d .chit.big b{font-size:28px}
-.b3d .name{font-weight:900;font-size:14px;display:flex;justify-content:space-between}
-.b3d .name small{font-size:11px;color:#6a6070}
-.b3d .bar{height:10px;border-radius:5px;background:#3a3040;overflow:hidden;margin-top:3px}
+.b3d .name{font-weight:900;font-size:12px;line-height:1.25;display:flex;justify-content:space-between;align-items:baseline;gap:6px}
+.b3d .name small{font-size:10px;color:#6a6070}
+.b3d .bar{height:8px;border-radius:4px;background:#3a3040;overflow:hidden;margin-top:1px}
 .b3d .bar>i{display:block;height:100%;background:#3ad070;transition:width .25s}
-.b3d .gbar{height:4px;border-radius:2px;background:#2a2838;overflow:hidden;margin-top:2px}
+.b3d .gbar{height:3px;border-radius:2px;background:#2a2838;overflow:hidden;margin-top:1px}
 .b3d .gbar>i{display:block;height:100%;background:#7ad0ff}
-.b3d .num{font-size:11px;font-weight:900;text-align:right;margin-top:1px}
+.b3d .num{font-size:10px;line-height:1.1;font-weight:900;text-align:right;margin-top:0}
 .b3d .timer{font-weight:900;font-size:20px;min-width:36px;text-align:center;text-shadow:0 2px 0 #16101c;padding-top:10px;margin:0 auto}
 /* 技の名前は小さく、上のHPの下へ(試合が見えるように。企画者 2026-11-02) */
 .b3d .cutin{position:absolute;top:calc(env(safe-area-inset-top) + 82px);height:62px;width:min(62%,460px);display:flex;align-items:center;gap:10px;pointer-events:none;z-index:2;opacity:0;background:linear-gradient(90deg,#3a0a6ae6,#a040ffcc 70%,#a040ff00);border-top:3px solid #ffd23a;border-bottom:3px solid #ffd23a;overflow:hidden}
@@ -87,7 +88,7 @@ const CSS = `
 .b3d .cutin.r{right:0;flex-direction:row-reverse;padding-right:env(safe-area-inset-right);clip-path:polygon(12% 0,100% 0,100% 100%,0 100%);background:linear-gradient(270deg,#5a0a1ae6,#ff4a6acc 70%,#ff4a6a00)}
 .b3d .cutin img{height:100%;width:auto;flex:none}
 .b3d .cutin b{font:900 19px ${UI_FONT};color:#fff;-webkit-text-stroke:1px #16101c;text-shadow:0 3px 0 #16101c;white-space:nowrap}
-.b3d .call{position:absolute;top:calc(env(safe-area-inset-top) + 74px);font-weight:900;font-size:15px;white-space:nowrap;padding:4px 12px;border-radius:9px;background:#16101cd0;border:2px solid #fff;opacity:0;pointer-events:none}
+.b3d .call{position:absolute;top:calc(env(safe-area-inset-top) + 80px);font-weight:900;font-size:15px;white-space:nowrap;padding:4px 12px;border-radius:9px;background:#16101cd0;border:2px solid #fff;opacity:0;pointer-events:none}
 .b3d .call.l{left:calc(env(safe-area-inset-left) + 60px)}
 .b3d .call.r{right:calc(env(safe-area-inset-right) + 12px)}
 .b3d .pop{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);font-weight:900;font-size:30px;color:#fff;text-shadow:0 3px 0 #16101c;pointer-events:none;opacity:0;white-space:nowrap}
@@ -759,6 +760,12 @@ export class Battle3DScene extends Phaser.Scene {
         const mofuHit = atk.species === 'mofu' && ht.kind !== 'jab';
         // 新しい5体の技: 自分の光(beastFx)だけ。ほかの技と 同じ 当たりの光は 出さない
         const beastOwn = !!BEAST[e.tech];
+        // GRIT・SHELLZ の技は 重い: 当たると 少し止まって 大きく ゆれる(2026-11-05 企画者「グリットとシェルズがまだ弱い感じ」)
+        if ((atk.species === 'grit' || atk.species === 'shellz') && ht.kind !== 'jab') {
+          this.hitStop = Math.max(this.hitStop, 0.09);
+          F.shake(0.32);
+          F.dust(b.f[e.target].x, b.f[e.target].z, true);
+        }
         if (mofuHit) {
           // MOFU の技が当たった: 綿毛と花びらが はじける(岩・火花は出さない)
           F.cotton(e.x, e.y, e.z, e.big ? 12 : 7, 0.8, 3);
