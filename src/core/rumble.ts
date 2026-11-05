@@ -157,6 +157,19 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
       { who: 'ZIPP', text: '「さあ、追いついてみな！」' },
     ],
   },
+  7: {
+    title: '第7話「罠だらけの遺跡」',
+    lines: [
+      { who: null, text: 'スピード自慢のZIPPを倒し、草原の奥へと進む挑戦者。' },
+      { who: null, text: 'たどり着いたのは、崩れた石柱が立ち並ぶ古い遺跡。' },
+      { who: null, text: 'そのとき、足元から「カチッ」と不気味な音が響いた。' },
+      { who: 'KLAK', text: '「ケケケッ！ 動くんじゃねぇぞ！」' },
+      { who: 'KLAK', text: '「お前、もう俺の罠に囲まれてるぜ！」' },
+      { who: 'KLAK', text: '「ZIPPを倒したんだってな？ でもよぉ……」' },
+      { who: 'KLAK', text: '「速さも力も、頭を使わなきゃ意味ねぇんだよ！」' },
+      { who: 'KLAK', text: '「ケケッ！ さあ、俺の罠を全部かわせるかな？」' },
+    ],
+  },
 };
 
 /** 種族・形態の 名前(rosterData の 表と 同じ) */
