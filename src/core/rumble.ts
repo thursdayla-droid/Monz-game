@@ -201,6 +201,21 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
       { who: 'PUNI', text: '「それじゃあ……いっくよ〜！」' },
     ],
   },
+  10: {
+    title: '第10話「花畑の小さな王者」',
+    lines: [
+      { who: null, text: '9連勝を飾り、ついに草原の最奥へたどり着いた挑戦者。' },
+      { who: null, text: '夕暮れの花畑に、無数の花びらと綿毛が舞っている。' },
+      { who: null, text: 'その中心にある大きな切り株には、小さなMONZが静かに座っていた。' },
+      { who: 'MOFU', text: '「ふふっ……やっと来たんだね。」' },
+      { who: 'MOFU', text: '「キミの噂、風がいっぱい運んできたよ。」' },
+      { who: 'MOFU', text: '「みんな強かったでしょ？」' },
+      { who: 'MOFU', text: '「でもね……強いだけじゃ、王様にはなれないんだよ。」' },
+      { who: 'MOFU', text: '「この草原で、いちばん強いのは誰だと思う？」' },
+      { who: 'MOFU', text: '「ふふっ。ボクが教えてあげる。」' },
+      { who: null, text: 'MOFUが静かに微笑むと、足元のツルが一斉に動き出した！' },
+    ],
+  },
 };
 
 /** 種族・形態の 名前(rosterData の 表と 同じ) */
