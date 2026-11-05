@@ -59,6 +59,7 @@ const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
 
 const CSS = `
 .b3d{position:fixed;inset:0;z-index:50;background:#8ac8f5;font-family:${UI_FONT};color:#fff;user-select:none;-webkit-user-select:none;touch-action:none;overflow:hidden}
+.b3d,.b3d *{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
 .b3d canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 .b3d .top{position:absolute;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top) + 8px) calc(env(safe-area-inset-right) + 10px) 0 calc(env(safe-area-inset-left) + 10px);display:flex;gap:10px;align-items:flex-start;pointer-events:none;z-index:3}
 .b3d .back{pointer-events:auto;background:#16101ccc;border:0;color:#fff;font:900 15px ${UI_FONT};padding:8px 12px;border-radius:10px}
@@ -316,6 +317,8 @@ export class Battle3DScene extends Phaser.Scene {
     );
     document.body.appendChild(root);
     this.root = root;
+    // iPhone で 長く押すと 出る「コピー」などを 出さない(2026-11-05 企画者「触ってると真ん中にコピーとか出てきちゃう」)
+    for (const ev of ['contextmenu', 'selectstart', 'dragstart', 'gesturestart']) root.addEventListener(ev, (e) => e.preventDefault());
     const $ = (s: string) => root.querySelector(s) as HTMLElement;
     const all = (s: string) => [...root.querySelectorAll(s)] as HTMLElement[];
     const btn = {} as Battle3DScene['ui']['btn'];
@@ -622,6 +625,8 @@ export class Battle3DScene extends Phaser.Scene {
     if (this.chargeT <= 0) {
       this.chargeT = 0.05;
       for (const f of b.f) if (f.act.k === 'tech' && f.act.sp === 'charge' && !f.act.fired) this.field.chargeFx(f.x, f.y + 0.7, f.z, !!f.act.full);
+      // カウンターが できる間: 金色の粒
+      for (const f of b.f) if (b.t < f.counterUntil) this.field.chargeFx(f.x, f.y + 0.7, f.z, true);
     }
     this.drawHud();
     if (isPreview()) this.drawFps(real);
@@ -723,6 +728,15 @@ export class Battle3DScene extends Phaser.Scene {
       }
       case 'hit': {
         F.flash(e.target);
+        if (e.counter) {
+          // カウンターが 当たった: 金色の星・止まる・ゆれる・画面が 光る
+          F.monHit(e.x, e.y, e.z, 0, 'head', true);
+          F.shockRing(e.x, e.y, e.z, 0xffd23a, 2.2);
+          this.hitStop = Math.max(this.hitStop, 0.13);
+          F.shake(0.4);
+          this.screenFlash(0.35);
+          audio.se('punchHeavy');
+        }
         const ht = getTech(e.tech);
         const atk = b.f[e.side];
         const hdir = Math.atan2(b.f[e.target].z - atk.z, b.f[e.target].x - atk.x);
@@ -979,6 +993,18 @@ export class Battle3DScene extends Phaser.Scene {
       case 'evaded':
         // 2026-11-04 企画者「避けたとかいらないかな」→ 文字は出さない
         break;
+      case 'counterReady': {
+        // カウンターが できる: 金色の輪と 音(文字は出さない。2026-11-05 コンボ4段め)
+        const cf = b.f[e.side];
+        F.shockRing(cf.x, cf.y + 0.8, cf.z, 0xffd23a, 1);
+        audio.se('select', { pitch: 2 });
+        break;
+      }
+      case 'counter': {
+        const cf = b.f[e.side];
+        F.shockRing(cf.x, cf.y + 0.8, cf.z, 0xffffff, 1.3);
+        break;
+      }
       case 'land': {
         const f = b.f[e.side];
         F.dust(f.x, f.z, e.hard);

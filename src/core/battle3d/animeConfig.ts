@@ -143,6 +143,11 @@ export const ANIME = {
   power: { hold: 0.22, max: 0.8, auto: 1.6, strike: 0.18, follow: 0.24, stepMin: 0.7, stepMax: 1.6, partMin: 1.0, partMax: 1.7, launchMin: 5, launchMax: 8, knock: 1.6 },
   dashAtk: { minSpeed: 0.7, windup: 0.05, strike: 0.26, follow: 0.26, step: 2.2, part: 1.0, knock: 2.6 },
   cancel: { windup: 0.7 },
+  /**
+   * コンボ4段め(2026-11-05 企画者「次に進めて」)【仮】。よけた・ジャンプで かわした(dodge 秒)・ジャストガードした(just 秒)あと すぐ 攻撃すると カウンター:
+   * ためが短い(windup)・ガードできない・ダメージ mul 倍・相手が ひるむ時間 stun 倍
+   */
+  counter: { dodge: 0.9, just: 0.8, windup: 0.6, mul: 1.5, stun: 1.6 },
   powerMoves: {
     bunk: ['punch', 'punch'],
     mofu: ['whip', 'whip'],

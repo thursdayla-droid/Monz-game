@@ -32,7 +32,7 @@ export interface AnimeEntrant {
 
 export type AnimeAct =
   | { k: 'free' }
-  | { k: 'tech'; id: TechId; t: number; dir: number; fired: boolean; hit: boolean; tx: number; tz: number; windup: number; n: number; next: number; charge?: number; len?: number; zig?: number; sx?: number; sz?: number; sp?: 'charge' | 'dash'; mv?: string; tf?: number; full?: boolean }
+  | { k: 'tech'; id: TechId; t: number; dir: number; fired: boolean; hit: boolean; tx: number; tz: number; windup: number; n: number; next: number; charge?: number; len?: number; zig?: number; sx?: number; sz?: number; sp?: 'charge' | 'dash'; mv?: string; tf?: number; full?: boolean; counter?: boolean }
   | { k: 'dodge'; t: number; dx: number; dz: number; jump: boolean }
   /** ガード中(until: CPU が やめる時間。自分で動かす時は ボタンを はなすまで) */
   | { k: 'guard'; t: number; until: number }
@@ -139,6 +139,8 @@ export interface AnimeMon {
   jab: { parts: number[]; range: number; step: number; fire: number; whip?: boolean; dash?: number; water?: number; trap?: number; moves?: string[] };
   /** ZIPP の電撃ダッシュ: こうげきボタンを押している間 true(画面が入れる。AI は使わない) */
   hold?: boolean;
+  /** カウンターが できる 終わりの時刻(よけた・ジャストガードした あと) */
+  counterUntil: number;
   /** 通常攻撃ボタンを 押しつづけている時間(ためる強い1発) */
   holdT?: number;
   /** 受け身の予約(空中で よける を押した) */
@@ -243,6 +245,9 @@ export type AnimeEvent =
   /** ためた強い1発・ダッシュ攻撃を 出した(mv: 動き)・ためが いっぱい・通常攻撃から 技へ つないだ */
   | { kind: 'power'; side: Side; sp: 'charge' | 'dash'; mv: string; c: number }
   | { kind: 'chargeFull'; side: Side }
+  /** カウンターが できる(よけた・ジャストガード)・カウンターを 出した */
+  | { kind: 'counterReady'; side: Side; why: 'dodge' | 'just' }
+  | { kind: 'counter'; side: Side; tech: TechId }
   | { kind: 'cancel'; side: Side; tech: TechId }
   | { kind: 'guardBreak'; side: Side }
   /** ZIPP の電撃ダッシュが出た(c = ためた割合 0〜1) */
@@ -252,7 +257,7 @@ export type AnimeEvent =
   | { kind: 'trapSnap'; side: Side; target: Side; id: number; x: number; z: number }
   /** ZIPP が 連続攻撃で 一瞬で回りこんだ(元の場所 → 新しい場所) */
   | { kind: 'blink'; side: Side; x0: number; z0: number; x: number; z: number }
-  | { kind: 'hit'; side: Side; target: Side; tech: TechId; damage: number; x: number; y: number; z: number; big: boolean; crit?: boolean }
+  | { kind: 'hit'; side: Side; target: Side; tech: TechId; damage: number; x: number; y: number; z: number; big: boolean; crit?: boolean; counter?: boolean }
   | { kind: 'explode'; x: number; y: number; z: number; tech: TechId; big: boolean }
   /** 攻撃が柱・壁に当たった(石のかけら) */
   | { kind: 'wallHit'; x: number; y: number; z: number }
@@ -400,6 +405,7 @@ function newMon(e: AnimeEntrant, side: Side): AnimeMon {
     defDownUntil: 0,
     trapSafeUntil: 0,
     jabChain: 0,
+    counterUntil: 0,
     jabChainUntil: 0,
     comboN: 0,
     comboStart: 0,
@@ -520,7 +526,23 @@ function startTech(b: AnimeBattle, f: AnimeMon, id: TechId, byCommand: boolean, 
     if (last) f.jabChain = 0;
     f.cooldown[id] = last ? b.t + windup + tech.duration + tech.recovery + tech.cooldown : b.t;
   }
+  // カウンター: よけた・ジャストガードした すぐあと(2026-11-05 コンボ4段め)
+  if (b.t < f.counterUntil && f.act.k === 'tech') {
+    f.act.counter = true;
+    f.act.windup *= C.counter.windup;
+    if (f.act.next > 0) f.act.next = f.act.windup + (f.act.next - f.act.windup / C.counter.windup);
+    f.counterUntil = 0;
+    b.events.push({ kind: 'counter', side: f.side, tech: id });
+  }
   b.events.push({ kind: 'call', side: f.side, tech: id, byCommand });
+}
+
+/** 攻撃を かわした(よけた・ジャンプで こえた): すぐ攻撃すると カウンター */
+function evaded(b: AnimeBattle, o: AnimeMon): void {
+  b.events.push({ kind: 'evaded', side: o.side });
+  if (o.act.k === 'ko') return;
+  if (b.t >= o.counterUntil) b.events.push({ kind: 'counterReady', side: o.side, why: 'dodge' });
+  o.counterUntil = b.t + C.counter.dodge;
 }
 
 function startDodge(b: AnimeBattle, f: AnimeMon, jump: boolean): void {
@@ -1501,15 +1523,20 @@ function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y:
     return false;
   }
   if (o.act.k === 'dodge' && o.act.t < C.dodge.invincible) {
-    b.events.push({ kind: 'evaded', side: o.side });
+    evaded(b, o);
     return false;
   }
+  // カウンター(よけた・ジャストガードの あとの 攻撃)は ガードできない
+  const counter = f.act.k === 'tech' && !!f.act.counter && f.act.id === id;
+  if (counter && f.act.k === 'tech') f.act.counter = false;
   // ガード: ジャストガード(始めてすぐ)は ダメージなしで すぐ動ける。ふつうは 少しだけ ダメージ・量がへる
-  const guarded = o.act.k === 'guard' && !opt.unblockable && !UNBLOCKABLE.has(styleOf(id) ?? '');
+  const guarded = o.act.k === 'guard' && !opt.unblockable && !counter && !UNBLOCKABLE.has(styleOf(id) ?? '');
   if (guarded && o.act.k === 'guard' && o.act.t < C.guard.just) {
     o.act = { k: 'free' };
     o.safeUntil = b.t + 0.15;
     b.events.push({ kind: 'guardHit', side: o.side, x, y, z, damage: 0, just: true });
+    b.events.push({ kind: 'counterReady', side: o.side, why: 'just' });
+    o.counterUntil = b.t + C.counter.just;
     return false;
   }
   const tech = getTech(id);
@@ -1525,6 +1552,7 @@ function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y:
   // 強化(攻撃アップ・守りアップ)と、自分の場(千花天幕)の中
   const up = (b.t < f.atkUpUntil ? 1 + f.atkUp : 1) * (b.t < o.defUpUntil ? 1 - o.defUp : 1) * (b.fields.some((fl) => fl.self && fl.owner === o.side && dist(fl, o) < fl.r) ? C.selfField.guard : 1);
   let dmg = Math.max(1, Math.round(up * down * (crit ? C.stat.critMul : 1) * (opt.power ?? tech.power) * part * (part < 1 ? C.combo.bonus : 1) * (1 + f.stats.power / C.stat.powerDiv) * (C.stat.toughDiv / (C.stat.toughDiv + o.stats.tough)) * (0.9 + b.rng() * 0.2)));
+  if (counter) dmg = Math.round(dmg * C.counter.mul);
   // コンボの数: やられている間(ふっとび中も)に 続けて当たると 数える。長いほど 1発が弱くなる(2026-11-04 企画者)
   const inCombo = (o.act.k === 'hurt' || o.act.k === 'air') && b.t - o.comboLast < C.chain.reset;
   const comboN = guarded ? 0 : inCombo ? o.comboN + 1 : 1;
@@ -1563,7 +1591,7 @@ function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y:
   o.command = null;
   o.face = angleTo(o, f);
   const big = launch > 0 && finish && !wasAsleep;
-  b.events.push({ kind: 'hit', side: f.side, target: o.side, tech: id, damage: dmg, x, y, z, big, crit });
+  b.events.push({ kind: 'hit', side: f.side, target: o.side, tech: id, damage: dmg, x, y, z, big, crit, counter });
   if (o.hp <= 0) {
     o.act = { k: 'ko', t: 0 };
     o.vy = Math.max(o.vy, 6);
@@ -1585,7 +1613,7 @@ function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y:
   } else {
     // 長いコンボほど ひるむ時間が短い(ぬけやすい)
     const decay = Math.max(C.chain.stunMin, 1 - C.chain.stunStep * Math.max(0, comboN - 7));
-    o.act = { k: 'hurt', t: 0, until: sleep ? C.sleep.time : (finish ? C.hurt.stun : opt.stun ?? C.combo.stun) * decay };
+    o.act = { k: 'hurt', t: 0, until: sleep ? C.sleep.time : (finish ? C.hurt.stun : opt.stun ?? C.combo.stun) * decay * (counter ? C.counter.stun : 1) };
   }
   if (comboN >= 2) b.events.push({ kind: 'combo', side: f.side, n: comboN });
   // 長すぎるコンボは 必ず ぬけられる(少しのあいだ 当たらない)
@@ -1775,7 +1803,7 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
     if (!q.hit && d >= prev - C.body.radius && d <= q.r + C.body.radius) {
       // 柱のうしろにいれば、衝撃波は当たらない
       if (!los(b, q, tgt, 0.3)) q.hit = true;
-      else if (tgt.y > 0.5) b.events.push({ kind: 'evaded', side: tgt.side });
+      else if (tgt.y > 0.5) evaded(b, tgt);
       else if (hit(b, b.f[q.owner], tgt, q.tech, tgt.x, 0.4, tgt.z, angleTo(q, tgt), q.power ? { power: q.power } : {})) b.events.push({ kind: 'explode', x: tgt.x, y: 0.4, z: tgt.z, tech: q.tech, big: true });
       q.hit = true;
     }
@@ -1791,7 +1819,7 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
       q.hit = true;
       if (!los(b, q, tgt, 0.9)) {
         // 柱のうしろ: 声はとどかない
-      } else if (tgt.act.k === 'dodge' && tgt.act.t < C.dodge.invincible) b.events.push({ kind: 'evaded', side: tgt.side });
+      } else if (tgt.act.k === 'dodge' && tgt.act.t < C.dodge.invincible) evaded(b, tgt);
       else if (tgt.act.k !== 'ko') {
         // 弱体の効果は技の表の追加効果(攻撃ダウン・ねむり・遅くする)
         const eff = getTech(q.tech).effect;

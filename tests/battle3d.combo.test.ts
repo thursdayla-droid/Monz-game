@@ -176,3 +176,43 @@ it('a tech pressed right after a normal hit cancels the recovery (faster wind-up
   expect(ev.some((x) => x.kind === 'cancel')).toBe(true);
   expect(p.act.k === 'tech' && p.act.id).toBe('バンクバッシュ');
 });
+
+// コンボ4段め(2026-11-05): よけた・ジャストガードの あとの カウンター
+it('dodging an attack opens a counter: the next attack is unblockable and stronger', () => {
+  const b = newAnimeBattle(e(), e(), 1, 'manual');
+  const [p, q] = setup(b);
+  // 相手の パンチを よける
+  q.pad = { x: 0, z: 0 };
+  q.face = Math.PI;
+  giveCommand(b, 1, 'punch');
+  p.act = { k: 'dodge', t: 0, dx: 0, dz: 1, jump: false };
+  const ev = run(b, 6, 0);
+  expect(ev.some((x) => x.kind === 'evaded')).toBe(true);
+  expect(ev.some((x) => x.kind === 'counterReady')).toBe(true);
+  expect(p.counterUntil).toBeGreaterThan(b.t);
+  // 相手が ガードしていても 当たる
+  run(b, 20, 0);
+  p.x = 0; p.z = 0; q.x = 1.6; q.z = 0; p.face = 0;
+  q.act = { k: 'guard', t: 1, until: 99 };
+  giveCommand(b, 0, 'punch');
+  const ev2 = run(b, 15, 0);
+  expect(ev2.some((x) => x.kind === 'counter')).toBe(true);
+  expect(ev2.some((x) => x.kind === 'hit' && x.counter)).toBe(true);
+  expect(ev2.some((x) => x.kind === 'guardHit')).toBe(false);
+});
+
+it('a just guard also opens a counter; it closes after a short time', () => {
+  const b = newAnimeBattle(e(), e(), 1, 'manual');
+  const [p, q] = setup(b);
+  q.pad = { x: 0, z: 0 };
+  q.face = Math.PI;
+  p.act = { k: 'guard', t: 0, until: 99 };
+  giveCommand(b, 1, 'punch');
+  const ev = run(b, 8, 0);
+  expect(ev.some((x) => x.kind === 'guardHit' && x.just)).toBe(true);
+  expect(ev.some((x) => x.kind === 'counterReady' && x.why === 'just')).toBe(true);
+  run(b, 70, 0);
+  expect(p.counterUntil).toBeLessThan(b.t);
+  giveCommand(b, 0, 'punch');
+  expect(run(b, 10, 0).some((x) => x.kind === 'counter')).toBe(false);
+});
