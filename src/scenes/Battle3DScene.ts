@@ -8,7 +8,7 @@ import { formAt, growTechs, SLOT_LEVELS, slotsAt } from '../core/battle3d/techLe
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { addStats, autoGrowthAt, speciesStats, type StatKey } from '../core/stats';
 import { instinctFor } from '../core/autobattle/engine';
-import { animeFinished, commandState, giveCommand, newAnimeBattle, stepAnime, type AnimeBattle, type AnimeEntrant, type AnimeEvent, type Command } from '../core/battle3d/anime';
+import { animeFinished, canChase, commandState, giveCommand, newAnimeBattle, stepAnime, type AnimeBattle, type AnimeEntrant, type AnimeEvent, type Command } from '../core/battle3d/anime';
 import { AnimeField, ELEMENT_HEX } from '../render/animeField';
 import { modelFor } from '../core/roster';
 import { UI_FONT } from '../ui/paint';
@@ -121,6 +121,10 @@ const CSS = `
 .b3d .pad .dodge,.b3d .pad .jump,.b3d .pad .atk{width:54px;height:54px;border-radius:50%;background:#16101c;color:#fff;border-color:#fff;font-size:11px}
 .b3d .pad .jump{background:#2a6ad8}
 .b3d .pad .atk{background:#d8402a;width:60px;height:60px}
+/* 追い打ちが できる時: こうげきボタンが 金色に光る(2026-11-05 企画者「追い打ちよく分からなかった」) */
+.b3d .pad .atk.chase{background:#ffb81f;color:#16101c;box-shadow:0 0 0 4px #ffe14a,0 0 18px 6px #ffd23acc;animation:b3dChase .3s ease-in-out infinite alternate}
+.b3d .pad .atk.chase .cd{height:0!important}
+@keyframes b3dChase{from{transform:scale(1)}to{transform:scale(1.12)}}
 .b3d .setup{position:absolute;inset:0;background:#0d0614e8;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top) + 10px) calc(env(safe-area-inset-right) + 16px) calc(env(safe-area-inset-bottom) + 10px) calc(env(safe-area-inset-left) + 16px);gap:8px;z-index:6}
 .b3d .setup h2{margin:0 0 0 70px;font-size:20px;color:#ffd23a}
 .b3d .setup .row{display:flex;gap:12px;flex:1;min-height:0}
@@ -1167,6 +1171,13 @@ export class Battle3DScene extends Phaser.Scene {
       btn.el.classList.toggle('cool', s === 'cooldown' && c !== 'dodge');
       const total = c === 'dodge' ? ANIME.dodge.cooldown : c === 'jump' ? ANIME.jump.cooldown : getTech(c).cooldown;
       btn.cd.style.height = `${s === 'cooldown' ? (Math.max(0, me.cooldown[c] - b.t) / total) * 100 : 0}%`;
+    }
+    // 追い打ちが できる: こうげきボタンを 金色に
+    const chase = this.control === 'manual' && canChase(b, me);
+    const ab = this.ui.btn.punch?.el;
+    if (ab) {
+      ab.classList.toggle('chase', chase);
+      if (chase) ab.classList.remove('cool');
     }
   }
 

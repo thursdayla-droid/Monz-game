@@ -247,3 +247,27 @@ it('the last hit of a long normal chain is a finisher that launches', () => {
   expect(ev.some((x) => x.kind === 'finish')).toBe(true);
   expect(ev.some((x) => x.kind === 'hit' && x.big)).toBe(true);
 });
+
+it('right after a charged launch, the attack button works at once (no waiting) and jumps for the follow-up', () => {
+  for (const sp of ['bunk', 'riot', 'shellz']) {
+    const b = newAnimeBattle(e(sp), e(), 1, 'manual');
+    const [p, q] = setup(b, 2.2);
+    hold(b, 60);
+    // はなして 強い1発 → ふっとぶまで
+    let ev: AnimeBattle['events'] = [];
+    for (let i = 0; i < 40 && q.act.k !== 'air'; i++) { b.events = []; stepAnime(b, ANIME.dt); ev.push(...b.events); }
+    expect(q.act.k, sp).toBe('air');
+    // すぐ 押す(待ち時間の間でも)
+    let chased = false;
+    ev = [];
+    for (let i = 0; i < 90; i++) {
+      if (i % 10 === 0) expect(i > 0 || giveCommand(b, 0, 'punch'), sp).toBe(true);
+      if (i % 10 === 0 && i > 0) giveCommand(b, 0, 'punch');
+      b.events = []; stepAnime(b, ANIME.dt); ev.push(...b.events);
+      if (b.events.some((x) => x.kind === 'power' && x.sp === 'air')) chased = true;
+    }
+    expect(chased, sp).toBe(true);
+    expect(ev.filter((x) => x.kind === 'hit').length, sp).toBeGreaterThanOrEqual(2);
+    void p;
+  }
+});

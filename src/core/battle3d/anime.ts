@@ -139,8 +139,9 @@ export interface AnimeMon {
   jab: { parts: number[]; range: number; step: number; fire: number; whip?: boolean; dash?: number; water?: number; trap?: number; moves?: string[] };
   /** ZIPP の電撃ダッシュ: こうげきボタンを押している間 true(画面が入れる。AI は使わない) */
   hold?: boolean;
-  /** 空中で 追い打ちを 受けた数(着地で 0) */
+  /** 空中で 追い打ちを 受けた数(着地で 0)・ふわっと ゆっくり落ちる 終わり */
   juggleN: number;
+  floatUntil: number;
   /** カウンターが できる 終わりの時刻(よけた・ジャストガードした あと) */
   counterUntil: number;
   /** 通常攻撃ボタンを 押しつづけている時間(ためる強い1発) */
@@ -412,6 +413,7 @@ function newMon(e: AnimeEntrant, side: Side): AnimeMon {
     jabChain: 0,
     counterUntil: 0,
     juggleN: 0,
+    floatUntil: 0,
     jabChainUntil: 0,
     comboN: 0,
     comboStart: 0,
@@ -471,7 +473,7 @@ export function commandState(b: AnimeBattle, side: Side, cmd: Command): 'ready' 
 export function giveCommand(b: AnimeBattle, side: Side, cmd: Command): boolean {
   const f = b.f[side];
   if (b.winner !== null || f.act.k === 'ko') return false;
-  if ((f.cooldown[cmd] ?? Infinity) > b.t) return false;
+  if ((f.cooldown[cmd] ?? Infinity) > b.t && !(cmd === 'punch' && canChase(b, f))) return false;
   // 自分で動かしている時: やられている・ふっとんでいる・たおれている間は、ボタンを予約しない(よける = 受け身 だけは受けつける)
   // 2026-11-02 企画者「倒れている時の予約ボタンいらない」
   if (f.pad && (f.act.k === 'hurt' || f.act.k === 'air' || f.act.k === 'down') && cmd !== 'dodge') return false;
@@ -512,7 +514,7 @@ function startTech(b: AnimeBattle, f: AnimeMon, id: TechId, byCommand: boolean, 
     f.act.n = ci;
     const pm = C.powerMoves[f.species];
     // ふっとんで 空中にいる相手の 近く: とび上がって 追い打ち(2026-11-05 コンボ5段め)
-    if (pm && f.y <= 0 && o.act.k === 'air' && o.y > C.juggle.minY && dist(f, o) < C.juggle.range && o.juggleN < C.juggle.max) {
+    if (pm && f.y <= 0 && canChase(b, f)) {
       const J = C.juggle;
       f.act.sp = 'air';
       f.act.mv = f.jab.moves?.[0] === 'bite' || f.species === 'riot' ? 'bite' : C.powerMoves[f.species][1];
@@ -1695,6 +1697,8 @@ function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y:
   // 追加効果(ふらつき・まひ・やけど・どく・ねむり。こおりは【未実装】)
   let sleep = false;
   if (finish && tech.effect !== 'なし' && b.rng() < EFFECT_CHANCE[tech.strength] + Math.min(0.25, f.stats.tech / C.stat.techEffectDiv)) sleep = setEffect(b, o, tech.effect, big);
+  // ふっとばした(しめ・ためた1発)・追い打ち: しばらく ふわっと ゆっくり落ちる(追い打ちしやすく)
+  if (opt.launch !== undefined || opt.juggle) o.floatUntil = b.t + C.juggle.floatTime;
   if (opt.juggle && (o.act.k === 'air' || o.y > 0.3)) {
     // 空中の 追い打ち: 少し 浮く(ふっとんだ まま)
     o.vy = Math.max(o.vy, C.juggle.pop);
@@ -1711,13 +1715,7 @@ function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y:
   }
   if (comboN >= 2) b.events.push({ kind: 'combo', side: f.side, n: comboN });
   // 長すぎるコンボは 必ず ぬけられる(少しのあいだ 当たらない)
-  if (comboN >= C.chain.breakHits || (comboN >= 2 && b.t - o.comboStart > C.chain.breakTime)) {
-    o.safeUntil = Math.max(o.safeUntil, b.t + C.chain.breakSafe);
-    if (o.act.k === 'hurt') o.act.until = Math.min(o.act.until, 0.2);
-    o.comboN = 0;
-    o.comboLast = -99;
-    b.events.push({ kind: 'comboBreak', side: o.side });
-  }
+  if (comboN >= C.chain.breakHits) breakCombo(b, o);
   return true;
 }
 
@@ -2266,7 +2264,7 @@ function updateMon(b: AnimeBattle, f: AnimeMon, dt: number): void {
   const a = f.act;
   f.speed = 0;
   if (f.y > 0 || f.vy > 0) {
-    f.vy -= C.gravity * dt;
+    f.vy -= C.gravity * dt * (a.k === 'air' && b.t < f.floatUntil && f.vy > C.juggle.spike * 0.5 ? C.juggle.float : 1);
     f.y += f.vy * dt;
     if (f.y <= 0) {
       f.y = 0;
@@ -2357,6 +2355,16 @@ function updateMon(b: AnimeBattle, f: AnimeMon, dt: number): void {
     } else f.ukemi = true;
   }
   f.holdT = f.hold ? (f.holdT ?? 0) + dt : 0;
+  // 長く続いた コンボ(時間)は 当たって いなくても ぬける
+  if (f.comboN >= 2 && (f.act.k === 'hurt' || f.act.k === 'air') && b.t - f.comboStart > C.chain.breakTime && b.t - f.comboLast < C.chain.reset) breakCombo(b, f);
+  // 空中の 追い打ち: ふっとばした あとの すき・待ち時間の間でも すぐ とび上がる
+  if (f.command?.cmd === 'punch' && f.y <= 0 && canChase(b, f) && (f.act.k === 'free' || (f.act.k === 'tech' && f.act.id === 'punch' && f.act.hit && f.act.sp !== 'air'))) {
+    f.command = null;
+    f.act = { k: 'free' };
+    f.cooldown.punch = 0;
+    startTech(b, f, 'punch', true);
+    b.events.push({ kind: 'command', side: f.side, cmd: 'punch', state: 'done' });
+  }
   // 通常攻撃が 当たった あと(すきの間)に 技を押すと、すぐ 技が出る(ためも 短い。2026-11-05 コンボ3段め)
   if (f.command && f.act.k === 'tech' && f.act.id === 'punch' && f.act.hit && f.y <= 0 && !NOT_TECH.has(f.command.cmd) && (f.cooldown[f.command.cmd] ?? 0) <= b.t) {
     const c = f.command.cmd as TechId;
@@ -2423,6 +2431,29 @@ function updateMon(b: AnimeBattle, f: AnimeMon, dt: number): void {
     if (f.act.k !== 'free') return;
   }
   walk(b, f, dt);
+}
+
+/** 空中の 追い打ちが できるか(ふっとんで 空中にいる相手が 近い) */
+export function canChase(b: AnimeBattle, f: AnimeMon): boolean {
+  const o = other(b, f);
+  if (!C.powerMoves[f.species] || !f.jab.parts.length || f.jab.dash || f.jab.water || f.jab.trap) return false;
+  if (f.act.k === 'hurt' || f.act.k === 'air' || f.act.k === 'down' || f.act.k === 'ko' || f.act.k === 'dodge' || f.act.k === 'guard') return false;
+  // 上へ ふっとび始めた 瞬間(まだ 低い)でも できる
+  return o.act.k === 'air' && (o.y > C.juggle.minY || o.vy > 1) && dist(f, o) < C.juggle.range && o.juggleN < C.juggle.max;
+}
+
+/** コンボから ぬける: 少しのあいだ 当たらない・空中なら すぐ 落ちて 受け身(2026-11-05 長い 追い打ちでも 3秒より 短く) */
+function breakCombo(b: AnimeBattle, o: AnimeMon): void {
+  o.safeUntil = Math.max(o.safeUntil, b.t + C.chain.breakSafe);
+  if (o.act.k === 'hurt') o.act.until = Math.min(o.act.until, o.act.t + 0.2);
+  o.floatUntil = 0;
+  if (o.act.k === 'air') {
+    o.ukemi = true;
+    o.vy = Math.min(o.vy, -5);
+  }
+  o.comboN = 0;
+  o.comboLast = -99;
+  b.events.push({ kind: 'comboBreak', side: o.side });
 }
 
 /** 技ではない指示 */

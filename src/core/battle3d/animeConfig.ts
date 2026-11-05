@@ -57,7 +57,7 @@ export const ANIME = {
    * breakHits / breakTime: これより 多い・長い コンボは 相手が かならず ぬけられる(少しのあいだ 当たらない)・
    * reset: これだけ 当たらなければ コンボは 切れる
    */
-  chain: { press: 0.5, buffer: 0.4, gap: 0.04, scaleStep: 0.07, scaleMin: 0.4, stunStep: 0.04, stunMin: 0.5, breakHits: 16, breakTime: 5, breakSafe: 0.8, reset: 1.2 },
+  chain: { press: 0.5, buffer: 0.4, gap: 0.04, scaleStep: 0.07, scaleMin: 0.4, stunStep: 0.04, stunMin: 0.5, breakHits: 16, breakTime: 2.3, breakSafe: 0.8, reset: 1.2 },
   barrage: { count: 3, gap: 0.15 },
   /**
    * 【案・未承認】弱体(ほえる)・設置(重力の場)の数字(2026-11-02 BUNK 追加6技。企画者の承認前なので仮)
@@ -140,7 +140,7 @@ export const ANIME = {
    * cancel: 通常攻撃が 当たった あと すぐ 技を押すと、すきなく 技が出る(windup: ためが この割合に 短くなる)
    * moves: 種族ごとの 強い1発・ダッシュ攻撃の 動き([ためた1発, ダッシュ])
    */
-  power: { hold: 0.22, max: 0.8, auto: 1.6, strike: 0.18, follow: 0.24, stepMin: 0.7, stepMax: 1.6, partMin: 1.0, partMax: 1.7, launchMin: 5, launchMax: 8, knock: 1.6 },
+  power: { hold: 0.22, max: 0.8, auto: 1.6, strike: 0.18, follow: 0.24, stepMin: 0.7, stepMax: 1.6, partMin: 1.0, partMax: 1.7, launchMin: 5, launchMax: 8, knock: 1.1 },
   dashAtk: { minSpeed: 0.7, windup: 0.05, strike: 0.26, follow: 0.26, step: 2.2, part: 1.0, knock: 2.6 },
   cancel: { windup: 0.7 },
   /**
@@ -154,8 +154,9 @@ export const ANIME = {
    *   strike: とび上がって 当たるまでの 時間の めやす・follow: 当てた あと・part: 強さ
    * finish: コンボ(minCombo 発め 以上)の さいごの1発は しめ: 大きく ふっとばす(launch・knock)・少し強い(part)
    */
-  juggle: { range: 4.5, minY: 0.5, windup: 0.04, strike: 0.32, follow: 0.3, part: 0.9, pop: 4.5, max: 3, spike: -14 },
-  finish: { minCombo: 4, launch: 6.5, knock: 2.4, part: 1.25 },
+  // 2026-11-05 企画者「追い打ちよく分からなかった・できない」→ 待ち時間の間でも 押せる・ふっとんだ相手は ふわっと ゆっくり落ちる(float 倍の重さ・floatTime 秒)・こうげきボタンが 金色に光る
+  juggle: { range: 6, minY: 0.35, windup: 0.04, strike: 0.32, follow: 0.3, part: 0.9, pop: 4.5, max: 3, spike: -14, float: 0.45, floatTime: 1.3 },
+  finish: { minCombo: 4, launch: 6.5, knock: 1.3, part: 1.25 },
   powerMoves: {
     bunk: ['punch', 'punch'],
     mofu: ['whip', 'whip'],
