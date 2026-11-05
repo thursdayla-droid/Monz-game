@@ -129,10 +129,11 @@ export const BEAST: Record<string, BeastStep[]> = {
     { mv: 'tail', t: 0.3, spin: true, hit: { at: 0.5, r: 2.2, arc: 3.2, part: 0.3 }, fx: 'sparkRing' },
     { mv: 'clawL', t: 0.3, jump: 5, hit: { at: 0.4, r: 1.9, arc: 1.2, part: 0.45, launch: 7.5 }, fx: 'sparkUp' },
   ],
+  // 2026-11-05 企画者「サンダークロスもう少し前に3回出て攻撃しよう」→ 前へ 3回 とびこんで 交差する 爪(さいごは 電気の 切り上げ)
   サンダークロス: [
-    { mv: 'clawR', t: 0.16, go: 0.6, hit: { at: 0.6, r: 1.7, arc: 1, part: 0.3 }, fx: 'cross' },
-    { mv: 'clawL', t: 0.16, go: 0.2, hit: { at: 0.6, r: 1.7, arc: 1, part: 0.3 }, fx: 'cross' },
-    { mv: 'zap', t: 0.32, hit: { at: 0.4, r: 2, arc: 1.2, part: 0.4, launch: 7 }, fx: 'sparkUp' },
+    { mv: 'clawR', t: 0.2, go: 1.6, hit: { at: 0.7, r: 1.8, arc: 1.1, part: 0.3 }, fx: 'cross' },
+    { mv: 'clawL', t: 0.2, go: 1.6, hit: { at: 0.7, r: 1.8, arc: 1.1, part: 0.3 }, fx: 'cross' },
+    { mv: 'clawR', t: 0.3, go: 1.6, hit: { at: 0.6, r: 2, arc: 1.2, part: 0.4, launch: 7 }, fx: 'sparkUp' },
   ],
   // ---------------- SHELLZ(水・無。甲羅で守り、水で 距離をとる 亀。GRIT = 近くで 受け止めて 反撃) ----------------
   甲羅ドン: [{ mv: 'shell', t: 0.36, side: 0.6, spin: true, hit: { at: 0.5, r: 2, arc: 3.2, part: 1, knock: 1.6 }, fx: 'shellRing' }],

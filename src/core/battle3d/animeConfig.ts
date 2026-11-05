@@ -109,9 +109,10 @@ export const ANIME = {
       { moves: ['head', 'shoulder', 'bite'], parts: [0.7, 0.85, 1.25], range: 1.35 },
     ],
     vybe: [
-      { moves: ['clawR', 'clawL', 'clawR', 'clawL', 'zap'], parts: [0.18, 0.18, 0.18, 0.2, 0.3], range: 1.5 },
-      { moves: ['clawR', 'clawL', 'clawR', 'clawL', 'zap', 'zap'], parts: [0.18, 0.18, 0.18, 0.18, 0.22, 0.34], range: 1.6 },
-      { moves: ['clawR', 'clawL', 'clawR', 'clawL', 'zap', 'clawR', 'zap'], parts: [0.18, 0.18, 0.18, 0.18, 0.22, 0.22, 0.4], range: 1.7 },
+      // 2026-11-05 企画者「ヴァイブの通常攻撃コンボずっとモーション一緒だから変えてほしい」→ 爪・かみつき・爪・しっぽで回る・(爪・頭突き)・電気 と 1発ごとに ちがう動き
+      { moves: ['clawR', 'bite', 'clawL', 'tail', 'zap'], parts: [0.18, 0.18, 0.18, 0.2, 0.3], range: 1.5 },
+      { moves: ['clawR', 'bite', 'clawL', 'tail', 'clawR', 'zap'], parts: [0.18, 0.18, 0.18, 0.18, 0.22, 0.34], range: 1.6 },
+      { moves: ['clawR', 'bite', 'clawL', 'tail', 'clawR', 'head', 'zap'], parts: [0.18, 0.18, 0.18, 0.18, 0.22, 0.22, 0.4], range: 1.7 },
     ],
     shellz: [
       { moves: ['head', 'shell'], parts: [0.45, 0.6], range: 1.5 },
