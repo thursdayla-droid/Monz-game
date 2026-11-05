@@ -96,6 +96,8 @@ export interface TableTech extends Tech {
 const CD_MUL: Record<string, number> = {
   // 2026-11-05 企画者「シェルズ甲羅タイフーンもう少しクールタイムあっていい。強すぎる」
   甲羅タイフーン: 1.8,
+  // 2026-11-05 企画者「スネーク螺旋牙のクールタイムも長くして」
+  螺旋牙: 1.8,
 };
 
 export function buildTech(row: TechRow): TableTech {
