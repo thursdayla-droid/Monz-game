@@ -187,7 +187,7 @@ export const ANIME = {
     hold: 1.6,
     speed: 26,
     recover: 0.22,
-    cool: 0.45,
+    cool: 0, // 2026-11-05 企画者「ジップの攻撃もクールタイムいらない」(前は 0.45秒)
     byForm: [
       { min: 2.5, max: 6, p0: 1.0, p1: 1.6 },
       { min: 3, max: 7.5, p0: 1.25, p1: 2.0 },

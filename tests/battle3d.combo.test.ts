@@ -284,3 +284,14 @@ it('a guard dome can be cancelled midway with dodge (2026-11-05)', () => {
   expect(p.act.k).toBe('dodge');
   expect(p.barrierUntil).toBeLessThanOrEqual(b.t);
 });
+
+it('ZIPP electric dash has no wait afterwards (2026-11-05)', () => {
+  const b = newAnimeBattle(e('zipp'), e(), 1, 'manual');
+  const [p] = setup(b, 5);
+  giveCommand(b, 0, 'punch');
+  let used = false;
+  for (let i = 0; i < 200; i++) { stepAnime(b, ANIME.dt); if (p.act.k === 'tech') used = true; if (used && p.act.k === 'free') break; }
+  expect(used).toBe(true);
+  expect(p.act.k).toBe('free');
+  expect(giveCommand(b, 0, 'punch')).toBe(true);
+});
