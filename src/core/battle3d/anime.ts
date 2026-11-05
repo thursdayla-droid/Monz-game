@@ -151,6 +151,8 @@ export interface AnimeMon {
   floatUntil: number;
   spiked?: boolean;
   airHitT?: number;
+  /** CPU の 通常攻撃を 考える 時間 */
+  cpuJabT?: number;
   /** カウンターが できる 終わりの時刻(よけた・ジャストガードした あと) */
   counterUntil: number;
   /** 通常攻撃ボタンを 押しつづけている時間(ためる強い1発) */
@@ -2689,6 +2691,25 @@ function watchDanger(b: AnimeBattle, f: AnimeMon): void {
   else f.cooldown.dodge = b.t + 0.5;
 }
 
+/** 新しい5体の 技(1歩ずつの動き)が 届く 長さ(前へ 進む分 + 当たる 広さ)。とび かかる・回りこむ 技は 遠くまで */
+const reachCache = new Map<string, number>();
+function beastReach(id: TechId): number {
+  const c = reachCache.get(id);
+  if (c !== undefined) return c;
+  let go = 0;
+  let best = 0;
+  for (const s of BEAST[id] ?? []) {
+    if (s.pounce || s.behind || s.orbit) go += 8;
+    else if ((s.go ?? 0) > 0) go += s.go!;
+    const h = s.hit;
+    if (h) best = Math.max(best, go + (h.line ?? (h.cx ?? 0) + h.r) + (h.arc !== undefined && h.arc >= 3 ? 0 : 0));
+  }
+  // 当たりの ない 技(守り・場・強化)は 届く長さで 決めない
+  const r = best || Infinity;
+  reachCache.set(id, r);
+  return r;
+}
+
 function chooseTech(b: AnimeBattle, f: AnimeMon): TechId | null {
   const o = other(b, f);
   const d = dist(f, o);
@@ -2711,6 +2732,8 @@ function chooseTech(b: AnimeBattle, f: AnimeMon): TechId | null {
     else if (t.kind === 'heal') x = f.hp < f.maxHp * 0.6 && f.healed < f.maxHp * C.heal.cap ? 1.6 + f.instinct.survival : 0.02;
     else if (t.kind === 'buff') x = b.t < f.atkUpUntil || b.t < f.defUpUntil ? 0.03 : 0.7;
     else if (t.kind === 'drain') x = d < t.range * 1.3 ? 1 + f.instinct.attack * 0.5 : 0.3;
+    // 新しい5体の 技: 届かない 所では ほとんど 使わない(空ぶり ばかりに ならないように。2026-11-05 バランス調べ)
+    if (BEAST[id] && d > beastReach(id) + C.body.radius) x *= 0.04;
     // 柱で見通せない時は、遠くから撃つ技を むだに撃たない(うまさ「間合い」が高いほど よく分かる)
     if (b.arena && RANGED.has(t.kind) && !los(b, f, o)) x *= lerp(C.arenaAi.blockedShoot, lv(f, 'spacing'));
     return x * (t.strength === '大技' ? 1.6 : 1);
@@ -2722,6 +2745,10 @@ function chooseTech(b: AnimeBattle, f: AnimeMon): TechId | null {
   }
   return ready[0];
 }
+
+/** CPU の 間合い(近くで 戦う 種族は 近く) */
+const spacingOf = (f: AnimeMon) =>
+  (C.closeSpecies as readonly string[]).includes(f.species) ? { ideal: f.jab.range + C.spacingClose.ideal, near: C.spacingClose.near, far: f.jab.range + C.spacingClose.far } : C.spacing;
 
 function think(b: AnimeBattle, f: AnimeMon): void {
   const o = other(b, f);
@@ -2768,8 +2795,9 @@ function think(b: AnimeBattle, f: AnimeMon): void {
   if (f.plan === 'cover' && f.planT < C.arenaAi.coverHold) return;
   const r = b.rng();
   let plan: AnimeMon['plan'];
-  if (d > C.spacing.far) plan = 'approach';
-  else if (d < C.spacing.near) plan = r < 0.5 ? 'retreat' : r < 0.75 ? 'circleL' : 'circleR';
+  const SP = spacingOf(f);
+  if (d > SP.far) plan = 'approach';
+  else if (d < SP.near) plan = r < 0.5 ? 'retreat' : r < 0.75 ? 'circleL' : 'circleR';
   else plan = r < 0.35 ? 'circleL' : r < 0.7 ? 'circleR' : r < 0.85 ? 'hold' : 'approach';
   if (plan !== f.plan) f.planT = 0;
   f.plan = plan;
@@ -2785,7 +2813,7 @@ function walk(b: AnimeBattle, f: AnimeMon, dt: number): void {
   else if (f.plan === 'retreat') [vx, vz] = [-Math.cos(a), -Math.sin(a)];
   else if (f.plan === 'circleL' || f.plan === 'circleR') {
     const s = f.plan === 'circleL' ? 1 : -1;
-    const keep = clamp((d - C.spacing.ideal) * 0.3, -0.6, 0.6);
+    const keep = clamp((d - spacingOf(f).ideal) * 0.3, -0.6, 0.6);
     vx = Math.cos(a + (s * Math.PI) / 2) + Math.cos(a) * keep;
     vz = Math.sin(a + (s * Math.PI) / 2) + Math.sin(a) * keep;
   } else if (f.plan === 'flank') {
@@ -2978,6 +3006,8 @@ function updateMon(b: AnimeBattle, f: AnimeMon, dt: number): void {
     f.trailNext = b.t + 0.3;
     b.fields.push({ owner: f.side, tech: '黒鱗', x: f.x, z: f.z, r: 0.6, until: b.t + 3, tick: b.t + 0.3, power: 1.5, effect: 'どく' });
   }
+  // (thinkT が とても大きい = 考えるのを 止めている。テスト・確認用)
+  if (!f.pad && f.techMode === 'auto' && f.thinkT < 5) cpuJab(b, f, dt);
   // 長く続いた コンボ(時間)は 当たって いなくても ぬける
   if (f.comboN >= 2 && (f.act.k === 'hurt' || f.act.k === 'air') && b.t - f.comboStart > C.chain.breakTime && b.t - f.comboLast < C.chain.reset) breakCombo(b, f);
   // 空中の 追い打ち: ふっとばした あとの すき・待ち時間の間でも すぐ とび上がる
@@ -3074,6 +3104,38 @@ function updateMon(b: AnimeBattle, f: AnimeMon, dt: number): void {
     if (f.act.k !== 'free') return;
   }
   walk(b, f, dt);
+}
+
+/** CPU の 通常攻撃・コンボ・追い打ち・技へ つなぐ(うまさ「攻め」で 強くなる。2026-11-05) */
+function cpuJab(b: AnimeBattle, f: AnimeMon, dt: number): void {
+  const J = C.cpuJab;
+  f.cpuJabT = (f.cpuJabT ?? 0) - dt;
+  if (f.cpuJabT > 0 || f.command || b.t < f.dizzyUntil) return;
+  f.cpuJabT = J.every;
+  const o = other(b, f);
+  if (o.act.k === 'ko' || o.act.k === 'down') return;
+  const p = lv(f, 'attack');
+  const d = dist(f, o);
+  const inPunch = f.act.k === 'tech' && f.act.id === 'punch';
+  // 浮いた 相手へ 追い打ち
+  if (canChase(b, f) && (f.act.k === 'free' || (f.act.k === 'tech' && inPunch && f.act.hit))) {
+    if (b.rng() < lerp(J.chase, p)) giveCommand(b, f.side, 'punch');
+    return;
+  }
+  // 通常攻撃が 当たった: 次の1発 か 技へ つなぐ
+  if (inPunch && f.act.k === 'tech' && f.act.hit && (o.act.k === 'hurt' || o.act.k === 'air')) {
+    if (b.rng() < lerp(J.cancel, p)) {
+      const id = chooseTech(b, f);
+      if (id) {
+        f.command = { cmd: id, until: b.t + C.chain.buffer };
+        return;
+      }
+    }
+    if (b.rng() < lerp(J.chain, p)) giveCommand(b, f.side, 'punch');
+    return;
+  }
+  // 近い: 通常攻撃を はじめる
+  if (f.act.k === 'free' && f.y <= 0 && d < f.jab.range + 0.6 && b.rng() < lerp(J.use, p) * J.every * (0.6 + f.instinct.attack * 0.8)) giveCommand(b, f.side, 'punch');
 }
 
 /** 空中の 追い打ちが できるか(ふっとんで 空中にいる相手が 近い) */

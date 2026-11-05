@@ -3,9 +3,9 @@ import { audio } from '../audio/engine';
 import { AUTO_BATTLE } from '../core/autobattle/config';
 import { attackStage, instinctFor, newAutoBattle, stepAutoBattle, type AutoBattle, type AutoEntrant, type AutoEvent, type AutoFighter } from '../core/autobattle/engine';
 import { loadLife } from '../core/lifeSave';
-import { mulberry32 } from '../core/rng';
+import { foeEntrant } from '../core/battle3d/foe';
 import { SPECIES } from '../core/species';
-import { addStats, autoGrowthAt, currentStats, speciesStats, STAT_KEYS, type StatBlock } from '../core/stats';
+import { currentStats } from '../core/stats';
 import { BUNK_MOTION } from '../render/bunkView';
 import { preloadPacks } from '../render/packs';
 import { canvasTextureOnce, UI_FONT } from '../ui/paint';
@@ -189,15 +189,8 @@ export function partnerEntrant(): { entrant: AutoEntrant; level: number } {
 /**
  * 【仮】相手: 色違いのBUNK(旧バトルと同じ。企画者の素材を使う)。相棒と同じレベルで、育て方はランダム
  */
-export function rivalEntrant(level: number, seed: number): AutoEntrant {
-  const rng = mulberry32(seed ^ 0x9e3779b9);
-  let stats: StatBlock = addStats(speciesStats('bunk').base, autoGrowthAt('bunk', `rival:${seed}`, level));
-  // 自由ポイント(1レベル1つ)を、ランダムにかたよらせて振る(相手ごとに戦い方が変わるように)
-  const fav = STAT_KEYS[Math.floor(rng() * STAT_KEYS.length)];
-  const free = { hp: 0, power: 0, tough: 0, speed: 0, tech: 0 } as StatBlock;
-  for (let i = 1; i < level; i++) free[rng() < 0.6 ? fav : STAT_KEYS[Math.floor(rng() * STAT_KEYS.length)]]++;
-  stats = addStats(stats, free);
-  return { name: 'ライバル', species: 'bunk', stats, instinct: instinctFor('bunk', stats) };
+export function rivalEntrant(level: number, seed: number, species = 'bunk'): AutoEntrant {
+  return foeEntrant(level, seed, species);
 }
 
 /**

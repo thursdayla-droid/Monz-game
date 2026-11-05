@@ -83,7 +83,7 @@ describe('table moves in battle', () => {
         if (k % 50 === 0) for (const id of b.f[0].techs) if (giveCommand(b, 0, id)) break;
         b.events = [];
         stepAnime(b, ANIME.dt);
-        for (const e of b.events as AnimeEvent[]) if (e.kind === 'call' && e.side === 0) used.add(e.tech);
+        for (const e of b.events as AnimeEvent[]) if (e.kind === 'call' && e.side === 0 && e.tech !== 'punch') used.add(e.tech);
       }
       expect(b.winner).not.toBeNull();
     }
