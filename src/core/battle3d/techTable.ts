@@ -98,6 +98,8 @@ const CD_MUL: Record<string, number> = {
   甲羅タイフーン: 1.8,
   // 2026-11-05 企画者「スネーク螺旋牙のクールタイムも長くして」
   螺旋牙: 1.8,
+  // 2026-11-05 企画者「ヴァイブの早足クローのクールタイムを長くして」
+  早足クロー: 1.8,
 };
 
 export function buildTech(row: TechRow): TableTech {
