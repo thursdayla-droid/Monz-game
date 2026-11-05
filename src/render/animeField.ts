@@ -1643,7 +1643,8 @@ export class AnimeField {
       let g = this.shapeFields.get(fl);
       if (!g) {
         g = new THREE.Group();
-        const col = fl.shape === 'line' ? 0xffd23a : 0x80e8ff;
+        // 炎の爪痕(RIOT)は オレンジの 炎の線(2026-11-05)
+        const col = fl.shape === 'line' ? (getTech(fl.tech).element === '炎' ? 0xff6a1a : 0xffd23a) : 0x80e8ff;
         const mk = () => {
           const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.7, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
           m.rotation.x = -Math.PI / 2;
@@ -2369,7 +2370,9 @@ export class AnimeField {
       // MOFU の場(ねむりの綿雨)は、綿雲のじゅうたん
       const cloud = !fl.self && b.f[fl.owner].species === 'mofu';
       // ZIPP・PUNI・KLAK の場は 魔法陣の絵ではなく、種族の色の まるい光(2026-11-04)
-      const plain = !fl.self && !cloud && (sp === 'zipp' || sp === 'puni' || sp === 'klak');
+      // 新しい5体(2026-11-05)も 技の 属性の色の まるい光(炎・水・闇の毒・雷・土)
+      const neo = sp === 'riot' || sp === 'snek' || sp === 'grit' || sp === 'vybe' || sp === 'shellz';
+      const plain = !fl.self && !cloud && (sp === 'zipp' || sp === 'puni' || sp === 'klak' || neo);
       const want = fl.self ? this.flowerTex : cloud ? this.puffTex : plain ? this.glow : this.circleTex;
       if (dm.map !== want) {
         dm.map = want;
@@ -2377,7 +2380,9 @@ export class AnimeField {
         dm.needsUpdate = true;
       }
       // 種族の色(2026-11-03): ZIPP は電気の黄・PUNI は ぷにぷにの緑・KLAK は 機械の水色
-      const fc = fl.self ? [0xfff0a0, 0x80e080, 0xffffff] : cloud ? [0xd0e8ff, 0xb0d0ff, 0xffffff] : sp === 'zipp' ? [0xfff060, 0xc0a000, 0xfff0a0] : sp === 'puni' ? [0x8af06a, 0x3a9a30, 0x9af080] : sp === 'klak' ? [0x80e8ff, 0x2080b0, 0xa0e8ff] : [0xe0a0ff, 0x6a20b0, 0xffffff];
+      const fel = getTech(fl.tech).element;
+      const neoCol = fel === '炎' ? [0xff7a2a, 0xc03a00, 0xffc080] : fel === '水' ? [0x5ac8ff, 0x1a60c0, 0xc0f0ff] : fel === '闇' ? [0xb070ff, 0x4a1a8a, 0xe0c0ff] : fel === '雷' ? [0xfff060, 0xc0a000, 0xfff0a0] : [0xd8b070, 0x7a5a30, 0xf0e0c0];
+      const fc = fl.self ? [0xfff0a0, 0x80e080, 0xffffff] : cloud ? [0xd0e8ff, 0xb0d0ff, 0xffffff] : neo ? neoCol : sp === 'zipp' ? [0xfff060, 0xc0a000, 0xfff0a0] : sp === 'puni' ? [0x8af06a, 0x3a9a30, 0x9af080] : sp === 'klak' ? [0x80e8ff, 0x2080b0, 0xa0e8ff] : [0xe0a0ff, 0x6a20b0, 0xffffff];
       (ring.material as THREE.MeshBasicMaterial).color.setHex(fc[0]);
       (wall.material as THREE.MeshBasicMaterial).color.setHex(fc[1]);
       dm.color.setHex(plain ? fc[0] : fc[2]);
@@ -2390,6 +2395,21 @@ export class AnimeField {
       disc.rotation.z += dt * 0.6;
       ring.rotation.z -= dt * 1.4;
       (wall.material as THREE.MeshBasicMaterial).opacity = 0.08 + Math.sin(performance.now() / 150) * 0.03;
+      // 新しい5体の場: 炎は 火の粉・水は しぶき・闇は 毒の あわ・雷は 火花
+      if (neo && !fl.self && dt > 0 && Math.random() < dt * (fl.mine ? 6 : 18)) {
+        const a2 = Math.random() * Math.PI * 2;
+        const r2 = Math.random() * fl.r;
+        const px = fl.x + Math.cos(a2) * r2;
+        const pz = fl.z + Math.sin(a2) * r2;
+        if (fel === '炎') this.flame(px, 0.15, pz, 0.3, 1);
+        else if (fel === '雷') this.bolt(px, 0.05, pz, px + (Math.random() - 0.5) * 0.6, 0.4, pz + (Math.random() - 0.5) * 0.6, 0.4, 0.1);
+        else {
+          const pp = this.sprite(fel === '水' ? 0xa8e8ff : fel === '闇' ? 0xc080ff : 0xe0c090);
+          pp.position.set(px, 0.15, pz);
+          this.add(pp, 0.6, -0.3, 0.3, { vx: 0, vz: 0, vy: fl.pull ? 0.4 : 1.2 });
+        }
+      }
+      if (fl.pull) disc.rotation.z += dt * 4;
       // 自分の場: 花びらと光の粒が ふわふわ のぼる
       if (fl.self) {
         if (dt > 0 && Math.random() < dt * 40) {
