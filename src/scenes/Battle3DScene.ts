@@ -884,7 +884,7 @@ export class Battle3DScene extends Phaser.Scene {
         F.explode(e.x, e.y, e.z, null, false);
         F.domeHit(e.x, e.y, e.z);
         audio.se('guard');
-        this.pop('ふせいだ！', e.side === 0 ? '#7ad0ff' : '#ffb070');
+        // 「ふせいだ！」の 文字は 出さない(2026-11-05 企画者「ふせいだ！っていらない」)
         break;
       case 'wallHit':
         // 攻撃が柱・壁に当たった
