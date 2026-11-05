@@ -757,10 +757,14 @@ export class Battle3DScene extends Phaser.Scene {
         const hcol = ht.element === '無' ? 0xff8a2a : ELEMENT_HEX[ht.element];
         // 型ごとの命中の光(2026-11-02 企画者の技演出イメージ)
         const mofuHit = atk.species === 'mofu' && ht.kind !== 'jab';
+        // 新しい5体の技: 自分の光(beastFx)だけ。ほかの技と 同じ 当たりの光は 出さない
+        const beastOwn = !!BEAST[e.tech];
         if (mofuHit) {
           // MOFU の技が当たった: 綿毛と花びらが はじける(岩・火花は出さない)
           F.cotton(e.x, e.y, e.z, e.big ? 12 : 7, 0.8, 3);
           F.petals(e.x, e.y, e.z, e.big ? 10 : 5, 3.5);
+        } else if (beastOwn) {
+          // (光は beastFx)
         } else if (ht.kind === 'rush') F.rushHit(e.x, e.y, e.z, hdir, hcol, ht.strength === '強' || ht.strength === '大技');
         else if (ht.kind === 'spin') F.spinHit(e.x, e.y, e.z, hcol);
         else if (ht.kind === 'combo') {
@@ -777,7 +781,7 @@ export class Battle3DScene extends Phaser.Scene {
         if (ht.element === '炎') F.flameBurst(e.x, e.y, e.z);
         // 当たった所から光の輪(技の色)。大きい当たりは画面が白く光る(2026-11-02 企画者「技しょぼい」)
         // 新しい5体の 通常攻撃は 自分の光だけ(ほかの光と まざって 分かりにくくならないように)
-        const own = ht.kind === 'jab' && !!atk.jab.moves;
+        const own = (ht.kind === 'jab' && !!atk.jab.moves) || beastOwn;
         if (!whip && !own) F.shockRing(e.x, e.y, e.z, ELEMENT_HEX[getTech(e.tech).element] === 0xe0e0f0 ? 0xffd080 : ELEMENT_HEX[getTech(e.tech).element], e.big ? 1.8 : 1.1);
         // 画面の光・ゆれ・止まる時間は、技の強さで決める(弱い技でも迫力は出すが、控えめ)
         const lvS = { 弱: 0, 中: 1, 強: 2, 大技: 3 }[ht.strength];

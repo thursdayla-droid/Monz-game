@@ -5,6 +5,7 @@
  * - 技の光: 弾(光る玉と尾)・ビーム(ためる光と太い光線)・衝撃波(広がる輪と岩)・突進(土けむり)・爆発
  * - カメラ: 自分のMONZのななめ後ろから、相手を見る(アニメ・ゲームのモンスターバトルの見せ方)【仮】
  */
+import { BEAST } from '../core/battle3d/beastScripts';
 import * as THREE from 'three';
 import { ANIME, type Element, type TechId } from '../core/battle3d/animeConfig';
 import { isInvincible, type AnimeBattle, type AnimeMon } from '../core/battle3d/anime';
@@ -1751,7 +1752,9 @@ export class AnimeField {
       // 技のため: 口に光が集まる
       const ch = this.charge[i];
       const a = f.act;
-      if (a.k === 'tech' && !a.fired) {
+      // 新しい5体の技(1歩ずつの動き)は 光の玉・力の光・スピードラインを 出さない(みんな 同じに 見えるので。2026-11-05)
+      const own = a.k === 'tech' && !!BEAST[a.id];
+      if (a.k === 'tech' && !a.fired && !own) {
         const tech = getTech(a.id);
         const k = Math.min(1, a.t / a.windup);
         // 撃つ技は口に光が集まる。体で行く技は、体に力の光をまとう
@@ -1845,7 +1848,7 @@ export class AnimeField {
       const aura = this.auras[i];
       const at = a.k === 'tech' ? getTech(a.id) : null;
       // 回転は、回る輪で見せる(光の玉は輪をかくすので出さない)
-      const auraOn = !!at && ['rush', 'combo', 'drop', 'quake'].includes(at.kind) && !(a.k === 'tech' && a.hit && at.kind !== 'combo');
+      const auraOn = !own && !!at && ['rush', 'combo', 'drop', 'quake'].includes(at.kind) && !(a.k === 'tech' && a.hit && at.kind !== 'combo');
       aura.visible = auraOn;
       if (auraOn && at) {
         const pulse = 1 + Math.sin(performance.now() / 45) * 0.08;
@@ -1871,7 +1874,7 @@ export class AnimeField {
       // 突進: オレンジのスピードライン(体のうしろへ流れる)。回転: 体のまわりを紫と属性の色の輪が回り、軌跡が残る(2026-11-02 企画者の技演出イメージ)
       const sr = this.spinRings[i];
       sr.visible = false;
-      if (a.k === 'tech' && a.fired && !a.hit && dt > 0) {
+      if (a.k === 'tech' && a.fired && !a.hit && dt > 0 && !own) {
         const t2 = getTech(a.id);
         if (t2.kind === 'rush' && f.species === 'mofu') {
           // MOFU の突進(ふわっとダッシュ): うしろに綿毛の帯と花びら
