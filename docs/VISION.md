@@ -342,3 +342,4 @@
 - 2026-11-05：企画者「1話の絵はグリット。ライオットはこれから出てくる形に」→ 1戦目は GRIT に もどした（RIOT は 4戦目）
 - 2026-11-05：企画者の 1章2話の 一枚絵（SNEK が 草の道で 舌を出す）を 入れた（design/story/ch1_02.png → public/assets/story/ch1_02.webp）
 - 2026-11-05：企画者の 第2話（SNEK）の 文を 入れた
+- 2026-11-05：企画者の 1章3話の 一枚絵（SHELLZ が 小川の 岩の上で「止まれ」）を 入れた（design/story/ch1_03.png → public/assets/story/ch1_03.webp）

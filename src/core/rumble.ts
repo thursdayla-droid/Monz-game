@@ -72,6 +72,7 @@ export const STORY_ORDER: Record<1 | 2 | 3, string[]> = {
 export const STORY_IMAGES: Record<number, string> = {
   1: 'assets/story/ch1_01.webp', // 1章1話(2026-11-05 企画者)
   2: 'assets/story/ch1_02.webp', // 1章2話 SNEK(2026-11-05 企画者)
+  3: 'assets/story/ch1_03.webp', // 1章3話 SHELLZ(2026-11-05 企画者)
 };
 
 /** 話(企画者が 書いた 文。ステージの 番号 → 題名と 行) */
