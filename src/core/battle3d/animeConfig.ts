@@ -171,7 +171,7 @@ export const ANIME = {
     shellz: ['shell', 'shell'],
   } as Record<string, [string, string]>,
   /** 種族ごとの 攻撃の 強さの 倍率(技も 通常攻撃も)。GRIT は とどく長さが 短いぶん 1発が 重い(2026-11-05 企画者)【仮】 */
-  speciesPower: { grit: 1.5 } as Record<string, number>,
+  speciesPower: { grit: 1.25 } as Record<string, number>, // 2026-11-05 企画者「グリットダメージ強すぎるかも。もう少し弱く」→ 1.5 → 1.25
   /** 新しい5体の 通常攻撃の とちゅうの1発で 相手が ひるむ時間(動きが 長いぶん BUNK の 0.3秒より 長い)【仮】 */
   monStun: 0.45,
   /** 最終進化のパンチから飛ぶ火の玉が消えるまでの時間(15×0.27 ≒ 4m)【仮】 */
