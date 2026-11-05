@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { getTech } from '../core/battle3d/techTable';
+import { getTech, techDesc } from '../core/battle3d/techTable';
 import { audio } from '../audio/engine';
 import type { StatBlock } from '../core/stats';
 import type { Proficiency } from '../core/battle3d/config';
@@ -144,6 +144,10 @@ const CSS = `
 .b3d .setup .go{align-self:flex-end;font:900 18px ${UI_FONT};padding:8px 26px;border-radius:12px;border:3px solid #16101c;background:#ffd23a;color:#16101c}
 .b3d .setup .go:disabled{opacity:.4}
 .b3d .setup .note{font-size:11px;color:#c8bcd8}
+/* 今えらんでいる 技の 説明(セットの 枠の 下。2026-11-05 企画者) */
+.b3d .setup .desc{margin-top:8px;width:268px;background:#ffffff14;border:2px solid #ffffff40;border-radius:10px;padding:6px 9px;font-size:11px;line-height:1.45;color:#f0e8ff}
+.b3d .setup .desc b{display:block;font-size:13px;color:#ffd23a}
+.b3d .setup .desc small{display:block;color:#c8bcd8;font-size:10px;margin-bottom:2px}
 /* 2026-11-02 企画者「手動オート切り替えの位置邪魔」→ 自分の体力の左下 */
 .b3d .me{flex:0 1 260px;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:5px}
 .b3d .me .card{flex:none;width:100%;box-sizing:border-box}
@@ -174,6 +178,9 @@ const CSS = `
  * 前の「格闘ゲーム風」の試作は Battle3DFightScene に残してある。
  * 入口: 3Dバトル用の確認用ページ(window.__MONZ_START = 'Battle3D')。バトルメニューの「バトル」は 10/30 の2Dオートバトルのまま
  */
+/** 技の型の 名前(説明に 出す) */
+const KIND_JP: Record<string, string> = { rush: '突進', spin: '回転', shot: '弾', barrage: '連射', beam: 'ビーム', quake: '衝撃波', drop: '落下', field: '設置', pillar: '火柱', combo: '連続攻撃', debuff: '弱体', barrier: '守り', heal: '回復', buff: '強化', drain: '吸収' };
+
 export class Battle3DScene extends Phaser.Scene {
   private battle!: AnimeBattle;
   private field?: AnimeField;
@@ -499,6 +506,8 @@ export class Battle3DScene extends Phaser.Scene {
     // 2026-11-02 企画者「外すと技の1番最初にもどるのをやめたい」「技を入れ替えられるように」→ 一覧の場所をおぼえておく・枠をえらんで入れかえ
     let sel = -1;
     let scroll = 0;
+    // 今えらんでいる 技(説明を 出す)
+    let focus: string | null = picked.find(Boolean) ?? this.learned[0] ?? null;
     const count = () => picked.filter(Boolean).length;
     const draw = () => {
       const old = el.querySelector('.list');
@@ -514,13 +523,16 @@ export class Battle3DScene extends Phaser.Scene {
           return `<button class="t ${k >= 0 ? 'on' : ''}" data-n="${esc(n)}">${esc(n)}${k >= 0 ? `<i>${k + 1}</i>` : ''}<small>${t.element}・${t.strength}・${info}・待ち ${t.cooldown.toFixed(1)}秒</small></button>`;
         })
         .join('');
+      const ft = focus ? getTech(focus) : null;
+      const descHtml = focus && ft ? `<div class="desc"><b>${esc(focus)}</b><small>${KIND_JP[ft.kind] ?? ''}・${ft.element}・${ft.strength}${ft.effect !== 'なし' ? `・${ft.effect}` : ''}・待ち ${ft.cooldown.toFixed(1)}秒</small>${esc(techDesc(focus))}</div>` : '';
       el.innerHTML = `<h2>わざを セットしよう（${count()}/${slots}）</h2>
-        <div class="row"><div><div class="slots">${slotHtml}</div><div class="note">${sel >= 0 ? `わざ ${sel + 1} に入れる わざを さわってね<br>ほかの枠をさわると 入れかえ` : 'わざをさわると入る・もう一度で外れる<br>枠をさわると 入れかえできる'}</div></div><div class="list">${list}</div></div>
+        <div class="row"><div><div class="slots">${slotHtml}</div>${descHtml}<div class="note">${sel >= 0 ? `わざ ${sel + 1} に入れる わざを さわってね<br>ほかの枠をさわると 入れかえ` : 'わざをさわると入る・もう一度で外れる<br>枠をさわると 入れかえできる'}</div></div><div class="list">${list}</div></div>
         <button class="go" ${count() || !this.learned.length ? '' : 'disabled'}>バトルスタート！</button>`;
       (el.querySelector('.list') as HTMLElement).scrollTop = scroll;
       for (const d of [...el.querySelectorAll('.slot[data-s]')] as HTMLElement[]) {
         d.addEventListener('click', () => {
           const i = Number(d.dataset.s);
+          if (picked[i]) focus = picked[i];
           if (sel === i) sel = -1;
           else if (sel >= 0) {
             // 枠どうしを入れかえ
@@ -535,6 +547,7 @@ export class Battle3DScene extends Phaser.Scene {
         b.addEventListener('click', () => {
           const n = b.dataset.n!;
           const k = picked.indexOf(n);
+          focus = n;
           if (sel >= 0) {
             // えらんだ枠に入れる(ほかの枠にあった技なら、入れかえ)
             if (k >= 0) picked[k] = picked[sel];
@@ -543,7 +556,9 @@ export class Battle3DScene extends Phaser.Scene {
           } else if (k >= 0) picked[k] = null;
           else if (picked.includes(null)) picked[picked.indexOf(null)] = n;
           else {
+            // 枠が いっぱい: 入れられないが、説明は 出す
             audio.se('beep');
+            draw();
             return;
           }
           audio.se('tap');
@@ -768,7 +783,7 @@ export class Battle3DScene extends Phaser.Scene {
         // 新しい5体の技: 自分の光(beastFx)だけ。ほかの技と 同じ 当たりの光は 出さない
         const beastOwn = !!BEAST[e.tech];
         // GRIT・SHELLZ の技は 重い: 当たると 少し止まって 大きく ゆれる(2026-11-05 企画者「グリットとシェルズがまだ弱い感じ」)
-        if ((atk.species === 'grit' || atk.species === 'shellz') && ht.kind !== 'jab') {
+        if (atk.species === 'grit' || (atk.species === 'shellz' && ht.kind !== 'jab')) {
           this.hitStop = Math.max(this.hitStop, 0.09);
           F.shake(0.32);
           F.dust(b.f[e.target].x, b.f[e.target].z, true);

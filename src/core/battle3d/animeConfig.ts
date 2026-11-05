@@ -102,10 +102,11 @@ export const ANIME = {
       { moves: ['bite', 'bite', 'tail', 'bite', 'tail'], parts: [0.22, 0.22, 0.26, 0.28, 0.42], range: 1.9 },
       { moves: ['bite', 'bite', 'tail', 'bite', 'bite', 'tail'], parts: [0.22, 0.22, 0.26, 0.26, 0.28, 0.5], range: 2.0 },
     ],
+    // 2026-11-05 企画者「グリット弱すぎる。攻撃範囲短いけど、1発がダメージがデカく。通常攻撃コンボもお願い。コンボ数少なめで」→ 2/2/3発・とどく長さ 短め・1発が 重い【仮】
     grit: [
-      { moves: ['head', 'shoulder'], parts: [0.45, 0.65], range: 1.5 },
-      { moves: ['head', 'shoulder', 'bite'], parts: [0.42, 0.5, 0.7], range: 1.6 },
-      { moves: ['head', 'shoulder', 'bite'], parts: [0.46, 0.56, 0.85], range: 1.7 },
+      { moves: ['head', 'shoulder'], parts: [0.7, 1.0], range: 1.25 },
+      { moves: ['head', 'shoulder'], parts: [0.8, 1.15], range: 1.3 },
+      { moves: ['head', 'shoulder', 'bite'], parts: [0.7, 0.85, 1.25], range: 1.35 },
     ],
     vybe: [
       { moves: ['clawR', 'clawL', 'clawR', 'clawL', 'zap'], parts: [0.18, 0.18, 0.18, 0.2, 0.3], range: 1.5 },
@@ -169,6 +170,8 @@ export const ANIME = {
     vybe: ['zap', 'clawR'],
     shellz: ['shell', 'shell'],
   } as Record<string, [string, string]>,
+  /** 種族ごとの 攻撃の 強さの 倍率(技も 通常攻撃も)。GRIT は とどく長さが 短いぶん 1発が 重い(2026-11-05 企画者)【仮】 */
+  speciesPower: { grit: 1.5 } as Record<string, number>,
   /** 新しい5体の 通常攻撃の とちゅうの1発で 相手が ひるむ時間(動きが 長いぶん BUNK の 0.3秒より 長い)【仮】 */
   monStun: 0.45,
   /** 最終進化のパンチから飛ぶ火の玉が消えるまでの時間(15×0.27 ≒ 4m)【仮】 */

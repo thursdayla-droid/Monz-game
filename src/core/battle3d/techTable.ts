@@ -197,5 +197,12 @@ export function getTech(id: string): TableTech {
   throw new Error(`技がない: ${id}`);
 }
 
+/** 技の説明(表の メモから、日付や 決めた時の メモ「（…）」を のぞいた 文) */
+export function techDesc(name: string): string {
+  const r = TECH_ROWS.find((x) => x.name === renameTech(name));
+  if (!r) return '';
+  return r.memo.replace(/[（(][^（）()]*(20\d\d|企画者|案|仮)[^（）()]*[）)]/g, '').replace(/【[^】]*】/g, '').trim();
+}
+
 /** その種族の表の行(覚えるレベルの順) */
 export const learnset = (species: string): TechRow[] => TECH_ROWS.filter((r) => r.species === species).sort((a, b) => a.level - b.level);

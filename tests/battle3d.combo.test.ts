@@ -312,3 +312,19 @@ it('ZIPP electric dash has no wait between dashes of a chain (2026-11-05)', () =
   expect(p.act.k).toBe('free');
   expect(giveCommand(b, 0, 'punch')).toBe(true);
 });
+
+it('GRIT (2026-11-05): short reach, few-hit normal combo that connects, each hit heavier than BUNK', () => {
+  const dmg = (sp: string) => {
+    const b = newAnimeBattle(e(sp), e(), 1, 'manual');
+    setup(b, 2);
+    const ev = run(b, 60);
+    const hits = ev.filter((x) => x.kind === 'hit' && x.side === 0).map((x) => (x.kind === 'hit' ? x.damage : 0));
+    const combo = Math.max(0, ...ev.map((x) => (x.kind === 'combo' ? x.n : 0)));
+    return { hits, combo };
+  };
+  const g = dmg('grit');
+  const k = dmg('bunk');
+  expect(g.hits.length).toBe(2);
+  expect(g.combo).toBe(2);
+  expect(g.hits[0]).toBeGreaterThan(k.hits[0] * 1.5);
+});

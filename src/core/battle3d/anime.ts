@@ -2078,6 +2078,8 @@ function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y:
   const up = (b.t < f.atkUpUntil ? 1 + f.atkUp : 1) * (b.t < o.defUpUntil ? 1 - o.defUp : 1) * (b.fields.some((fl) => fl.self && fl.owner === o.side && dist(fl, o) < fl.r) ? C.selfField.guard : 1);
   let dmg = Math.max(1, Math.round(up * down * (crit ? C.stat.critMul : 1) * (opt.power ?? tech.power) * part * (part < 1 ? C.combo.bonus : 1) * (1 + f.stats.power / C.stat.powerDiv) * (C.stat.toughDiv / (C.stat.toughDiv + o.stats.tough)) * (0.9 + b.rng() * 0.2)));
   if (counter) dmg = Math.round(dmg * C.counter.mul);
+  // 種族の 強さ(GRIT は 1発が 重い)
+  if (C.speciesPower[f.species]) dmg = Math.round(dmg * C.speciesPower[f.species]);
   // コンボの数: やられている間(ふっとび中も)に 続けて当たると 数える。長いほど 1発が弱くなる(2026-11-04 企画者)
   const inCombo = (o.act.k === 'hurt' || o.act.k === 'air') && b.t - o.comboLast < C.chain.reset;
   const comboN = guarded ? 0 : inCombo ? o.comboN + 1 : 1;
