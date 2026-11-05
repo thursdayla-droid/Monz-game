@@ -343,3 +343,4 @@
 - 2026-11-05：企画者の 1章2話の 一枚絵（SNEK が 草の道で 舌を出す）を 入れた（design/story/ch1_02.png → public/assets/story/ch1_02.webp）
 - 2026-11-05：企画者の 第2話（SNEK）の 文を 入れた
 - 2026-11-05：企画者の 1章3話の 一枚絵（SHELLZ が 小川の 岩の上で「止まれ」）を 入れた（design/story/ch1_03.png → public/assets/story/ch1_03.webp）
+- 2026-11-05：企画者の 第3話（SHELLZ）の 文を 入れた

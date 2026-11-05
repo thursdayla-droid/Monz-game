@@ -101,6 +101,19 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
       { who: 'SNEK', text: '「通りたきゃ、俺を倒してみな！」' },
     ],
   },
+  3: {
+    title: '第3話',
+    lines: [
+      { who: null, text: 'GRIT、SNEKとの戦いを勝ち抜き、草原の奥へと進む挑戦者。' },
+      { who: null, text: '目の前に現れたのは、キラキラと輝く小川。' },
+      { who: null, text: 'その真ん中の大きな岩に、一匹のMONZがどっしりと構えていた。' },
+      { who: 'SHELLZ', text: '「おっと！ ここから先は通行止めだぜ！」' },
+      { who: 'SHELLZ', text: '「お前が噂の挑戦者か。」' },
+      { who: 'SHELLZ', text: '「GRITもSNEKも倒したんだってな。へっ、やるじゃねぇか！」' },
+      { who: 'SHELLZ', text: '「だがな、俺の甲羅はそう簡単には破れねぇぞ！」' },
+      { who: 'SHELLZ', text: '「さあ、かかってこい！」' },
+    ],
+  },
 };
 
 /** 種族・形態の 名前(rosterData の 表と 同じ) */
