@@ -165,7 +165,7 @@ const CSS = `
 .b3d .result{position:absolute;inset:0;background:#0d0614b0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px}
 .b3d .result h1{margin:0;font-size:60px;color:#ffd23a;text-shadow:0 5px 0 #16101c}
 .b3d .result button{font:900 22px ${UI_FONT};padding:10px 28px;border-radius:14px;border:3px solid #16101c;background:#ffd23a;color:#16101c;min-width:200px}
-.b3d .turn{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:#0d0614d0;z-index:5}
+.b3d .turn{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:#0d0614f2;z-index:30}
 .b3d .turn div{border:4px solid #ffd23a;border-radius:18px;background:#16101c;color:#ffd23a;font-weight:900;font-size:26px;padding:22px 30px;text-align:center}
 .b3d .turn small{display:block;color:#fff;font-size:14px;margin-top:8px}
 `;

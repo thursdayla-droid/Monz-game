@@ -20,8 +20,8 @@ const CSS = `
 .rmb .big small{font-size:13px;font-weight:700;opacity:.8}
 .rmb .story{background:#ffd23a}
 .rmb .free{background:#7ad0ff}
-.rmb .cpus{width:min(100%,460px);display:flex;flex-direction:column;gap:10px}
-.rmb .cpu{border:3px solid #16101c;border-radius:14px;padding:10px 14px;font:900 20px ${UI_FONT};color:#16101c;background:#fff;display:flex;justify-content:space-between;align-items:center;box-shadow:0 4px 0 #16101c}
+.rmb .cpus{width:min(100%,760px);display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.rmb .cpu{white-space:nowrap;border:3px solid #16101c;border-radius:14px;padding:10px 14px;font:900 18px ${UI_FONT};color:#16101c;background:#fff;display:flex;justify-content:space-between;align-items:center;box-shadow:0 4px 0 #16101c}
 .rmb .cpu small{font-size:12px;font-weight:700;color:#5a4a66}
 .rmb .cpu .stars{color:#ff8a1f;font-size:16px;letter-spacing:2px}
 .rmb .note{font-size:12px;color:#c8bcd8;text-align:center}
@@ -58,6 +58,10 @@ const CSS = `
 .rmb .srow .foe{flex:1;min-width:180px}
 .rmb .srow .stars{color:#ff8a1f}
 .rmb .srow .go{flex:0 0 auto;padding:10px 22px}
+.rmb .rot{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;background:#0d0614f5}
+.rmb .rot div{border:4px solid #ffd23a;border-radius:18px;background:#16101c;color:#ffd23a;font-weight:900;font-size:26px;padding:22px 30px;text-align:center}
+.rmb .rot small{display:block;color:#fff;font-size:14px;margin-top:8px}
+@media (orientation:portrait){.rmb .rot{display:flex}}
 .rmb .clear{background:#ffd23a;color:#16101c;border:3px solid #16101c;border-radius:12px;padding:6px 14px;font-weight:900}
 `;
 
@@ -70,7 +74,8 @@ function mount(scene: Phaser.Scene, html: string): HTMLDivElement {
   }
   const root = document.createElement('div');
   root.className = 'rmb';
-  root.innerHTML = `<div class="in">${html}</div>`;
+  // MONZ RUMBLE は スマホ横だけ(2026-11-05 企画者)。縦の あいだは「横にしてね」で おおう
+  root.innerHTML = `<div class="in">${html}</div><div class="rot"><div>スマホを 横にしてね<small>MONZ RUMBLE は 横画面で あそびます</small></div></div>`;
   document.body.appendChild(root);
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => root.remove());
   return root;
