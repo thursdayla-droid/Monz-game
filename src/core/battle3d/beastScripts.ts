@@ -65,9 +65,10 @@ export const BEAST: Record<string, BeastStep[]> = {
     { mv: 'zap', t: 0.16, hit: { at: 0.5, cx: 4.4, r: 1.7, arc: P, part: 0.35, ground: true }, fx: 'wave' },
   ],
   噛みつきダイブ: [{ mv: 'bite', t: 0.6, jump: 7, pounce: true, hit: { contact: true, r: 1.7, arc: 1.3, part: 1, knock: 1.6 }, fx: 'bite' }],
+  // 2026-11-05 企画者: 少し 早く 相手の方へ タックルする技に(少し 身を引いて → 速い 体当たり)
   牙王クラッシュ: [
-    { mv: 'clawR', t: 0.32, jump: 5, go: 1.2 },
-    { mv: 'head', t: 0.28, dive: 9, hit: { at: 0.5, cx: 1.2, r: 1.8, arc: P, part: 1, knock: 2.8 }, fx: 'slam' },
+    { mv: 'head', t: 0.16, go: -0.3 },
+    { mv: 'shoulder', t: 0.32, go: 7, hit: { contact: true, r: 1.6, arc: 1.1, part: 1, knock: 3.4 }, fx: 'shove' },
   ],
   ライオファング: [
     { mv: 'clawR', t: 0.18, go: 0.6, hit: { at: 0.6, r: 1.7, arc: 1, part: 0.25 }, fx: 'claw' },
