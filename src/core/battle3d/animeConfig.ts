@@ -148,6 +148,14 @@ export const ANIME = {
    * ためが短い(windup)・ガードできない・ダメージ mul 倍・相手が ひるむ時間 stun 倍
    */
   counter: { dodge: 0.9, just: 0.8, windup: 0.6, mul: 1.5, stun: 1.6 },
+  /**
+   * コンボ5段め(2026-11-05 企画者「次に進めて」)【仮】。
+   * juggle: ふっとんで 空中にいる相手の 近く(range m)で 通常攻撃 → とび上がって 追い打ち。当てると 少し 浮く(pop)。max 回目は 地面へ たたきつける(spike)。
+   *   strike: とび上がって 当たるまでの 時間の めやす・follow: 当てた あと・part: 強さ
+   * finish: コンボ(minCombo 発め 以上)の さいごの1発は しめ: 大きく ふっとばす(launch・knock)・少し強い(part)
+   */
+  juggle: { range: 4.5, minY: 0.5, windup: 0.04, strike: 0.32, follow: 0.3, part: 0.9, pop: 4.5, max: 3, spike: -14 },
+  finish: { minCombo: 4, launch: 6.5, knock: 2.4, part: 1.25 },
   powerMoves: {
     bunk: ['punch', 'punch'],
     mofu: ['whip', 'whip'],

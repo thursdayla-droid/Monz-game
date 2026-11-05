@@ -32,7 +32,7 @@ export interface AnimeEntrant {
 
 export type AnimeAct =
   | { k: 'free' }
-  | { k: 'tech'; id: TechId; t: number; dir: number; fired: boolean; hit: boolean; tx: number; tz: number; windup: number; n: number; next: number; charge?: number; len?: number; zig?: number; sx?: number; sz?: number; sp?: 'charge' | 'dash'; mv?: string; tf?: number; full?: boolean; counter?: boolean }
+  | { k: 'tech'; id: TechId; t: number; dir: number; fired: boolean; hit: boolean; tx: number; tz: number; windup: number; n: number; next: number; charge?: number; len?: number; zig?: number; sx?: number; sz?: number; sp?: 'charge' | 'dash' | 'air'; mv?: string; tf?: number; full?: boolean; counter?: boolean }
   | { k: 'dodge'; t: number; dx: number; dz: number; jump: boolean }
   /** ガード中(until: CPU が やめる時間。自分で動かす時は ボタンを はなすまで) */
   | { k: 'guard'; t: number; until: number }
@@ -139,6 +139,8 @@ export interface AnimeMon {
   jab: { parts: number[]; range: number; step: number; fire: number; whip?: boolean; dash?: number; water?: number; trap?: number; moves?: string[] };
   /** ZIPP の電撃ダッシュ: こうげきボタンを押している間 true(画面が入れる。AI は使わない) */
   hold?: boolean;
+  /** 空中で 追い打ちを 受けた数(着地で 0) */
+  juggleN: number;
   /** カウンターが できる 終わりの時刻(よけた・ジャストガードした あと) */
   counterUntil: number;
   /** 通常攻撃ボタンを 押しつづけている時間(ためる強い1発) */
@@ -243,7 +245,10 @@ export type AnimeEvent =
   /** 長いコンボから ぬけた(受けた側 side) */
   | { kind: 'comboBreak'; side: Side }
   /** ためた強い1発・ダッシュ攻撃を 出した(mv: 動き)・ためが いっぱい・通常攻撃から 技へ つないだ */
-  | { kind: 'power'; side: Side; sp: 'charge' | 'dash'; mv: string; c: number }
+  | { kind: 'power'; side: Side; sp: 'charge' | 'dash' | 'air'; mv: string; c: number }
+  /** しめの1発・地面へ たたきつけた(side: 当てた側) */
+  | { kind: 'finish'; side: Side; x: number; y: number; z: number }
+  | { kind: 'spike'; side: Side; x: number; y: number; z: number }
   | { kind: 'chargeFull'; side: Side }
   /** カウンターが できる(よけた・ジャストガード)・カウンターを 出した */
   | { kind: 'counterReady'; side: Side; why: 'dodge' | 'just' }
@@ -406,6 +411,7 @@ function newMon(e: AnimeEntrant, side: Side): AnimeMon {
     trapSafeUntil: 0,
     jabChain: 0,
     counterUntil: 0,
+    juggleN: 0,
     jabChainUntil: 0,
     comboN: 0,
     comboStart: 0,
@@ -504,8 +510,29 @@ function startTech(b: AnimeBattle, f: AnimeMon, id: TechId, byCommand: boolean, 
   if (tech.kind === 'jab' && !f.jab.dash && !f.jab.water && !f.jab.trap && f.act.k === 'tech') {
     const ci = b.t < f.jabChainUntil && f.jabChain < f.jab.parts.length ? f.jabChain : 0;
     f.act.n = ci;
-    // 走りながら 押した(続きの1発ではない時): ダッシュ攻撃
     const pm = C.powerMoves[f.species];
+    // ふっとんで 空中にいる相手の 近く: とび上がって 追い打ち(2026-11-05 コンボ5段め)
+    if (pm && f.y <= 0 && o.act.k === 'air' && o.y > C.juggle.minY && dist(f, o) < C.juggle.range && o.juggleN < C.juggle.max) {
+      const J = C.juggle;
+      f.act.sp = 'air';
+      f.act.mv = f.jab.moves?.[0] === 'bite' || f.species === 'riot' ? 'bite' : C.powerMoves[f.species][1];
+      f.act.windup = J.windup;
+      f.jabChain = 0;
+      // 相手の いる高さまで とぶ(相手の 少し先へ)
+      const ty = Math.max(1, o.y + o.vy * 0.25);
+      f.vy = Math.sqrt(2 * C.gravity * (ty + 0.2));
+      f.y = 0.001;
+      const tUp = f.vy / C.gravity;
+      const gap = Math.max(0, dist(f, o) - C.body.minGap - 0.2);
+      const ang = angleTo(f, o);
+      f.vx = (Math.cos(ang) * gap) / tUp;
+      f.vz = (Math.sin(ang) * gap) / tUp;
+      f.face = ang;
+      f.cooldown[id] = b.t;
+      b.events.push({ kind: 'call', side: f.side, tech: id, byCommand });
+      return;
+    }
+    // 走りながら 押した(続きの1発ではない時): ダッシュ攻撃
     if (pm && ci === 0 && f.pad && f.y <= 0 && Math.hypot(f.pad.x, f.pad.z) > 0.6 && Math.hypot(f.vx, f.vz) > walkSpeed(f) * C.pad.speed * C.dashAtk.minSpeed) {
       f.act.sp = 'dash';
       f.act.mv = pm[1];
@@ -573,6 +600,7 @@ function updatePower(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tec
   const o = other(b, f);
   const tech = getTech(a.id);
   const charge = a.sp === 'charge';
+  if (a.sp === 'air') return updateAirChase(b, f, a);
   if (!a.fired) {
     if (charge) {
       a.charge = Math.min(P.max, (a.charge ?? 0) + dt);
@@ -616,6 +644,64 @@ function updatePower(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tec
     return;
   }
   if (a.t >= a.next + (charge ? P.follow : D.follow) + tech.recovery) f.act = { k: 'free' };
+}
+
+/** 空中の 追い打ち: とび上がって 当たる所まで 来たら 1発。3回目は 地面へ たたきつける */
+function updateAirChase(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech' }>): void {
+  const J = C.juggle;
+  const o = other(b, f);
+  const tech = getTech(a.id);
+  if (!a.fired) {
+    if (a.t < a.windup) return;
+    a.fired = true;
+    a.tf = a.t;
+    b.events.push({ kind: 'power', side: f.side, sp: 'air', mv: a.mv ?? 'punch', c: 1 });
+    return;
+  }
+  if (!a.hit) {
+    f.face += angDiff(angleTo(f, o), f.face) * 0.3;
+    const d3 = Math.hypot(o.x - f.x, o.z - f.z, (o.y - f.y) * 0.8);
+    const reach = f.jab.range + C.body.radius;
+    if (d3 < reach && los(b, f, o, f.y + 0.8)) {
+      a.hit = true;
+      a.next = a.t;
+      const spike = o.juggleN + 1 >= J.max;
+      if (hit(b, f, o, a.id, (f.x + o.x) / 2, (f.y + o.y) / 2 + 0.6, (f.z + o.z) / 2, f.face, { last: true, part: J.part * (spike ? 1.3 : 1), juggle: true }) && o.act.k === 'air') {
+        o.juggleN++;
+        if (spike) {
+          o.vy = J.spike;
+          b.events.push({ kind: 'spike', side: f.side, x: o.x, y: o.y, z: o.z });
+        }
+      }
+      // 当てたら その場に ふわっと(のぼりすぎない・落ちるのを 少し おそく)
+      f.vy = clamp(f.vy, 1.5, 2.5);
+      f.vx *= 0.2;
+      f.vz *= 0.2;
+    } else if (a.t - (a.tf ?? 0) > J.strike * 2 || (f.y <= 0 && a.t - (a.tf ?? 0) > 0.1)) {
+      a.hit = true;
+      a.next = a.t;
+    }
+    return;
+  }
+  // 空中で もう一度 押した: 続けて 追い打ち(3回目は たたきつけ)
+  if (f.command?.cmd === 'punch' && f.y > 0 && o.act.k === 'air' && o.juggleN < J.max && dist(f, o) < J.range && a.t >= a.next + 0.08) {
+    f.command = null;
+    a.hit = false;
+    a.tf = a.t;
+    const ang = angleTo(f, o);
+    f.vy = Math.max(f.vy, clamp((o.y - f.y) * 4 + 2, 1.5, 6));
+    const gap = Math.max(0, dist(f, o) - C.body.minGap - 0.2);
+    f.vx = Math.cos(ang) * gap * 4;
+    f.vz = Math.sin(ang) * gap * 4;
+    b.events.push({ kind: 'power', side: f.side, sp: 'air', mv: a.mv ?? 'punch', c: 1 });
+    b.events.push({ kind: 'command', side: f.side, cmd: 'punch', state: 'done' });
+    return;
+  }
+  // 着地したら おわり
+  if (f.y <= 0 && a.t >= a.next + 0.05) {
+    f.act = { k: 'free' };
+    f.cooldown[a.id] = b.t + tech.recovery;
+  }
 }
 
 /**
@@ -1248,7 +1334,10 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
         a.next = a.t + (mv ? mv.d * 0.55 : tech.duration);
         b.events.push({ kind: 'comboHit', side: f.side, n: a.n });
         const parts = f.jab.parts;
-        if (ok) hit(b, f, o, a.id, (f.x + o.x) / 2, f.y + 0.8, (f.z + o.z) / 2, f.face, { last: a.n >= parts.length, part: parts[a.n - 1], stun: mv ? C.monStun : undefined });
+        // しめ: コンボの さいごの1発(BUNK・MOFU・新しい5体)は 大きく ふっとばす
+        const fin = ok && a.n >= parts.length && !!C.powerMoves[f.species] && (o.act.k === 'hurt' || o.act.k === 'air') && o.comboN + 1 >= C.finish.minCombo;
+        if (ok && hit(b, f, o, a.id, (f.x + o.x) / 2, f.y + 0.8, (f.z + o.z) / 2, f.face, { last: a.n >= parts.length, part: parts[a.n - 1] * (fin ? C.finish.part : 1), stun: mv ? C.monStun : undefined, launch: fin ? C.finish.launch : undefined, knock: fin ? C.finish.knock : undefined }) && fin)
+          b.events.push({ kind: 'finish', side: f.side, x: o.x, y: o.y + 0.8, z: o.z });
         // 1回押すと1発だけ(つづきは もう一度 押す。2026-11-04 企画者)
         f.jabChainUntil = b.t + tech.duration + C.chain.press;
         {
@@ -1513,7 +1602,7 @@ function applyEffect(b: AnimeBattle, o: AnimeMon, tech: ReturnType<typeof getTec
 }
 
 /** 当たり → ダメージ・吹っ飛び */
-function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y: number, z: number, dir: number, opt: { last?: boolean; part?: number; power?: number; unblockable?: boolean; stun?: number; launch?: number; knock?: number } = {}): boolean {
+function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y: number, z: number, dir: number, opt: { last?: boolean; part?: number; power?: number; unblockable?: boolean; stun?: number; launch?: number; knock?: number; juggle?: boolean } = {}): boolean {
   if (o.act.k === 'ko' || o.act.k === 'victory') return false;
   if (b.t < o.safeUntil || o.act.k === 'down') return false;
   // 守りのドームの中 → 止める
@@ -1606,7 +1695,12 @@ function hit(b: AnimeBattle, f: AnimeMon, o: AnimeMon, id: TechId, x: number, y:
   // 追加効果(ふらつき・まひ・やけど・どく・ねむり。こおりは【未実装】)
   let sleep = false;
   if (finish && tech.effect !== 'なし' && b.rng() < EFFECT_CHANCE[tech.strength] + Math.min(0.25, f.stats.tech / C.stat.techEffectDiv)) sleep = setEffect(b, o, tech.effect, big);
-  if (big) {
+  if (opt.juggle && (o.act.k === 'air' || o.y > 0.3)) {
+    // 空中の 追い打ち: 少し 浮く(ふっとんだ まま)
+    o.vy = Math.max(o.vy, C.juggle.pop);
+    o.y = Math.max(o.y, 0.001);
+    o.act = { k: 'air', t: 0 };
+  } else if (big) {
     o.vy = launch;
     o.y = Math.max(o.y, 0.001);
     o.act = { k: 'air', t: 0 };
@@ -2177,6 +2271,7 @@ function updateMon(b: AnimeBattle, f: AnimeMon, dt: number): void {
     if (f.y <= 0) {
       f.y = 0;
       f.vy = 0;
+      f.juggleN = 0;
       const hard = a.k === 'air' || a.k === 'ko' || (a.k === 'tech' && (getTech(a.id).kind === 'quake' || getTech(a.id).kind === 'drop'));
       b.events.push({ kind: 'land', side: f.side, hard });
       if (a.k === 'air') {
@@ -2282,7 +2377,7 @@ function updateMon(b: AnimeBattle, f: AnimeMon, dt: number): void {
     f.vx *= k;
     f.vz *= k;
     const ka = f.act.k === 'tech' ? getTech(f.act.id).kind : null;
-    if (ka === 'drop' && f.y > 0) {
+    if ((ka === 'drop' || (f.act.k === 'tech' && f.act.sp === 'air')) && f.y > 0) {
       // 落下技: 決まった所へ飛んでいく(勢いを落とさない)
       f.vx /= k;
       f.vz /= k;

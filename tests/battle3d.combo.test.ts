@@ -216,3 +216,34 @@ it('a just guard also opens a counter; it closes after a short time', () => {
   giveCommand(b, 0, 'punch');
   expect(run(b, 10, 0).some((x) => x.kind === 'counter')).toBe(false);
 });
+
+// コンボ5段め(2026-11-05): 空中の追い打ち・たたきつけ・しめ
+it('pressing attack near a launched opponent jumps up for an air follow-up; pressing again keeps juggling, the 3rd spikes them down', () => {
+  for (const sp of ['bunk', 'riot', 'grit', 'snek', 'vybe', 'shellz', 'mofu']) {
+    const b = newAnimeBattle(e(sp), e(), 1, 'manual');
+    const [p, q] = setup(b, 2.4);
+    q.act = { k: 'air', t: 0 };
+    q.y = 1.6;
+    q.vy = 4;
+    const ev = run(b, 90, 12);
+    expect(ev.some((x) => x.kind === 'power' && x.sp === 'air'), sp).toBe(true);
+    expect(ev.filter((x) => x.kind === 'hit').length, sp).toBeGreaterThanOrEqual(3);
+    expect(ev.some((x) => x.kind === 'spike'), sp).toBe(true);
+    run(b, 60, 0);
+    expect(p.y, sp).toBe(0);
+    expect(q.juggleN, sp).toBe(0);
+  }
+});
+
+it('the last hit of a long normal chain is a finisher that launches', () => {
+  const b = newAnimeBattle(e('bunk', 2), e(), 1, 'manual');
+  const [, q] = setup(b, 1.6);
+  // すでに 3発 受けている
+  q.act = { k: 'hurt', t: 0, until: 1 };
+  q.comboN = 3;
+  q.comboStart = b.t;
+  q.comboLast = b.t;
+  const ev = run(b, 80, 9);
+  expect(ev.some((x) => x.kind === 'finish')).toBe(true);
+  expect(ev.some((x) => x.kind === 'hit' && x.big)).toBe(true);
+});

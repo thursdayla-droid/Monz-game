@@ -400,6 +400,8 @@ export class Battle3DScene extends Phaser.Scene {
 
   private bindButton(el: HTMLButtonElement, c: Command, btn: Battle3DScene['ui']['btn']): void {
     btn[c] = { el, cd: el.querySelector('.cd') as HTMLElement };
+    // iPhone: 指を おいた時点で 止める(長く押した時の「コピー」・虫めがね を出さない。2026-11-05 企画者)
+    el.addEventListener('touchstart', (ev) => ev.preventDefault(), { passive: false });
     el.addEventListener('pointerdown', (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
@@ -435,6 +437,7 @@ export class Battle3DScene extends Phaser.Scene {
 
   /** 左の移動スティック: さわった所に出て、指の向きへ動く(はなすと止まる) */
   private bindStick(zone: HTMLElement, base: HTMLElement, knob: HTMLElement, hint: HTMLElement): void {
+    zone.addEventListener('touchstart', (ev) => ev.preventDefault(), { passive: false });
     let id: number | null = null;
     let ox = 0;
     let oy = 0;
@@ -961,7 +964,7 @@ export class Battle3DScene extends Phaser.Scene {
       case 'power': {
         // ためた強い1発・ダッシュ攻撃を 出した
         const pf = b.f[e.side];
-        F.dust(pf.x, pf.z, true);
+        if (e.sp !== 'air') F.dust(pf.x, pf.z, true);
         if (pf.jab.moves) F.monSwing(pf.x, pf.z, pf.face, e.mv, pf.jab.range + 1, pf.y + 0.8, true);
         else if (pf.jab.whip) F.vineWhip(e.side, pf.face, pf.jab.range + 1.2, 1);
         else F.shockRing(pf.x + Math.cos(pf.face) * 0.8, pf.y + 0.8, pf.z + Math.sin(pf.face) * 0.8, e.sp === 'charge' ? 0xffd23a : 0xffffff, 1 + e.c * 0.5);
@@ -1000,6 +1003,23 @@ export class Battle3DScene extends Phaser.Scene {
         audio.se('select', { pitch: 2 });
         break;
       }
+      case 'finish':
+        // しめの1発: 少し止まって スロー・金色の 大きな輪・はじける光・画面が光る(2026-11-05 コンボ5段め)
+        this.hitStop = Math.max(this.hitStop, 0.15);
+        this.slowT = Math.max(this.slowT, 0.35);
+        F.shockRing(e.x, e.y, e.z, 0xffd23a, 2.6);
+        F.rushHit(e.x, e.y, e.z, Math.atan2(e.z - b.f[e.side].z, e.x - b.f[e.side].x), 0xffd23a, true);
+        F.shake(0.6);
+        this.screenFlash(0.45);
+        audio.se('punchHeavy', { pitch: 0.8 });
+        break;
+      case 'spike':
+        // 地面へ たたきつけ: 下へ 光の輪・ゆれる
+        F.shockRing(e.x, e.y, e.z, 0xff8a2a, 1.8);
+        F.shake(0.45);
+        this.hitStop = Math.max(this.hitStop, 0.08);
+        audio.se('slam');
+        break;
       case 'counter': {
         const cf = b.f[e.side];
         F.shockRing(cf.x, cf.y + 0.8, cf.z, 0xffffff, 1.3);
