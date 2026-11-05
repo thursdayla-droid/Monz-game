@@ -569,7 +569,8 @@ function startTech(b: AnimeBattle, f: AnimeMon, id: TechId, byCommand: boolean, 
 /** 攻撃を かわした(よけた・ジャンプで こえた): すぐ攻撃すると カウンター */
 function evaded(b: AnimeBattle, o: AnimeMon): void {
   b.events.push({ kind: 'evaded', side: o.side });
-  if (o.act.k === 'ko') return;
+  // ふっとばされて 浮いている時に 下を 通っただけ は よけたことに しない
+  if (o.act.k === 'ko' || o.act.k === 'air' || o.act.k === 'hurt') return;
   if (b.t >= o.counterUntil) b.events.push({ kind: 'counterReady', side: o.side, why: 'dodge' });
   o.counterUntil = b.t + C.counter.dodge;
 }
