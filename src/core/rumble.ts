@@ -1,6 +1,6 @@
 /**
  * MONZ RUMBLE(3Dバトル)のモード(2026-11-03 企画者):
- * - ストーリーモード: すごろくのように1マスずつ進む。一枚絵で話が進んでバトル。全部で20回くらい。
+ * - ストーリーモード: すごろくのように1マスずつ進む。一枚絵で話が進んでバトル。全部で30ステージ(2026-11-05 企画者。前は20)。
  *   敵がだんだん強くなり、さいごのボスは技とプレイがうまくないと勝てない。クリアした所は好きなだけ もう一度遊べる。
  * - バトルモード: CPU の強さを好きに選ぶ。
  * 話の文と絵は企画者が作る(ここは入れ物。文は【仮】)。報酬は まだ決まっていない(作らない)。
@@ -18,31 +18,57 @@ export const CPU_LEVELS = [
 ] as const;
 
 export interface StoryStage {
-  /** 1〜20 */
+  /** 1〜30 */
   no: number;
   title: string;
   /** バトルの前の話(一枚絵に出す文)。【仮】企画者が書く */
   text: string;
   /** 一枚絵(企画者が作る)。まだなければ null */
   image: string | null;
-  /** 敵のレベル・戦いのうまさ(1〜5)・ボスか(HP が多い) */
-  enemy: { name: string; level: number; prof: number; boss: boolean };
+  /**
+   * 敵: 種族・形態(1〜3)・名前・レベル・戦いのうまさ(1〜5)・ボスか・HP の倍率
+   */
+  enemy: { species: string; form: 1 | 2 | 3; name: string; level: number; prof: number; boss: boolean; hp: number };
   /** そのマスで戦うマップ(arena.ts の ARENAS。2026-11-03 企画者「ストーリーモードでは指定マップ」) */
   map: string;
 }
 
-export const STORY_COUNT = 20;
-/** ボスの HP の倍率【仮】 */
-export const BOSS_HP = 1.5;
+/** 2026-11-05 企画者「ストーリーは全30ステージ」 */
+export const STORY_COUNT = 30;
+/** ボスの HP の倍率(ステージの 倍率に さらに かける)【仮】 */
+export const BOSS_HP = 1.4;
 
 /**
- * 20のマス【仮】。敵のレベルは 1 → 70 へ だんだん上がる。うまさは 5マスごとに上がり、さいごのボスは いちばん上(5)。
- * 5・10・15マスめは中ボス、20マスめがさいごのボス
+ * 敵の 種族の 順番(10ステージごと)【仮】。2026-11-05 企画者「最初の10ステージは第1形態、11からは第2形態、21から最終進化」。
+ * 順番は CPU どうしの バランス調べ(tests/balance.sim.test.ts)で 弱い → 強い の順。さいご(10・20・30)が いちばん強い
+ */
+export const STORY_ORDER: Record<1 | 2 | 3, string[]> = {
+  1: ['grit', 'snek', 'shellz', 'riot', 'vybe', 'zipp', 'klak', 'bunk', 'puni', 'mofu'],
+  2: ['vybe', 'klak', 'zipp', 'shellz', 'grit', 'snek', 'riot', 'bunk', 'mofu', 'puni'],
+  3: ['snek', 'shellz', 'vybe', 'klak', 'riot', 'zipp', 'grit', 'bunk', 'mofu', 'puni'],
+};
+/** 種族・形態の 名前(rosterData の 表と 同じ) */
+const FORM_NAME: Record<string, [string, string, string]> = {
+  bunk: ['BUNK', 'BUNKER', 'BUNKLORD'], mofu: ['MOFU', 'MOFUR', 'MOFUGARD'], zipp: ['ZIPP', 'ZIPRO', 'ZIPRAX'], puni: ['PUNI', 'PUNISH', 'PUNISHROOM'], klak: ['KLAK', 'KLAKER', 'KLAKTRAP'],
+  riot: ['RIOT', 'RIOTER', 'RIOTRAX'], snek: ['SNEK', 'SNEKER', 'SNEKXUS'], grit: ['GRIT', 'GRITTER', 'GRITBULL'], vybe: ['VYBE', 'VYGA', 'VYGARD'], shellz: ['SHELLZ', 'SHELD', 'SHELDOZER'],
+};
+export const formName = (species: string, form: number) => FORM_NAME[species]?.[form - 1] ?? species.toUpperCase();
+
+/**
+ * 30のステージ【仮】。CPU は どんどん強くなる(2026-11-05 企画者)。
+ * - レベル: 1〜10 = 1→28(第1形態)・11〜20 = 30→57(第2形態)・21〜30 = 60→96、さいごは 100(最終進化)
+ * - うまさ: 6ステージごとに 1つ上がる(1→5)。中ボスは +1・さいごの ボスは 5
+ * - HP: 1ステージめ ×1.3 から 1つごとに +0.05(30で ×2.75)。ボスは さらに ×1.4(企画者「体力ももっと多くして大丈夫」)
+ * - 5・10・15・20・25 は 中ボス、30 が さいごの ボス
  */
 export const STORY_STAGES: StoryStage[] = Array.from({ length: STORY_COUNT }, (_, i) => {
   const no = i + 1;
   const last = no === STORY_COUNT;
   const mid = no % 5 === 0 && !last;
+  const form = (no <= 10 ? 1 : no <= 20 ? 2 : 3) as 1 | 2 | 3;
+  const k = (no - 1) % 10;
+  const species = STORY_ORDER[form][k];
+  const level = last ? 100 : form === 1 ? 1 + k * 3 : form === 2 ? 30 + k * 3 : 60 + k * 4;
   return {
     no,
     title: last ? 'さいごのボス' : mid ? `${no}マスめ（中ボス）` : `${no}マスめ`,
@@ -50,10 +76,13 @@ export const STORY_STAGES: StoryStage[] = Array.from({ length: STORY_COUNT }, (_
     image: null,
     map: 'grassland', // 2026-11-04 企画者「草原を基本に」(マスごとに あとで変えられる)
     enemy: {
-      name: last ? 'ボス' : mid ? '中ボス' : 'ライバル',
-      level: last ? 70 : Math.max(1, Math.round(1 + (no - 1) * 3.4)),
-      prof: last ? 5 : Math.min(4, 1 + Math.floor((no - 1) / 5) + (mid ? 1 : 0)),
+      species,
+      form,
+      name: formName(species, form),
+      level,
+      prof: last ? 5 : Math.min(5, 1 + Math.floor((no - 1) / 6) + (mid ? 1 : 0)),
       boss: last || mid,
+      hp: +((1.3 + (no - 1) * 0.05) * (last || mid ? BOSS_HP : 1)).toFixed(2),
     },
   };
 });

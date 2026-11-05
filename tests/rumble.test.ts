@@ -1,16 +1,29 @@
+import { formAt } from '../src/core/battle3d/techLearn';
 import { describe, expect, it } from 'vitest';
 import { canPlay, CPU_LEVELS, nextStage, STORY_COUNT, STORY_STAGES } from '../src/core/rumble';
 import { LifeRecord, migrateLife, newLife } from '../src/core/lifeSave';
 
 describe('MONZ RUMBLE のモード (2026-11-03)', () => {
-  it('ストーリーは20マス。敵はだんだん強く、さいごはボス(Lv.70・うまさ5)', () => {
+  it('ストーリーは30ステージ。敵はだんだん強く、さいごはボス(Lv.100・うまさ5)(2026-11-05)', () => {
+    expect(STORY_COUNT).toBe(30);
     expect(STORY_STAGES).toHaveLength(STORY_COUNT);
     for (let i = 1; i < STORY_STAGES.length; i++) {
       expect(STORY_STAGES[i].enemy.level).toBeGreaterThan(STORY_STAGES[i - 1].enemy.level);
       expect(STORY_STAGES[i].enemy.prof).toBeGreaterThanOrEqual(STORY_STAGES[i - 1].enemy.prof - 1);
     }
     const last = STORY_STAGES[STORY_COUNT - 1];
-    expect(last.enemy).toMatchObject({ level: 70, prof: 5, boss: true });
+    expect(last.enemy).toMatchObject({ level: 100, prof: 5, boss: true, form: 3 });
+    // 1〜10 は 第1形態・11〜20 は 第2形態・21〜30 は 最終進化。10種族 × 3形態 = 30体が 1回ずつ
+    const seen = new Set<string>();
+    for (const st of STORY_STAGES) {
+      expect(st.enemy.form).toBe(st.no <= 10 ? 1 : st.no <= 20 ? 2 : 3);
+      expect(formAt(st.enemy.level)).toBe(st.enemy.form);
+      seen.add(`${st.enemy.species}:${st.enemy.form}`);
+      expect(st.enemy.hp).toBeGreaterThan(1);
+    }
+    expect(seen.size).toBe(30);
+    // HP は だんだん 多く
+    expect(STORY_STAGES[29].enemy.hp).toBeGreaterThan(STORY_STAGES[0].enemy.hp * 2);
   });
   it('遊べるのは クリアしたマスと次のマスだけ', () => {
     expect(nextStage(0)).toBe(1);

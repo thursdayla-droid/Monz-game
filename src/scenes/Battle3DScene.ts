@@ -15,7 +15,7 @@ import { modelFor } from '../core/roster';
 import { UI_FONT } from '../ui/paint';
 import { assetUrl } from '../assetUrl';
 import { partnerEntrant, rivalEntrant } from './AutoBattleScene';
-import { BOSS_HP, CPU_LEVELS, profOf, STORY_STAGES } from '../core/rumble';
+import { CPU_LEVELS, profOf, STORY_STAGES } from '../core/rumble';
 import { ARENAS, DEFAULT_MAP } from '../core/battle3d/arena';
 
 /** どのモードで戦うか(2026-11-03 企画者: ストーリーモードとバトルモード)。なければ 自分と同じレベルの相手(確認用) */
@@ -259,7 +259,8 @@ export class Battle3DScene extends Phaser.Scene {
     const cpu = this.params.mode === 'free' ? CPU_LEVELS.find((c) => c.id === this.params.cpu) ?? CPU_LEVELS[1] : undefined;
     const foeLevel = stage ? stage.enemy.level : cpu ? Math.max(1, Math.min(100, level + cpu.level)) : level;
     this.foeLevel = foeLevel;
-    const rival = rivalEntrant(foeLevel, seed);
+    // ストーリー: ステージの 種族・形態(2026-11-05 企画者「敵は 30キャラ」)
+    const rival = rivalEntrant(foeLevel, seed, stage?.enemy.species ?? 'bunk');
     const foe: AnimeEntrant = {
       ...rival,
       name: stage ? stage.enemy.name : rival.name,
@@ -276,15 +277,15 @@ export class Battle3DScene extends Phaser.Scene {
     this.learned = devPick && isPreview() ? growTechs(me.species, level, me.stats, undefined, me.instinct).state.learned : mon.techs?.learned ?? me.techs ?? [];
     // 形態で通常攻撃が変わる(Lv.30 で4連・Lv.60 で5連)
     me.form = formAt(level);
-    foe.form = formAt(foeLevel);
+    foe.form = stage ? stage.enemy.form : formAt(foeLevel);
     // マップ: ストーリーはマスのマップ・ほかはランダム(今はロストテンプルだけ)
     // マップ: ストーリーは マスごと・バトルモードは 草原(2026-11-04 企画者「それを基本にしよう」)。マップが増えたら pickFreeMap で えらぶ
     const mapId = stage ? stage.map : DEFAULT_MAP;
     this.battle = newAnimeBattle(me, foe, seed, 'manual', ARENAS[mapId] ?? null);
-    // ボス(中ボス・さいごのボス)は HP が多い【仮】
-    if (stage?.enemy.boss) {
+    // ストーリーの 敵は HP が多い(ボスは もっと)【仮】(2026-11-05 企画者「体力ももっと多く」)
+    if (stage) {
       const q = this.battle.f[1];
-      q.maxHp = Math.round(q.maxHp * BOSS_HP);
+      q.maxHp = Math.round(q.maxHp * stage.enemy.hp);
       q.hp = q.maxHp;
     }
     this.control = loadControl();
