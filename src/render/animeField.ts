@@ -1224,6 +1224,24 @@ export class AnimeField {
         this.splash(x, y, z);
         this.monSwing(x, z, dir, 'head', 0, y, true, col);
         break;
+      case 'tongue':
+        // SNEK 闇の舌: むらさきの 舌が のびる
+        this.monSwing(ax, az, dir, 'head', 0, y, true, 0x9a4aff);
+        for (let k = 1; k <= 4; k++) {
+          const t2 = this.sprite(0xb070ff);
+          t2.position.set(ax + Math.cos(dir) * k * 0.8, y - 0.2, az + Math.sin(dir) * k * 0.8);
+          this.add(t2, 0.22, -0.3, 0.45);
+        }
+        break;
+      case 'sparkAura':
+        this.bolt(ax, 0.2, az, ax, y + 1.6, az, 1);
+        break;
+      case 'thunderDive':
+        this.bolt(x, 6, z, x, 0.1, z, 2);
+        this.impact(x, z, 2.2, true, 2);
+        this.zap(x, 0.8, z);
+        this.shake(0.5);
+        break;
       case 'abyss':
         // 闇の とぐろ: まわりに 闇の 弧が 回る
         this.monSwing(ax, az, dir + Math.random() * 6, 'tail', 4.6, 0.6, true, 0x7a3ad0);
@@ -2182,6 +2200,22 @@ export class AnimeField {
       g.position.set(s.x, s.y, s.z);
       g.children[1].rotation.z += dt * 10;
       (g.children[1] as THREE.Sprite).material.rotation += dt * 12;
+      // 2026-11-05 新しい5体の弾の 形: 大きくなる 電気の輪(雷紋)・ふわふわの 泡・光の 狼(光る 粒を 引く)
+      if (s.look === 'ring' || s.look === 'bubble') {
+        g.children[0].scale.setScalar(s.r * (s.look === 'ring' ? 3.6 : 2.6) * (1 + Math.sin(s.t * 12) * 0.08));
+        g.position.y = s.y + (s.look === 'bubble' ? Math.sin(s.t * 6) * 0.2 : 0);
+        if (dt > 0 && s.look === 'ring' && Math.random() < dt * 14) this.bolt(s.x - s.r, s.y, s.z, s.x + s.r, s.y, s.z, 0.6, 0.1);
+        continue;
+      }
+      if (s.look === 'wolf') {
+        g.children[0].scale.set(s.r * 4.4, s.r * 2.6, 1);
+        if (dt > 0) for (let n = 0; n < 2; n++) {
+          const tr = this.sprite(n ? 0xffffff : 0xfff0a0, true, this.star);
+          tr.position.set(s.x + (Math.random() - 0.5) * 0.5, s.y + (Math.random() - 0.3) * 0.5, s.z + (Math.random() - 0.5) * 0.5);
+          this.add(tr, 0.3, -0.6, 0.3);
+        }
+        continue;
+      }
       // 炎の弾は、火の粉を引く
       if (getTech(s.tech).element === '炎' && Math.random() < 0.7) this.flame(s.x, s.y, s.z, 0.4, 1);
       // 尾
@@ -2438,7 +2472,7 @@ export class AnimeField {
       const mat = (m: THREE.Mesh) => m.material as THREE.MeshBasicMaterial;
       // 見た目(2026-11-03): 火柱(赤・橙)・落雷(黄・白)・光の杭(水色・白・細い)・光の砲撃(赤い照準 → 白い光)
       const lk = p.look ?? 'fire';
-      const cols = lk === 'rock' ? [0x8a6a40, 0xc0a070, 0x9a7a50, 0xd8c098] : lk === 'bolt' ? [0xffd23a, 0xfff6a0, 0xffe040, 0xffffff] : lk === 'stake' ? [0x40c0ff, 0xc0f0ff, 0x80e0ff, 0xffffff] : lk === 'beam' ? [0xff2a2a, 0xff8080, 0xfff0a0, 0xffffff] : [0xff3a00, 0xffc040, 0xff4a0a, 0xffd040];
+      const cols = lk === 'water' ? [0x2a8aff, 0x8ad8ff, 0x5ab8ff, 0xe8f8ff] : lk === 'rock' ? [0x8a6a40, 0xc0a070, 0x9a7a50, 0xd8c098] : lk === 'bolt' ? [0xffd23a, 0xfff6a0, 0xffe040, 0xffffff] : lk === 'stake' ? [0x40c0ff, 0xc0f0ff, 0x80e0ff, 0xffffff] : lk === 'beam' ? [0xff2a2a, 0xff8080, 0xfff0a0, 0xffffff] : [0xff3a00, 0xffc040, 0xff4a0a, 0xffd040];
       mat(warn).color.setHex(cols[0]);
       mat(rim).color.setHex(cols[1]);
       mat(outer).color.setHex(cols[2]);

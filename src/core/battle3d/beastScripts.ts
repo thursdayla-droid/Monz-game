@@ -39,6 +39,8 @@ export interface BeastStep {
   spin?: boolean;
   ghost?: boolean;
   orbit?: number;
+  /** 影に もぐって 相手の うしろへ 回る(1歩の はじめに) */
+  behind?: boolean;
   hit?: BeastHit;
   fx?: string;
 }
@@ -60,19 +62,9 @@ export const BEAST: Record<string, BeastStep[]> = {
     { mv: 'zap', t: 0.16, hit: { at: 0.5, cx: 4.4, r: 1.7, arc: P, part: 0.35, ground: true }, fx: 'wave' },
   ],
   噛みつきダイブ: [{ mv: 'bite', t: 0.6, jump: 7, pounce: true, hit: { contact: true, r: 1.7, arc: 1.3, part: 1, knock: 1.6 }, fx: 'bite' }],
-  炎牙: [
-    { mv: 'bite', t: 0.22, go: 0.9, hit: { at: 0.6, r: 1.8, arc: 1, part: 0.3, bind: 0.9 }, fx: 'fireBite' },
-    { mv: 'bite', t: 0.16, hit: { at: 0.5, r: 2.4, arc: P, part: 0.22, bind: 0.7 }, fx: 'fireBite' },
-    { mv: 'bite', t: 0.16, side: 0.3, hit: { at: 0.5, r: 2.4, arc: P, part: 0.22, bind: 0.5 }, fx: 'fireBite' },
-    { mv: 'head', t: 0.26, hit: { at: 0.5, r: 2.4, arc: P, part: 0.26, knock: 2.2 }, fx: 'flameBurst' },
-  ],
   牙王クラッシュ: [
     { mv: 'clawR', t: 0.32, jump: 5, go: 1.2 },
     { mv: 'head', t: 0.28, dive: 9, hit: { at: 0.5, cx: 1.2, r: 1.8, arc: P, part: 1, knock: 2.8 }, fx: 'slam' },
-  ],
-  獣跳ステップ: [
-    { mv: 'shoulder', t: 0.24, side: 2.6, jump: 4 },
-    { mv: 'bite', t: 0.3, go: 2.6, hit: { contact: true, r: 1.6, arc: 1.2, part: 1, knock: 1.6 }, fx: 'bite' },
   ],
   ライオファング: [
     { mv: 'clawR', t: 0.18, go: 0.6, hit: { at: 0.6, r: 1.7, arc: 1, part: 0.25 }, fx: 'claw' },
@@ -80,13 +72,6 @@ export const BEAST: Record<string, BeastStep[]> = {
     { mv: 'bite', t: 0.34, jump: 5, go: 0.4, hit: { at: 0.4, r: 1.9, arc: 1.2, part: 0.5, launch: 8 }, fx: 'flameBurst' },
   ],
   爆炎ブレス: [{ mv: 'zap', t: 0.75, hit: { n: 6, every: 0.11, at: 0.08, cx: 2.2, r: 2.2, arc: 0.55, part: 0.18 }, fx: 'flame' }],
-  荒神ラッシュ: [
-    { mv: 'clawR', t: 0.16, go: 0.5, hit: { at: 0.6, r: 1.7, arc: 1, part: 0.17 }, fx: 'claw' },
-    { mv: 'clawL', t: 0.16, go: 0.4, hit: { at: 0.6, r: 1.7, arc: 1, part: 0.17 }, fx: 'claw' },
-    { mv: 'bite', t: 0.18, go: 0.4, hit: { at: 0.6, r: 1.7, arc: 1, part: 0.18 }, fx: 'bite' },
-    { mv: 'clawR', t: 0.16, go: 0.4, hit: { at: 0.6, r: 1.7, arc: 1, part: 0.18 }, fx: 'claw' },
-    { mv: 'shoulder', t: 0.32, go: 1.6, hit: { at: 0.5, r: 1.8, arc: 1.2, part: 0.3, knock: 3 }, fx: 'head' },
-  ],
   爆走牙: [{ mv: 'bite', t: 0.7, go: 8, hit: { contact: true, r: 1.6, arc: 1, part: 1, launch: 7.5 }, fx: 'fireTrail' }],
   轟炎牙王: [
     { mv: 'clawR', t: 0.75, jump: 12, pounce: true, fx: 'flameAura' },
@@ -100,15 +85,9 @@ export const BEAST: Record<string, BeastStep[]> = {
   // ---------------- SNEK(闇・無。毒牙・とぐろ・しっぽ・影で ほんろうする) ----------------
   毒牙: [{ mv: 'bite', t: 0.32, go: 1.2, hit: { at: 0.55, r: 2.7, arc: 0.6, part: 1 }, fx: 'darkBite' }],
   尾払い: [{ mv: 'tail', t: 0.42, spin: true, hit: { at: 0.45, r: 2.5, arc: P, part: 1, launch: 6.5 }, fx: 'ring' }],
-  影すべり: [{ mv: 'head', t: 0.6, go: 6, ghost: true, hit: { contact: true, r: 1.5, arc: 1.3, part: 1, knock: 1.6 }, fx: 'shadow' }],
   牙落とし: [
     { mv: 'bite', t: 0.34, jump: 8, go: 1 },
     { mv: 'bite', t: 0.26, dive: 12, hit: { at: 0.45, r: 1.9, arc: P, part: 1, knock: 1.4 }, fx: 'darkSlam' },
-  ],
-  蛇の閃き: [
-    { mv: 'bite', t: 0.2, side: 1.6, go: 0.6, hit: { at: 0.7, r: 1.9, arc: 1.4, part: 0.3 }, fx: 'darkBite' },
-    { mv: 'bite', t: 0.2, side: -3.2, hit: { at: 0.7, r: 1.9, arc: 1.4, part: 0.3 }, fx: 'darkBite' },
-    { mv: 'bite', t: 0.24, side: 1.6, go: 0.6, hit: { at: 0.7, r: 1.9, arc: 1.4, part: 0.4, knock: 1.6 }, fx: 'darkBite' },
   ],
   螺旋牙: [
     { mv: 'bite', t: 0.24, orbit: 1.6, hit: { at: 0.7, r: 2.2, arc: 1.4, part: 0.3 }, fx: 'darkBite' },
@@ -128,12 +107,7 @@ export const BEAST: Record<string, BeastStep[]> = {
     { mv: 'clawR', t: 0.12, hit: { at: 0.5, cx: 3.9, r: 1.2, arc: P, part: 0.25, ground: true }, fx: 'stomp' },
     { mv: 'clawR', t: 0.12, hit: { at: 0.5, cx: 5.2, r: 1.3, arc: P, part: 0.25, ground: true }, fx: 'stomp' },
   ],
-  肩押し: [{ mv: 'shoulder', t: 0.65, go: 3.8, hit: { n: 4, every: 0.13, at: 0.15, r: 1.6, arc: 1.2, part: 0.25, knock: 1.3 }, fx: 'shove' }],
   ブルドーザー: [{ mv: 'shoulder', t: 1.05, go: 6.5, hit: { n: 6, every: 0.15, at: 0.08, r: 1.7, arc: 1.2, part: 0.17, knock: 1.4 }, fx: 'shove' }],
-  横ドスン: [
-    { mv: 'shoulder', t: 0.24, side: 2.4 },
-    { mv: 'shoulder', t: 0.3, go: 2.2, hit: { contact: true, r: 1.6, arc: 1.3, part: 1, knock: 2.6 }, fx: 'head' },
-  ],
   グリットプレス: [
     { mv: 'head', t: 0.5, jump: 7, pounce: true },
     { mv: 'head', t: 0.24, dive: 12, hit: { at: 0.4, r: 2.3, arc: P, part: 1, knock: 2 }, fx: 'slam' },
@@ -153,11 +127,6 @@ export const BEAST: Record<string, BeastStep[]> = {
     { mv: 'clawL', t: 0.15, side: -1.4, hit: { at: 0.6, r: 1.6, arc: 1.2, part: 0.5 }, fx: 'spark' },
   ],
   光牙バイト: [{ mv: 'bite', t: 0.42, jump: 4, pounce: true, hit: { contact: true, r: 1.7, arc: 1.2, part: 1, knock: 1.5 }, fx: 'lightBite' }],
-  雷牙ファング: [
-    { mv: 'bite', t: 0.2, go: 0.8, hit: { at: 0.6, r: 1.7, arc: 1, part: 0.4 }, fx: 'sparkBite' },
-    { mv: 'clawR', t: 0.24, go: 1.6, hit: { at: 0.7, r: 1.8, arc: 1.1, part: 0.3 }, fx: 'spark' },
-    { mv: 'clawL', t: 0.2, go: 0.4, hit: { at: 0.6, r: 1.8, arc: 1.1, part: 0.3, knock: 1.6 }, fx: 'spark' },
-  ],
   早足クロー: [
     { mv: 'clawR', t: 0.13, orbit: 0.9, hit: { at: 0.6, r: 1.9, arc: 1.5, part: 0.25 }, fx: 'spark' },
     { mv: 'clawL', t: 0.13, orbit: 0.9, hit: { at: 0.6, r: 1.9, arc: 1.5, part: 0.25 }, fx: 'spark' },
@@ -174,11 +143,6 @@ export const BEAST: Record<string, BeastStep[]> = {
     { mv: 'clawL', t: 0.16, go: 0.2, hit: { at: 0.6, r: 1.7, arc: 1, part: 0.3 }, fx: 'cross' },
     { mv: 'zap', t: 0.32, hit: { at: 0.4, r: 2, arc: 1.2, part: 0.4, launch: 7 }, fx: 'sparkUp' },
   ],
-  光の牙: [
-    { mv: 'bite', t: 0.18, go: 0.8, hit: { at: 0.6, r: 1.7, arc: 1, part: 0.3 }, fx: 'lightBite' },
-    { mv: 'tail', t: 0.3, spin: true, hit: { at: 0.5, r: 2.2, arc: 3.2, part: 0.3 }, fx: 'lightRing' },
-    { mv: 'bite', t: 0.22, go: 0.5, hit: { at: 0.6, r: 1.8, arc: 1.1, part: 0.4, knock: 1.8 }, fx: 'lightBite' },
-  ],
   // ---------------- SHELLZ(水・無。甲羅で守り、水で 距離をとる 亀。GRIT = 近くで 受け止めて 反撃) ----------------
   甲羅ドン: [{ mv: 'shell', t: 0.36, side: 0.6, spin: true, hit: { at: 0.5, r: 2, arc: 3.2, part: 1, knock: 1.6 }, fx: 'shellRing' }],
   甲羅のトゲ: [
@@ -194,9 +158,31 @@ export const BEAST: Record<string, BeastStep[]> = {
     { mv: 'shell', t: 0.2, go: -0.4 },
     { mv: 'shell', t: 0.36, go: 3.6, hit: { contact: true, r: 1.7, arc: 1.2, part: 1, launch: 7.5 }, fx: 'spikes' },
   ],
-  ハイドロヘッド: [{ mv: 'head', t: 0.5, go: 7.5, hit: { contact: true, r: 1.7, arc: 1.1, part: 1, launch: 7.5 }, fx: 'waterTrail' }],
   甲羅タイフーン: [
     { mv: 'shell', t: 0.95, spin: true, hit: { n: 4, every: 0.2, at: 0.1, r: 3, arc: 3.2, part: 0.2, knock: 0.8 }, fx: 'whirl' },
     { mv: 'shell', t: 0.3, spin: true, hit: { at: 0.4, r: 3.2, arc: 3.2, part: 0.25, knock: 2.6 }, fx: 'splashSlam' },
+  ],
+  // ---- 2026-11-05 企画者「同じような技ばっかりもやめて」で 入れかえた技 ----
+  // RIOT 跳び退き火炎: 足もとで 炎を はじけさせ、うしろへ 跳んで にげる(当たらない)
+  跳び退き火炎: [
+    { mv: 'zap', t: 0.16, hit: { at: 0.5, r: 2.3, arc: P, part: 0.8, knock: 2.2 }, fx: 'flameBurst' },
+    { mv: 'clawR', t: 0.42, go: -4, jump: 6, ghost: true },
+  ],
+  // GRIT 押し出し: 肩で ぶつかって 遠くまで 押しとばす
+  押し出し: [{ mv: 'shoulder', t: 0.4, go: 2.2, hit: { contact: true, r: 1.6, arc: 1.2, part: 0.7, knock: 6 }, fx: 'shove' }],
+  // SNEK 闇の舌: 舌を のばして 引きよせ → かみつく
+  闇の舌: [
+    { mv: 'zap', t: 0.3, hit: { at: 0.4, cx: 3, r: 1.5, arc: P, part: 0.4, pull: true }, fx: 'tongue' },
+    { mv: 'bite', t: 0.26, hit: { at: 0.6, r: 2, arc: 1.2, part: 0.6, knock: 1.6 }, fx: 'darkBite' },
+  ],
+  // SNEK 影すべり: 影に もぐって 相手の うしろへ → うしろから かみつく
+  影すべり: [
+    { mv: 'head', t: 0.4, ghost: true, behind: true, fx: 'shadow' },
+    { mv: 'bite', t: 0.24, hit: { at: 0.5, r: 1.9, arc: P, part: 1, knock: 1.6 }, fx: 'darkBite' },
+  ],
+  // VYBE 雷撃ダイブ: 高く跳んで、いなずまに なって 落ちる(まわりにも 落雷)
+  雷撃ダイブ: [
+    { mv: 'clawR', t: 0.55, jump: 11, pounce: true, fx: 'sparkAura' },
+    { mv: 'head', t: 0.3, dive: 16, hit: { at: 0.4, r: 2.4, arc: P, part: 1 }, fx: 'thunderDive' },
   ],
 };

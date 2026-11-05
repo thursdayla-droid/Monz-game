@@ -1,7 +1,7 @@
-import { it, expect } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { instinctFor } from '../src/core/autobattle/engine';
 import { ANIME } from '../src/core/battle3d/animeConfig';
-import { animeFinished, giveCommand, newAnimeBattle, stepAnime, type AnimeEntrant } from '../src/core/battle3d/anime';
+import { animeFinished, giveCommand, newAnimeBattle, stepAnime, type AnimeBattle, type AnimeEntrant } from '../src/core/battle3d/anime';
 import { checkRows, getTech, learnset } from '../src/core/battle3d/techTable';
 import { growTechs } from '../src/core/battle3d/techLearn';
 import { speciesStats } from '../src/core/stats';
@@ -134,4 +134,105 @@ it('SNEK 影の抜け殻 leaves the shadow where it was and slides back; 黒蛇�
   for (let i = 0; i < 40 && !g.shots.length; i++) stepAnime(g, ANIME.dt);
   const s = g.shots[0];
   expect(Math.hypot(s.vx, s.vz)).toBeLessThan(getTech('黒い息').speed * 0.6);
+});
+
+// 2026-11-05 企画者「同じような技ばっかりもやめて」→ 技ごとに ちがう しくみ
+describe('each new move works in its own way', () => {
+  const setup = (sp: string, techs: string[], gap = 4) => {
+    const b = newAnimeBattle(e(sp, techs), e('bunk', []), 3, 'manual');
+    const [p, q] = b.f;
+    p.pad = { x: 0, z: 0 };
+    q.pad = { x: 0, z: 0 };
+    q.thinkT = 99;
+    q.cooldown.dodge = q.cooldown.guard = 99;
+    p.x = 0; q.x = gap; p.z = q.z = 0; p.face = 0;
+    return { b, p, q };
+  };
+  const run = (b: AnimeBattle, n: number) => { const ev: AnimeBattle['events'] = []; for (let i = 0; i < n; i++) { b.events = []; stepAnime(b, ANIME.dt); ev.push(...b.events); } return ev; };
+  it('RIOT: 炎環走り rings the foe with 8 fires, 炎の爪痕 draws 3 fire lines, 火岩けり lobs 3 rocks, 獣性ブースト sets normal attacks on fire', () => {
+    let { b } = setup('riot', ['炎環走り']);
+    giveCommand(b, 0, '炎環走り'); run(b, 40);
+    expect(b.fields.filter((f) => f.tech === '炎環走り').length).toBe(8);
+    ({ b } = setup('riot', ['炎の爪痕']));
+    giveCommand(b, 0, '炎の爪痕'); run(b, 40);
+    expect(b.fields.filter((f) => f.tech === '炎の爪痕' && f.shape === 'line').length).toBe(3);
+    ({ b } = setup('riot', ['火岩けり'], 8));
+    giveCommand(b, 0, '火岩けり'); run(b, 25);
+    expect(b.shots.filter((s) => s.tech === '火岩けり' && s.vy !== undefined).length).toBe(3);
+    const r = setup('riot', ['獣性ブースト'], 1.6);
+    giveCommand(r.b, 0, '獣性ブースト'); run(r.b, 40);
+    expect(r.p.fireJabUntil ?? 0).toBeGreaterThan(r.b.t);
+  });
+  it('SNEK: 影すべり comes out behind the foe, 見切りの影 slips behind and bites when hit, 鱗の膜 sheds and escapes, 黒鱗 leaves poison', () => {
+    let { b, p, q } = setup('snek', ['影すべり']);
+    giveCommand(b, 0, '影すべり'); run(b, 30);
+    expect(p.x).toBeGreaterThan(q.x);
+    ({ b, p, q } = setup('snek', ['見切りの影'], 1.6));
+    q.face = Math.PI;
+    giveCommand(b, 0, '見切りの影'); run(b, 20);
+    let ev: AnimeBattle['events'] = [];
+    for (let i = 0; i < 90 && !ev.some((x) => x.kind === 'hit' && x.side === 0); i++) { if (i % 15 === 0) { q.face = Math.PI; giveCommand(b, 1, 'punch'); } ev.push(...run(b, 1)); }
+    expect(ev.some((x) => x.kind === 'hit' && x.side === 0)).toBe(true);
+    ({ b, p, q } = setup('snek', ['鱗の膜'], 1.6));
+    giveCommand(b, 0, '鱗の膜'); run(b, 20);
+    const x0 = p.x;
+    for (let i = 0; i < 90 && Math.abs(p.x - x0) < 1; i++) { if (i % 15 === 0) { q.face = Math.PI; giveCommand(b, 1, 'punch'); } run(b, 1); }
+    expect(Math.abs(p.x - x0)).toBeGreaterThan(2);
+    ({ b, p } = setup('snek', ['黒鱗']));
+    giveCommand(b, 0, '黒鱗'); run(b, 40);
+    p.pad = { x: 0, z: 1 };
+    run(b, 60);
+    expect(b.fields.some((f) => f.tech === '黒鱗' && f.effect === 'どく')).toBe(true);
+  });
+  it('GRIT: 大岩おこし pushes up a rock under the foe, 押し出し shoves far, 踏ん張り refills the guard', () => {
+    let { b, q } = setup('grit', ['大岩おこし']);
+    giveCommand(b, 0, '大岩おこし'); run(b, 50);
+    expect(b.pillars.some((p) => p.look === 'rock')).toBe(true);
+    ({ b, q } = setup('grit', ['押し出し'], 2.2));
+    giveCommand(b, 0, '押し出し'); run(b, 60);
+    expect(q.x).toBeGreaterThan(5);
+    const g = setup('grit', ['踏ん張り']);
+    g.p.guardGauge = 1;
+    giveCommand(g.b, 0, '踏ん張り'); run(g.b, 40);
+    expect(g.p.guardGauge).toBeGreaterThan(ANIME.guard.max * 0.9);
+  });
+  it('VYBE: 電気の種 mines burst when stepped on, 連鎖いなずま drops bolts, 雷紋 grows, ヴァイガルドライブ fires all around, 光狼のキバ homes', () => {
+    let { b, q } = setup('vybe', ['電気の種']);
+    giveCommand(b, 0, '電気の種'); run(b, 40);
+    const m = b.fields.find((f) => f.mine)!;
+    expect(m).toBeTruthy();
+    q.x = m.x; q.z = m.z;
+    expect(run(b, 10).some((x) => x.kind === 'hit' && x.side === 0)).toBe(true);
+    ({ b } = setup('vybe', ['連鎖いなずま']));
+    giveCommand(b, 0, '連鎖いなずま'); run(b, 30);
+    expect(b.pillars.filter((p) => p.look === 'bolt').length).toBeGreaterThanOrEqual(4);
+    ({ b } = setup('vybe', ['雷紋'], 9));
+    giveCommand(b, 0, '雷紋'); run(b, 30);
+    const r0 = b.shots[0].r; run(b, 20);
+    expect(b.shots[0].r).toBeGreaterThan(r0);
+    ({ b } = setup('vybe', ['ヴァイガルドライブ'], 9));
+    giveCommand(b, 0, 'ヴァイガルドライブ');
+    let most = 0;
+    for (let i = 0; i < 90; i++) { run(b, 1); most = Math.max(most, b.shots.length); }
+    expect(most).toBeGreaterThanOrEqual(10);
+    ({ b } = setup('vybe', ['光狼のキバ'], 9));
+    giveCommand(b, 0, '光狼のキバ'); run(b, 40);
+    expect(b.shots[0]?.home).toBeGreaterThan(0);
+  });
+  it('SHELLZ: 甲羅こもり cannot be hit for a while, 泡のつぶて traps, 潮の渦 pulls toward its middle, 間欠泉 is a water pillar', () => {
+    let { b, p, q } = setup('shellz', ['甲羅こもり']);
+    giveCommand(b, 0, '甲羅こもり'); run(b, 40);
+    expect(p.safeUntil).toBeGreaterThan(b.t);
+    ({ b } = setup('shellz', ['泡のつぶて'], 8));
+    giveCommand(b, 0, '泡のつぶて'); run(b, 40);
+    expect(b.shots.some((s) => s.bind)).toBe(true);
+    ({ b, p, q } = setup('shellz', ['潮の渦'], 2.9));
+    giveCommand(b, 0, '潮の渦'); run(b, 40);
+    const d0 = Math.hypot(q.x - p.x, q.z - p.z);
+    run(b, 30);
+    expect(Math.hypot(q.x - p.x, q.z - p.z)).toBeLessThan(d0);
+    ({ b } = setup('shellz', ['間欠泉']));
+    giveCommand(b, 0, '間欠泉'); run(b, 50);
+    expect(b.pillars.some((p) => p.look === 'water')).toBe(true);
+  });
 });

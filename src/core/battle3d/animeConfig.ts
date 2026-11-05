@@ -238,8 +238,14 @@ export const ANIME = {
     // VYBE: 放電コート = 近くで 攻撃した相手が まひ・ビリバウンド = はねる電気玉
     放電コート: 'shockCoat', ビリバウンド: 'arc',
     // SHELLZ: 水圧弾 = 重い 大きな 水の玉・大地の構え = 体を固める・水の鎧 = 弾を はね返す・潮の渦 = 自分の まわりに 渦
-    水圧弾: 'slowOrb', 大地の構え: 'armorBuff', 水の鎧: 'reflect', 潮の渦: 'selfRing',
-    頑固ガード: 'armor', 踏ん張り: 'armorBuff', 親分の意地: 'armorBuff', 我慢の壁: 'absorbCounter', 黒い息: 'slowOrb', 重圧の輪: 'selfRing',
+    水圧弾: 'slowOrb', 水の鎧: 'reflect',
+    // 2026-11-05 企画者「同じような技ばっかりもやめて」→ 技ごとに ちがう しくみ
+    炎環走り: 'fireRing', 獣性ブースト: 'fireJab', 炎の爪痕: 'clawLines', 火岩けり: 'lob3',
+    鱗の膜: 'shed', 見切りの影: 'evadeCounter', 黒鱗: 'poisonTrail', とぐろの罠: 'stickyGoo',
+    大岩おこし: 'onePillar', 踏ん張り: 'refill',
+    電気の種: 'mines', 連鎖いなずま: 'chain', 雷紋: 'ringShot', ヴァイガルドライブ: 'spread8', 光狼のキバ: 'homingWolf',
+    甲羅こもり: 'shellHide', 泡のつぶて: 'bubble', 潮の渦: 'whirlpool', 間欠泉: 'onePillar',
+    頑固ガード: 'armor', 親分の意地: 'armorBuff', 我慢の壁: 'absorbCounter', 黒い息: 'slowOrb', 重圧の輪: 'selfRing',
   } as Record<string, string>,
   /** とくべつな動きの数字【仮】。strike: 予告のあと落ちる・立つ攻撃(落雷・光の杭)の威力(強さごと) */
   style: {
