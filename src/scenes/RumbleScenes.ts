@@ -52,7 +52,15 @@ const CSS = `
 .rmb .nav button:disabled{opacity:.3}
 .rmb .sclear{position:absolute;top:calc(env(safe-area-inset-top) + 58px);left:50%;transform:translateX(-50%);white-space:nowrap}
 .rmb .stext{position:relative;margin:0 calc(env(safe-area-inset-right) + 12px) calc(env(safe-area-inset-bottom) + 12px) calc(env(safe-area-inset-left) + 12px);background:#fffffff0;color:#16101c;border:4px solid #16101c;border-radius:16px;padding:8px 14px;display:flex;flex-direction:column;gap:4px;max-height:42%;overflow:auto}
-.rmb .stext h3{margin:0;font-size:15px}
+.rmb .stext h3{margin:0;font-size:15px;display:flex;align-items:center;gap:8px}
+.rmb .stext .skip{margin-left:auto;border:2px solid #16101c;border-radius:8px;background:#fff;color:#16101c;font:900 12px ${UI_FONT};padding:2px 8px}
+.rmb .stext .who{align-self:flex-start;background:#16101c;color:#ffd23a;font-weight:900;font-size:13px;border-radius:8px;padding:2px 10px}
+.rmb .stext .line{min-height:1.5em;font-weight:700}
+.rmb .stext .line.narr{font-style:italic;color:#4a3a5a;font-weight:500}
+.rmb .srow .go.fight{background:#ffd23a;color:#16101c}
+.rmb .bstart{position:absolute;left:0;right:0;top:38%;text-align:center;font:900 54px ${UI_FONT};color:#ffd23a;-webkit-text-stroke:3px #16101c;text-shadow:0 6px 0 #16101c;opacity:0;transform:scale(2);pointer-events:none;z-index:3}
+.rmb .stl.starting .bstart{animation:rmbStart .7s ease-out forwards}
+@keyframes rmbStart{0%{opacity:0;transform:scale(2.2)}40%{opacity:1;transform:scale(1)}100%{opacity:1;transform:scale(1.05)}}
 .rmb .stext p{margin:0;font-size:14px;line-height:1.5}
 .rmb .srow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .rmb .srow .foe{flex:1;min-width:180px}
@@ -158,15 +166,20 @@ export class RumbleStoryScene extends Phaser.Scene {
     const draw = (fade: boolean) => {
       const st = STORY_STAGES[no - 1];
       const done = no <= cleared;
+      // 話を 1行ずつ(2026-11-05 企画者の 第1話)。さわると 次の行・さいごは BATTLE START!
+      let li = 0;
+      const lines = st.lines.length ? st.lines : [{ who: null, text: st.text }];
       box.innerHTML = `<div class="spic">${st.image ? `<img src="${assetUrl(st.image)}" alt="">` : '<span>一枚絵（企画者が作ります）</span>'}</div>
         <div class="stop"><button class="back">◀ もどる</button><div class="sno"><span class="sname">${STORY_NAME}</span>第${st.chapter}章　STAGE ${st.no} <small>/ ${STORY_COUNT}</small>${done ? '<em>クリア</em>' : ''}</div>
           <div class="nav"><button class="prev" ${no <= 1 ? 'disabled' : ''}>◀</button><button class="nxt" ${!canPlay(no + 1, cleared) ? 'disabled' : ''}>▶</button></div></div>
         ${allClear && no === STORY_COUNT ? '<div class="clear sclear">ストーリー クリア！ ◀ で 前の話も 遊べます</div>' : ''}
+        <div class="bstart">BATTLE START!</div>
         <div class="stext">
-          <h3>${st.title}</h3>
-          <p>${st.text}</p>
+          <h3>${st.title}<button class="skip">とばす ▶▶</button></h3>
+          <div class="who"></div>
+          <p class="line"></p>
           <div class="srow"><div class="foe">あいて：${st.enemy.name}　Lv.${st.enemy.level}　<span class="stars">${'★'.repeat(st.enemy.prof)}${'☆'.repeat(5 - st.enemy.prof)}</span>${st.enemy.boss ? '　<b>ボス</b>' : ''}</div>
-          <button class="go">${done ? 'もう一度 バトル' : 'バトル！'}</button></div>
+          <button class="go"></button></div>
         </div>`;
       if (fade) {
         box.classList.remove('in2');
@@ -174,6 +187,32 @@ export class RumbleStoryScene extends Phaser.Scene {
         box.classList.add('in2');
       }
       const $ = (q: string) => box.querySelector(q) as HTMLButtonElement;
+      const showLine = () => {
+        const L = lines[li];
+        $('.who').textContent = L.who ?? '';
+        $('.who').style.display = L.who ? 'inline-block' : 'none';
+        const p = $('.line');
+        p.textContent = L.text;
+        p.classList.toggle('narr', !L.who);
+        const last = li >= lines.length - 1;
+        $('.go').textContent = last ? 'BATTLE START!' : '▼ つぎへ';
+        $('.go').classList.toggle('fight', last);
+      };
+      const start = () => {
+        audio.unlock();
+        audio.se('select');
+        box.classList.add('starting');
+        window.setTimeout(() => this.scene.start('Battle3D', { mode: 'story', stage: no } satisfies RumbleParams), 750);
+      };
+      const advance = () => {
+        if (box.classList.contains('starting')) return;
+        if (li < lines.length - 1) {
+          audio.se('tap');
+          li++;
+          showLine();
+        } else start();
+      };
+      showLine();
       $('.back').addEventListener('click', () => {
         audio.se('back');
         this.scene.start('RumbleMode');
@@ -190,11 +229,19 @@ export class RumbleStoryScene extends Phaser.Scene {
         no++;
         draw(true);
       });
-      $('.go').addEventListener('click', () => {
-        audio.unlock();
-        audio.se('select');
-        this.scene.start('Battle3D', { mode: 'story', stage: no } satisfies RumbleParams);
+      $('.go').addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        advance();
       });
+      $('.skip').addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        li = lines.length - 1;
+        showLine();
+        start();
+      });
+      // 文の 枠・絵を さわっても 次へ
+      $('.stext').addEventListener('click', advance);
+      $('.spic').addEventListener('click', advance);
     };
     draw(true);
   }

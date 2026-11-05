@@ -33,6 +33,13 @@ export interface StoryStage {
   map: string;
   /** 章(1〜6。5戦ずつ) */
   chapter: number;
+  /** 話(1行ずつ 読む。who が null は ナレーション)。さいごに BATTLE START! */
+  lines: StoryLine[];
+}
+
+export interface StoryLine {
+  who: string | null;
+  text: string;
 }
 
 /** ストーリーの 名前(2026-11-05 企画者) */
@@ -66,6 +73,22 @@ export const STORY_IMAGES: Record<number, string> = {
   1: 'assets/story/ch1_01.webp', // 1章1話(2026-11-05 企画者)
 };
 
+/** 話(企画者が 書いた 文。ステージの 番号 → 題名と 行) */
+export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }> = {
+  // 2026-11-05 企画者
+  1: {
+    title: '第1話「最初の挑戦」',
+    lines: [
+      { who: null, text: 'ストリートの頂点を目指し、旅に出た無名の挑戦者。' },
+      { who: null, text: '草原の岩場で、ひときわ大きな声が響いた。' },
+      { who: 'GRIT', text: '「おい、そこのお前！」' },
+      { who: 'GRIT', text: '「ストリートの王を目指してるんだって？」' },
+      { who: 'GRIT', text: '「へっ、面白ぇ！」' },
+      { who: 'GRIT', text: '「だったらまず、俺を倒してみな！」' },
+    ],
+  },
+};
+
 /** 種族・形態の 名前(rosterData の 表と 同じ) */
 const FORM_NAME: Record<string, [string, string, string]> = {
   bunk: ['BUNK', 'BUNKER', 'BUNKLORD'], mofu: ['MOFU', 'MOFUR', 'MOFUGARD'], zipp: ['ZIPP', 'ZIPRO', 'ZIPRAX'], puni: ['PUNI', 'PUNISH', 'PUNISHROOM'], klak: ['KLAK', 'KLAKER', 'KLAKTRAP'],
@@ -91,7 +114,8 @@ export const STORY_STAGES: StoryStage[] = Array.from({ length: STORY_COUNT }, (_
   const level = last ? 100 : form === 1 ? 1 + k * 3 : form === 2 ? 30 + k * 3 : 60 + k * 4;
   return {
     no,
-    title: last ? 'KROWN戦' : mid ? `ステージ${no}（中ボス）` : `ステージ${no}`,
+    title: STORY_SCRIPTS[no]?.title ?? (last ? 'KROWN戦' : mid ? `ステージ${no}（中ボス）` : `ステージ${no}`),
+    lines: STORY_SCRIPTS[no]?.lines ?? [],
     text: '（ここに話が入ります。企画者が一枚絵と文を作ります）',
     image: STORY_IMAGES[no] ?? null,
     map: CHAPTER_MAP[chapter - 1],
