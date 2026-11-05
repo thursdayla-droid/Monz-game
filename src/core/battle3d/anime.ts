@@ -555,6 +555,11 @@ function startTech(b: AnimeBattle, f: AnimeMon, id: TechId, byCommand: boolean, 
     if (last) f.jabChain = 0;
     f.cooldown[id] = last ? b.t + windup + tech.duration + tech.recovery + tech.cooldown : b.t;
   }
+  // 浮いている相手に 体で行く技(突進・回転・連続攻撃): 相手の高さへ とび上がる
+  if ((tech.kind === 'rush' || tech.kind === 'spin' || tech.kind === 'combo') && floating(o) && f.y <= 0) {
+    f.vy = Math.sqrt(2 * C.gravity * Math.max(0.6, Math.min(3.5, o.y)));
+    f.y = 0.001;
+  }
   // カウンター: よけた・ジャストガードした すぐあと(2026-11-05 コンボ4段め)
   if (b.t < f.counterUntil && f.act.k === 'tech') {
     f.act.counter = true;
@@ -1123,7 +1128,7 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
         f.z += Math.sin(a.dir) * sp * dt;
         a.charge = (a.charge ?? 0) + sp * dt;
         f.face = a.dir;
-        if (a.next === 0 && dist(f, o) < C.body.minGap + 0.3 && Math.abs(o.y - f.y) < 1.2) {
+        if (a.next === 0 && dist(f, o) < C.body.minGap + 0.3 && yOk(b, f, o, 1.2)) {
           a.next = 1;
           hit(b, f, o, a.id, (f.x + o.x) / 2, 0.8, (f.z + o.z) / 2, a.dir, { last: a.n === passes - 1, part: a.n === passes - 1 ? 0.3 : 0.17 });
         }
@@ -1156,7 +1161,7 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
         if (!a.hit && run >= 0.08) {
           a.hit = true;
           const reach = C.style.stretchReach + C.body.radius;
-          if (dist(f, o) < reach && Math.abs(angDiff(angleTo(f, o), a.dir)) < 0.8 && los(b, f, o, 0.8) && Math.abs(o.y - f.y) < 1.2) hit(b, f, o, a.id, o.x, 0.8, o.z, a.dir);
+          if (dist(f, o) < reach && Math.abs(angDiff(angleTo(f, o), a.dir)) < 0.8 && los(b, f, o, 0.8) && yOk(b, f, o, 1.2)) hit(b, f, o, a.id, o.x, 0.8, o.z, a.dir);
         }
         // のびたあと: もどったら 動ける(下の「技のおわり」へ)
         if (a.hit) break;
@@ -1173,7 +1178,7 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
         f.face = angleTo(f, o);
         if (k >= 1 && !a.hit) {
           a.hit = true;
-          if (dist(f, o) < 2.4 && Math.abs(o.y - f.y) < 1.2) {
+          if (dist(f, o) < 2.4 && yOk(b, f, o, 1.2)) {
             const ok = hit(b, f, o, a.id, (f.x + o.x) / 2, 0.8, (f.z + o.z) / 2, angleTo(f, o));
             if (ok && o.act.k === 'hurt') o.act.until = Math.max(o.act.until, C.style.bindShort + 0.2);
           }
@@ -1216,7 +1221,7 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
         if (zr) f.face = md;
         f.x += Math.cos(md) * ms * dt;
         f.z += Math.sin(md) * ms * dt;
-        if (dist(f, o) < C.body.minGap + 0.2 && Math.abs(o.y - f.y) < 1.2) {
+        if (dist(f, o) < C.body.minGap + 0.2 && yOk(b, f, o, 1.2)) {
           a.hit = true;
           hit(b, f, o, a.id, (f.x + o.x) / 2, 0.8, (f.z + o.z) / 2, a.dir, st === 'vanishTackle' ? { power: getTech(a.id).power * 0.8 } : {});
           if (st === 'boltTrail') boltTrail(b, f, a);
@@ -1246,7 +1251,7 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
         f.face = md;
         f.x += Math.cos(md) * ms * dt;
         f.z += Math.sin(md) * ms * dt;
-        if (dist(f, o) < C.body.minGap + 0.3 && Math.abs(o.y - f.y) < 1.2) {
+        if (dist(f, o) < C.body.minGap + 0.3 && yOk(b, f, o, 1.2)) {
           a.hit = true;
           hit(b, f, o, a.id, (f.x + o.x) / 2, 0.6, (f.z + o.z) / 2, a.dir);
         }
@@ -1291,7 +1296,7 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
             }
           }
           f.face = angleTo(f, o);
-          if (dist(f, o) < C.combo.reach + 0.6 && Math.abs(o.y - f.y) < 1.2) {
+          if (dist(f, o) < C.combo.reach + 0.6 && yOk(b, f, o, 1.2)) {
             b.events.push({ kind: 'comboHit', side: f.side, n: a.n });
             const ok = hit(b, f, o, a.id, (f.x + o.x) / 2, 0.8, (f.z + o.z) / 2, f.face, { last: a.n >= tech.hits, part: tech.hits === 4 ? C.combo4[a.n - 1] : 1 / tech.hits });
             // スナップラッシュ: さいごに はさんだまま 自分のうしろへ 投げ飛ばす
@@ -1390,7 +1395,7 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
           b.events.push({ kind: 'impact', side: f.side, tech: a.id, x: f.x, z: f.z, r: dr });
           if (st === 'multiBounce' && a.n < 2) {
             // ぷにバウンド: 小さく はねながら 相手へ(3回。着地のたびに当たる)
-            if (dist(f, o) < dr + C.body.radius && o.y < 0.6) hit(b, f, o, a.id, o.x, 0.5, o.z, angleTo(f, o), { last: false, part: 0.4 });
+            if (dist(f, o) < dr + C.body.radius && (o.y < 0.6 || floating(o))) hit(b, f, o, a.id, o.x, 0.5, o.z, angleTo(f, o), { last: false, part: 0.4 });
             a.n++;
             a.hit = false;
             const jump = C.drop.jump * 0.6;
@@ -1403,7 +1408,7 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
             b.events.push({ kind: 'mark', side: f.side, x: tx, z: tz, r: dr, until: b.t + air });
             return;
           }
-          if (dist(f, o) < dr + C.body.radius && o.y < 0.6) hit(b, f, o, a.id, o.x, 0.5, o.z, angleTo(f, o), st === 'multiBounce' ? { part: 0.6 } : {});
+          if (dist(f, o) < dr + C.body.radius && (o.y < 0.6 || floating(o))) hit(b, f, o, a.id, o.x, 0.5, o.z, angleTo(f, o), st === 'multiBounce' ? { part: 0.6 } : {});
           else b.events.push({ kind: 'evaded', side: o.side });
           // ヘビークラッシュ: 着地すると 前へ 地割れが走る(3か所 順番に 岩が つき出る)
           if (st === 'crackLine') {
@@ -1758,13 +1763,15 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
       s.alive = false;
       b.events.push({ kind: 'explode', x: s.x, y: 0.5, z: s.z, tech: s.tech, big: true });
       b.events.push({ kind: 'impact', side: s.owner, tech: s.tech, x: s.x, z: s.z, r: C.style.bombR });
-      if (dist(s, foe) < C.style.bombR + C.body.radius && foe.y < 1 && los(b, s, foe, 0.4)) hit(b, b.f[s.owner], foe, s.tech, foe.x, 0.5, foe.z, angleTo(s, foe));
+      if (dist(s, foe) < C.style.bombR + C.body.radius && (foe.y < 1 || floating(foe)) && los(b, s, foe, 0.4)) hit(b, b.f[s.owner], foe, s.tech, foe.x, 0.5, foe.z, angleTo(s, foe));
       continue;
     }
     const px = s.x;
     const pz = s.z;
     s.x += s.vx * dt;
     s.z += s.vz * dt;
+    // 浮いている相手へ 向かう弾は 上へも ねらう(2026-11-05 企画者「浮き上がってる時 技もコンボに繋がるよね？」)
+    if (s.vy === undefined && floating(foe) && dist(s, foe) < 6) s.y += clamp(foe.y + 0.7 - s.y, -8 * dt, 8 * dt);
     // 山なりの弾: 落ちて、地面で はねる(はねたら 次は はじける)
     if (s.vy !== undefined) {
       s.vy -= C.gravity * 0.8 * dt;
@@ -1879,7 +1886,7 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
         b.events.push({ kind: 'explode', x: s.x, y: s.y, z: s.z, tech: s.tech, big: false });
       }
     const tgt = b.f[beam.owner === 0 ? 1 : 0];
-    if (!beam.hit && onBeam(tgt, C.body.radius) && tgt.y < 1.5) {
+    if (!beam.hit && onBeam(tgt, C.body.radius) && (tgt.y < 1.5 || floating(tgt))) {
       if (hit(b, owner, tgt, beam.tech, tgt.x, 0.8, tgt.z, beam.dir)) {
         beam.hit = true;
         b.events.push({ kind: 'explode', x: tgt.x, y: 0.9, z: tgt.z, tech: beam.tech, big: true });
@@ -1995,7 +2002,7 @@ function updateProjectiles(b: AnimeBattle, dt: number): void {
       p.up = true;
       b.events.push({ kind: 'pillar', side: p.owner, x: p.x, z: p.z, look: p.look });
     }
-    if (b.t < p.at + C.pillar.burst && dist(p, tgt) < p.r + C.body.radius * 0.6 && tgt.y < 2.5 && !b.pillars.some((q) => q.g === p.g && q.hitDone)) {
+    if (b.t < p.at + C.pillar.burst && dist(p, tgt) < p.r + C.body.radius * 0.6 && (tgt.y < 2.5 || floating(tgt)) && !b.pillars.some((q) => q.g === p.g && q.hitDone)) {
       if (hit(b, b.f[p.owner], tgt, p.tech, tgt.x, tgt.y + 0.6, tgt.z, angleTo(p, tgt), p.power ? { power: p.power } : {})) for (const q of b.pillars) if (q.g === p.g) q.hitDone = true;
     }
   }
@@ -2457,6 +2464,16 @@ function breakCombo(b: AnimeBattle, o: AnimeMon): void {
   o.comboN = 0;
   o.comboLast = -99;
   b.events.push({ kind: 'comboBreak', side: o.side });
+}
+
+/** ふっとんで 浮いている(技が とどく 相手) */
+function floating(o: AnimeMon): boolean {
+  return o.act.k === 'air' && o.y > 0.3;
+}
+
+/** 近くで 当てる技の 上下の とどき: ふつうは 同じくらいの高さ。浮いている相手には とび上がって とどく */
+function yOk(_b: AnimeBattle, f: AnimeMon, o: AnimeMon, tol: number): boolean {
+  return Math.abs(o.y - f.y) < tol || (floating(o) && o.y - f.y < 4.5);
 }
 
 /** 技ではない指示 */
