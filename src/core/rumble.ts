@@ -115,6 +115,19 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
       { who: 'SHELLZ', text: '「さあ、かかってこい！」' },
     ],
   },
+  4: {
+    title: '第4話',
+    lines: [
+      { who: null, text: '3連勝を飾り、草原のはずれまでたどり着いた挑戦者。' },
+      { who: null, text: '夕焼けに染まる岩場で、突然、激しい雄叫びが響き渡る。' },
+      { who: 'RIOT', text: '「グルルル……お前が噂の挑戦者か！」' },
+      { who: 'RIOT', text: '「GRITもSNEKもSHELLZも倒したんだってな！」' },
+      { who: 'RIOT', text: '「へっ！ どいつも情けねぇ！」' },
+      { who: 'RIOT', text: '「俺はあんな連中とは違うぜ！」' },
+      { who: 'RIOT', text: '「その連勝記録、ここで燃やし尽くしてやる！」' },
+      { who: null, text: 'RIOTが牙をむき出しにし、岩の上から飛びかかる！' },
+    ],
+  },
 };
 
 /** 種族・形態の 名前(rosterData の 表と 同じ) */
