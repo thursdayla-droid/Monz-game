@@ -90,6 +90,7 @@ export const STORY_IMAGES: Record<number, string> = {
   17: 'assets/story/ch4_17.webp', // 4章17話 RIOTER(2026-11-06 企画者)
   18: 'assets/story/ch4_18.webp', // 4章18話 BUNKER(2026-11-06 企画者)
   19: 'assets/story/ch4_19.webp', // 4章19話 MOFUR(2026-11-06 企画者)
+  20: 'assets/story/ch4_20.webp', // 4章20話 PUNISH(中ボス。2026-11-06 企画者)
 };
 
 /** 話(企画者が 書いた 文。ステージの 番号 → 題名と 行) */
@@ -368,6 +369,27 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
       { who: 'MOFUR', text: '「それとも……王になりたいから、強くなるの？」' },
       { who: 'MOFUR', text: '「ふふっ。答えは言葉じゃなくていいよ。」' },
       { who: 'MOFUR', text: '「キミの戦い方で、ボクに教えて。」' },
+    ],
+  },
+  20: {
+    title: '第20話「笑顔の最後の門番」',
+    lines: [
+      { who: null, text: '19連勝を達成し、ついにネオン街の最深部へたどり着いた挑戦者。' },
+      { who: null, text: '目の前には、王座を争う大会「RUMBLE CROWN」の巨大な会場。' },
+      { who: null, text: 'しかし、その入り口をふさぐように、不思議なきのこの森が広がっていた。' },
+      { who: null, text: '光るきのこの上から、楽しそうな声が響く。' },
+      { who: 'PUNISH', text: '「ぷにっ！ やっと来た〜！」' },
+      { who: 'PUNISH', text: '「えへへ！ ボクのこと、覚えてる？」' },
+      { who: 'PUNISH', text: '「草原の池で遊んだPUNIだよ〜！」' },
+      { who: 'PUNISH', text: '「見て見て！ ボク、こんなに大きくなったんだ！」' },
+      { who: null, text: 'PUNISHが手を振ると、周囲のきのこが一斉に光り始めた。' },
+      { who: 'PUNISH', text: '「実はね、ボクには大事なお仕事があるんだ。」' },
+      { who: 'PUNISH', text: '「この門を通れるのは、本当に強いMONZだけ！」' },
+      { who: 'PUNISH', text: '「だから……今日は遊びじゃないよ？」' },
+      { who: null, text: 'いつもの笑顔のまま、PUNISHの目つきが鋭く変わる。' },
+      { who: 'PUNISH', text: '「ボクを倒せなかったら、ここでおしまい！」' },
+      { who: 'PUNISH', text: '「えへへっ！ 本気でいくからね！」' },
+      { who: 'PUNISH', text: '「さあ、最後のテスト、始めよっ！」' },
     ],
   },
 };
