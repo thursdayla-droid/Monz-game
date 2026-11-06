@@ -61,6 +61,8 @@ export const MODEL_FILES: Record<string, string> = {
   shellz: 'assets/battle3d/shellz.glb',
   'shellz:2': 'assets/battle3d/sheld.glb',
   'shellz:3': 'assets/battle3d/sheldozer.glb',
+  // CROWNOR(CROWNIE の 最終進化。企画者の Tripo モデル・骨入り 2026-11-06。骨は BUNK と 同じ 78本・左右そろっている)。元は design/battle3d/crownie/
+  'crownie:3': 'assets/battle3d/crownor.glb',
 };
 /**
  * 骨の動かし方(2026-11-04)。'quad:<歩き方>' = 四つ足の けもの(quadBones.ts の QUAD_STYLES)・'snake' = へび(snakeBones.ts)。
@@ -75,7 +77,7 @@ export const MODEL_RIG: Record<string, ModelRig> = { ...rig3('riot', 'quad:wild'
  */
 export const MODEL_NO_BONES = new Set<string>();
 /** 腕の攻撃の動きの大きさ(肩が高い・上着があるモデルは、大きく回すとくずれるので小さく)【仮】 */
-export const MODEL_ATTACK_AMP: Record<string, number> = { bunk: 1, 'bunk:2': 0.8, 'bunk:3': 0.65 };
+export const MODEL_ATTACK_AMP: Record<string, number> = { bunk: 1, 'bunk:2': 0.8, 'bunk:3': 0.65, 'crownie:3': 0.65 };
 /** 【仮】形態ごとのゲームの中の高さ(進化すると大きくなる) */
 export const MODEL_HEIGHT = [1.55, 1.8, 2.0];
 
@@ -85,7 +87,9 @@ export const MODEL_STANDIN: Record<string, { species: string; hue: number }> = {
 
 export function modelFor(species: string, level: number): { file: string; form: number; height: number; bones: boolean; amp: number; rig: ModelRig; hue?: number } | null {
   const sub = MODEL_STANDIN[species];
-  if (sub && !MODEL_FILES[species]) {
+  // その形態の モデルが ない時だけ 代わりの 体(CROWNIE・CROWNIX は まだ ない → BUNK の 体。CROWNOR は 企画者の モデル)
+  const own = MODEL_FILES[formAt(level) === 1 ? species : `${species}:${formAt(level)}`];
+  if (sub && !own) {
     const m = modelFor(sub.species, level);
     return m && { ...m, hue: sub.hue };
   }

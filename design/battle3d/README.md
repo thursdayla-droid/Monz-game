@@ -57,3 +57,10 @@
   2. ウェイト：腕は元の左腕のウェイト（右は左右反転して写す。指の骨の分は手の骨へ）。腕以外は、近い骨に分けた（体の線までの近さ。左右の足は反対側に付けない）。合計は全頂点で 1
   3. 逆バインド行列を計算し直した（立ち姿は元と同じ。軽くした版の画像のちがいは 0.05% の点だけ）
 - 確かめたこと：右腕→右のグローブ、左腕→左のグローブ、足→足、頭→頭と耳、背中→胸と肩の毛皮。右パンチ・左パンチ・足・頭と背中の曲げ・両腕を前で、顔と体がくずれない。右パンチのとき、腕の下の毛皮の上着が少しのびる
+
+## CROWNOR（CROWNIE の 最終進化・2026-11-06）
+- `crownie/crownor_tripo_original.glb`：企画者がくれた骨入りモデル（Tripo・元のまま・21MB）。ゲーム用：`public/assets/battle3d/crownor.glb`（軽くした・714KB）。
+- 軽くする手順：`gltf-transform optimize 元.glb crownor.glb --compress meshopt --simplify-ratio 0.02 --simplify-error 0.002 --texture-size 1024 --texture-compress webp --instance false --join false --palette false`（gltf-transform 4.5.1）
+- 骨は BUNK と 同じ 名前の 78本。主な骨（腰・頭・腕・手・足）の 場所と、その骨で 動く 頂点の 場所を 比べた → 左右 そろっていて、BUNKLORD のような ずれは ない。
+- 前の腕の骨が マントの すそ（地面近く）まで 動かす。腕を 振ると マントも いっしょに 動く。
+- CROWNIE・CROWNIX の モデルは まだない（BUNK の 体を 紫っぽくして 代わり。`roster.ts` の `MODEL_STANDIN`）。

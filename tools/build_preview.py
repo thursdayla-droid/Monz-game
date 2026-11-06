@@ -35,13 +35,15 @@ if B3D:
     paths = sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/battle3d/*.glb') + glob.glob(pub + 'assets/battle3d/*.webp'))
     is_new = lambda p: os.path.basename(p)[:-4] in NEW5
     is_bunk = lambda p: os.path.basename(p).startswith('bunk') or p.endswith('.webp')
-    FORM1 = ('bunk', 'mofu', 'zipp', 'puni', 'klak', 'riot', 'snek', 'grit', 'vybe', 'shellz')
+    FORM1 = ('bunk', 'mofu', 'zipp', 'puni', 'klak', 'riot', 'snek', 'grit', 'vybe', 'shellz', 'crownor')
     if STORY:
         # 1〜2章(第1形態)の 10体 + 一枚絵。3章から(第2・最終形態)の モデルは 入らないので 仮の人形
         paths = [p for p in paths if p.endswith('.webp') or os.path.basename(p)[:-4] in FORM1]
         paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/story/*.webp'))
     else:
         paths = [p for p in paths if (is_new(p) or is_bunk(p))] if B3D2 else [p for p in paths if not is_new(p)]
+        # 2026-11-06 CROWNOR は 15MB に 入らないので STREET KING の ページ(--story)だけ
+        paths = [p for p in paths if not p.endswith('crownor.glb')]
 elif MYTH:
     paths = myth_paths + card_paths
 else:
