@@ -326,7 +326,7 @@ export class Battle3DScene extends Phaser.Scene {
        <div class="stickHint">ここを<br>さわって<br>うごかす</div>
        <div class="pad"><div class="acts"><button class="jump" data-c="jump"><span class="lb">ジャンプ</span><span class="cd" style="height:0"></span></button><button class="dodge" data-c="dodge"><span class="lb">ガード</span><span class="cd" style="height:0"></span></button><button class="atk" data-c="punch"><span class="lb">こうげき</span><span class="cd" style="height:0"></span></button></div><div class="grid"></div></div>
        <div class="setup"></div>
-       ${isPreview() ? `<div class="dev"><button class="devOpen">確認用</button><div class="devPanel"><div>レベル ${[1, 10, 20, 25, 30, 60, 70].map((l) => `<button data-lv="${l}" class="${devPick?.level === l ? 'on' : ''}">${l}</button>`).join('')}</div><div>育て方 ${Object.keys(STYLE_LABEL).map((k) => `<button data-st="${k}" class="${devPick?.style === k ? 'on' : ''}">${STYLE_LABEL[k]}</button>`).join('')}</div><div>ステージ ${[['grassland', '草原'], ['street', 'ストリート'], ['champion', 'チャンピオン']].map(([k, n]) => `<button data-map="${k}" class="${(devPick?.map ?? DEFAULT_MAP) === k ? 'on' : ''}">${n}</button>`).join('')}</div><div>種族 ${(['bunk', 'mofu', 'zipp', 'puni', 'klak', 'riot', 'snek', 'grit', 'vybe', 'shellz', 'crownie'] as const).map((k) => `<button data-sp="${k}" class="${(devPick?.species ?? 'bunk') === k ? 'on' : ''}">${k.toUpperCase()}</button>`).join('')}</div><small>今の技: ${p.techs.map(esc).join('・')}</small></div></div>` : ''}
+       ${isPreview() ? `<div class="dev"><button class="devOpen">確認用</button><div class="devPanel"><div>レベル ${[1, 10, 20, 25, 30, 60, 70].map((l) => `<button data-lv="${l}" class="${devPick?.level === l ? 'on' : ''}">${l}</button>`).join('')}</div><div>育て方 ${Object.keys(STYLE_LABEL).map((k) => `<button data-st="${k}" class="${devPick?.style === k ? 'on' : ''}">${STYLE_LABEL[k]}</button>`).join('')}</div><div>ステージ ${[['grassland', '草原'], ['street', 'ストリート'], ['champion', 'チャンピオン']].map(([k, n]) => `<button data-map="${k}" class="${(devPick?.map ?? DEFAULT_MAP) === k ? 'on' : ''}">${n}</button>`).join('')}</div><div>種族 ${(['bunk', 'mofu', 'zipp', 'puni', 'klak', 'riot', 'snek', 'grit', 'vybe', 'shellz', 'crownie'] as const).map((k) => `<button data-sp="${k}" class="${(devPick?.species ?? 'bunk') === k ? 'on' : ''}">${k.toUpperCase()}</button>`).join('')}</div><small>今の技: ${p.techs.map((n) => esc(getTech(n).name)).join("・")}</small></div></div>` : ''}
        <div class="result"><h1></h1><button class="again">もう一度</button><button class="leave">もどる</button></div>
        <div class="turn"><div>スマホを 横にしてね<small>横にすると バトルが始まります</small></div></div>`,
     );
@@ -515,7 +515,7 @@ export class Battle3DScene extends Phaser.Scene {
       const old = el.querySelector('.list');
       if (old) scroll = old.scrollTop;
       const slotHtml = [0, 1, 2, 3]
-        .map((i) => (i >= slots ? `<div class="slot lock">🔒 Lv.${SLOT_LEVELS[i]}</div>` : `<div class="slot ${picked[i] ? 'on' : ''} ${sel === i ? 'sel' : ''}" data-s="${i}">${picked[i] ? esc(picked[i]!) : `わざ ${i + 1}`}</div>`))
+        .map((i) => (i >= slots ? `<div class="slot lock">🔒 Lv.${SLOT_LEVELS[i]}</div>` : `<div class="slot ${picked[i] ? 'on' : ''} ${sel === i ? 'sel' : ''}" data-s="${i}">${picked[i] ? esc(getTech(picked[i]!).name) : `わざ ${i + 1}`}</div>`))
         .join('');
       const list = this.learned
         .map((n) => {

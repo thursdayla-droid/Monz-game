@@ -243,6 +243,8 @@ export function getTech(id: string): TableTech {
 export function techDesc(name: string): string {
   const r = TECH_ROWS.find((x) => x.name === renameTech(baseTech(name)));
   if (!r) return '';
+  // CROWNIE の 技: 説明の 炎・赤を 紫に
+  if (name.endsWith(DARK)) return techDesc(baseTech(name)).replace(/赤い|オレンジの/g, '紫の').replace(/(?<!紫の)炎/g, '紫の炎');
   return r.memo.replace(/[（(][^（）()]*(20\d\d|企画者|案|仮)[^（）()]*[）)]/g, '').replace(/【[^】]*】/g, '').trim();
 }
 
