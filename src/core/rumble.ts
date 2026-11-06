@@ -81,6 +81,7 @@ export const STORY_IMAGES: Record<number, string> = {
   9: 'assets/story/ch2_09.webp', // 2章9話 PUNI(2026-11-05 企画者)
   10: 'assets/story/ch2_10.webp', // 2章10話 MOFU(中ボス。2026-11-05 企画者)
   11: 'assets/story/ch3_11.webp', // 3章11話 VYGA(2026-11-06 企画者)
+  12: 'assets/story/ch3_12.webp', // 3章12話 KLAKER(2026-11-06 企画者)
 };
 
 /** 話(企画者が 書いた 文。ステージの 番号 → 題名と 行) */
@@ -231,6 +232,20 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
       { who: 'VYGA', text: '「ここはストリート。弱ぇヤツに居場所はねぇ。」' },
       { who: 'VYGA', text: '「へへっ……歓迎してやるよ。」' },
       { who: 'VYGA', text: '「この街のルール、体に叩き込んでやる！」' },
+    ],
+  },
+  12: {
+    title: '第12話「仕組まれた罠」',
+    lines: [
+      { who: null, text: 'VYGAを倒し、街の奥へと進む挑戦者。' },
+      { who: null, text: '薄暗い工業地帯に足を踏み入れると、突然、足元から「カチッ」と音が響いた。' },
+      { who: null, text: '頭上の鉄の足場から、不気味な笑い声が聞こえてくる。' },
+      { who: 'KLAKER', text: '「ケケケッ！ そこまでだ！」' },
+      { who: 'KLAKER', text: '「お前の動きは、もう全部計算済みだぜ。」' },
+      { who: 'KLAKER', text: '「草原でKLAKの罠を破ったらしいな？」' },
+      { who: 'KLAKER', text: '「だが、俺の仕掛けはあんな単純なモンじゃねぇ！」' },
+      { who: 'KLAKER', text: '「一歩でも動けば……どうなるか分かるよな？」' },
+      { who: 'KLAKER', text: '「ケケケッ！ さあ、頭脳戦といこうぜ！」' },
     ],
   },
 };
