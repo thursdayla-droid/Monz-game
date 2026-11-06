@@ -85,6 +85,7 @@ export const STORY_IMAGES: Record<number, string> = {
   13: 'assets/story/ch3_13.webp', // 3章13話 ZIPRO(2026-11-06 企画者)
   14: 'assets/story/ch3_14.webp', // 3章14話 SHELD(2026-11-06 企画者)
   15: 'assets/story/ch3_15.webp', // 3章15話 GRITTER(中ボス。2026-11-06 企画者)
+  16: 'assets/story/ch4_16.webp', // 4章16話 SNEKER(2026-11-06 企画者)
 };
 
 /** 話(企画者が 書いた 文。ステージの 番号 → 題名と 行) */
@@ -294,6 +295,22 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
       { who: 'GRITTER', text: '「お前が勝ち続けてるって聞いて、ずっと待ってたんだ。」' },
       { who: 'GRITTER', text: '「さあ……あの日の決着、つけようぜ！」' },
       { who: null, text: 'GRITTERが拳を打ち鳴らすと、足元のコンクリートに亀裂が走った！' },
+    ],
+  },
+  16: {
+    title: '第16話「ネオン街の毒牙」',
+    lines: [
+      { who: null, text: '地下ランブルの番長GRITTERを倒し、15連勝を飾った挑戦者。' },
+      { who: null, text: 'その名は、ついに街のトップランカーたちにも知れ渡っていた。' },
+      { who: null, text: 'ネオンが輝く繁華街の路地裏。' },
+      { who: null, text: '突然、頭上から聞き覚えのある笑い声が響く。' },
+      { who: 'SNEKER', text: '「シャシャシャ……久しぶりだなぁ。」' },
+      { who: 'SNEKER', text: '「覚えてるか？ 草原でお前に負けたSNEKだぜ。」' },
+      { who: 'SNEKER', text: '「あのときは、ちょいと油断しちまったが……」' },
+      { who: 'SNEKER', text: '「今じゃ俺も、この街のトップランカーの一匹だ。」' },
+      { who: 'SNEKER', text: '「へへっ……地下ランブルを制したくらいで、いい気になるなよ？」' },
+      { who: 'SNEKER', text: '「この街じゃ、強いだけじゃ生き残れねぇんだ。」' },
+      { who: 'SNEKER', text: '「さぁ……今度はどっちが狩られるかな？」' },
     ],
   },
 };
