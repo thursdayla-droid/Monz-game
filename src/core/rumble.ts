@@ -80,6 +80,7 @@ export const STORY_IMAGES: Record<number, string> = {
   8: 'assets/story/ch2_08.webp', // 2章8話 BUNK(2026-11-05 企画者)
   9: 'assets/story/ch2_09.webp', // 2章9話 PUNI(2026-11-05 企画者)
   10: 'assets/story/ch2_10.webp', // 2章10話 MOFU(中ボス。2026-11-05 企画者)
+  11: 'assets/story/ch3_11.webp', // 3章11話 VYGA(2026-11-06 企画者)
 };
 
 /** 話(企画者が 書いた 文。ステージの 番号 → 題名と 行) */
@@ -215,6 +216,21 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
       { who: 'MOFU', text: '「この草原で、いちばん強いのは誰だと思う？」' },
       { who: 'MOFU', text: '「ふふっ。ボクが教えてあげる。」' },
       { who: null, text: 'MOFUが静かに微笑むと、足元のツルが一斉に動き出した！' },
+    ],
+  },
+  11: {
+    title: '第11話「ネオン街の洗礼」',
+    lines: [
+      { who: null, text: '草原での10連勝を達成し、ついに街へと足を踏み入れた挑戦者。' },
+      { who: null, text: '雨上がりの倉庫街。' },
+      { who: null, text: 'ネオンが光る路地に、突然、激しい電撃音が響いた。' },
+      { who: null, text: '見上げると、コンテナの上に一匹のMONZが立っていた。' },
+      { who: 'VYGA', text: '「へぇ……お前が草原で暴れてたヤツか。」' },
+      { who: 'VYGA', text: '「VYBEを倒したって聞いたぜ。」' },
+      { who: 'VYGA', text: '「だがよ、草原で10回勝ったくらいで調子に乗るなよ？」' },
+      { who: 'VYGA', text: '「ここはストリート。弱ぇヤツに居場所はねぇ。」' },
+      { who: 'VYGA', text: '「へへっ……歓迎してやるよ。」' },
+      { who: 'VYGA', text: '「この街のルール、体に叩き込んでやる！」' },
     ],
   },
 };
