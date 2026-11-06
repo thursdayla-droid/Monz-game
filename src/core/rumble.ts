@@ -48,7 +48,8 @@ export const STORY_NAME = 'STREET KING';
 export const CHAPTER_MAP = ['grassland', 'grassland', 'street', 'street', 'champion', 'champion'];
 /**
  * KROWN(さいごの ボス・敵専用。2026-11-05 企画者「今後作る。今いるキャラで代用」)【仮】:
- * 体は 今いる キャラ(下の species・form)を 使う。名前だけ KROWN
+ * 体は 今いる キャラ(下の species・form)を 使う。名前だけ KROWN。
+ * 2026-11-06 企画者「30話目はバンクロード」→ 今は ストーリーに 出さない(KROWN が できたら どこに 出すか 決める)
  */
 export const KROWN = { name: 'KROWN', species: 'bunk', form: 3 as const };
 
@@ -65,7 +66,7 @@ export const STORY_ORDER: Record<1 | 2 | 3, string[]> = {
   // 2026-11-05 企画者「絵はグリット。ライオットはこれから出てくる形に」→ 1戦目 GRIT・RIOT は 4戦目
   1: ['grit', 'snek', 'shellz', 'riot', 'vybe', 'zipp', 'klak', 'bunk', 'puni', 'mofu'],
   2: ['vybe', 'klak', 'zipp', 'shellz', 'grit', 'snek', 'riot', 'bunk', 'mofu', 'puni'],
-  // 30戦目は KROWN(代わりの 体は BUNKLORD)。PUNISHROOM は 28戦目
+  // 30戦目は BUNKLORD(2026-11-06 企画者「30話目はバンクロードにしましょう」。前は KROWN の 代わり)。PUNISHROOM は 28戦目
   3: ['snek', 'shellz', 'vybe', 'klak', 'riot', 'zipp', 'grit', 'puni', 'mofu', 'bunk'],
 };
 /** ストーリーの 一枚絵(企画者が ChatGPT で 作った絵。元の PNG は design/story/)。ステージの 番号 → 絵 */
@@ -391,12 +392,12 @@ export const STORY_STAGES: StoryStage[] = Array.from({ length: STORY_COUNT }, (_
   const mid = no % 5 === 0 && !last;
   const form = (no <= 10 ? 1 : no <= 20 ? 2 : 3) as 1 | 2 | 3;
   const k = (no - 1) % 10;
-  const species = last ? KROWN.species : STORY_ORDER[form][k];
+  const species = STORY_ORDER[form][k];
   const chapter = Math.ceil(no / 5);
   const level = last ? 100 : form === 1 ? 1 + k * 3 : form === 2 ? 30 + k * 3 : 60 + k * 4;
   return {
     no,
-    title: STORY_SCRIPTS[no]?.title ?? (last ? 'KROWN戦' : mid ? `ステージ${no}（中ボス）` : `ステージ${no}`),
+    title: STORY_SCRIPTS[no]?.title ?? (last ? 'さいごのボス' : mid ? `ステージ${no}（中ボス）` : `ステージ${no}`),
     lines: STORY_SCRIPTS[no]?.lines ?? [],
     text: '（ここに話が入ります。企画者が一枚絵と文を作ります）',
     image: STORY_IMAGES[no] ?? null,
@@ -405,7 +406,7 @@ export const STORY_STAGES: StoryStage[] = Array.from({ length: STORY_COUNT }, (_
     enemy: {
       species,
       form,
-      name: last ? KROWN.name : formName(species, form),
+      name: formName(species, form),
       level,
       prof: last ? 5 : Math.min(5, 1 + Math.floor((no - 1) / 6) + (mid ? 1 : 0)),
       boss: last || mid,
