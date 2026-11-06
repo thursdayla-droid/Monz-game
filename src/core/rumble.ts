@@ -98,6 +98,7 @@ export const STORY_IMAGES: Record<number, string> = {
   18: 'assets/story/ch4_18.webp', // 4章18話 BUNKER(2026-11-06 企画者)
   19: 'assets/story/ch4_19.webp', // 4章19話 MOFUR(2026-11-06 企画者)
   20: 'assets/story/ch4_20.webp', // 4章20話 PUNISH(中ボス。2026-11-06 企画者)
+  21: 'assets/story/ch5_21.webp', // 5章21話 SNEKXUS(2026-11-06 企画者)
 };
 
 /** 話(企画者が 書いた 文。ステージの 番号 → 題名と 行) */
@@ -397,6 +398,27 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
       { who: 'PUNISH', text: '「ボクを倒せなかったら、ここでおしまい！」' },
       { who: 'PUNISH', text: '「えへへっ！ 本気でいくからね！」' },
       { who: 'PUNISH', text: '「さあ、最後のテスト、始めよっ！」' },
+    ],
+  },
+  21: {
+    title: '第21話「闇に潜む王者の牙」',
+    lines: [
+      { who: null, text: '20戦無敗。' },
+      { who: null, text: 'ストリートの最後の門を越えた挑戦者は、ついにRUMBLE CROWNの大会会場へ足を踏み入れた。' },
+      { who: null, text: '金色に輝く柱。紫の旗。そして、巨大な闘技場。' },
+      { who: null, text: 'そのとき、暗い選手入場通路の天井から、低い声が響いた。' },
+      { who: 'SNEKXUS', text: '「……フッ。とうとう来たか。」' },
+      { who: 'SNEKXUS', text: '「草原で出会ったときは、ただの獲物だと思っていた。」' },
+      { who: 'SNEKXUS', text: '「ネオン街で再会したときも、俺はお前を甘く見ていた。」' },
+      { who: 'SNEKXUS', text: '「だが……二度も負ければ、嫌でもわかる。」' },
+      { who: 'SNEKXUS', text: '「お前は、本物だ。」' },
+      { who: null, text: '巨大なヘビが、ゆっくりと天井から頭を下ろす。' },
+      { who: null, text: 'その姿は、かつてのSNEKとは比べものにならないほど大きく、威圧的だった。' },
+      { who: 'SNEKXUS', text: '「俺はもう、闇に隠れて獲物を待つだけのヘビじゃない。」' },
+      { who: 'SNEKXUS', text: '「お前に負けて、ようやく気づいたんだ。」' },
+      { who: 'SNEKXUS', text: '「本当に強いヤツは、小細工なんかに頼らねぇってな。」' },
+      { who: 'SNEKXUS', text: '「……さあ、行こうか。」' },
+      { who: 'SNEKXUS', text: '「今度こそ、正面からお前を倒す。」' },
     ],
   },
 };
