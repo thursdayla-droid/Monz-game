@@ -102,6 +102,7 @@ export const STORY_IMAGES: Record<number, string> = {
   22: 'assets/story/ch5_22.webp', // 5章22話 SHELDOZER(2026-11-06 企画者)
   23: 'assets/story/ch5_23.webp', // 5章23話 VYGARD(2026-11-06 企画者)
   24: 'assets/story/ch5_24.webp', // 5章24話 KLAKTRAP(2026-11-06 企画者)
+  25: 'assets/story/ch5_25.webp', // 5章25話 RIOTRAX(中ボス。2026-11-06 企画者)
 };
 
 /** 話(企画者が 書いた 文。ステージの 番号 → 題名と 行) */
@@ -484,6 +485,28 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
       { who: 'KLAKTRAP', text: '「お前が次にどこへ動くか……すでに答えは出ている。」' },
       { who: 'KLAKTRAP', text: '「勝率、0.01パーセント。」' },
       { who: 'KLAKTRAP', text: '「さあ、計算通りに終わらせよう。」' },
+    ],
+  },
+  25: {
+    title: '第25話「燃え尽きるまで」',
+    lines: [
+      { who: 'RIOTRAX', text: '「グルルル……。」' },
+      { who: 'RIOTRAX', text: '「……遅ぇんだよ。」' },
+      { who: 'RIOTRAX', text: '「ずっと待ってたぜ。この瞬間をな。」' },
+      { who: 'RIOTRAX', text: '「草原で一度、ネオン街でもう一度。」' },
+      { who: 'RIOTRAX', text: '「お前に負けるたび、俺は自分の弱さが許せなかった。」' },
+      { who: null, text: 'RIOTRAXが地面を踏み砕く。' },
+      { who: null, text: '足元の亀裂から、真っ赤な炎が噴き出した。' },
+      { who: 'RIOTRAX', text: '「だがな……今は違う。」' },
+      { who: 'RIOTRAX', text: '「お前を恨んでるわけじゃねぇ。」' },
+      { who: 'RIOTRAX', text: '「お前がいたから、俺はここまで強くなれたんだ！」' },
+      { who: 'RIOTRAX', text: '「だからこそ……ここだけは譲れねぇ！」' },
+      { who: 'RIOTRAX', text: '「王座に挑むのは、この俺だ！！」' },
+      { who: null, text: '炎がさらに激しく燃え上がる。' },
+      { who: null, text: '二匹の前に、もう逃げ道はない。' },
+      { who: 'RIOTRAX', text: '「どっちが勝っても、恨みっこなしだ！」' },
+      { who: 'RIOTRAX', text: '「全部ぶつけてこい！！」' },
+      { who: 'RIOTRAX', text: '「最後まで立ってたヤツが、王座へ進む！！」' },
     ],
   },
 };
