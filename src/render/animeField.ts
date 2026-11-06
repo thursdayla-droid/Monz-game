@@ -9,7 +9,7 @@ import { BEAST } from '../core/battle3d/beastScripts';
 import * as THREE from 'three';
 import { ANIME, type Element, type TechId } from '../core/battle3d/animeConfig';
 import { isInvincible, type AnimeBattle, type AnimeMon } from '../core/battle3d/anime';
-import { getTech } from '../core/battle3d/techTable';
+import { baseTech, getTech } from '../core/battle3d/techTable';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { assetUrl } from '../assetUrl';
@@ -602,7 +602,7 @@ export class AnimeField {
     const done = (g: { scene: THREE.Object3D }) => {
       try {
         // 同じモデルの2体目は色違い
-        sides.forEach((i, n) => this.rigs[i].useModel(g.scene, this.models[i]?.height ?? MODEL.height, n > 0 ? MODEL.rivalHue : 0, this.models[i]?.bones ?? true, this.models[i]?.amp ?? 1, this.models[i]?.rig ?? 'auto'));
+        sides.forEach((i, n) => this.rigs[i].useModel(g.scene, this.models[i]?.height ?? MODEL.height, (this.models[i]?.hue ?? 0) + (n > 0 ? MODEL.rivalHue : 0), this.models[i]?.bones ?? true, this.models[i]?.amp ?? 1, this.models[i]?.rig ?? 'auto'));
       } catch (e) {
         this.modelError = `使えない: ${String(e)}`;
       }
@@ -656,6 +656,8 @@ export class AnimeField {
   }
 
   private sprite(color: number, additive = true, map: THREE.Texture = this.glow): THREE.Sprite {
+    // 闇の 色は 足しあわせると 明るい 地面の上で 白っぽく なるので、ふつうに 重ねる(2026-11-06 CROWNIE「紫っぽく」)
+    if (color === ELEMENT_HEX.闇) additive = false;
     return new THREE.Sprite(new THREE.SpriteMaterial({ map, color, transparent: true, depthWrite: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending }));
   }
 
@@ -719,9 +721,12 @@ export class AnimeField {
   }
 
   /** 炎(炎の技): ゆらゆら のぼる火の粉(赤・オレンジ・黄色) */
+  /** 今 描いている MONZ が CROWNIE(闇): 炎は 紫の炎に(2026-11-06 企画者「技のエフェクトは紫っぽく」) */
+  purpleFx = false;
+
   flame(x: number, y: number, z: number, spread: number, n = 2): void {
     for (let i = 0; i < n; i++) {
-      const c = [0xff3a10, 0xff7a1a, 0xffc040][Math.floor(Math.random() * 3)];
+      const c = (this.purpleFx ? [0x6a1aaa, 0xa040ff, 0xd8a0ff] : [0xff3a10, 0xff7a1a, 0xffc040])[Math.floor(Math.random() * 3)];
       const s = this.sprite(c);
       s.position.set(x + (Math.random() - 0.5) * spread, y + Math.random() * spread * 0.5, z + (Math.random() - 0.5) * spread);
       this.add(s, 0.4 + Math.random() * 0.25, -0.5, 0.5 + Math.random() * 0.3, { vx: (Math.random() - 0.5) * 0.6, vz: (Math.random() - 0.5) * 0.6, vy: 1.8 + Math.random() * 1.5 });
@@ -1484,7 +1489,7 @@ export class AnimeField {
   private styleFx(b: AnimeBattle, f: AnimeMon, i: number, dt: number): void {
     const a = f.act;
     const o = b.f[i === 0 ? 1 : 0];
-    const st = a.k === 'tech' ? ANIME.techStyle[a.id] : undefined;
+    const st = a.k === 'tech' ? ANIME.techStyle[baseTech(a.id)] : undefined;
     let line = this.aimLines[i];
     if (!line) {
       line = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0xff3030, transparent: true, opacity: 0.6, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
@@ -1877,6 +1882,7 @@ export class AnimeField {
     this.stageTick?.(performance.now() / 1000);
     b.f.forEach((f, i) => {
       const rig = this.rigs[i];
+      this.purpleFx = f.species === 'crownie';
       if (!this.blobs[i]) {
         const g = new THREE.Group();
         const disc = new THREE.Mesh(new THREE.CircleGeometry(0.75, 32), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false }));
@@ -1917,6 +1923,7 @@ export class AnimeField {
         ch.visible = true;
         const chCol = tech.kind === 'debuff' ? 0xb060ff : tech.strength === '大技' && tech.element === '無' ? 0xa040ff : auraColor(tech.element);
         ch.material.color.setHex(chCol);
+        ch.material.blending = tech.element === '闇' ? THREE.NormalBlending : THREE.AdditiveBlending;
         ch.scale.setScalar((tech.kind === 'beam' ? (tech.strength === '強' ? 2.4 : 1.6) : mouth ? 0.9 : 2.4) * k * (tech.strength === '大技' ? 1.6 : 1) * (1 + Math.sin(performance.now() / 30) * 0.12));
         // まわりから光の粒が集まる(ビームは多く・遠くから)
         if (Math.random() < dt * (tech.kind === 'beam' ? 70 : 30)) {
@@ -2033,7 +2040,7 @@ export class AnimeField {
           if (Math.random() < 0.3) this.petals(f.x, f.y + 0.6, f.z, 1, 1);
         } else if (t2.kind === 'rush') {
           for (let n = 0; n < 2; n++) {
-            const m = new THREE.Mesh(this.streakGeo, new THREE.MeshBasicMaterial({ color: n ? 0xffd080 : 0xff8a2a, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+            const m = new THREE.Mesh(this.streakGeo, new THREE.MeshBasicMaterial({ color: this.purpleFx ? (n ? 0xd8a0ff : 0x8a30ff) : n ? 0xffd080 : 0xff8a2a, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
             const side = (Math.random() - 0.5) * 1.3;
             m.position.set(f.x - Math.cos(a.dir) * (0.6 + Math.random()) - Math.sin(a.dir) * side, f.y + 0.3 + Math.random() * 1.1, f.z - Math.sin(a.dir) * (0.6 + Math.random()) + Math.cos(a.dir) * side);
             m.rotation.y = -a.dir;
@@ -2156,6 +2163,7 @@ export class AnimeField {
       return true;
     });
     this.drawShots(b, dt);
+    this.purpleFx = false;
     this.drawTraps(b);
     this.drawTethers(b, dt);
     this.drawGuards(b, dt);
@@ -2196,6 +2204,7 @@ export class AnimeField {
     const alive = new Set<number>();
     for (const s of b.shots) {
       alive.add(s.id);
+      this.purpleFx = b.f[s.owner].species === 'crownie';
       let g = this.shotObjs.get(s.id);
       const col = ELEMENT_HEX[getTech(s.tech).element];
       const fluffy = b.f[s.owner].species === 'mofu' && getTech(s.tech).kind !== 'drain';
@@ -2218,7 +2227,7 @@ export class AnimeField {
         continue;
       }
       const owner = b.f[s.owner];
-      const stl = ANIME.techStyle[s.tech];
+      const stl = ANIME.techStyle[baseTech(s.tech)];
       if (!g && (owner.species === 'puni' && getTech(s.tech).kind !== 'drain')) this.gooIds.add(s.id);
       if (!g && s.look !== 'ghost' && (s.stop !== undefined || (s.wait !== undefined && s.t < s.wait) || stl === 'soundRing')) {
         // 時限ボム(黒い玉)・千機包囲網(小さな砲台)・カチンショット(音の輪)
@@ -2324,9 +2333,17 @@ export class AnimeField {
         g = new THREE.Group();
         const outer = this.sprite(col);
         outer.scale.setScalar(s.r * 3.2);
-        const core = this.sprite(0xffffff, true, this.star);
+        // 闇の 弾(CROWNIE): 黒むらさきの 玉に うす紫の 光
+        const darkShot = getTech(s.tech).element === '闇';
+        if (darkShot) outer.material.blending = THREE.NormalBlending;
+        const core = this.sprite(darkShot ? 0xe0b8ff : 0xffffff, true, this.star);
         core.scale.setScalar(s.r * 1.8);
         g.add(outer, core);
+        if (darkShot) {
+          const ball = new THREE.Mesh(this.blobGeo, new THREE.MeshBasicMaterial({ color: 0x3a0a5a, transparent: true, opacity: 0.85, depthWrite: false }));
+          ball.scale.setScalar(s.r * 0.9);
+          g.add(ball);
+        }
         this.scene.add(g);
         this.shotObjs.set(s.id, g);
       }
@@ -2399,6 +2416,11 @@ export class AnimeField {
       const k = Math.min(1, beam.t / 0.08) * (beam.t > tech.duration - 0.12 ? Math.max(0, (tech.duration - beam.t) / 0.12) : 1);
       const [outer, core, head] = g.children as [THREE.Mesh, THREE.Mesh, THREE.Sprite];
       (outer.material as THREE.MeshBasicMaterial).color.setHex(col);
+      // 闇の 光線(CROWNIE。2026-11-06 企画者「紫っぽく」): まん中も うす紫・まわりを 濃く
+      const dark = tech.element === '闇';
+      (core.material as THREE.MeshBasicMaterial).color.setHex(dark ? 0xd8a0ff : 0xffffff);
+      (outer.material as THREE.MeshBasicMaterial).opacity = dark ? 0.85 : 0.55;
+      (outer.material as THREE.MeshBasicMaterial).blending = dark ? THREE.NormalBlending : THREE.AdditiveBlending;
       g.position.copy(start);
       g.rotation.set(0, -beam.dir, 0);
       outer.rotation.z = core.rotation.z = Math.PI / 2;

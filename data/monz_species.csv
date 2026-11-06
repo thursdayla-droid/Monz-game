@@ -29,3 +29,6 @@ VYBE,3,VYGARD,四つ足,雷,テクニック,Lv.60 で進化。読み：ヴァイ
 SHELLZ,1,SHELLZ,四つ足,水,タフネス,こうらの けもの。甲羅・守り・重い。読み：シェルズ（企画者 2026-11-04）。お世話画面の絵 design/species/shellz/care_main_2026-11-04.png（白い背景を消した。元は *_original.png）
 SHELLZ,2,SHELD,四つ足,水,タフネス,Lv.30 で進化。読み：シェルド（企画者 2026-11-04）。絵 design/species/shellz/sheld_form2.png
 SHELLZ,3,SHELDOZER,四つ足,水,タフネス,Lv.60 で進化。読み：シェルドーザー（企画者 2026-11-04）。絵 design/species/shellz/sheldozer_form3.png（白い背景を消した。元は *_original.png）
+CROWNIE,1,CROWNIE,二本足,闇,パワー,敵専用（企画者 2026-11-06）。技と性能は BUNK とほぼ同じ・属性は闇【仮】。絵 design/species/crownie/crownie_form1.png
+CROWNIE,2,CROWNIX,二本足,闇,パワー,Lv.30 で進化（企画者 2026-11-06）。絵 design/species/crownie/crownix_form2.png
+CROWNIE,3,CROWNOR,二本足,闇,パワー,最終進化（企画者 2026-11-06）。STREET KING 31話の 敵。絵 design/species/crownie/crownor_form3.png

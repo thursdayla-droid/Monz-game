@@ -429,3 +429,20 @@ it('the opponent cannot walk through the SHELLZ tide wall (2026-11-05)', () => {
     expect(q.x > -2.3, `wall=${wall} x=${q.x}`).toBe(wall);
   }
 });
+
+it('CROWNIE has the BUNK moves as dark moves (same names, element 闇) and can fight (2026-11-06)', () => {
+  const bunk = learnset('bunk');
+  const crown = learnset('crownie');
+  expect(crown.map((r) => getTech(r.name).name)).toEqual(bunk.map((r) => r.name));
+  for (const r of crown) {
+    expect(getTech(r.name).element).toBe('闇');
+    expect(getTech(r.name).power).toBe(getTech(r.name.replace('@闇', '')).power);
+  }
+  const s = speciesStats('crownie' as never).base;
+  expect(s).toEqual(speciesStats('bunk').base);
+  const g = growTechs('crownie', 100, s, undefined, instinctFor('crownie', s));
+  expect(g.state.equipped.length).toBe(4);
+  const b = newAnimeBattle(e('crownie', g.state.equipped, 3), e('bunk', [], 3), 9);
+  for (let i = 0; i < 100 / ANIME.dt && !animeFinished(b); i++) stepAnime(b, ANIME.dt);
+  expect(b.winner).not.toBeNull();
+});

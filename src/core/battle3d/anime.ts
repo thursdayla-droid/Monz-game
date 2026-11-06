@@ -14,7 +14,7 @@ import type { Proficiency } from './config';
 import { ANIME as C, TECH_IDS, type TechId } from './animeConfig';
 import { BEAST, type BeastHit, type BeastStep } from './beastScripts';
 import { coverSpot, insideObstacle, lineOfSight, rayHit, resolveBody, steerAround, type ArenaMap } from './arena';
-import { EFFECT_CHANCE, getTech, SELF_FIELD_TECHS, type Effect } from './techTable';
+import { baseTech, EFFECT_CHANCE, getTech, SELF_FIELD_TECHS, type Effect } from './techTable';
 
 export type Side = 0 | 1;
 export type Command = TechId | 'dodge' | 'guard';
@@ -1903,7 +1903,7 @@ function jabFor(e: AnimeEntrant): AnimeMon['jab'] {
   const mj = C.monJab[e.species]?.[form - 1];
   if (mj) return { parts: mj.parts, range: mj.range, step: 0, fire: 0, moves: mj.moves };
   const j = { ...C.jabByForm[form - 1] };
-  if (e.species !== 'bunk') j.fire = 0;
+  if (e.species !== 'bunk' && e.species !== 'crownie') j.fire = 0;
   return j;
 }
 
@@ -1931,7 +1931,7 @@ export function isInvincible(b: AnimeBattle, f: AnimeMon): boolean {
 }
 
 /** とくべつな動きの名前(技の名前から) */
-const styleOf = (id: TechId): string | undefined => C.techStyle[id];
+const styleOf = (id: TechId): string | undefined => C.techStyle[baseTech(id)];
 
 /** ガードを始める(量が少なすぎる時は できない) */
 function startGuard(b: AnimeBattle, f: AnimeMon, until: number, ai = false): boolean {

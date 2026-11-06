@@ -6,7 +6,7 @@ import { SPECIES, speciesName } from '../src/core/species';
 describe('registries', () => {
   it('lists the planner-given MONZ with BUNK ready', () => {
     // 2026-11-01: 10種族(5つは まだ名前が決まっていない入れ物)
-    expect(Object.values(SPECIES).map((s) => s.name)).toEqual(['BUNK', 'MOFU', 'ZIPP', 'PUNI', 'KLAK', 'RIOT', 'SNEK', 'GRIT', 'VYBE', 'SHELLZ']);
+    expect(Object.values(SPECIES).map((s) => s.name)).toEqual(['BUNK', 'MOFU', 'ZIPP', 'PUNI', 'KLAK', 'RIOT', 'SNEK', 'GRIT', 'VYBE', 'SHELLZ', 'CROWNIE']);
     expect(SPECIES.bunk.ready).toBe(true);
     expect(speciesName('bunk')).toBe('BUNK');
   });

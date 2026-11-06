@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { assetUrl } from '../assetUrl';
-import { canPlay, CPU_LEVELS, nextStage, STORY_COUNT, STORY_NAME, STORY_STAGES } from '../core/rumble';
+import { canPlay, CPU_LEVELS, nextStage, SPECIAL_NO, STORY_COUNT, STORY_NAME, STORY_STAGES, STORY_TOTAL } from '../core/rumble';
 import { loadLife } from '../core/lifeSave';
 import { UI_FONT } from '../ui/paint';
 import type { RumbleParams } from './Battle3DScene';
@@ -157,10 +157,10 @@ export class RumbleStoryScene extends Phaser.Scene {
     audio.playBgm('home');
     const cleared = loadLife().rumble?.cleared ?? 0;
     const next = nextStage(cleared);
-    const allClear = cleared >= STORY_COUNT;
+    const allClear = cleared >= STORY_TOTAL;
     // 2026-11-05 企画者「すごろく風はやめて、1枚絵でストーリーを進めていく感じに」:
     // 今の ステージの 一枚絵と 話を 大きく 出す → バトル。勝つと 次の 話へ。◀ ▶ で 前の 話も 見られる(もう一度 遊べる)
-    let no = this.from.justPlayed && !this.from.won ? this.from.justPlayed : allClear ? STORY_COUNT : next;
+    let no = this.from.justPlayed && !this.from.won ? this.from.justPlayed : allClear ? STORY_TOTAL : next;
     const root = mount(this, '<div class="stl"></div>');
     const box = root.querySelector('.stl') as HTMLDivElement;
     const draw = (fade: boolean) => {
@@ -170,9 +170,9 @@ export class RumbleStoryScene extends Phaser.Scene {
       let li = 0;
       const lines = st.lines.length ? st.lines : [{ who: null, text: st.text }];
       box.innerHTML = `<div class="spic">${st.image ? `<img src="${assetUrl(st.image)}" alt="">` : '<span>一枚絵（企画者が作ります）</span>'}</div>
-        <div class="stop"><button class="back">◀ もどる</button><div class="sno"><span class="sname">${STORY_NAME}</span>第${st.chapter}章　STAGE ${st.no} <small>/ ${STORY_COUNT}</small>${done ? '<em>クリア</em>' : ''}<span class="stitle">${st.title}</span><span class="sfoe">あいて：${st.enemy.name}　Lv.${st.enemy.level}　<span class="stars">${'★'.repeat(st.enemy.prof)}${'☆'.repeat(5 - st.enemy.prof)}</span>${st.enemy.boss ? '　ボス' : ''}</span></div>
+        <div class="stop"><button class="back">◀ もどる</button><div class="sno"><span class="sname">${STORY_NAME}</span>${st.no === SPECIAL_NO ? '特別編　STAGE ' + st.no : `第${st.chapter}章　STAGE ${st.no} <small>/ ${STORY_COUNT}</small>`}${done ? '<em>クリア</em>' : ''}<span class="stitle">${st.title}</span><span class="sfoe">あいて：${st.enemy.name}　Lv.${st.enemy.level}　<span class="stars">${'★'.repeat(st.enemy.prof)}${'☆'.repeat(5 - st.enemy.prof)}</span>${st.enemy.boss ? '　ボス' : ''}</span></div>
           <div class="nav"><button class="prev" ${no <= 1 ? 'disabled' : ''}>◀</button><button class="nxt" ${!canPlay(no + 1, cleared) ? 'disabled' : ''}>▶</button><button class="skip">とばす ▶▶</button></div></div>
-        ${allClear && no === STORY_COUNT ? '<div class="clear sclear">ストーリー クリア！ ◀ で 前の話も 遊べます</div>' : ''}
+        ${allClear && no === STORY_TOTAL ? '<div class="clear sclear">ストーリー クリア！ ◀ で 前の話も 遊べます</div>' : ''}
         <div class="bstart">BATTLE START!</div>
         <div class="stext">
           <div class="tx"><div class="who"></div><p class="line"></p></div>

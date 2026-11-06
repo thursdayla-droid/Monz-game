@@ -61,7 +61,8 @@ export const SPECIES_STATS: Partial<Record<SpeciesId, { base: StatBlock; weight:
 /** 決まっていないMONZは、5種に同じだけ(仮) */
 const FALLBACK = { base: { hp: 6, power: 6, tough: 6, speed: 6, tech: 6 }, weight: { hp: 1, power: 1, tough: 1, speed: 1, tech: 1 } };
 
-export const speciesStats = (species: SpeciesId) => SPECIES_STATS[species] ?? FALLBACK;
+/** CROWNIE は BUNK と 同じ 性能(2026-11-06 企画者「バンクの技と性能をほぼ一緒で」) */
+export const speciesStats = (species: SpeciesId) => SPECIES_STATS[species === 'crownie' ? 'bunk' : species] ?? FALLBACK;
 
 export const addStats = (a: StatBlock, b: StatBlock): StatBlock => Object.fromEntries(STAT_KEYS.map((k) => [k, a[k] + b[k]])) as StatBlock;
 

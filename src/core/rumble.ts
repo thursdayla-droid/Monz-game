@@ -53,6 +53,13 @@ export const CHAPTER_MAP = ['grassland', 'grassland', 'street', 'street', 'champ
  */
 export const KROWN = { name: 'KROWN', species: 'bunk', form: 3 as const };
 
+/**
+ * 31話(特別編)(2026-11-06 企画者「30話終わったら特別な31話を作ろう」)。敵は 新しい キャラ CROWNOR(CROWNIE の 最終進化・闇)。
+ * 30話を クリアすると 遊べる。いちばん 強い【仮】
+ */
+export const SPECIAL_NO = 31;
+export const STORY_TOTAL = SPECIAL_NO;
+
 /** 2026-11-05 企画者「ストーリーは全30ステージ」 */
 export const STORY_COUNT = 30;
 /** ボスの HP の倍率(ステージの 倍率に さらに かける)【仮】 */
@@ -396,7 +403,7 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
 
 /** 種族・形態の 名前(rosterData の 表と 同じ) */
 const FORM_NAME: Record<string, [string, string, string]> = {
-  bunk: ['BUNK', 'BUNKER', 'BUNKLORD'], mofu: ['MOFU', 'MOFUR', 'MOFUGARD'], zipp: ['ZIPP', 'ZIPRO', 'ZIPRAX'], puni: ['PUNI', 'PUNISH', 'PUNISHROOM'], klak: ['KLAK', 'KLAKER', 'KLAKTRAP'],
+  bunk: ['BUNK', 'BUNKER', 'BUNKLORD'], crownie: ['CROWNIE', 'CROWNIX', 'CROWNOR'], mofu: ['MOFU', 'MOFUR', 'MOFUGARD'], zipp: ['ZIPP', 'ZIPRO', 'ZIPRAX'], puni: ['PUNI', 'PUNISH', 'PUNISHROOM'], klak: ['KLAK', 'KLAKER', 'KLAKTRAP'],
   riot: ['RIOT', 'RIOTER', 'RIOTRAX'], snek: ['SNEK', 'SNEKER', 'SNEKXUS'], grit: ['GRIT', 'GRITTER', 'GRITBULL'], vybe: ['VYBE', 'VYGA', 'VYGARD'], shellz: ['SHELLZ', 'SHELD', 'SHELDOZER'],
 };
 export const formName = (species: string, form: number) => FORM_NAME[species]?.[form - 1] ?? species.toUpperCase();
@@ -437,6 +444,18 @@ export const STORY_STAGES: StoryStage[] = Array.from({ length: STORY_COUNT }, (_
   };
 });
 
+// 31話(特別編): CROWNOR
+STORY_STAGES.push({
+  no: SPECIAL_NO,
+  title: STORY_SCRIPTS[SPECIAL_NO]?.title ?? '特別編',
+  lines: STORY_SCRIPTS[SPECIAL_NO]?.lines ?? [],
+  text: '（ここに話が入ります。企画者が一枚絵と文を作ります）',
+  image: STORY_IMAGES[SPECIAL_NO] ?? null,
+  map: 'champion',
+  chapter: 7,
+  enemy: { species: 'crownie', form: 3, name: 'CROWNOR', level: 100, prof: 5, boss: true, hp: 4.4 },
+});
+
 /** バトルモードのマップ(マップが増えたら ランダムに。今はロストテンプルだけ) */
 export const pickFreeMap = (rng: () => number, ids: string[]): string => ids[Math.floor(rng() * ids.length)] ?? 'grassland';
 
@@ -444,6 +463,6 @@ export const pickFreeMap = (rng: () => number, ids: string[]): string => ids[Mat
 export const profOf = (n: number): Proficiency => ({ attack: n, defense: n, evasion: n, counter: n, spacing: n });
 
 /** 次に遊べるマス(cleared = クリアしたいちばん先のマス) */
-export const nextStage = (cleared: number) => Math.min(STORY_COUNT, cleared + 1);
+export const nextStage = (cleared: number) => Math.min(STORY_TOTAL, cleared + 1);
 /** そのマスを遊べるか(クリアした所と、次のマス) */
 export const canPlay = (no: number, cleared: number) => no >= 1 && no <= nextStage(cleared);

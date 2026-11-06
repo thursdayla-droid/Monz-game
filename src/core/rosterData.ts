@@ -34,4 +34,7 @@ export const ROSTER_ROWS: RosterRow[] = [
   {"species": "shellz", "form": 1, "name": "SHELLZ", "body": "四つ足", "element": "水", "favorite": "タフネス", "memo": "こうらの けもの。甲羅・守り・重い。読み：シェルズ（企画者 2026-11-04）。お世話画面の絵 design/species/shellz/care_main_2026-11-04.png（白い背景を消した。元は *_original.png）"},
   {"species": "shellz", "form": 2, "name": "SHELD", "body": "四つ足", "element": "水", "favorite": "タフネス", "memo": "Lv.30 で進化。読み：シェルド（企画者 2026-11-04）。絵 design/species/shellz/sheld_form2.png"},
   {"species": "shellz", "form": 3, "name": "SHELDOZER", "body": "四つ足", "element": "水", "favorite": "タフネス", "memo": "Lv.60 で進化。読み：シェルドーザー（企画者 2026-11-04）。絵 design/species/shellz/sheldozer_form3.png（白い背景を消した。元は *_original.png）"},
+  {"species": "crownie", "form": 1, "name": "CROWNIE", "body": "二本足", "element": "闇", "favorite": "パワー", "memo": "敵専用（企画者 2026-11-06）。技と性能は BUNK とほぼ同じ・属性は闇【仮】。絵 design/species/crownie/crownie_form1.png"},
+  {"species": "crownie", "form": 2, "name": "CROWNIX", "body": "二本足", "element": "闇", "favorite": "パワー", "memo": "Lv.30 で進化（企画者 2026-11-06）。絵 design/species/crownie/crownix_form2.png"},
+  {"species": "crownie", "form": 3, "name": "CROWNOR", "body": "二本足", "element": "闇", "favorite": "パワー", "memo": "最終進化（企画者 2026-11-06）。STREET KING 31話の 敵。絵 design/species/crownie/crownor_form3.png"},
 ];

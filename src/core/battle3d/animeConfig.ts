@@ -34,7 +34,7 @@ export const ANIME = {
   spacing: { ideal: 7, near: 4.5, far: 10 },
   /** 近くで 戦う 種族の CPU の 間合い(通常攻撃の 届く長さ + これ。2026-11-05 バランス調べ: みんな 7m はなれて 近くの攻撃が とどかなかった)【仮】 */
   spacingClose: { ideal: 0.2, near: 0.8, far: 1.3 },
-  closeSpecies: ['riot', 'snek', 'grit', 'vybe', 'shellz', 'bunk', 'zipp'],
+  closeSpecies: ['riot', 'snek', 'grit', 'vybe', 'shellz', 'bunk', 'zipp', 'crownie'],
   /** よける(横へ飛ぶ)。無敵の時間 */
   dodge: { time: 0.3, invincible: 0.28, distance: 3.4, cooldown: 1.6 },
   /** 指示: 動けない間は待つ。この時間をすぎたら消える。1件だけ(新しい指示で置きかえ) */
@@ -168,6 +168,7 @@ export const ANIME = {
   finish: { minCombo: 4, launch: 10, knock: 1.3, part: 1.25 },
   powerMoves: {
     bunk: ['punch', 'punch'],
+    crownie: ['punch', 'punch'],
     mofu: ['whip', 'whip'],
     riot: ['clawR', 'bite'],
     snek: ['bite', 'bite'],

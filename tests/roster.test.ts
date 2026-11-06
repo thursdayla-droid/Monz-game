@@ -4,10 +4,10 @@ import { isSpecies, SPECIES } from '../src/core/species';
 
 describe('roster (all characters: 10 species x 3 forms)', () => {
   it('has 10 species with 3 forms each and no mistakes', () => {
-    expect(rosterSpecies()).toHaveLength(10);
+    expect(rosterSpecies()).toHaveLength(11); // 10種族 + CROWNIE(2026-11-06)
     expect(checkRoster()).toEqual([]);
     for (const sp of rosterSpecies()) expect(isSpecies(sp)).toBe(true);
-    expect(Object.keys(SPECIES)).toHaveLength(10);
+    expect(Object.keys(SPECIES)).toHaveLength(11);
   });
   it('form changes at Lv.30 and Lv.60 (proposal)', () => {
     expect(formOf('bunk', 1)?.form).toBe(1);

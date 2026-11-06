@@ -110,11 +110,11 @@ export function buildTech(row: TechRow): TableTech {
   const base = BASE[kind];
   return {
     ...base,
-    name: row.name,
+    name: baseTech(row.name),
     element: row.element as Element,
     kind,
     power: base.power * m.power,
-    cooldown: base.cooldown * m.cooldown * (CD_MUL[row.name] ?? 1),
+    cooldown: base.cooldown * m.cooldown * (CD_MUL[baseTech(row.name)] ?? 1),
     windup: base.windup * m.windup,
     range: base.range * (kind === 'quake' || kind === 'drop' ? m.area : 1),
     size: base.size * (kind === 'beam' || kind === 'drop' || kind === 'barrier' || kind === 'shot' || kind === 'field' || kind === 'pillar' ? m.area : 1),
@@ -150,6 +150,16 @@ export function checkRows(rows: TechRow[] = TECH_ROWS): string[] {
   }
   return bad;
 }
+
+/**
+ * CROWNIE(2026-11-06 企画者「バンクの技と性能をほぼ一緒で。属性は闇・技のエフェクトは紫っぽく」):
+ * BUNK の 技を そのまま 写して、属性だけ 闇に。名前(画面の 文字)は 同じ・中の 呼び名(id)は 後ろに DARK を つける
+ */
+export const DARK = '@闇';
+/** 中の 呼び名から 元の 技の 名前(DARK を とる) */
+export const baseTech = (id: string): string => (id.endsWith(DARK) ? id.slice(0, -DARK.length) : id);
+const DARK_ROWS: TechRow[] = TECH_ROWS.filter((r) => r.species === 'bunk').map((r) => ({ ...r, species: 'crownie', name: r.name + DARK, element: '闇' }));
+TECH_ROWS.push(...DARK_ROWS);
 
 const TABLE = new Map<string, TableTech>();
 for (const r of TECH_ROWS) if (TYPE_KIND[r.type] && !TABLE.has(r.name)) TABLE.set(r.name, buildTech(r));
@@ -200,6 +210,7 @@ export const TECH_RENAME: Record<string, string> = {
 };
 export const renameTech = (name: string): string => TECH_RENAME[name] ?? name;
 
+
 export function getTech(id: string): TableTech {
   const t = TABLE.get(renameTech(id));
   if (t) return t;
@@ -210,7 +221,7 @@ export function getTech(id: string): TableTech {
 
 /** 技の説明(表の メモから、日付や 決めた時の メモ「（…）」を のぞいた 文) */
 export function techDesc(name: string): string {
-  const r = TECH_ROWS.find((x) => x.name === renameTech(name));
+  const r = TECH_ROWS.find((x) => x.name === renameTech(baseTech(name)));
   if (!r) return '';
   return r.memo.replace(/[（(][^（）()]*(20\d\d|企画者|案|仮)[^（）()]*[）)]/g, '').replace(/【[^】]*】/g, '').trim();
 }

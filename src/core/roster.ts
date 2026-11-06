@@ -80,7 +80,15 @@ export const MODEL_ATTACK_AMP: Record<string, number> = { bunk: 1, 'bunk:2': 0.8
 export const MODEL_HEIGHT = [1.55, 1.8, 2.0];
 
 /** そのレベルで使う3Dモデル(今の形態のモデルがなければ、1つ前の形態のモデル)。なければ null(仮のモンスター) */
-export function modelFor(species: string, level: number): { file: string; form: number; height: number; bones: boolean; amp: number; rig: ModelRig } | null {
+/** 3Dモデルが まだない 種族の 代わり(体を 借りる 種族・色の 回し方)【仮】。CROWNIE は 企画者が モデルを 作るまで BUNK の 体を 紫っぽく(2026-11-06) */
+export const MODEL_STANDIN: Record<string, { species: string; hue: number }> = { crownie: { species: 'bunk', hue: 1.4 } };
+
+export function modelFor(species: string, level: number): { file: string; form: number; height: number; bones: boolean; amp: number; rig: ModelRig; hue?: number } | null {
+  const sub = MODEL_STANDIN[species];
+  if (sub && !MODEL_FILES[species]) {
+    const m = modelFor(sub.species, level);
+    return m && { ...m, hue: sub.hue };
+  }
   for (let f = formAt(level); f >= 1; f--) {
     const key = f === 1 ? species : `${species}:${f}`;
     const file = MODEL_FILES[key];

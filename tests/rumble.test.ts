@@ -6,8 +6,12 @@ import { LifeRecord, migrateLife, newLife } from '../src/core/lifeSave';
 describe('MONZ RUMBLE のモード (2026-11-03)', () => {
   it('ストーリーは30ステージ。敵はだんだん強く、さいごはボス(Lv.100・うまさ5)(2026-11-05)', () => {
     expect(STORY_COUNT).toBe(30);
-    expect(STORY_STAGES).toHaveLength(STORY_COUNT);
-    for (let i = 1; i < STORY_STAGES.length; i++) {
+    // 30話 + 31話(特別編・CROWNOR。2026-11-06)
+    expect(STORY_STAGES).toHaveLength(STORY_COUNT + 1);
+    expect(STORY_STAGES[30].enemy).toMatchObject({ species: 'crownie', form: 3, name: 'CROWNOR', boss: true });
+    expect(canPlay(31, 30)).toBe(true);
+    expect(canPlay(31, 29)).toBe(false);
+    for (let i = 1; i < STORY_COUNT; i++) {
       expect(STORY_STAGES[i].enemy.level).toBeGreaterThan(STORY_STAGES[i - 1].enemy.level);
       expect(STORY_STAGES[i].enemy.prof).toBeGreaterThanOrEqual(STORY_STAGES[i - 1].enemy.prof - 1);
     }
@@ -15,7 +19,7 @@ describe('MONZ RUMBLE のモード (2026-11-03)', () => {
     expect(last.enemy).toMatchObject({ level: 100, prof: 5, boss: true, form: 3 });
     // 1〜10 は 第1形態・11〜20 は 第2形態・21〜30 は 最終進化。10種族 × 3形態 = 30体が 1回ずつ
     const seen = new Set<string>();
-    for (const st of STORY_STAGES) {
+    for (const st of STORY_STAGES.slice(0, STORY_COUNT)) {
       expect(st.enemy.form).toBe(st.no <= 10 ? 1 : st.no <= 20 ? 2 : 3);
       expect(formAt(st.enemy.level)).toBe(st.enemy.form);
       seen.add(`${st.enemy.species}:${st.enemy.form}`);
@@ -23,8 +27,8 @@ describe('MONZ RUMBLE のモード (2026-11-03)', () => {
     }
     expect(seen.size).toBe(30);
     // 6章(5戦ずつ)。1〜2章 草原・3〜4章 ストリート・5〜6章 チャンピオン。30戦目は BUNKLORD(2026-11-06)
-    expect(STORY_STAGES.map((st) => st.chapter)).toEqual(Array.from({ length: 30 }, (_, i) => Math.ceil((i + 1) / 5)));
-    for (const st of STORY_STAGES) expect(st.map).toBe(st.chapter <= 2 ? 'grassland' : st.chapter <= 4 ? 'street' : 'champion');
+    expect(STORY_STAGES.slice(0, STORY_COUNT).map((st) => st.chapter)).toEqual(Array.from({ length: 30 }, (_, i) => Math.ceil((i + 1) / 5)));
+    for (const st of STORY_STAGES.slice(0, STORY_COUNT)) expect(st.map).toBe(st.chapter <= 2 ? 'grassland' : st.chapter <= 4 ? 'street' : 'champion');
     expect(last.enemy).toMatchObject({ name: 'BUNKLORD', species: 'bunk', form: 3 });
     // HP は だんだん 多く
     expect(STORY_STAGES[29].enemy.hp).toBeGreaterThan(STORY_STAGES[0].enemy.hp * 2);

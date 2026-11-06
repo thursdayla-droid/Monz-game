@@ -85,7 +85,7 @@ const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
 /** 種族の本能＋ステータスのかたよりで、その個体の本能を決める【仮】 */
 export function instinctFor(species: string, stats: StatBlock): Instinct {
-  const base = SPECIES_INSTINCT[species] ?? DEFAULT_INSTINCT;
+  const base = SPECIES_INSTINCT[species === 'crownie' ? 'bunk' : species] ?? DEFAULT_INSTINCT;
   const total = stats.hp + stats.power + stats.tough + stats.speed + stats.tech || 1;
   // 5種が同じなら 0.2 ずつ。そこからのかたより(-0.2〜+0.8)
   const share = (v: number) => v / total - 0.2;

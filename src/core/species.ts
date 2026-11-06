@@ -18,6 +18,8 @@ export const SPECIES = {
   grit: { name: 'GRIT', ready: false },
   vybe: { name: 'VYBE', ready: false },
   shellz: { name: 'SHELLZ', ready: false },
+  // 2026-11-06 企画者: 敵専用の 新しいキャラ(STREET KING の 31話)。CROWNIE → Lv.30 CROWNIX → 最終進化 CROWNOR。技と 性能は BUNK と ほぼ 同じ・属性は 闇【仮】
+  crownie: { name: 'CROWNIE', ready: false },
 } as const;
 
 /** 前の入れ物の名前 → 今の種族(古い保存データを読むため。2026-11-02) */

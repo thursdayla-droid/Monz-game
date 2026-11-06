@@ -31,7 +31,7 @@ export interface RumbleParams {
 const START_PROFICIENCY: Proficiency = { attack: 2, defense: 2, evasion: 2, counter: 2, spacing: 2 };
 /** 確認用ページだけ: レベルと育て方を切りかえて、技枠と覚える技を見る(ゲーム本体には出さない) */
 let devPick: { level: number; style: StatKey; species?: DevSpecies; map?: string } | null = null;
-type DevSpecies = 'bunk' | 'mofu' | 'zipp' | 'puni' | 'klak' | 'riot' | 'snek' | 'grit' | 'vybe' | 'shellz';
+type DevSpecies = 'bunk' | 'mofu' | 'zipp' | 'puni' | 'klak' | 'riot' | 'snek' | 'grit' | 'vybe' | 'shellz' | 'crownie';
 const isPreview = () => ['Battle3D', 'RumbleMode'].includes((window as { __MONZ_START?: string }).__MONZ_START ?? '');
 const STYLE_LABEL: Record<string, string> = { power: 'パワー', tough: 'タフネス', speed: 'スピード', tech: 'テクニック' };
 /**
@@ -326,7 +326,7 @@ export class Battle3DScene extends Phaser.Scene {
        <div class="stickHint">ここを<br>さわって<br>うごかす</div>
        <div class="pad"><div class="acts"><button class="jump" data-c="jump"><span class="lb">ジャンプ</span><span class="cd" style="height:0"></span></button><button class="dodge" data-c="dodge"><span class="lb">ガード</span><span class="cd" style="height:0"></span></button><button class="atk" data-c="punch"><span class="lb">こうげき</span><span class="cd" style="height:0"></span></button></div><div class="grid"></div></div>
        <div class="setup"></div>
-       ${isPreview() ? `<div class="dev"><button class="devOpen">確認用</button><div class="devPanel"><div>レベル ${[1, 10, 20, 25, 30, 60, 70].map((l) => `<button data-lv="${l}" class="${devPick?.level === l ? 'on' : ''}">${l}</button>`).join('')}</div><div>育て方 ${Object.keys(STYLE_LABEL).map((k) => `<button data-st="${k}" class="${devPick?.style === k ? 'on' : ''}">${STYLE_LABEL[k]}</button>`).join('')}</div><div>ステージ ${[['grassland', '草原'], ['street', 'ストリート'], ['champion', 'チャンピオン']].map(([k, n]) => `<button data-map="${k}" class="${(devPick?.map ?? DEFAULT_MAP) === k ? 'on' : ''}">${n}</button>`).join('')}</div><div>種族 ${(['bunk', 'mofu', 'zipp', 'puni', 'klak', 'riot', 'snek', 'grit', 'vybe', 'shellz'] as const).map((k) => `<button data-sp="${k}" class="${(devPick?.species ?? 'bunk') === k ? 'on' : ''}">${k.toUpperCase()}</button>`).join('')}</div><small>今の技: ${p.techs.map(esc).join('・')}</small></div></div>` : ''}
+       ${isPreview() ? `<div class="dev"><button class="devOpen">確認用</button><div class="devPanel"><div>レベル ${[1, 10, 20, 25, 30, 60, 70].map((l) => `<button data-lv="${l}" class="${devPick?.level === l ? 'on' : ''}">${l}</button>`).join('')}</div><div>育て方 ${Object.keys(STYLE_LABEL).map((k) => `<button data-st="${k}" class="${devPick?.style === k ? 'on' : ''}">${STYLE_LABEL[k]}</button>`).join('')}</div><div>ステージ ${[['grassland', '草原'], ['street', 'ストリート'], ['champion', 'チャンピオン']].map(([k, n]) => `<button data-map="${k}" class="${(devPick?.map ?? DEFAULT_MAP) === k ? 'on' : ''}">${n}</button>`).join('')}</div><div>種族 ${(['bunk', 'mofu', 'zipp', 'puni', 'klak', 'riot', 'snek', 'grit', 'vybe', 'shellz', 'crownie'] as const).map((k) => `<button data-sp="${k}" class="${(devPick?.species ?? 'bunk') === k ? 'on' : ''}">${k.toUpperCase()}</button>`).join('')}</div><small>今の技: ${p.techs.map(esc).join('・')}</small></div></div>` : ''}
        <div class="result"><h1></h1><button class="again">もう一度</button><button class="leave">もどる</button></div>
        <div class="turn"><div>スマホを 横にしてね<small>横にすると バトルが始まります</small></div></div>`,
     );
@@ -522,11 +522,11 @@ export class Battle3DScene extends Phaser.Scene {
           const t = getTech(n);
           const k = picked.indexOf(n);
           const info = t.kind === 'barrier' ? '守り' : t.power ? `威力 ${t.power.toFixed(1)}` : t.kind === 'debuff' ? (t.effect === '防御ダウン' ? '防御ダウン' : t.effect === '遅くする' ? '遅くする' : t.effect === 'ねむり' ? 'ねむり' : '攻撃ダウン') : '遅くする';
-          return `<button class="t ${k >= 0 ? 'on' : ''}" data-n="${esc(n)}">${esc(n)}${k >= 0 ? `<i>${k + 1}</i>` : ''}<small>${t.element}・${t.strength}・${info}・待ち ${t.cooldown.toFixed(1)}秒</small></button>`;
+          return `<button class="t ${k >= 0 ? 'on' : ''}" data-n="${esc(n)}">${esc(t.name)}${k >= 0 ? `<i>${k + 1}</i>` : ''}<small>${t.element}・${t.strength}・${info}・待ち ${t.cooldown.toFixed(1)}秒</small></button>`;
         })
         .join('');
       const ft = focus ? getTech(focus) : null;
-      const descHtml = focus && ft ? `<div class="desc"><b>${esc(focus)}</b><small>${KIND_JP[ft.kind] ?? ''}・${ft.element}・${ft.strength}${ft.effect !== 'なし' ? `・${ft.effect}` : ''}・待ち ${ft.cooldown.toFixed(1)}秒</small>${esc(techDesc(focus))}</div>` : '';
+      const descHtml = focus && ft ? `<div class="desc"><b>${esc(ft.name)}</b><small>${KIND_JP[ft.kind] ?? ''}・${ft.element}・${ft.strength}${ft.effect !== 'なし' ? `・${ft.effect}` : ''}・待ち ${ft.cooldown.toFixed(1)}秒</small>${esc(techDesc(focus))}</div>` : '';
       el.innerHTML = `<h2>わざを セットしよう（${count()}/${slots}）</h2>
         <div class="row"><div><div class="slots">${slotHtml}</div>${descHtml}<div class="note">${sel >= 0 ? `わざ ${sel + 1} に入れる わざを さわってね<br>ほかの枠をさわると 入れかえ` : 'わざをさわると入る・もう一度で外れる<br>枠をさわると 入れかえできる'}</div></div><div class="list">${list}</div></div>
         <button class="go" ${count() || !this.learned.length ? '' : 'disabled'}>バトルスタート！</button>`;
@@ -693,6 +693,9 @@ export class Battle3DScene extends Phaser.Scene {
   private onEvent(e: AnimeEvent): void {
     const F = this.field!;
     const b = this.battle;
+    // CROWNIE(闇)の 技の 炎は 紫(2026-11-06)
+    const es = (e as { side?: number }).side;
+    F.purpleFx = es !== undefined && b.f[es]?.species === 'crownie';
     switch (e.kind) {
       case 'call': {
         // 技の名前をさけぶ(アニメ風)。自分の指示 → 「BUNK、○○だ！」

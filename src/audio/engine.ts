@@ -124,6 +124,8 @@ class AudioEngine {
     if (!this.ctx || !this.seBus || this.ctx.state !== 'running') return false;
     // 企画者の音のファイルがある技は、技を出した(さけんだ)時にファイルを鳴らし、出した時の作った音は鳴らさない
     // 2026-11-04 企画者「ビーム技ほかのもださいからバンクのビームの音に」→ ビームの型の技は みんな ギガントバーストの音
+    // CROWNIE の 闇の 技は 元の BUNK の 技の 音(2026-11-06)
+    name = name.replace(/@闇$/, '');
     const file = TECH_SE_FILES[name] ?? (kind === 'beam' ? 'b3dGigant' : undefined);
     if (file) {
       if (phase === 'call') {
