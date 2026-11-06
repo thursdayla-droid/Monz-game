@@ -82,6 +82,7 @@ export const STORY_IMAGES: Record<number, string> = {
   10: 'assets/story/ch2_10.webp', // 2章10話 MOFU(中ボス。2026-11-05 企画者)
   11: 'assets/story/ch3_11.webp', // 3章11話 VYGA(2026-11-06 企画者)
   12: 'assets/story/ch3_12.webp', // 3章12話 KLAKER(2026-11-06 企画者)
+  13: 'assets/story/ch3_13.webp', // 3章13話 ZIPRO(2026-11-06 企画者)
 };
 
 /** 話(企画者が 書いた 文。ステージの 番号 → 題名と 行) */
@@ -246,6 +247,21 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
       { who: 'KLAKER', text: '「だが、俺の仕掛けはあんな単純なモンじゃねぇ！」' },
       { who: 'KLAKER', text: '「一歩でも動けば……どうなるか分かるよな？」' },
       { who: 'KLAKER', text: '「ケケケッ！ さあ、頭脳戦といこうぜ！」' },
+    ],
+  },
+  13: {
+    title: '第13話「電光石火のリベンジ」',
+    lines: [
+      { who: null, text: 'KLAKERの罠を突破し、工業地帯を抜けた挑戦者。' },
+      { who: null, text: 'たどり着いたのは、巨大な高速道路の下に広がる一本道。' },
+      { who: null, text: 'そのとき、遠くから激しいエンジンのような音が響いてきた！' },
+      { who: null, text: '青白い電撃が走り、一瞬で目の前に現れたのはZIPROだった。' },
+      { who: 'ZIPRO', text: '「ヒューッ！ やっと来たな！」' },
+      { who: 'ZIPRO', text: '「覚えてるか？ 草原でお前と勝負したZIPPだぜ！」' },
+      { who: 'ZIPRO', text: '「あのときは負けたけどよ……」' },
+      { who: 'ZIPRO', text: '「今の俺は、あのころとは別モンだ！」' },
+      { who: 'ZIPRO', text: '「へへっ！ このスピード、目で追えるかな？」' },
+      { who: 'ZIPRO', text: '「今度こそ、お前を置き去りにしてやるぜ！」' },
     ],
   },
 };
