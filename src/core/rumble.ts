@@ -101,6 +101,7 @@ export const STORY_IMAGES: Record<number, string> = {
   21: 'assets/story/ch5_21.webp', // 5章21話 SNEKXUS(2026-11-06 企画者)
   22: 'assets/story/ch5_22.webp', // 5章22話 SHELDOZER(2026-11-06 企画者)
   23: 'assets/story/ch5_23.webp', // 5章23話 VYGARD(2026-11-06 企画者)
+  24: 'assets/story/ch5_24.webp', // 5章24話 KLAKTRAP(2026-11-06 企画者)
 };
 
 /** 話(企画者が 書いた 文。ステージの 番号 → 題名と 行) */
@@ -461,6 +462,28 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
       { who: 'VYGARD', text: '「……今日は言葉など必要ない。」' },
       { who: 'VYGARD', text: '「この雷を越えてみせろ。」' },
       { who: 'VYGARD', text: '「それができたなら、俺はお前を王の器と認めよう！」' },
+    ],
+  },
+  24: {
+    title: '第24話「完全計算の処刑場」',
+    lines: [
+      { who: null, text: '挑戦者がリングに足を踏み入れる。' },
+      { who: null, text: 'その瞬間、背後のゲートが閉まり、赤い警告灯が回り始めた。' },
+      { who: null, text: '床には無数の金属の罠。' },
+      { who: null, text: '頭上には巨大な歯車と、複雑に張り巡らされたワイヤー。' },
+      { who: null, text: '高台から、不気味な金属音が響く。' },
+      { who: 'KLAKTRAP', text: '「カチ……カチカチ……。」' },
+      { who: 'KLAKTRAP', text: '「ようこそ。私の最高傑作へ。」' },
+      { who: 'KLAKTRAP', text: '「遺跡での敗北。工業地帯での敗北。」' },
+      { who: 'KLAKTRAP', text: '「二度の戦闘記録を、私は一秒残らず解析した。」' },
+      { who: 'KLAKTRAP', text: '「お前の攻撃パターン、回避の癖、反撃のタイミング……。」' },
+      { who: 'KLAKTRAP', text: '「すべて、この頭に入っている。」' },
+      { who: null, text: 'KLAKTRAPが巨大なハサミを鳴らす。' },
+      { who: null, text: 'リングの床から次々と罠がせり上がった！' },
+      { who: 'KLAKTRAP', text: '「ここでは、速さも力も意味を持たない。」' },
+      { who: 'KLAKTRAP', text: '「お前が次にどこへ動くか……すでに答えは出ている。」' },
+      { who: 'KLAKTRAP', text: '「勝率、0.01パーセント。」' },
+      { who: 'KLAKTRAP', text: '「さあ、計算通りに終わらせよう。」' },
     ],
   },
 };
