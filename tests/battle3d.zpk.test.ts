@@ -357,10 +357,13 @@ describe('のこりの技も それぞれ ちがう動き (2026-11-04 企画者�
     expect(hits(ev)).toBeGreaterThanOrEqual(3);
     expect(b.f[0].hp).toBeGreaterThan(50);
   });
-  it('挟撃スナップ: さいごに うしろへ 投げる', () => {
+  it('挟撃スナップ: さいごに 前へ 放り上げる(2026-11-06 企画者「変なとこに飛ぶのやめて」→ うしろへ 移さない)', () => {
     const b = duel('klak', ['挟撃スナップ'], [], 2.4);
-    use(b, 0, '挟撃スナップ', 2.5);
-    expect(b.f[1].x).toBeLessThan(b.f[0].x + 1);
+    const ev = use(b, 0, '挟撃スナップ', 2.5);
+    expect(ev.some((x) => x.kind === 'impact')).toBe(true);
+    // 相手は 前の 方に いる(うしろへ 一瞬で 移らない)・とびすぎない
+    expect(b.f[1].x).toBeGreaterThan(b.f[0].x);
+    expect(b.f[1].x - b.f[0].x).toBeLessThan(8);
   });
   it('重甲クラッシュ: 着地で 前へ 地割れ', () => {
     const ev = use(duel('klak', ['重甲クラッシュ'], [], 6), 0, '重甲クラッシュ', 2.5);

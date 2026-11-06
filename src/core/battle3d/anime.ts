@@ -1733,20 +1733,15 @@ function updateTech(b: AnimeBattle, f: AnimeMon, a: Extract<AnimeAct, { k: 'tech
           if (dist(f, o) < C.combo.reach + 0.6 && yOk(b, f, o, 1.2)) {
             b.events.push({ kind: 'comboHit', side: f.side, n: a.n });
             const ok = hit(b, f, o, a.id, (f.x + o.x) / 2, 0.8, (f.z + o.z) / 2, f.face, { last: a.n >= tech.hits, part: tech.hits === 4 ? C.combo4[a.n - 1] : 1 / tech.hits });
-            // 挟撃スナップ: さいごに はさんだまま 自分のうしろへ 投げ飛ばす
+            // 挟撃スナップ: さいごに はさんで 前へ 放り上げる(2026-11-06 企画者「3コンボ目当たると敵が変なとこに飛ぶのやめて」→
+            // 前は 自分の うしろへ 一瞬で 移して 投げていた。今は その場から 前へ 少し 浮かせて とばすだけ)
             if (ok && st === 'snapThrow' && a.n >= tech.hits && o.act.k !== 'ko') {
-              const back = f.face + Math.PI;
-              const [tx, tz] = clampField(b, f.x + Math.cos(back) * 2.2, f.z + Math.sin(back) * 2.2);
-              if (!b.arena || !insideObstacle(b.arena, tx, tz, C.body.radius)) {
-                o.x = tx;
-                o.z = tz;
-              }
-              o.vy = Math.max(o.vy, 6);
+              o.vy = Math.max(o.vy, 5);
               o.y = Math.max(o.y, 0.001);
-              o.kvx = Math.cos(back) * 2 * C.hurt.friction;
-              o.kvz = Math.sin(back) * 2 * C.hurt.friction;
+              o.kvx = Math.cos(f.face) * 1.2 * C.hurt.friction;
+              o.kvz = Math.sin(f.face) * 1.2 * C.hurt.friction;
               o.act = { k: 'air', t: 0 };
-              b.events.push({ kind: 'impact', side: f.side, tech: a.id, x: tx, z: tz, r: 1 });
+              b.events.push({ kind: 'impact', side: f.side, tech: a.id, x: o.x, z: o.z, r: 1 });
             }
           } else a.n = tech.hits; // 相手がはなれたら終わり
         }
