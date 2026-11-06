@@ -62,7 +62,7 @@ export class FilePlayer {
         const t = this.ctx.currentTime + 0.05;
         src.start(t);
         this.out.gain.setValueAtTime(0.0001, t);
-        this.out.gain.exponentialRampToValueAtTime(1, t + Math.max(0.05, fade));
+        this.out.gain.exponentialRampToValueAtTime(this.bgm.volume ?? 1, t + Math.max(0.05, fade));
         this.source = src;
       })
       .catch(() => {

@@ -16,6 +16,8 @@ export interface BgmFile {
   file: string;
   /** 最後まで行ったら最初に戻る */
   loop: boolean;
+  /** 曲ごとの 音の大きさ(1 = そのまま)。設定の BGM の大きさに さらに かける */
+  volume?: number;
 }
 
 export const BGM_FILES: Record<BgmName, BgmFile> = {
@@ -26,5 +28,6 @@ export const BGM_FILES: Record<BgmName, BgmFile> = {
   slugger: { file: 'slugger.mp3', loop: true },
   mythclash: { file: 'mythclash.mp3', loop: true },
   mythclashPack: { file: 'mythclash_pack.mp3', loop: true },
-  battle: { file: 'battle.mp3', loop: true },
+  // 2026-11-06 企画者「戦闘BGM大きすぎるかも」→ 少し 小さく【仮】
+  battle: { file: 'battle.mp3', loop: true, volume: 0.55 },
 };
