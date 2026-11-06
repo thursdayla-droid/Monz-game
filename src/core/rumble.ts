@@ -83,6 +83,7 @@ export const STORY_IMAGES: Record<number, string> = {
   11: 'assets/story/ch3_11.webp', // 3章11話 VYGA(2026-11-06 企画者)
   12: 'assets/story/ch3_12.webp', // 3章12話 KLAKER(2026-11-06 企画者)
   13: 'assets/story/ch3_13.webp', // 3章13話 ZIPRO(2026-11-06 企画者)
+  14: 'assets/story/ch3_14.webp', // 3章14話 SHELD(2026-11-06 企画者)
 };
 
 /** 話(企画者が 書いた 文。ステージの 番号 → 題名と 行) */
@@ -262,6 +263,21 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
       { who: 'ZIPRO', text: '「今の俺は、あのころとは別モンだ！」' },
       { who: 'ZIPRO', text: '「へへっ！ このスピード、目で追えるかな？」' },
       { who: 'ZIPRO', text: '「今度こそ、お前を置き去りにしてやるぜ！」' },
+    ],
+  },
+  14: {
+    title: '第14話「鉄壁の水路番長」',
+    lines: [
+      { who: null, text: 'ZIPROとの激しいスピード勝負を制し、街の地下へと進む挑戦者。' },
+      { who: null, text: 'たどり着いたのは、ネオンの光が揺れる巨大な地下水路。' },
+      { who: null, text: '細い鉄の橋を渡ろうとした、そのとき。' },
+      { who: null, text: '水しぶきとともに、大きな影が立ちはだかった！' },
+      { who: 'SHELD', text: '「おっと、そこまでだ！」' },
+      { who: 'SHELD', text: '「へっ！ 久しぶりじゃねぇか！」' },
+      { who: 'SHELD', text: '「草原の小川で俺を倒したの、覚えてるよな？」' },
+      { who: 'SHELD', text: '「あれから俺も、ずいぶん鍛え直したぜ。」' },
+      { who: 'SHELD', text: '「今度の甲羅は、そう簡単には砕けねぇ！」' },
+      { who: 'SHELD', text: '「この橋を渡りたきゃ、正面からぶつかってこい！」' },
     ],
   },
 };
