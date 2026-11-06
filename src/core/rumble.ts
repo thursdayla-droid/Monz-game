@@ -84,6 +84,7 @@ export const STORY_IMAGES: Record<number, string> = {
   12: 'assets/story/ch3_12.webp', // 3章12話 KLAKER(2026-11-06 企画者)
   13: 'assets/story/ch3_13.webp', // 3章13話 ZIPRO(2026-11-06 企画者)
   14: 'assets/story/ch3_14.webp', // 3章14話 SHELD(2026-11-06 企画者)
+  15: 'assets/story/ch3_15.webp', // 3章15話 GRITTER(中ボス。2026-11-06 企画者)
 };
 
 /** 話(企画者が 書いた 文。ステージの 番号 → 題名と 行) */
@@ -278,6 +279,21 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
       { who: 'SHELD', text: '「あれから俺も、ずいぶん鍛え直したぜ。」' },
       { who: 'SHELD', text: '「今度の甲羅は、そう簡単には砕けねぇ！」' },
       { who: 'SHELD', text: '「この橋を渡りたきゃ、正面からぶつかってこい！」' },
+    ],
+  },
+  15: {
+    title: '第15話「地下ランブルの番長」',
+    lines: [
+      { who: null, text: '地下水路を突破し、ついに地下ランブルの中心地へたどり着いた挑戦者。' },
+      { who: null, text: '古びた倉庫の扉を開くと、赤と紫のライトが照らす巨大なリングが現れた。' },
+      { who: null, text: 'その真ん中には、見覚えのある大きな影が立っていた。' },
+      { who: 'GRITTER', text: '「……よう。久しぶりだな。」' },
+      { who: 'GRITTER', text: '「覚えてるか？ 草原の岩場でお前に負けたGRITだ。」' },
+      { who: 'GRITTER', text: '「へっ！ あのときの借りを返すために、ここまで強くなったんだぜ！」' },
+      { who: 'GRITTER', text: '「今じゃ俺が、この地下ランブルの番長だ！」' },
+      { who: 'GRITTER', text: '「お前が勝ち続けてるって聞いて、ずっと待ってたんだ。」' },
+      { who: 'GRITTER', text: '「さあ……あの日の決着、つけようぜ！」' },
+      { who: null, text: 'GRITTERが拳を打ち鳴らすと、足元のコンクリートに亀裂が走った！' },
     ],
   },
 };
