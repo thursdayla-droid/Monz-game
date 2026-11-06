@@ -100,6 +100,7 @@ export const STORY_IMAGES: Record<number, string> = {
   20: 'assets/story/ch4_20.webp', // 4章20話 PUNISH(中ボス。2026-11-06 企画者)
   21: 'assets/story/ch5_21.webp', // 5章21話 SNEKXUS(2026-11-06 企画者)
   22: 'assets/story/ch5_22.webp', // 5章22話 SHELDOZER(2026-11-06 企画者)
+  23: 'assets/story/ch5_23.webp', // 5章23話 VYGARD(2026-11-06 企画者)
 };
 
 /** 話(企画者が 書いた 文。ステージの 番号 → 題名と 行) */
@@ -440,6 +441,26 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
       { who: 'SHELDOZER', text: '「相手のすべてを受け止めて、最後に叩き潰すための武器だ。」' },
       { who: 'SHELDOZER', text: '「さあ来い、挑戦者。」' },
       { who: 'SHELDOZER', text: '「この要塞を越えられるなら……王座だって夢じゃねぇ！」' },
+    ],
+  },
+  23: {
+    title: '第23話「雷帝の宣告」',
+    lines: [
+      { who: null, text: 'RUMBLE CROWN、3回戦。' },
+      { who: null, text: '挑戦者が中央リングに足を踏み入れる。' },
+      { who: null, text: 'その瞬間、会場の照明が一斉に消えた。' },
+      { who: null, text: '暗闇の中、四隅の金色の柱から激しい雷が走る。' },
+      { who: null, text: '雷光に照らされて現れたのは、巨大な雷の獣、VYGARDだった。' },
+      { who: 'VYGARD', text: '「……久しいな、挑戦者。」' },
+      { who: 'VYGARD', text: '「覚えているか。あの雷鳴の丘を。」' },
+      { who: 'VYGARD', text: '「お前が初めて俺を倒したとき、ひとつ確信したことがある。」' },
+      { who: 'VYGARD', text: '「いつか必ず、お前はここまで来るとな。」' },
+      { who: null, text: 'VYGARDが前足を掲げると、会場中の雷がその一点に集まっていく。' },
+      { who: 'VYGARD', text: '「俺は草原を離れてから、数えきれないほどの強者と戦った。」' },
+      { who: 'VYGARD', text: '「だが、お前ほど俺を熱くさせる相手はいなかった。」' },
+      { who: 'VYGARD', text: '「……今日は言葉など必要ない。」' },
+      { who: 'VYGARD', text: '「この雷を越えてみせろ。」' },
+      { who: 'VYGARD', text: '「それができたなら、俺はお前を王の器と認めよう！」' },
     ],
   },
 };
