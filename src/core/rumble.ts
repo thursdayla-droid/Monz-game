@@ -88,6 +88,7 @@ export const STORY_IMAGES: Record<number, string> = {
   16: 'assets/story/ch4_16.webp', // 4章16話 SNEKER(2026-11-06 企画者)
   17: 'assets/story/ch4_17.webp', // 4章17話 RIOTER(2026-11-06 企画者)
   18: 'assets/story/ch4_18.webp', // 4章18話 BUNKER(2026-11-06 企画者)
+  19: 'assets/story/ch4_19.webp', // 4章19話 MOFUR(2026-11-06 企画者)
 };
 
 /** 話(企画者が 書いた 文。ステージの 番号 → 題名と 行) */
@@ -347,6 +348,25 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
       { who: null, text: 'ただ、強くなった友と拳を交えたいという純粋な闘志だった。' },
       { who: 'BUNKER', text: '「手加減なんかしたら承知しねぇぞ！」' },
       { who: 'BUNKER', text: '「最高の勝負にしようぜ、相棒！」' },
+    ],
+  },
+  19: {
+    title: '第19話「ネオンに咲く秘密の庭」',
+    lines: [
+      { who: null, text: '18連勝を飾り、街の頂点へと近づく挑戦者。' },
+      { who: null, text: 'にぎやかなネオン街を歩いていると、不思議な花びらが目の前を横切った。' },
+      { who: null, text: '花びらを追って細い路地を抜けると、そこには街の中とは思えない、美しい花の庭が広がっていた。' },
+      { who: null, text: '花に包まれた噴水の上から、優しい声が響く。' },
+      { who: 'MOFUR', text: '「ふふっ……また会えたね。」' },
+      { who: 'MOFUR', text: '「覚えてる？ 草原の花畑で戦ったこと。」' },
+      { who: 'MOFUR', text: '「キミがあの丘を越えてから、ずいぶん時間がたったね。」' },
+      { who: 'MOFUR', text: '「ねえ、ひとつ聞いてもいい？」' },
+      { who: 'MOFUR', text: '「キミはどうして、ストリートの王になりたいの？」' },
+      { who: null, text: 'MOFURがそっと手を上げると、周囲のツルが静かに動き始めた。' },
+      { who: 'MOFUR', text: '「強いから王になるの？」' },
+      { who: 'MOFUR', text: '「それとも……王になりたいから、強くなるの？」' },
+      { who: 'MOFUR', text: '「ふふっ。答えは言葉じゃなくていいよ。」' },
+      { who: 'MOFUR', text: '「キミの戦い方で、ボクに教えて。」' },
     ],
   },
 };
