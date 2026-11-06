@@ -86,6 +86,7 @@ export const STORY_IMAGES: Record<number, string> = {
   14: 'assets/story/ch3_14.webp', // 3章14話 SHELD(2026-11-06 企画者)
   15: 'assets/story/ch3_15.webp', // 3章15話 GRITTER(中ボス。2026-11-06 企画者)
   16: 'assets/story/ch4_16.webp', // 4章16話 SNEKER(2026-11-06 企画者)
+  17: 'assets/story/ch4_17.webp', // 4章17話 RIOTER(2026-11-06 企画者)
 };
 
 /** 話(企画者が 書いた 文。ステージの 番号 → 題名と 行) */
@@ -311,6 +312,20 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
       { who: 'SNEKER', text: '「へへっ……地下ランブルを制したくらいで、いい気になるなよ？」' },
       { who: 'SNEKER', text: '「この街じゃ、強いだけじゃ生き残れねぇんだ。」' },
       { who: 'SNEKER', text: '「さぁ……今度はどっちが狩られるかな？」' },
+    ],
+  },
+  17: {
+    title: '第17話「燃え上がる復讐心」',
+    lines: [
+      { who: null, text: 'SNEKERを倒し、ネオン街の中心へと進む挑戦者。' },
+      { who: null, text: '突然、交差点に激しい炎が吹き上がった！' },
+      { who: null, text: '炎の向こうから、聞き覚えのある雄叫びが響く。' },
+      { who: 'RIOTER', text: '「グルルル……やっと見つけたぜ！」' },
+      { who: 'RIOTER', text: '「覚えてるよな？ 草原でお前に負けたRIOTだ！」' },
+      { who: 'RIOTER', text: '「あの日の負けは、一度だって忘れちゃいねぇ！」' },
+      { who: 'RIOTER', text: '「お前を倒すために、俺はここまで強くなったんだ！」' },
+      { who: 'RIOTER', text: '「今度はあのときみてぇにはいかねぇぞ！」' },
+      { who: 'RIOTER', text: '「この街ごと燃やす勢いで、ぶっ倒してやる！！」' },
     ],
   },
 };
