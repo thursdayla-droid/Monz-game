@@ -87,6 +87,7 @@ export const STORY_IMAGES: Record<number, string> = {
   15: 'assets/story/ch3_15.webp', // 3章15話 GRITTER(中ボス。2026-11-06 企画者)
   16: 'assets/story/ch4_16.webp', // 4章16話 SNEKER(2026-11-06 企画者)
   17: 'assets/story/ch4_17.webp', // 4章17話 RIOTER(2026-11-06 企画者)
+  18: 'assets/story/ch4_18.webp', // 4章18話 BUNKER(2026-11-06 企画者)
 };
 
 /** 話(企画者が 書いた 文。ステージの 番号 → 題名と 行) */
@@ -326,6 +327,26 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
       { who: 'RIOTER', text: '「お前を倒すために、俺はここまで強くなったんだ！」' },
       { who: 'RIOTER', text: '「今度はあのときみてぇにはいかねぇぞ！」' },
       { who: 'RIOTER', text: '「この街ごと燃やす勢いで、ぶっ倒してやる！！」' },
+    ],
+  },
+  18: {
+    title: '第18話「拳に込めた約束」',
+    lines: [
+      { who: null, text: 'ネオン街で17連勝を達成した挑戦者。' },
+      { who: null, text: '次の対戦相手を探していると、一枚の招待状が届いた。' },
+      { who: null, text: '指定された場所は、街で最も高いビルの屋上。' },
+      { who: null, text: 'そこには、月明かりの下で拳を磨くBUNKERの姿があった。' },
+      { who: 'BUNKER', text: '「よう！ 来てくれたか！」' },
+      { who: 'BUNKER', text: '「覚えてるぜ。あの夕焼けの丘での勝負。」' },
+      { who: 'BUNKER', text: '「あの日から俺、毎日ここで鍛えてたんだ。」' },
+      { who: 'BUNKER', text: '「実はよ……お前が勝ち進むの、ずっと応援してた。」' },
+      { who: 'BUNKER', text: '「でもな、ひとつだけ確かめてぇことがある。」' },
+      { who: 'BUNKER', text: '「今のお前に、俺の全力は通用するのかってな！」' },
+      { who: null, text: 'BUNKERが拳を構える。' },
+      { who: null, text: 'その目にあるのは、怒りでも復讐心でもない。' },
+      { who: null, text: 'ただ、強くなった友と拳を交えたいという純粋な闘志だった。' },
+      { who: 'BUNKER', text: '「手加減なんかしたら承知しねぇぞ！」' },
+      { who: 'BUNKER', text: '「最高の勝負にしようぜ、相棒！」' },
     ],
   },
 };
