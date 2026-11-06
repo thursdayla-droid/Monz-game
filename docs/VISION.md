@@ -371,3 +371,4 @@
 - 2026-11-06：企画者の 第20話「笑顔の最後の門番」（PUNISH・4章の 中ボス・9話の PUNI が 進化）の 一枚絵と 文を 入れた。大会の 名前は「RUMBLE CROWN」（企画者の 文から）
 - 2026-11-06：企画者「30話終わったら特別な31話を。新しいキャラ CROWNIE → Lv.30 CROWNIX → 最終進化 CROWNOR。バンクの技と性能をほぼ一緒・属性は闇・技のエフェクトは紫っぽく」→ 種族 crownie を 足した（BUNK の 技を 闇に 写した・性能は BUNK と 同じ・紫の 光）。31話（特別編）の 敵は CROWNOR。3Dモデルが できるまで BUNK の 体を 紫っぽく して 代わり【仮】。絵は design/species/crownie/
 - 2026-11-06：企画者の CROWNOR の 3Dモデル（骨入り）を 入れた（public/assets/battle3d/crownor.glb。骨は BUNK と 同じ・ずれなし）。STREET KING の 確認用ページに 入れた（3Dバトルの ページは 15MB を こえるので 入れない）
+- 2026-11-06：企画者「CROWNOR の レンゴクホウケンも 炎は 紫に・全部 技名は 変えて」→ 火柱を 紫に。CROWNIE の 17技の 名前を 新しく（Claude の 案【仮】。docs/BATTLE.md）

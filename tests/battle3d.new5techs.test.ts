@@ -433,7 +433,10 @@ it('the opponent cannot walk through the SHELLZ tide wall (2026-11-05)', () => {
 it('CROWNIE has the BUNK moves as dark moves (same names, element 闇) and can fight (2026-11-06)', () => {
   const bunk = learnset('bunk');
   const crown = learnset('crownie');
-  expect(crown.map((r) => getTech(r.name).name)).toEqual(bunk.map((r) => r.name));
+  // 名前は CROWNIE の 名前(2026-11-06 企画者「全部技名は変えて」)。全部 ちがう・BUNK と かぶらない
+  const cn = crown.map((r) => getTech(r.name).name);
+  expect(new Set(cn).size).toBe(17);
+  for (const n of cn) expect(bunk.some((r) => r.name === n)).toBe(false);
   for (const r of crown) {
     expect(getTech(r.name).element).toBe('闇');
     expect(getTech(r.name).power).toBe(getTech(r.name.replace('@闇', '')).power);

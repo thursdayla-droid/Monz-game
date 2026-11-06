@@ -736,7 +736,7 @@ export class AnimeField {
   /** 炎の技が当たった: 火が はじける */
   flameBurst(x: number, y: number, z: number): void {
     for (let i = 0; i < 14; i++) {
-      const c = [0xff3a10, 0xff7a1a, 0xffd060][i % 3];
+      const c = (this.purpleFx ? [0x6a1aaa, 0xa040ff, 0xd8a0ff] : [0xff3a10, 0xff7a1a, 0xffd060])[i % 3];
       const s = this.sprite(c);
       s.position.set(x, y, z);
       const a = Math.random() * Math.PI * 2;
@@ -2695,7 +2695,9 @@ export class AnimeField {
       const mat = (m: THREE.Mesh) => m.material as THREE.MeshBasicMaterial;
       // 見た目(2026-11-03): 火柱(赤・橙)・落雷(黄・白)・光の杭(水色・白・細い)・光の砲撃(赤い照準 → 白い光)
       const lk = p.look ?? 'fire';
-      const cols = lk === 'water' ? [0x2a8aff, 0x8ad8ff, 0x5ab8ff, 0xe8f8ff] : lk === 'rock' ? [0x8a6a40, 0xc0a070, 0x9a7a50, 0xd8c098] : lk === 'bolt' ? [0xffd23a, 0xfff6a0, 0xffe040, 0xffffff] : lk === 'stake' ? [0x40c0ff, 0xc0f0ff, 0x80e0ff, 0xffffff] : lk === 'beam' ? [0xff2a2a, 0xff8080, 0xfff0a0, 0xffffff] : [0xff3a00, 0xffc040, 0xff4a0a, 0xffd040];
+      // CROWNOR の 紫焔崩拳: 紫の 火柱(2026-11-06 企画者「出てくる炎は紫に」)
+      this.purpleFx = b.f[p.owner]?.species === 'crownie';
+      const cols = this.purpleFx && lk === 'fire' ? [0x6a10c0, 0xd8a0ff, 0x9a3aff, 0xf0d8ff] : lk === 'water' ? [0x2a8aff, 0x8ad8ff, 0x5ab8ff, 0xe8f8ff] : lk === 'rock' ? [0x8a6a40, 0xc0a070, 0x9a7a50, 0xd8c098] : lk === 'bolt' ? [0xffd23a, 0xfff6a0, 0xffe040, 0xffffff] : lk === 'stake' ? [0x40c0ff, 0xc0f0ff, 0x80e0ff, 0xffffff] : lk === 'beam' ? [0xff2a2a, 0xff8080, 0xfff0a0, 0xffffff] : [0xff3a00, 0xffc040, 0xff4a0a, 0xffd040];
       mat(warn).color.setHex(cols[0]);
       mat(rim).color.setHex(cols[1]);
       mat(outer).color.setHex(cols[2]);
@@ -2737,6 +2739,7 @@ export class AnimeField {
         if (Math.random() < dt * 60) this.flame(p.x, Math.random() * h, p.z, p.r * 1.2, 2);
       }
     });
+    this.purpleFx = false;
   }
 
   private drawQuakes(b: AnimeBattle): void {

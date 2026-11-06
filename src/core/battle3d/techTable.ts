@@ -110,7 +110,7 @@ export function buildTech(row: TechRow): TableTech {
   const base = BASE[kind];
   return {
     ...base,
-    name: baseTech(row.name),
+    name: row.name.endsWith(DARK) ? DARK_NAMES[baseTech(row.name)] ?? baseTech(row.name) : row.name,
     element: row.element as Element,
     kind,
     power: base.power * m.power,
@@ -158,6 +158,26 @@ export function checkRows(rows: TechRow[] = TECH_ROWS): string[] {
 export const DARK = '@闇';
 /** 中の 呼び名から 元の 技の 名前(DARK を とる) */
 export const baseTech = (id: string): string => (id.endsWith(DARK) ? id.slice(0, -DARK.length) : id);
+/** CROWNIE の 技の 名前(2026-11-06 企画者「全部技名は変えて」→ Claude の 案【仮】)。BUNK の 技 → CROWNIE の 技 */
+export const DARK_NAMES: Record<string, string> = {
+  バンクバッシュ: 'クラウンバッシュ',
+  コロガン: '黒王ころがし',
+  ドスンパクト: '覇王スタンプ',
+  跳ねつき連撃: '王冠ステップ',
+  剛力クラッシュ: '闇王クラッシュ',
+  頑丈ドーム: '王城ドーム',
+  瞬速スピン: '黒雷スピン',
+  狙い撃ちバースト: 'ロイヤルバースト',
+  バンクブレイカー: 'クラウンブレイカー',
+  天地轟砕: '冥王轟砕',
+  ポンポンショット: '闇玉ショット',
+  跳躍プレス: '王座プレス',
+  威圧ロア: '覇王の咆哮',
+  メガトンラッシュ: 'キングラッシュ',
+  重力プレス: '深淵プレス',
+  ギガントバースト: 'ダークロードバースト',
+  煉獄崩拳: '紫焔崩拳',
+};
 const DARK_ROWS: TechRow[] = TECH_ROWS.filter((r) => r.species === 'bunk').map((r) => ({ ...r, species: 'crownie', name: r.name + DARK, element: '闇' }));
 TECH_ROWS.push(...DARK_ROWS);
 
