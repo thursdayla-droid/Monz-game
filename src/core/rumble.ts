@@ -99,6 +99,7 @@ export const STORY_IMAGES: Record<number, string> = {
   19: 'assets/story/ch4_19.webp', // 4章19話 MOFUR(2026-11-06 企画者)
   20: 'assets/story/ch4_20.webp', // 4章20話 PUNISH(中ボス。2026-11-06 企画者)
   21: 'assets/story/ch5_21.webp', // 5章21話 SNEKXUS(2026-11-06 企画者)
+  22: 'assets/story/ch5_22.webp', // 5章22話 SHELDOZER(2026-11-06 企画者)
 };
 
 /** 話(企画者が 書いた 文。ステージの 番号 → 題名と 行) */
@@ -419,6 +420,26 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
       { who: 'SNEKXUS', text: '「本当に強いヤツは、小細工なんかに頼らねぇってな。」' },
       { who: 'SNEKXUS', text: '「……さあ、行こうか。」' },
       { who: 'SNEKXUS', text: '「今度こそ、正面からお前を倒す。」' },
+    ],
+  },
+  22: {
+    title: '第22話「不動の要塞」',
+    lines: [
+      { who: null, text: 'RUMBLE CROWN、2回戦。' },
+      { who: null, text: 'SNEKXUSを破った挑戦者は、水に囲まれた巨大なリングへと進んだ。' },
+      { who: null, text: '紫と金の照明が水面を照らす中、突然、リング全体が大きく揺れる。' },
+      { who: null, text: '水しぶきの向こうから現れたのは、巨大な甲羅を背負ったSHELDOZERだった。' },
+      { who: 'SHELDOZER', text: '「……来たか。」' },
+      { who: 'SHELDOZER', text: '「小川で一度、地下水路でもう一度。」' },
+      { who: 'SHELDOZER', text: '「お前には、二度も俺の守りを破られた。」' },
+      { who: 'SHELDOZER', text: '「だから俺は、考え方を変えたんだ。」' },
+      { who: 'SHELDOZER', text: '「ただ耐えるだけじゃ、頂点には立てねぇ。」' },
+      { who: null, text: 'SHELDOZERが地面を踏みしめる。' },
+      { who: null, text: 'その瞬間、周囲の水が巨大な壁となって立ち上がった！' },
+      { who: 'SHELDOZER', text: '「この甲羅は、もう逃げるための盾じゃねぇ。」' },
+      { who: 'SHELDOZER', text: '「相手のすべてを受け止めて、最後に叩き潰すための武器だ。」' },
+      { who: 'SHELDOZER', text: '「さあ来い、挑戦者。」' },
+      { who: 'SHELDOZER', text: '「この要塞を越えられるなら……王座だって夢じゃねぇ！」' },
     ],
   },
 };
