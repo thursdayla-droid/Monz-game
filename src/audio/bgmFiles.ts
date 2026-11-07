@@ -8,9 +8,10 @@
  * - slugger: 「Diamond Glory」ミニゲーム MONZ SLUGGER(2026-10-21 企画者決定)
  * - mythclash: 「Shadowy Contour」カードゲーム MYTHCLASH(2026-10-26 企画者決定)
  * - mythclashPack: MYTHCLASH のパック開封(2026-10-26 企画者決定。開封の画面はまだ。元は music/mythclash_pack.m4a)
+ * - battle2: STREET KING 11〜20戦目の バトル(2026-11-07 企画者「11戦目から20戦目までバトルBGMはこれで」。元は music/battle2_ch3-4.m4a)
  * - battle: 「Combat Pulse」バトル(MONZ RUMBLE・オートバトルなど)(2026-11-04 企画者「これは戦闘BGMにしてください」。元は music/battle_Combat_Pulse.m4a)
  */
-export type BgmName = 'main' | 'home' | 'card' | 'dash' | 'slugger' | 'mythclash' | 'mythclashPack' | 'battle';
+export type BgmName = 'main' | 'home' | 'card' | 'dash' | 'slugger' | 'mythclash' | 'mythclashPack' | 'battle' | 'battle2';
 
 export interface BgmFile {
   file: string;
@@ -30,4 +31,5 @@ export const BGM_FILES: Record<BgmName, BgmFile> = {
   mythclashPack: { file: 'mythclash_pack.mp3', loop: true },
   // 2026-11-06 企画者「戦闘BGM大きすぎるかも」→ 少し 小さく【仮】
   battle: { file: 'battle.mp3', loop: true, volume: 0.55 },
+  battle2: { file: 'battle2.mp3', loop: true, volume: 0.55 },
 };

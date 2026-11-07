@@ -12,6 +12,8 @@ Claude Code が、音量をそろえてから `public/assets/bgm/` に入れ、`
 | MONZ SLUGGER | slugger_Diamond_Glory.m4a | public/assets/bgm/slugger.mp3 |
 | MYTHCLASH | mythclash_Shadowy_Contour.m4a | public/assets/bgm/mythclash.mp3 |
 | MYTHCLASH パック開封 | mythclash_pack.m4a | public/assets/bgm/mythclash_pack.mp3 |
+| バトル（MONZ RUMBLE） | battle_Combat_Pulse.m4a | public/assets/bgm/battle.mp3 |
+| STREET KING 11〜20戦目のバトル（2026-11-07） | battle2_ch3-4.m4a | public/assets/bgm/battle2.mp3 |
 
 - 歌・ラップなし（インスト）。
 - アプリで公開してよい（商用利用できる）曲だけを使う。

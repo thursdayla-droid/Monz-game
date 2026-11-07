@@ -292,7 +292,8 @@ export class Battle3DScene extends Phaser.Scene {
     this.applyControl();
     this.buildDom();
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.cleanup());
-    audio.playBgm('battle'); // 2026-11-04 企画者「これは戦闘BGMに」(前は DASH MONZ の曲)
+    // 2026-11-04 企画者「これは戦闘BGMに」(前は DASH MONZ の曲)。STREET KING の 11〜20戦目は 別の 曲(2026-11-07 企画者)
+    audio.playBgm(stage && stage.no >= 11 && stage.no <= 20 ? 'battle2' : 'battle');
   }
 
   private buildDom(): void {
