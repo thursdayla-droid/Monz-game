@@ -8,7 +8,7 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import { assetUrl } from '../assetUrl';
 import { newAnimeBattle, type AnimeEntrant, type AnimeMon } from '../core/battle3d/anime';
 import { CELL, FLOOR } from '../core/adventure/dungeon';
-import { ADV, RANKS, type Actor, type AdvEvent, type AdvItem, type AdvState, type Rank } from '../core/adventure/sim';
+import { ADV, RANKS, techWindup, type Actor, type AdvEvent, type AdvItem, type AdvState, type Rank } from '../core/adventure/sim';
 import type { modelFor } from '../core/roster';
 import { MonsterRig } from './monsterRig';
 
@@ -541,8 +541,9 @@ export class DungeonView {
     for (const e of events) {
       if (e.kind === 'hit') {
         const toMe = e.target === 0;
-        // 2026-11-07 企画者「エフェクトで 文字は 出さない・critical 小さく ぐらい」
-        if (e.crit) this.pop('CRITICAL', '#ffd23a', e.x, 2.1, e.z, 0.45);
+        // 2026-11-07 企画者「エフェクトで 文字は 出さない・critical 小さく」→「ダメージ数は 出して」
+        this.pop(String(e.dmg), toMe ? '#ff6a6a' : e.crit ? '#ffd23a' : '#ffffff', e.x, 2.1, e.z, e.crit ? 0.95 : 0.8);
+        if (e.crit) this.pop('CRITICAL', '#ffd23a', e.x, 2.75, e.z, 0.4);
         this.burst(e.x, e.z, toMe ? 0xff4a4a : 0xffc060, e.crit ? 14 : 8);
         this.shake = Math.max(this.shake, toMe ? 0.25 : 0.12);
         if (toMe) this.rig.flash = 0.12;
@@ -575,14 +576,21 @@ export class DungeonView {
     f.face = p.face;
     f.speed = Math.hypot(p.vx, p.vz);
     const W = ADV.player.windup;
+    const tc = p.act === 'tech' ? s.techs[s.techSlot] : null;
+    // 技は その技の 動き(MONZ RUMBLE の 体の 動き)で 見せる(2026-11-07 企画者「技の モーションが 全部 一緒」)
+    const tw = tc ? techWindup(tc.kind) : W;
     f.act =
-      p.act === 'attack' || p.act === 'tech'
-        ? { k: 'tech', id: 'punch', t: p.actT, dir: p.face, fired: p.actT >= W, hit: p.actT >= W, tx: p.x, tz: p.z, windup: W, n: 1, next: 0 }
-        : p.act === 'hurt'
-          ? { k: 'hurt', t: p.actT, until: ADV.hurtTime }
-          : p.act === 'dead'
-            ? { k: 'ko', t: p.actT }
-            : { k: 'free' };
+      tc
+        ? { k: 'tech', id: tc.id, t: p.actT, dir: p.face, fired: p.actT >= tw, hit: p.actT >= tw, tx: p.x, tz: p.z, windup: tw, n: p.actT >= tw ? 1 : 0, next: 0 }
+        : p.act === 'attack'
+          ? { k: 'tech', id: 'punch', t: p.actT, dir: p.face, fired: p.actT >= W, hit: p.actT >= W, tx: p.x, tz: p.z, windup: W, n: 1, next: 0 }
+          : p.act === 'hurt'
+            ? { k: 'hurt', t: p.actT, until: ADV.hurtTime }
+            : p.act === 'dead'
+              ? { k: 'ko', t: p.actT }
+              : { k: 'free' };
+    // とびおり・地面の 技は とび上がる
+    if (tc && (tc.kind === 'drop' || tc.kind === 'quake') && p.actT < tw) f.y = Math.sin(Math.PI * (p.actT / tw)) * (tc.kind === 'drop' ? 3 : 0.9);
     this.rig.update(f, dt);
     // 落ちている 物: くるくる・ふわふわ
     for (const o of this.drops.values()) {

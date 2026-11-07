@@ -19,6 +19,8 @@ export const ADV = {
   /** 技(種類ごとの はんい・威力の 倍)【仮】 */
   tech: {
     windup: 0.16, recover: 0.3, powDiv: 7, minMul: 1.4,
+    /** 種類ごとの ため(技に あった 動きを 見せる。2026-11-07 企画者「技に あった 動きに」) */
+    windups: { drop: 0.5, pillar: 0.4, beam: 0.38, quake: 0.34, field: 0.3, debuff: 0.3, barrier: 0.22, buff: 0.25, heal: 0.25, spin: 0.14, rush: 0.12, shot: 0.12, barrage: 0.16, combo: 0.1, drain: 0.16 } as Record<string, number>,
     melee: { range: 2.4, arc: 1.2 },
     rush: { dist: 6, speed: 18, r: 1.3 },
     spin: { r: 2.8 },
@@ -187,6 +189,8 @@ export interface AdvState {
   atkUpUntil: number;
   /** とっしん 中(当てた モブは 1回だけ) */
   dash: { until: number; hit: number[]; mul: number } | null;
+  /** とびおりる 技の おちる ところ(ため の 間に 近づく) */
+  jumpTo: { x: number; z: number; sx: number; sz: number } | null;
   /** 連続で 打つ 技(のこりの 回数・次の 時刻) */
   combo: { left: number; next: number; mul: number } | null;
   /** 育ち方の 型(自由ポイントで 決まる) */
@@ -238,7 +242,7 @@ export function newAdventure(seed: number, stats: StatBlock, level = 1, techs: (
   return {
     floor, rng, t: 0, player: p, mobs, tech: stats.tech, exitOpen: false, result: 'play', kills: 0, events: [],
     techs: ts, techCd: [0, 0, 0, 0], techSlot: -1, bag: [], gear: {}, drops: [], seq: 0,
-    shots: [], fields: [], shieldUntil: 0, atkUpUntil: 0, dash: null, combo: null, growType,
+    shots: [], fields: [], shieldUntil: 0, atkUpUntil: 0, dash: null, combo: null, jumpTo: null, growType,
     base: { atk: p.atk, tough: p.tough, maxHp: p.maxHp },
   };
 }
@@ -287,6 +291,9 @@ function inLine(s: AdvState, x: number, z: number, dir: number, len: number, w: 
 }
 const nearestMob = (s: AdvState, within: number) =>
   s.mobs.filter((m) => m.act !== 'dead' && Math.hypot(m.x - s.player.x, m.z - s.player.z) < within).sort((a, b) => Math.hypot(a.x - s.player.x, a.z - s.player.z) - Math.hypot(b.x - s.player.x, b.z - s.player.z))[0];
+
+/** その技の ため(秒) */
+export const techWindup = (kind: string): number => ADV.tech.windups[kind] ?? ADV.tech.windup;
 
 /** 技を 出す(ためが 終わった 時)。種類ごとに 効き方を 変える【仮】 */
 function fireTech(s: AdvState, slot: number): void {
@@ -340,10 +347,11 @@ function fireTech(s: AdvState, slot: number): void {
       ev('quake', T.quake.r * area);
       break;
     case 'drop': {
-      // とび上がって 敵の 上に おちる
-      const g = target(T.drop.reach);
+      // とび上がって 敵の 上に おちる(とんでいる 間に 近づく。下の stepAdventure)
+      const g = s.jumpTo ?? target(T.drop.reach);
       p.x = g.x;
       p.z = g.z;
+      s.jumpTo = null;
       hitAll(inCircle(s, g.x, g.z, T.drop.r * area));
       ev('drop', T.drop.r * area, 0, g.x, g.z);
       break;
@@ -612,7 +620,9 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
   const len = Math.min(1, Math.hypot(inp.mx, inp.mz));
   if (p.act !== 'dead') {
     if (len > 0.1) p.face = Math.atan2(inp.mz, inp.mx);
-    const sp = p.speed * len * (p.act === 'attack' || p.act === 'tech' ? 0.35 : p.act === 'hurt' ? 0.4 : 1);
+    // スティックを いっぱいに たおすと 走る(2026-11-07 企画者「もう少し 早く 走って」)
+    const run = len > 0.85 ? 1.4 : 1;
+    const sp = p.speed * len * run * (p.act === 'attack' || p.act === 'tech' ? 0.35 : p.act === 'hurt' ? 0.4 : 1);
     p.vx += (Math.cos(p.face) * sp * (len > 0.1 ? 1 : 0) - p.vx) * Math.min(1, dt * 12);
     p.vz += (Math.sin(p.face) * sp * (len > 0.1 ? 1 : 0) - p.vz) * Math.min(1, dt * 12);
     moveBy(s, p, p.vx * dt, p.vz * dt, P.r);
@@ -637,14 +647,30 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
       p.actT = 0;
       p.struck = false;
       s.techSlot = ti;
+      if (tc.kind === 'drop') {
+        const m = nearestMob(s, T.drop.reach);
+        const g = m ? { x: m.x, z: m.z } : { x: p.x + Math.cos(p.face) * T.drop.reach * 0.6, z: p.z + Math.sin(p.face) * T.drop.reach * 0.6 };
+        s.jumpTo = { ...g, sx: p.x, sz: p.z };
+      }
       s.techCd[ti] = s.t + tc.cooldown * (1 - Math.min(0.3, s.tech / 500)) * (s.growType === 'speed' ? ADV.type.speedCd : 1);
     }
     if (p.act === 'tech') {
-      if (!p.struck && p.actT >= T.windup) {
+      const wu = techWindup(s.techs[s.techSlot]!.kind);
+      // とびおり: ため(空中)の 間に おちる ところへ 近づく(壁の 中には 入らない)
+      if (s.jumpTo && !p.struck) {
+        const k = Math.min(1, p.actT / wu);
+        const nx = s.jumpTo.sx + (s.jumpTo.x - s.jumpTo.sx) * k;
+        const nz = s.jumpTo.sz + (s.jumpTo.z - s.jumpTo.sz) * k;
+        if (fits(s.floor, nx, nz, P.r)) {
+          p.x = nx;
+          p.z = nz;
+        } else s.jumpTo = { ...s.jumpTo, x: p.x, z: p.z };
+      }
+      if (!p.struck && p.actT >= wu) {
         p.struck = true;
         fireTech(s, s.techSlot);
       }
-      if (p.actT > T.windup + T.recover && !s.dash && !s.combo) p.act = 'free';
+      if (p.actT > wu + T.recover && !s.dash && !s.combo) p.act = 'free';
     }
     if (p.act === 'attack' && !p.struck && p.actT >= P.windup) {
       p.struck = true;
