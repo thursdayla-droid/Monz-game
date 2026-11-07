@@ -725,16 +725,17 @@ export const ENDINGS: Record<number, EndingScene[]> = {
     },
     {
       title: '王冠を託す者',
-      image: null,
+      image: 'assets/story/end31_2.webp',
       lines: [
-        { who: null, text: 'CROWNORは、床に落ちた金色の王冠をそっと拾い上げた。' },
+        { who: null, text: 'CROWNORは、床に落ちた金色の王冠を、じっと見つめた。' },
         { who: 'CROWNOR', text: '「この王冠は、ずっと重かった。」' },
         { who: 'CROWNOR', text: '「誰にも負けぬ王でいるために、俺はたった一匹で、ここに座り続けてきた。」' },
         { who: 'CROWNOR', text: '「だが、お前は違った。」' },
         { who: 'CROWNOR', text: '「戦った相手を、みんな仲間に変えてここまで来た。」' },
-        { who: null, text: 'CROWNORが、王冠をこちらへ差し出す。' },
-        { who: 'CROWNOR', text: '「受け取れ。これは、もう俺のものではない。」' },
+        { who: 'CROWNOR', text: '「その王冠は、置いていく。これは、もう俺のものではない。」' },
         { who: 'CROWNOR', text: '「お前こそが……真のSTREET KINGだ。」' },
+        { who: null, text: 'CROWNORは赤いマントを王座にかけると、静かに闇の中へ消えていった。' },
+        { who: null, text: '月明かりの下、金色の王冠だけが、静かにかがやいていた。' },
       ],
     },
     {
