@@ -23,20 +23,74 @@ function toonGradient(): THREE.DataTexture {
   return tex;
 }
 
+/** 床の タイル(はっきりした ふちの 石だたみ。2D の 地図のように) */
+function tileTexture(): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#e6dcef';
+  g.fillRect(0, 0, 64, 64);
+  g.fillStyle = '#d4c6e2';
+  g.fillRect(4, 4, 26, 26);
+  g.fillRect(34, 34, 26, 26);
+  g.strokeStyle = '#7a6a8c';
+  g.lineWidth = 3;
+  g.strokeRect(1.5, 1.5, 61, 61);
+  g.beginPath();
+  g.moveTo(32, 0);
+  g.lineTo(32, 64);
+  g.moveTo(0, 32);
+  g.lineTo(64, 32);
+  g.lineWidth = 2;
+  g.stroke();
+  const t = new THREE.CanvasTexture(c);
+  t.magFilter = THREE.NearestFilter;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/** 壁(れんが) */
+function wallTexture(): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#bfb0d8';
+  g.fillRect(0, 0, 64, 64);
+  g.strokeStyle = '#5a4a72';
+  g.lineWidth = 3;
+  for (let r = 0; r < 4; r++) {
+    const y = r * 16;
+    g.beginPath();
+    g.moveTo(0, y + 1.5);
+    g.lineTo(64, y + 1.5);
+    g.stroke();
+    for (let x = (r % 2) * 16; x < 64; x += 32) {
+      g.beginPath();
+      g.moveTo(x + 1.5, y);
+      g.lineTo(x + 1.5, y + 16);
+      g.stroke();
+    }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.magFilter = THREE.NearestFilter;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
 /** 数字の 絵(ダメージ) */
 function numberTexture(s: string, color: string): THREE.CanvasTexture {
   const c = document.createElement('canvas');
-  c.width = 128;
+  c.width = 256;
   c.height = 64;
   const g = c.getContext('2d')!;
-  g.font = '900 44px sans-serif';
+  g.font = `900 ${s.length > 4 ? 40 : 44}px sans-serif`;
   g.textAlign = 'center';
   g.textBaseline = 'middle';
   g.lineWidth = 8;
   g.strokeStyle = '#16101c';
-  g.strokeText(s, 64, 34);
+  g.strokeText(s, 128, 34);
   g.fillStyle = color;
-  g.fillText(s, 64, 34);
+  g.fillText(s, 128, 34);
   return new THREE.CanvasTexture(c);
 }
 
@@ -147,7 +201,7 @@ export class DungeonView {
   private rig: MonsterRig;
   private puppet: AnimeMon;
   private mobs: MobView[] = [];
-  private torch: THREE.PointLight;
+  private moon!: THREE.DirectionalLight;
   private exit: THREE.Mesh;
   private exitMat: THREE.MeshBasicMaterial;
   private pops: Pop[] = [];
@@ -169,15 +223,22 @@ export class DungeonView {
     this.renderer.shadowMap.enabled = true;
     this.scene.background = new THREE.Color(0x0b0712);
     
-    this.scene.add(new THREE.HemisphereLight(0x9a8acc, 0x2a1a30, 0.9));
-    const moon = new THREE.DirectionalLight(0xc8b8ff, 0.6);
-    moon.position.set(-8, 20, 6);
+    // 2026-11-07 企画者「もっと 2D 感」→ 光は 平らに(明るさの むらを なくす)。床は 光の 当たらない 絵の タイル
+    this.scene.add(new THREE.HemisphereLight(0xd8ccff, 0x4a3a5a, 1.5));
+    const moon = new THREE.DirectionalLight(0xffffff, 0.9);
+    moon.position.set(-4, 20, 8);
+    moon.castShadow = true;
+    moon.shadow.mapSize.set(1024, 1024);
+    const sc = moon.shadow.camera;
+    sc.left = -16;
+    sc.right = 16;
+    sc.top = 16;
+    sc.bottom = -16;
     this.scene.add(moon);
+    this.scene.add(moon.target);
+    this.moon = moon;
     // 自分の まわりを 照らす あかり(ダンジョンの 雰囲気)
-    this.torch = new THREE.PointLight(0xffb070, 40, 18, 1.2);
-    this.torch.castShadow = true;
-    this.torch.shadow.mapSize.set(512, 512);
-    this.scene.add(this.torch);
+
     this.buildFloor(s);
     // 出口(全部 倒すと 光る)
     this.exitMat = new THREE.MeshBasicMaterial({ color: 0x4a3a5a, transparent: true, opacity: 0.6 });
@@ -230,7 +291,8 @@ export class DungeonView {
   }
 
   private glowMat(color: number, opacity = 0.85, side: THREE.Side = THREE.FrontSide): THREE.MeshBasicMaterial {
-    return new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending, side });
+    // 技の 光は 壁に かくれない(2D の ように 上に 重ねる)
+    return new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, side });
   }
 
   private addFx(obj: THREE.Object3D, life: number, tick: (k: number) => void): void {
@@ -374,7 +436,7 @@ export class DungeonView {
       }
     const m4 = new THREE.Matrix4();
     const col = new THREE.Color();
-    const fl = new THREE.InstancedMesh(new THREE.BoxGeometry(CELL, 0.2, CELL), new THREE.MeshLambertMaterial({ color: 0xffffff }), floors.length);
+    const fl = new THREE.InstancedMesh(new THREE.BoxGeometry(CELL, 0.2, CELL), new THREE.MeshLambertMaterial({ color: 0xffffff, map: tileTexture() }), floors.length);
     floors.forEach((i, k) => {
       const x = i % f.w;
       const y = Math.floor(i / f.w);
@@ -382,19 +444,19 @@ export class DungeonView {
       fl.setMatrixAt(k, m4);
       // 石の 床(少しずつ 色を 変える)
       const v = ((x * 7 + y * 13) % 5) / 5;
-      col.setRGB(0.5 + v * 0.06, 0.44 + v * 0.05, 0.5 + v * 0.06);
+      col.setRGB(0.62 + v * 0.06, 0.56 + v * 0.05, 0.66 + v * 0.06);
       fl.setColorAt(k, col);
     });
     fl.receiveShadow = true;
     this.scene.add(fl);
-    const wl = new THREE.InstancedMesh(new THREE.BoxGeometry(CELL, 2.0, CELL), new THREE.MeshLambertMaterial({ color: 0xffffff }), walls.length);
+    const wl = new THREE.InstancedMesh(new THREE.BoxGeometry(CELL, 2.0, CELL), new THREE.MeshLambertMaterial({ color: 0xffffff, map: wallTexture() }), walls.length);
     walls.forEach((i, k) => {
       const x = i % f.w;
       const y = Math.floor(i / f.w);
       m4.makeTranslation((x + 0.5) * CELL, 1.0, (y + 0.5) * CELL);
       wl.setMatrixAt(k, m4);
       const v = ((x * 5 + y * 3) % 4) / 4;
-      col.setRGB(0.13 + v * 0.04, 0.09 + v * 0.03, 0.2 + v * 0.05);
+      col.setRGB(0.3 + v * 0.04, 0.22 + v * 0.03, 0.42 + v * 0.05);
       wl.setColorAt(k, col);
     });
     wl.castShadow = true;
@@ -456,7 +518,7 @@ export class DungeonView {
     const mat = new THREE.SpriteMaterial({ map: numberTexture(text, color), transparent: true, depthTest: false });
     const sp = new THREE.Sprite(mat);
     sp.position.set(x, y, z);
-    sp.scale.set(size * 2, size, 1);
+    sp.scale.set(size * 4, size, 1);
     sp.renderOrder = 20;
     this.scene.add(sp);
     this.pops.push({ obj: sp, t: 0, life: 0.7, vy: 2.2, grow: 0 });
@@ -479,7 +541,8 @@ export class DungeonView {
     for (const e of events) {
       if (e.kind === 'hit') {
         const toMe = e.target === 0;
-        this.pop(String(e.dmg), toMe ? '#ff6a6a' : e.crit ? '#ffd23a' : '#ffffff', e.x, 2.1, e.z, e.crit ? 1.2 : 0.9);
+        // 2026-11-07 企画者「エフェクトで 文字は 出さない・critical 小さく ぐらい」
+        if (e.crit) this.pop('CRITICAL', '#ffd23a', e.x, 2.1, e.z, 0.45);
         this.burst(e.x, e.z, toMe ? 0xff4a4a : 0xffc060, e.crit ? 14 : 8);
         this.shake = Math.max(this.shake, toMe ? 0.25 : 0.12);
         if (toMe) this.rig.flash = 0.12;
@@ -494,10 +557,10 @@ export class DungeonView {
         const o = this.drops.get(e.drop.id);
         if (o) this.scene.remove(o);
         this.drops.delete(e.drop.id);
-        this.pop(e.drop.item.kind === 'herb' ? '実' : e.drop.item.rank, e.drop.item.kind === 'herb' ? '#7aff8a' : `#${RANK_HEX[e.drop.item.rank].toString(16).padStart(6, '0')}`, p.x, 2.2, p.z, 0.8);
+        this.burst(p.x, p.z, e.drop.item.kind === 'herb' ? 0x7aff8a : RANK_HEX[e.drop.item.rank], 8);
       } else if (e.kind === 'tech') this.techFx(e);
-      else if (e.kind === 'status') this.pop(e.effect, '#d8a0ff', e.x, 2.6, e.z, 0.7); else if (e.kind === 'heal' && e.amount > 0) {
-        this.pop(`+${e.amount}`, '#7aff8a', e.x, 2.3, e.z, 1);
+      else if (e.kind === 'status') this.burst(e.x, e.z, 0xc080ff, 6);
+      else if (e.kind === 'heal' && e.amount > 0) {
         this.burst(e.x, e.z, 0x5aff8a, 10);
       }
     }
@@ -618,7 +681,8 @@ export class DungeonView {
       return false;
     });
     // あかりと カメラ(ななめ上から ついていく)
-    this.torch.position.set(p.x, 3.2, p.z + 0.5);
+    this.moon.position.set(p.x - 4, 20, p.z + 8);
+    this.moon.target.position.set(p.x, 0, p.z);
     const cx = p.x + (Math.random() - 0.5) * this.shake;
     const cz = p.z + (Math.random() - 0.5) * this.shake;
     this.shake *= Math.exp(-dt * 12);

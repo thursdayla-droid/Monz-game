@@ -292,7 +292,6 @@ export class AdventureScene extends Phaser.Scene {
       else if (e.kind === 'open') this.message('出口が ひらいた！');
       else if (e.kind === 'tech') {
         audio.se(e.fx === 'heal' || e.fx === 'barrier' || e.fx === 'buff' ? 'mcHeal' : e.fx === 'shot' ? 'whoosh' : 'punchHeavy');
-        this.message(this.techNames[e.slot]);
       } else if (e.kind === 'pick') audio.se('select');
       else if (e.kind === 'full') this.message('もちものが いっぱい（20こ まで）');
     }
