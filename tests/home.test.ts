@@ -30,7 +30,7 @@ describe('home', () => {
   });
 
   it('has six menu buttons in the planner order', () => {
-    expect(HOME_ACTIONS.map((a) => HOME_ACTION_LABELS[a])).toEqual(['ごはん', 'ミニゲーム', 'ステータス', 'バトル', 'ショップ', '設定']);
+    expect(HOME_ACTIONS.map((a) => HOME_ACTION_LABELS[a])).toEqual(['ごはん', 'ミニゲーム', 'ステータス', 'バトル', 'ショップ', '冒険']);
   });
 });
 

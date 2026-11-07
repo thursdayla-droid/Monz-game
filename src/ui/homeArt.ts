@@ -165,6 +165,35 @@ export function drawIcon(ctx: CanvasRenderingContext2D, action: HomeAction | 'pe
       ctx.fill();
       ctx.stroke();
     }
+  } else if (action === 'adventure') {
+    // 【仮】冒険: たからの地図(企画者の アイコンの絵が できたら 入れかえ)
+    ctx.fillStyle = '#f3dca0';
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.9, -s * 0.65);
+    ctx.lineTo(-s * 0.3, -s * 0.8);
+    ctx.lineTo(s * 0.3, -s * 0.65);
+    ctx.lineTo(s * 0.9, -s * 0.8);
+    ctx.lineTo(s * 0.9, s * 0.7);
+    ctx.lineTo(s * 0.3, s * 0.85);
+    ctx.lineTo(-s * 0.3, s * 0.7);
+    ctx.lineTo(-s * 0.9, s * 0.85);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.setLineDash([s * 0.12, s * 0.12]);
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.6, s * 0.45);
+    ctx.quadraticCurveTo(-s * 0.1, -s * 0.2, s * 0.35, s * 0.05);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.strokeStyle = '#e0303a';
+    ctx.lineWidth = Math.max(3, s * 0.16);
+    ctx.beginPath();
+    ctx.moveTo(s * 0.3, -s * 0.45);
+    ctx.lineTo(s * 0.65, -s * 0.1);
+    ctx.moveTo(s * 0.65, -s * 0.45);
+    ctx.lineTo(s * 0.3, -s * 0.1);
+    ctx.stroke();
   } else {
     // 歯車
     ctx.fillStyle = '#9aa0b4';

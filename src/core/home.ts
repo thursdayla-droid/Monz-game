@@ -32,7 +32,8 @@ export function savedHomePlace(saved?: string | null): HomePlace | undefined {
 
 /** ホームの下に並ぶボタン(左から順)。企画者決定(2026-10-19) */
 // 2026-10-20 企画者の指示: MONZを直接なでられるので「なでる」ボタンはやめて「ステータス」にする
-export const HOME_ACTIONS = ['food', 'minigame', 'status', 'battle', 'shop', 'settings'] as const;
+// 2026-11-07 企画者「設定のところを 冒険に。設定は じゃまに ならない ところに」→ 設定は 右上の 小さい ボタンへ
+export const HOME_ACTIONS = ['food', 'minigame', 'status', 'battle', 'shop', 'adventure'] as const;
 export type HomeAction = (typeof HOME_ACTIONS)[number];
 
 export const HOME_ACTION_LABELS: Record<HomeAction, string> = {
@@ -41,7 +42,7 @@ export const HOME_ACTION_LABELS: Record<HomeAction, string> = {
   status: 'ステータス',
   battle: 'バトル',
   shop: 'ショップ',
-  settings: '設定',
+  adventure: '冒険',
 };
 
 /** まだ中身がないボタン(押すと「じゅんび中」と出す)。中身は企画者が決める */
@@ -52,7 +53,8 @@ export const HOME_ACTION_READY: Record<HomeAction, boolean> = {
   // 2026-10-22: 操作するバトル(練習場)ができた
   battle: true,
   shop: true,
-  settings: true,
+  // 冒険は これから 作る(押すと「じゅんび中」)
+  adventure: false,
 };
 
 export type Pt = [number, number];

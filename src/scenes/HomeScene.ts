@@ -366,6 +366,24 @@ export class HomeScene extends Phaser.Scene {
       .setDepth(DEPTH.ui)
       .setInteractive({ useHandCursor: true })
       .on('pointerdown', () => this.openBinder());
+    // 設定ボタン(2026-11-07 企画者: 下の 設定を 冒険に したので、じゃまに ならない 右上の 小さい ボタンへ)
+    canvasTexture(this, 'home:settingsButton', 150, 60, (ctx) => {
+      drawPanel(ctx, 150, 60, 98);
+      ctx.fillStyle = ink;
+      ctx.font = `900 24px ${UI_FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('⚙ 設定', 75, 31);
+      ctx.textAlign = 'left';
+    });
+    this.add
+      .image(W - 16 - 75, 14 + 84 + 10 + 30 + 68 * 3, 'home:settingsButton')
+      .setDepth(DEPTH.ui)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => {
+        audio.se('tap');
+        openSoundSettings(this);
+      });
     coinCard.add(this.add.image(0, 0, 'home:coinCard'));
     const shown = { v: record.coins };
     const label = this.add.text(104, 2, shown.v.toLocaleString(), { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '34px', color: ink }).setOrigin(1, 0.5);
@@ -531,9 +549,10 @@ export class HomeScene extends Phaser.Scene {
 
   /** 【テスト用】回答を消して質問からやり直す / 誕生の演出だけをもう一度 / コインを増やす */
   private buildTestButtons(): void {
+    // 設定ボタンの ぶん 下へ(2026-11-07)
     const button = (y: number, label: string, onTap: () => void) =>
       this.add
-        .text(W - 16, y, label, { fontFamily: UI_FONT, fontSize: '20px', color: '#ffffff', backgroundColor: '#16101caa', padding: { x: 10, y: 6 } })
+        .text(W - 16, y + 60, label, { fontFamily: UI_FONT, fontSize: '20px', color: '#ffffff', backgroundColor: '#16101caa', padding: { x: 10, y: 6 } })
         .setOrigin(1, 0)
         .setDepth(DEPTH.ui)
         .setInteractive({ useHandCursor: true })
@@ -568,11 +587,6 @@ export class HomeScene extends Phaser.Scene {
   }
 
   private act(action: HomeAction): void {
-    if (action === 'settings') {
-      audio.se('tap');
-      openSoundSettings(this);
-      return;
-    }
     if (this.busy) return;
     if (action === 'food') this.feed();
     else if (action === 'status') this.openStatus();
