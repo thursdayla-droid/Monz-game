@@ -169,3 +169,25 @@ describe('技を ねらって うつ(長押し → はなすと 発動)', () => 
     expect(s.aimed).toBe(true);
   });
 });
+
+describe('技は 壁を 通りぬけない', () => {
+  it('ビームは 壁で 止まる・壁の むこうの 敵には 当たらない', () => {
+    const s = newAdventure(7, { hp: 20, power: 20, tough: 20, speed: 20, tech: 20 }, 1, [{ id: 'b', kind: 'beam', power: 14, cooldown: 3, element: '光', effect: 'なし', strength: '強' }]);
+    const p = s.player;
+    // 左の 壁に 向けて うつ。壁の むこう(同じ 線の 上)に 敵を 置く
+    let wx = p.x;
+    while (s.floor.tiles[Math.floor(p.z / 2) * s.floor.w + Math.floor(wx / 2)] === 1) wx -= 0.5;
+    const m = s.mobs[0];
+    m.x = wx - 1.5;
+    m.z = p.z;
+    const hp0 = m.hp;
+    let len = 0;
+    for (let i = 0; i < 20; i++) {
+      stepAdventure(s, { mx: 0, mz: 0, attack: false, tech: i === 0 ? 0 : null, techDir: Math.PI }, 1 / 30);
+      for (const e of s.events) if (e.kind === 'tech') len = e.len;
+    }
+    expect(len).toBeGreaterThan(0);
+    expect(len).toBeLessThan(p.x - wx + 1);
+    expect(m.hp).toBe(hp0);
+  });
+});

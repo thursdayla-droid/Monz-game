@@ -5,7 +5,7 @@
  */
 import { mulberry32, type Rng } from '../rng';
 import type { StatBlock } from '../stats';
-import { fits, generateFloor, lineOfSight, cellToWorld, type Floor } from './dungeon';
+import { fits, generateFloor, lineOfSight, cellToWorld, walkable, type Floor } from './dungeon';
 
 export const ADV = {
   player: { r: 0.55, hp: 60, hpPer: 4, atk: 6, atkPer: 0.5, speed: 4.2, speedPer: 0.03, range: 2.0, arc: 1.25, windup: 0.08, recover: 0.22, cool: 0.34, knock: 3 },
@@ -296,10 +296,20 @@ function setStatus(s: AdvState, m: Actor, effect: string, dmg: number): void {
 }
 
 /** 前の 向きの ±arc の 中・距離 range の モブ */
+// 2026-11-07 企画者「ビームなどの 技は 基本 壁を 貫通しないで」→ 壁の むこうの 敵には 当たらない(出した ところから 見えるか)
+const seen = (s: AdvState, x: number, z: number, m: Actor) => lineOfSight(s.floor, x, z, m.x, m.z);
 function inCone(s: AdvState, x: number, z: number, dir: number, range: number, arc: number): Actor[] {
-  return s.mobs.filter((m) => m.act !== 'dead' && Math.hypot(m.x - x, m.z - z) < range + ADV.mob.r && Math.abs(angDiff(Math.atan2(m.z - z, m.x - x), dir)) < arc);
+  return s.mobs.filter((m) => m.act !== 'dead' && Math.hypot(m.x - x, m.z - z) < range + ADV.mob.r && Math.abs(angDiff(Math.atan2(m.z - z, m.x - x), dir)) < arc && seen(s, x, z, m));
 }
-const inCircle = (s: AdvState, x: number, z: number, r: number) => s.mobs.filter((m) => m.act !== 'dead' && Math.hypot(m.x - x, m.z - z) < r + ADV.mob.r);
+const inCircle = (s: AdvState, x: number, z: number, r: number) => s.mobs.filter((m) => m.act !== 'dead' && Math.hypot(m.x - x, m.z - z) < r + ADV.mob.r && seen(s, x, z, m));
+
+/** その 向きに 壁まで 何メートル あるか(max まで) */
+export function wallDist(s: AdvState, x: number, z: number, dir: number, max: number): number {
+  const c = Math.cos(dir);
+  const n = Math.sin(dir);
+  for (let d = 0; d < max; d += 0.2) if (!walkable(s.floor, x + c * d, z + n * d)) return Math.max(0, d - 0.1);
+  return max;
+}
 /** 長い 帯(ビーム)の 中 */
 function inLine(s: AdvState, x: number, z: number, dir: number, len: number, w: number): Actor[] {
   const c = Math.cos(dir);
@@ -340,7 +350,10 @@ function fireTech(s: AdvState, slot: number): void {
   const target = (reach: number) => {
     // ねらった 時は その向きの 敵(なければ その向きの 先)
     const m = s.aimed ? aimedMob(s, p.face, reach) : nearestMob(s, reach);
-    return m ? { x: m.x, z: m.z } : { x: p.x + Math.cos(p.face) * reach * 0.6, z: p.z + Math.sin(p.face) * reach * 0.6 };
+    if (m && lineOfSight(s.floor, p.x, p.z, m.x, m.z)) return { x: m.x, z: m.z };
+    // 敵が いない・壁の むこう: その 向きの 先(壁の 手前まで)
+    const d = wallDist(s, p.x, p.z, p.face, reach * 0.6);
+    return { x: p.x + Math.cos(p.face) * d, z: p.z + Math.sin(p.face) * d };
   };
   switch (tc.kind) {
     case 'rush':
@@ -369,8 +382,14 @@ function fireTech(s: AdvState, slot: number): void {
       break;
     }
     case 'beam':
-      hitAll(inLine(s, p.x + Math.cos(p.face) * 0.9, p.z + Math.sin(p.face) * 0.9, p.face, T.beam.len, T.beam.w * area));
-      ev('beam', T.beam.w * area, T.beam.len);
+      {
+        // 壁で 止まる
+        const bx = p.x + Math.cos(p.face) * 0.9;
+        const bz = p.z + Math.sin(p.face) * 0.9;
+        const len = Math.max(0.6, wallDist(s, bx, bz, p.face, T.beam.len));
+        hitAll(inLine(s, bx, bz, p.face, len, T.beam.w * area));
+        ev('beam', T.beam.w * area, len);
+      }
       break;
     case 'quake':
       hitAll(inCircle(s, p.x, p.z, T.quake.r * area), 0.8);
