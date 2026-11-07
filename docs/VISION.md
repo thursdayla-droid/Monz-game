@@ -396,3 +396,4 @@
 - 2026-11-07：企画者「20-31戦目までバトルBGMはこれで」→ 21〜31戦目（5〜6章・チャンピオン・特別編）は 新しい 曲（battle3.mp3。元は music/battle3_ch5-6.m4a）。20戦目は 11〜20の 曲のまま【仮：企画者が 言えば 20戦目も 変える】
 - 2026-11-07：企画者「エンディング用BGMはこれで」→ エンディング（3場面）の 間 ending.mp3（元は music/ending.m4a）。終わったら ホームの 曲に もどる
 - 2026-11-07：企画者のセレクト画面の絵（1枚め）→ MONZ RUMBLE の モードえらび（STREET KING／バトルモード）の 背景に（public/assets/story/sel_mode.webp。元は design/rumble_ui/sel_mode.png）。2枚め → CPUの強さえらびの 背景に（sel_cpu.webp。元は design/rumble_ui/sel_cpu.png）
+- 2026-11-07：企画者の 3枚め（控え室）→ バトル前の 技えらび（技セット）画面の 背景に（public/assets/battle3d/sel_tech.webp。元は design/rumble_ui/sel_tech.png。文字が 読めるように 暗く 重ねる）
