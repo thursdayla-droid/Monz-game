@@ -17,6 +17,20 @@ export const CPU_LEVELS = [
   { id: 5, name: 'さいきょう', level: 10, prof: 5 },
 ] as const;
 
+/**
+ * 勝った時の ごほうび(2026-11-07 企画者)。
+ * - STREET KING: Nステージめ = 経験値 10×N・コイン 10×N(1ステージ 10、2ステージ 20 …)
+ * - バトルモード: CPU の★の数で ★1 = 10・★2 = 30・★3 = 50・★4 = 100・★5 = 500(経験値・コイン 同じ数)
+ * - 2回目からは 初めての 2割(同じ ステージ・同じ CPU の強さ)
+ */
+export const CPU_REWARD: Record<number, number> = { 1: 10, 2: 30, 3: 50, 4: 100, 5: 500 };
+export const REPEAT_RATE = 0.2;
+export function rumbleReward(kind: 'story' | 'free', n: number, first: boolean): { exp: number; coins: number } {
+  const base = kind === 'story' ? 10 * n : CPU_REWARD[n] ?? 0;
+  const v = first ? base : Math.max(1, Math.round(base * REPEAT_RATE));
+  return { exp: v, coins: v };
+}
+
 export interface StoryStage {
   /** 1〜30 */
   no: number;

@@ -165,6 +165,7 @@ const CSS = `
 .b3d .result{position:absolute;inset:0;background:linear-gradient(#0d061488,#0000 30%,#0000 70%,#0d061499);display:none;flex-direction:row;align-items:flex-end;justify-content:flex-end;gap:12px;padding:0 calc(env(safe-area-inset-right) + 18px) calc(env(safe-area-inset-bottom) + 16px) 18px;box-sizing:border-box}
 .b3d .result h1{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top) + 8px);margin:0;text-align:center;font-size:min(80px,13vh);letter-spacing:.08em;color:#ffd23a;-webkit-text-stroke:3px #16101c;text-shadow:0 6px 0 #16101c;animation:b3dRes .5s ease-out}
 .b3d .result.lose h1{color:#9ab4ff}
+.b3d .result .prize{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top) + min(96px,17vh));text-align:center;font:900 17px ${UI_FONT};color:#fff;text-shadow:0 2px 0 #16101c,0 0 4px #16101c}
 /* アップの時は 体力・ボタンなどを かくす(キャラだけ 見せる) */
 .b3d.ended>*:not(canvas):not(style):not(.result):not(.dev){display:none!important}
 @keyframes b3dRes{from{opacity:0;transform:scale(1.8)}to{opacity:1;transform:scale(1)}}
@@ -201,6 +202,7 @@ export class Battle3DScene extends Phaser.Scene {
     btn: Record<Command, { el: HTMLButtonElement; cd: HTMLElement }>;
     result: HTMLElement;
     resultTitle: HTMLElement;
+    resultPrize: HTMLElement;
     turn: HTMLElement;
   };
   private slowT = 0;
@@ -333,7 +335,7 @@ export class Battle3DScene extends Phaser.Scene {
        <div class="pad"><div class="acts"><button class="jump" data-c="jump"><span class="lb">ジャンプ</span><span class="cd" style="height:0"></span></button><button class="dodge" data-c="dodge"><span class="lb">ガード</span><span class="cd" style="height:0"></span></button><button class="atk" data-c="punch"><span class="lb">こうげき</span><span class="cd" style="height:0"></span></button></div><div class="grid"></div></div>
        <div class="setup" style="background:linear-gradient(#0d0614a0,#0d0614c8),#0d0614 url('${assetUrl('assets/battle3d/sel_tech.webp')}') center/cover no-repeat"></div>
        ${isPreview() ? `<div class="dev"><button class="devOpen">確認用</button><div class="devPanel"><div>レベル ${[1, 10, 20, 25, 30, 60, 70].map((l) => `<button data-lv="${l}" class="${devPick?.level === l ? 'on' : ''}">${l}</button>`).join('')}</div><div>育て方 ${Object.keys(STYLE_LABEL).map((k) => `<button data-st="${k}" class="${devPick?.style === k ? 'on' : ''}">${STYLE_LABEL[k]}</button>`).join('')}</div><div>ステージ ${[['grassland', '草原'], ['street', 'ストリート'], ['champion', 'チャンピオン']].map(([k, n]) => `<button data-map="${k}" class="${(devPick?.map ?? DEFAULT_MAP) === k ? 'on' : ''}">${n}</button>`).join('')}</div><div>種族 ${(['bunk', 'mofu', 'zipp', 'puni', 'klak', 'riot', 'snek', 'grit', 'vybe', 'shellz', 'crownie'] as const).map((k) => `<button data-sp="${k}" class="${(devPick?.species ?? 'bunk') === k ? 'on' : ''}">${k.toUpperCase()}</button>`).join('')}</div><small>今の技: ${p.techs.map((n) => esc(getTech(n).name)).join("・")}</small></div></div>` : ''}
-       <div class="result"><h1></h1><button class="again">もう一度</button><button class="leave">もどる</button></div>
+       <div class="result"><h1></h1><div class="prize"></div><button class="again">もう一度</button><button class="leave">もどる</button></div>
        <div class="turn"><div>スマホを 横にしてね<small>横にすると バトルが始まります</small></div></div>`,
     );
     document.body.appendChild(root);
@@ -365,6 +367,7 @@ export class Battle3DScene extends Phaser.Scene {
       btn,
       result: $('.result'),
       resultTitle: $('.result h1'),
+      resultPrize: $('.result .prize'),
       turn: $('.turn'),
     };
     $('.back').addEventListener('click', () => this.leave());
@@ -1288,7 +1291,16 @@ export class Battle3DScene extends Phaser.Scene {
     if (this.field) this.field.closeup = 0;
     this.root?.classList.add('ended');
     // ストーリー: 勝ったら そのマスをクリア(保存)
-    if (this.params.mode === 'story' && w === 0 && this.params.stage) new LifeRecord(loadLife()).clearStage(this.params.stage);
+    // 2026-11-07 企画者: 勝ったら ごほうび(STREET KING は ステージの番号×10・バトルモードは ★の数で。2回目からは 2割)
+    let prize = '';
+    if (w === 0 && (this.params.mode === 'story' || this.params.mode === 'free')) {
+      const rec = new LifeRecord(loadLife());
+      const cpu = CPU_LEVELS.find((c) => c.id === this.params.cpu) ?? CPU_LEVELS[1];
+      const got = this.params.mode === 'story' ? (this.params.stage ? rec.rumbleWin('story', this.params.stage) : null) : rec.rumbleWin('free', cpu.prof, cpu.id);
+      if (got) prize = `けいけんち +${got.exp}　コイン +${got.coins}${got.first ? '' : '（2回目から）'}`;
+    }
+    this.ui.resultPrize.textContent = prize;
+    this.ui.resultPrize.style.display = prize ? 'block' : 'none';
     const leaveBtn = this.root?.querySelector('.leave') as HTMLElement | null;
     if (leaveBtn) leaveBtn.textContent = this.params.mode === 'story' ? (w === 0 ? 'すすむ' : 'ストーリーへ') : 'もどる';
     this.ui.result.style.display = 'flex';

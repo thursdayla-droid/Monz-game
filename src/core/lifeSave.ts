@@ -14,6 +14,7 @@ import type { CpuLevel } from './mythclash/cpu';
 import { battleReward, TOWER_FLOORS, towerReward } from './mythclash/modes';
 import { addCards, deckOwned, fixCollection, newCollection, openPacks, PACK_PRICE, type MythCollection } from './mythclash/packs';
 import type { Rng } from './rng';
+import { rumbleReward } from './rumble';
 import { growTechs, hasTechTable, setEquip, type TechState } from './battle3d/techLearn';
 import { renameTech } from './battle3d/techTable';
 import { instinctFor } from './autobattle/engine';
@@ -102,7 +103,14 @@ export interface LifeData {
   /** MYTHCLASH の持っているカード(はじめてパックを買ったときにできる。古いデータには無い = 0枚) */
   mythclash?: MythCollection;
   /** MONZ RUMBLE のストーリーモード: クリアした いちばん先のマス(2026-11-03。古いデータには無い = 0) */
-  rumble?: { cleared: number };
+  /** cpuWon: バトルモードで 勝ったことのある CPU の強さ(CPU_LEVELS の id。2026-11-07 ごほうびの 2回目からを 分けるため) */
+  rumble?: { cleared: number; cpuWon?: number[] };
+}
+
+function fixRumble(r: { cleared?: unknown; cpuWon?: unknown }): { cleared: number; cpuWon?: number[] } {
+  const cleared = Math.max(0, Math.min(99, Math.floor(num(r.cleared, 0))));
+  const won = Array.isArray(r.cpuWon) ? [...new Set(r.cpuWon.filter((v): v is number => Number.isInteger(v) && v >= 1 && v <= 9))] : [];
+  return won.length ? { cleared, cpuWon: won } : { cleared };
 }
 
 export interface MinigameRecord {
@@ -235,7 +243,7 @@ export function migrateLife(raw: unknown, now = Date.now()): LifeData | null {
     claimed: Array.isArray(d.claimed) ? (d.claimed as unknown[]).map(String).slice(-CLAIMED_KEEP) : [],
     records: d.records && typeof d.records === 'object' ? (d.records as Record<string, MinigameRecord>) : {},
     ...(d.mythclash ? { mythclash: fixCollection(d.mythclash) } : {}),
-    ...(d.rumble && typeof d.rumble === 'object' ? { rumble: { cleared: Math.max(0, Math.min(99, Math.floor(num((d.rumble as { cleared?: unknown }).cleared, 0)))) } } : {}),
+    ...(d.rumble && typeof d.rumble === 'object' ? { rumble: fixRumble(d.rumble as { cleared?: unknown; cpuWon?: unknown }) } : {}),
   };
 }
 
@@ -340,7 +348,22 @@ export class LifeRecord {
   /** MONZ RUMBLE のストーリーで、そのマスをクリアした(先のマスなら記録をのばす) */
   clearStage(no: number): void {
     const now = this.data.rumble?.cleared ?? 0;
-    if (no > now) this.update({ rumble: { cleared: no } });
+    if (no > now) this.update({ rumble: { ...this.data.rumble, cleared: no } });
+  }
+
+  /**
+   * MONZ RUMBLE で 勝った: ごほうび(経験値・コイン)を もらい、記録する(2026-11-07 企画者)。
+   * story: n = ステージの番号 / free: n = CPU の★の数、cpuId = CPU_LEVELS の id。2回目からは 2割
+   */
+  rumbleWin(kind: 'story' | 'free', n: number, cpuId = 0, now = Date.now()): { exp: number; coins: number; first: boolean } {
+    const r = this.data.rumble ?? { cleared: 0 };
+    const first = kind === 'story' ? n > r.cleared : !(r.cpuWon ?? []).includes(cpuId);
+    const got = rumbleReward(kind, n, first);
+    if (kind === 'story') this.clearStage(n);
+    else if (first) this.update({ rumble: { ...r, cpuWon: [...(r.cpuWon ?? []), cpuId] } });
+    this.add(got.coins);
+    this.gainExp(got.exp, now, 'other');
+    return { ...got, first };
   }
 
   /** 今のMONZの種族を変える(生まれたとき・確認用)。技は その種族の表から作り直す(表がなければ無し) */
