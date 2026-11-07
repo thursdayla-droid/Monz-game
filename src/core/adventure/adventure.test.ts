@@ -109,15 +109,15 @@ describe('冒険の 技・持ち物', () => {
     expect(s.player.hp).toBeGreaterThan(5);
     expect(s.bag.length).toBe(BAG_MAX - 1);
     const atk0 = s.player.atk;
-    s.bag.push({ kind: 'gear', slot: 'claw', rank: 'S' });
+    s.bag.push({ kind: 'gear', slot: 'head', rank: 'S' });
     expect(useBagItem(s, s.bag.length - 1)).toBe(true);
     expect(s.player.atk).toBe(atk0 + 16);
     expect(s.bag.length).toBe(BAG_MAX - 1);
-    s.bag.push({ kind: 'gear', slot: 'claw', rank: 'D' });
+    s.bag.push({ kind: 'gear', slot: 'head', rank: 'D' });
     useBagItem(s, s.bag.length - 1); // S と 入れかえ
     expect(s.player.atk).toBe(atk0 + 2);
-    expect(s.bag[s.bag.length - 1]).toEqual({ kind: 'gear', slot: 'claw', rank: 'S' });
-    expect(unequip(s, 'claw')).toBe(false); // いっぱい
+    expect(s.bag[s.bag.length - 1]).toEqual({ kind: 'gear', slot: 'head', rank: 'S' });
+    expect(unequip(s, 'head')).toBe(false); // いっぱい
   });
 });
 

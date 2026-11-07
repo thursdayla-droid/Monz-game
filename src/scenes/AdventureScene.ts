@@ -345,7 +345,7 @@ export class AdventureScene extends Phaser.Scene {
     const box = bag.querySelector('.box') as HTMLElement;
     const draw = () => {
       const s = this.state;
-      const slots: GearSlot[] = ['claw', 'armor', 'charm'];
+      const slots: GearSlot[] = ['head', 'armor', 'charm'];
       const p = s.player;
       box.innerHTML = `<h3>そうび<span style="font-size:12px;color:#fff">こうげき ${Math.round(p.atk)}・まもり ${Math.round(p.tough)}・HP ${p.hp}/${p.maxHp}</span></h3>
         <div class="gear">${slots

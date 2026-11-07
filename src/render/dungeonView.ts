@@ -598,7 +598,7 @@ export class DungeonView {
       o.position.y = 0.45 + Math.sin(now * 3 + o.id) * 0.08;
     }
     // 装備の ランクの 光(いちばん 高い ランク)
-    const best = (['claw', 'armor', 'charm'] as const).reduce((r, k) => Math.max(r, s.gear[k] ? RANKS.indexOf(s.gear[k]!.rank) : -1), -1);
+    const best = (['head', 'armor', 'charm'] as const).reduce((r, k) => Math.max(r, s.gear[k] ? RANKS.indexOf(s.gear[k]!.rank) : -1), -1);
     this.auraMat.opacity = best < 0 ? 0 : 0.25 + best * 0.1 + Math.sin(now * 4) * 0.08;
     if (best >= 0) this.auraMat.color.setHex(RANK_HEX[RANKS[best]]);
     this.aura.position.set(p.x, 0.06, p.z);

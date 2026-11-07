@@ -48,7 +48,7 @@ export const ADV = {
   /** モブが 落とす: 回復の実 25%・装備 12%【仮】。装備の ランクの 出やすさ D50 C30 B14 A5 S1 */
   drop: { herb: 0.25, gear: 0.12, rank: [50, 30, 14, 5, 1] },
   /** 装備の 強さ(ランクごとの 倍)と 1倍の ときの 上がり方 */
-  gear: { mul: { D: 1, C: 2, B: 3, A: 5, S: 8 } as Record<Rank, number>, claw: 2, armor: 3, charm: 8 },
+  gear: { mul: { D: 1, C: 2, B: 3, A: 5, S: 8 } as Record<Rank, number>, head: 2, armor: 3, charm: 8 },
   pickR: 1.1,
 } as const;
 
@@ -73,11 +73,11 @@ export interface AdvTech {
 /** 自分を 守る・強くする 技(ボタンを 緑に する) */
 export const SELF_KINDS = new Set(['heal', 'barrier', 'buff']);
 
-/** 装備の 場所(企画者 2026-11-07 案【仮】): ツメ = 攻撃・ヨロイ = 守り・オマモリ = HP */
-export type GearSlot = 'claw' | 'armor' | 'charm';
+/** 装備の 場所(企画者 2026-11-07 案【仮】): アタマ = 攻撃(2026-11-07 企画者「爪じゃなくて 頭」)・ヨロイ = 守り・オマモリ = HP */
+export type GearSlot = 'head' | 'armor' | 'charm';
 export type Rank = 'D' | 'C' | 'B' | 'A' | 'S';
 export const RANKS: Rank[] = ['D', 'C', 'B', 'A', 'S'];
-export const SLOT_NAMES: Record<GearSlot, string> = { claw: 'ツメ', armor: 'ヨロイ', charm: 'オマモリ' };
+export const SLOT_NAMES: Record<GearSlot, string> = { head: 'アタマ', armor: 'ヨロイ', charm: 'オマモリ' };
 
 /** 持ち物(1つ)。herb = 回復の実(冒険の 中で 使う)・gear = 装備 */
 export type AdvItem = { kind: 'herb' } | { kind: 'gear'; slot: GearSlot; rank: Rank };
@@ -479,7 +479,7 @@ function dropFrom(s: AdvState, m: Actor): void {
   const r = s.rng();
   let item: AdvItem | null = null;
   if (r < D.gear) {
-    const slots: GearSlot[] = ['claw', 'armor', 'charm'];
+    const slots: GearSlot[] = ['head', 'armor', 'charm'];
     const slot = slots[Math.floor(s.rng() * 3)];
     let q = s.rng() * D.rank.reduce((a, b) => a + b, 0);
     let rank: Rank = 'D';
@@ -501,7 +501,7 @@ function applyGear(s: AdvState): void {
   const G = ADV.gear;
   const m = (slot: GearSlot) => (s.gear[slot] ? G.mul[s.gear[slot]!.rank] : 0);
   const rate = p.hp / p.maxHp;
-  p.atk = s.base.atk + G.claw * m('claw');
+  p.atk = s.base.atk + G.head * m('head');
   p.tough = s.base.tough + G.armor * m('armor');
   p.maxHp = s.base.maxHp + G.charm * m('charm');
   p.hp = Math.max(1, Math.round(p.maxHp * rate));
