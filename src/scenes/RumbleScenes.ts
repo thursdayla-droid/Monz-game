@@ -13,6 +13,9 @@ import type { RumbleParams } from './Battle3DScene';
 const CSS = `
 .rmb{position:fixed;inset:0;z-index:50;background:radial-gradient(circle at 50% 20%,#3a1460,#120818 70%);color:#fff;font-family:${UI_FONT};user-select:none;-webkit-user-select:none;overflow:auto;-webkit-overflow-scrolling:touch}
 .rmb .in{min-height:100%;box-sizing:border-box;padding:calc(env(safe-area-inset-top) + 14px) calc(env(safe-area-inset-right) + 16px) calc(env(safe-area-inset-bottom) + 20px) calc(env(safe-area-inset-left) + 16px);display:flex;flex-direction:column;gap:14px;align-items:center}
+/* 2026-11-07 企画者のモードえらびの絵(左＝ストリート・右＝王冠のバトルステージ) */
+.rmb .modebg{position:fixed;inset:0;z-index:-1;background:#120818 center/cover no-repeat}
+.rmb .modebg::after{content:'';position:absolute;inset:0;background:linear-gradient(#0000 40%,#0006)}
 .rmb .back{align-self:flex-start;background:#16101ccc;border:0;color:#fff;font:900 15px ${UI_FONT};padding:8px 12px;border-radius:10px}
 .rmb h1{margin:0;font-size:34px;letter-spacing:.04em;color:#ffd23a;-webkit-text-stroke:2px #16101c;text-shadow:0 4px 0 #16101c;text-align:center}
 .rmb h2{margin:0;font-size:20px;color:#fff;text-align:center}
@@ -94,6 +97,9 @@ function mount(scene: Phaser.Scene, html: string): HTMLDivElement {
 }
 
 /** モードえらび: ストーリーモード / バトルモード(CPU の強さをえらぶ) */
+/** モードえらびの背景(2026-11-07 企画者の絵。元は design/rumble_ui/sel_mode.png) */
+const MODE_BG = 'assets/story/sel_mode.webp';
+
 export class RumbleModeScene extends Phaser.Scene {
   constructor() {
     super('RumbleMode');
@@ -103,7 +109,7 @@ export class RumbleModeScene extends Phaser.Scene {
     audio.playBgm('home');
     const root = mount(
       this,
-      `<button class="back">◀ もどる</button>
+      `<div class="modebg" style="background-image:url('${assetUrl(MODE_BG)}')"></div><button class="back">◀ もどる</button>
        <h1>MONZ RUMBLE</h1>
        <button class="big story">${STORY_NAME}<small>ストーリー・一枚絵で 話が すすむ・ぜんぶで${STORY_COUNT}ステージ</small></button>
        <button class="big free">バトルモード<small>CPU の強さを えらんで たたかう</small></button>`,

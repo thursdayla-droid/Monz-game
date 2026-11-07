@@ -395,3 +395,4 @@
 - 2026-11-07：企画者「11戦目から20戦目までバトルBGMはこれで」→ STREET KING の 11〜20戦目（3〜4章・ストリート）は 新しい 曲（public/assets/bgm/battle2.mp3。元は music/battle2_ch3-4.m4a・音の 大きさは 今の 戦闘曲に そろえた）
 - 2026-11-07：企画者「20-31戦目までバトルBGMはこれで」→ 21〜31戦目（5〜6章・チャンピオン・特別編）は 新しい 曲（battle3.mp3。元は music/battle3_ch5-6.m4a）。20戦目は 11〜20の 曲のまま【仮：企画者が 言えば 20戦目も 変える】
 - 2026-11-07：企画者「エンディング用BGMはこれで」→ エンディング（3場面）の 間 ending.mp3（元は music/ending.m4a）。終わったら ホームの 曲に もどる
+- 2026-11-07：企画者のセレクト画面の絵（1枚め）→ MONZ RUMBLE の モードえらび（STREET KING／バトルモード）の 背景に（public/assets/story/sel_mode.webp。元は design/rumble_ui/sel_mode.png）。CPUの強さえらびは まだ 前の 色の 背景
