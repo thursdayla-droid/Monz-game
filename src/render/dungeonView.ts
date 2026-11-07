@@ -209,11 +209,11 @@ export class DungeonView {
     });
     fl.receiveShadow = true;
     this.scene.add(fl);
-    const wl = new THREE.InstancedMesh(new THREE.BoxGeometry(CELL, 1.6, CELL), new THREE.MeshLambertMaterial({ color: 0xffffff }), walls.length);
+    const wl = new THREE.InstancedMesh(new THREE.BoxGeometry(CELL, 2.0, CELL), new THREE.MeshLambertMaterial({ color: 0xffffff }), walls.length);
     walls.forEach((i, k) => {
       const x = i % f.w;
       const y = Math.floor(i / f.w);
-      m4.makeTranslation((x + 0.5) * CELL, 0.8, (y + 0.5) * CELL);
+      m4.makeTranslation((x + 0.5) * CELL, 1.0, (y + 0.5) * CELL);
       wl.setMatrixAt(k, m4);
       const v = ((x * 5 + y * 3) % 4) / 4;
       col.setRGB(0.13 + v * 0.04, 0.09 + v * 0.03, 0.2 + v * 0.05);
@@ -352,7 +352,8 @@ export class DungeonView {
     const cx = p.x + (Math.random() - 0.5) * this.shake;
     const cz = p.z + (Math.random() - 0.5) * this.shake;
     this.shake *= Math.exp(-dt * 12);
-    this.camera.position.set(cx, 30, cz + 11);
+    // 角度は 最初の 試作と 同じ(約58度。2026-11-07 企画者「真上からは嫌・角度は最初のぐらい」)
+    this.camera.position.set(cx, 20, cz + 12.6);
     this.camera.lookAt(cx, 0.6, cz);
     this.renderer.render(this.scene, this.camera);
   }
