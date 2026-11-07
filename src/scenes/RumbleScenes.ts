@@ -19,14 +19,19 @@ const CSS = `
 .rmb .back{align-self:flex-start;background:#16101ccc;border:0;color:#fff;font:900 15px ${UI_FONT};padding:8px 12px;border-radius:10px}
 .rmb h1{margin:0;font-size:34px;letter-spacing:.04em;color:#ffd23a;-webkit-text-stroke:2px #16101c;text-shadow:0 4px 0 #16101c;text-align:center}
 .rmb h2{margin:0;font-size:20px;color:#fff;text-align:center}
-.rmb .big{width:min(100%,460px);border:4px solid #16101c;border-radius:18px;padding:16px 18px;text-align:left;font:900 24px ${UI_FONT};color:#16101c;box-shadow:0 6px 0 #16101c;display:flex;flex-direction:column;gap:2px}
-.rmb .big small{font-size:13px;font-weight:700;opacity:.8}
-.rmb .story{background:#ffd23a}
-.rmb .free{background:#7ad0ff}
-.rmb .cpus{width:min(100%,760px);display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
-.rmb .cpu{white-space:nowrap;border:3px solid #16101c;border-radius:14px;padding:10px 14px;font:900 18px ${UI_FONT};color:#16101c;background:#fff;display:flex;justify-content:space-between;align-items:center;box-shadow:0 4px 0 #16101c}
-.rmb .cpu small{font-size:12px;font-weight:700;color:#5a4a66}
-.rmb .cpu .stars{color:#ff8a1f;font-size:16px;letter-spacing:2px}
+/* 2026-11-07 企画者の ボタンの絵(金と紫の 看板。design/rumble_ui/button.png)。文字は 上に のせる */
+.rmb .modes{display:flex;gap:14px;width:min(100%,820px);justify-content:center;margin-top:auto;margin-bottom:auto}
+.rmb .big,.rmb .cpu{background:var(--btn) center/100% 100% no-repeat;border:0;aspect-ratio:3/1;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;filter:drop-shadow(0 5px 0 #0008);transition:transform .08s}
+.rmb .big:active,.rmb .cpu:active{transform:scale(.95)}
+.rmb .big{flex:1;max-width:400px;padding:0 9%;font:900 min(26px,5.4vh) ${UI_FONT};gap:2px;text-shadow:0 3px 0 #16101c,0 0 3px #16101c,0 0 6px #16101c}
+.rmb .big small{font-size:min(12px,3vh);font-weight:700;text-shadow:0 1px 2px #000;color:#f0e4ff}
+.rmb .story{color:#ffd23a}
+.rmb .free{color:#9fe0ff}
+.rmb .cpus{width:min(100%,780px);display:grid;grid-template-columns:repeat(3,1fr);gap:6px 10px}
+.rmb .cpu{white-space:nowrap;padding:0 10% 2%;font:900 min(18px,4.6vh) ${UI_FONT};gap:1px;text-shadow:0 2px 0 #16101c,0 0 4px #16101c}
+.rmb .cpu .sub{display:flex;gap:6px;align-items:center}
+.rmb .cpu small{font-size:min(11px,2.8vh);font-weight:700;color:#e8dcf4;text-shadow:0 1px 2px #000}
+.rmb .cpu .stars{color:#ffb03a;font-size:min(14px,3.4vh);letter-spacing:2px}
 .rmb .note{font-size:12px;color:#c8bcd8;text-align:center}
 .rmb .panel{position:fixed;inset:0;z-index:3;background:#0d0614e8;display:flex;align-items:center;justify-content:center;padding:calc(env(safe-area-inset-top) + 12px) calc(env(safe-area-inset-right) + 16px) calc(env(safe-area-inset-bottom) + 12px) calc(env(safe-area-inset-left) + 16px)}
 .rmb .card{width:min(100%,560px);max-height:100%;overflow:auto;background:#fff;color:#16101c;border:4px solid #16101c;border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:10px;box-sizing:border-box}
@@ -89,6 +94,7 @@ function mount(scene: Phaser.Scene, html: string): HTMLDivElement {
   }
   const root = document.createElement('div');
   root.className = 'rmb';
+  root.style.setProperty('--btn', `url('${assetUrl(BTN_FRAME)}')`);
   // MONZ RUMBLE は スマホ横だけ(2026-11-05 企画者)。縦の あいだは「横にしてね」で おおう
   root.innerHTML = `<div class="in">${html}</div><div class="rot"><div>スマホを 横にしてね<small>MONZ RUMBLE は 横画面で あそびます</small></div></div>`;
   document.body.appendChild(root);
@@ -97,6 +103,8 @@ function mount(scene: Phaser.Scene, html: string): HTMLDivElement {
 }
 
 /** モードえらび: ストーリーモード / バトルモード(CPU の強さをえらぶ) */
+/** ボタンの絵(2026-11-07 企画者。元は design/rumble_ui/button.png) */
+const BTN_FRAME = 'assets/story/btn_frame.webp';
 /** モードえらびの背景(2026-11-07 企画者の絵。元は design/rumble_ui/sel_mode.png) */
 const MODE_BG = 'assets/story/sel_mode.webp';
 /** CPUの強さえらびの背景(2026-11-07 企画者の絵。元は design/rumble_ui/sel_cpu.png) */
@@ -113,8 +121,8 @@ export class RumbleModeScene extends Phaser.Scene {
       this,
       `<div class="modebg" style="background-image:url('${assetUrl(MODE_BG)}')"></div><button class="back">◀ もどる</button>
        <h1>MONZ RUMBLE</h1>
-       <button class="big story">${STORY_NAME}<small>ストーリー・一枚絵で 話が すすむ・ぜんぶで${STORY_COUNT}ステージ</small></button>
-       <button class="big free">バトルモード<small>CPU の強さを えらんで たたかう</small></button>`,
+       <div class="modes"><button class="big story">${STORY_NAME}<small>ストーリー・ぜんぶで${STORY_COUNT}ステージ</small></button>
+       <button class="big free">バトルモード<small>CPU の強さを えらんで たたかう</small></button></div>`,
     );
     const $ = (s: string) => root.querySelector(s) as HTMLElement;
     $('.back').addEventListener('click', () => {
@@ -138,9 +146,9 @@ export class RumbleModeScene extends Phaser.Scene {
     inner.innerHTML = `<div class="modebg" style="background-image:url('${assetUrl(CPU_BG)}')"></div><button class="back">◀ もどる</button>
       <h2>CPU の強さを えらぶ</h2>
       <div class="cpus">${CPU_LEVELS.map(
-        (c) => `<button class="cpu" data-id="${c.id}"><span>${c.name}<br><small>${c.level === 0 ? '自分と同じレベル' : c.level > 0 ? `自分より レベル +${c.level}` : `自分より レベル ${c.level}`}</small></span><span class="stars">${'★'.repeat(c.prof)}${'☆'.repeat(5 - c.prof)}</span></button>`,
+        (c) => `<button class="cpu" data-id="${c.id}"><span>${c.name}</span><span class="sub"><small>${c.level === 0 ? '自分と同じレベル' : c.level > 0 ? `レベル +${c.level}` : `レベル ${c.level}`}</small><span class="stars">${'★'.repeat(c.prof)}${'☆'.repeat(5 - c.prof)}</span></span></button>`,
       ).join('')}</div>
-      <div class="note">★ = 戦いのうまさ（よけ方・ねらい）</div>`;
+      <div class="note">レベル = 自分と くらべた 強さ ／ ★ = 戦いのうまさ（よけ方・ねらい）</div>`;
     (inner.querySelector('.back') as HTMLElement).addEventListener('click', () => {
       audio.se('back');
       this.scene.restart();

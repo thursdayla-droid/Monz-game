@@ -398,3 +398,4 @@
 - 2026-11-07：企画者のセレクト画面の絵（1枚め）→ MONZ RUMBLE の モードえらび（STREET KING／バトルモード）の 背景に（public/assets/story/sel_mode.webp。元は design/rumble_ui/sel_mode.png）。2枚め → CPUの強さえらびの 背景に（sel_cpu.webp。元は design/rumble_ui/sel_cpu.png）
 - 2026-11-07：企画者の 3枚め（控え室）→ バトル前の 技えらび（技セット）画面の 背景に（public/assets/battle3d/sel_tech.webp。元は design/rumble_ui/sel_tech.png。文字が 読めるように 暗く 重ねる）
 - 2026-11-07：企画者「勝ちは win・負けは lose に変えよう」「キャラのアップ画面にしよう」→ 終わりの 画面は 上に WIN／LOSE（負けは 青）、カメラが キャラを 前から アップで 映す（体力・ボタンは かくす）。勝っても 負けても 自分の MONZ を 映す（同じ日 企画者「自キャラだけでいい」）
+- 2026-11-07：企画者の ボタンの絵（金と紫の 看板。design/rumble_ui/button.png）→ MONZ RUMBLE の モードえらび（2つを 横に ならべる）と CPUの強さえらびの ボタンに。文字は ゲームで のせる
