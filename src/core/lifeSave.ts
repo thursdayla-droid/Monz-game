@@ -713,7 +713,8 @@ export class LifeRecord {
       if (hasTechTable(m.species)) {
         const stats = currentStats({ ...m, auto });
         const g = growTechs(m.species, level, stats, techs, instinctFor(m.species, stats));
-        techs = g.state;
+        // 2026-11-07 企画者「技は MONZ が勝手にセットするんじゃなくて プレイヤーが決めよう」→ 覚えるだけ。そうびは 変えない(はじめての 技だけは 1つめの 枠に 入れる)
+        techs = techs && techs.equipped.length ? { learned: g.state.learned, equipped: setEquip(g.state.learned, techs.equipped, level), manual: true } : g.state;
         learnedAt.push(g.newly);
       } else learnedAt.push([]);
     }

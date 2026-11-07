@@ -502,7 +502,7 @@ export class HomeScene extends Phaser.Scene {
       .join('  ');
     const t = this.text(W / 2, 470, `LEVEL UP!\nLv. ${level}`, 64, '#ffd23a').setDepth(DEPTH.popup).setScale(0.3);
     // 3Dバトルの技を覚えたとき(Ver.44 2026-11-01)
-    const techs = learned.map((n) => `\n「${n}」を おぼえた！`).join('');
+    const techs = learned.map((n) => `\n「${getTech(n).name}」を おぼえた！`).join('') + (learned.length ? '\n（ステータスの「わざ」で セットできるよ）' : '');
     const sub = this.text(W / 2, 590, `${gains}\nポイント +1${techs}`, 24, '#ffffff').setDepth(DEPTH.popup).setAlpha(0);
     this.tweens.add({ targets: sub, alpha: 1, delay: 300, duration: 300 });
     this.tweens.add({ targets: sub, alpha: 0, delay: 2600, duration: 500, onComplete: () => sub.destroy() });
@@ -892,7 +892,7 @@ export class HomeScene extends Phaser.Scene {
       content.add(tabBtn(px + pw - 300, 'ステータス', 'stats'));
       content.add(tabBtn(px + pw - 130, 'わざ', 'techs'));
       if (tab === 'techs') {
-        this.drawTechs(content, m, px, py + 214, pw, t);
+        this.drawTechs(content, m, px, py + 214, pw, t, record, draw);
         return;
       }
       // ポイントの残り
@@ -971,11 +971,15 @@ export class HomeScene extends Phaser.Scene {
     });
   }
 
+  /** ステータスの「わざ」で えらんでいる 枠(0〜3。null = えらんでいない) */
+  private techSlot: number | null = null;
+
   /**
    * ステータスの「わざ」: 装備している技(4つの枠。開いていない枠は鍵)と、覚えている技。Ver.44(2026-11-01)。
-   * 装備は AI が成長イベント(レベルアップ)で自動で見直す。プレイヤーは付けかえない
+   * 2026-11-07 企画者「技は MONZ が勝手にセットするんじゃなくて プレイヤーが決めよう」→
+   * 枠を さわって えらぶ → 下の 覚えている技を さわると その枠に入る(もう一度 さわると 外す)
    */
-  private drawTechs(content: Phaser.GameObjects.Container, m: MonzData, px: number, top: number, pw: number, t: (x: number, y: number, s: string, size: number, color?: string, ox?: number) => Phaser.GameObjects.Text): void {
+  private drawTechs(content: Phaser.GameObjects.Container, m: MonzData, px: number, top: number, pw: number, t: (x: number, y: number, s: string, size: number, color?: string, ox?: number) => Phaser.GameObjects.Text, record: LifeRecord, redraw: () => void): void {
     const ink = '#16101c';
     const techs = m.techs;
     if (!techs) {
@@ -983,33 +987,77 @@ export class HomeScene extends Phaser.Scene {
       return;
     }
     const slots = slotsAt(m.level);
+    if (this.techSlot !== null && this.techSlot >= slots) this.techSlot = null;
+    const sel = this.techSlot;
     content.add(t(px + 32, top, 'そうびしている わざ', 26, ink));
     const card = (y: number, name: string | null, i: number) => {
       const g = this.add.graphics();
       const lock = i >= slots;
-      g.fillStyle(lock ? 0xd8d0c8 : 0xffffff, 1).fillRoundedRect(px + 26, y, pw - 52, 66, 14);
-      g.lineStyle(4, 0x16101c, 1).strokeRoundedRect(px + 26, y, pw - 52, 66, 14);
+      const on = sel === i;
+      g.fillStyle(lock ? 0xd8d0c8 : on ? 0xffe680 : 0xffffff, 1).fillRoundedRect(px + 26, y, pw - 52, 66, 14);
+      g.lineStyle(on ? 6 : 4, on ? 0xc2410c : 0x16101c, 1).strokeRoundedRect(px + 26, y, pw - 52, 66, 14);
       content.add(g);
       if (lock) {
         content.add(t(px + 50, y + 16, `🔒 Lv.${SLOT_LEVELS[i]} で使えるようになります`, 24, '#5a4a66'));
         return;
       }
+      const hit = this.add.rectangle(px + 26, y, pw - 52, 66, 0xffffff, 0).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+      hit.on('pointerdown', () => {
+        audio.se('tap');
+        this.techSlot = sel === i ? null : i;
+        redraw();
+      });
+      content.add(hit);
       if (!name) {
-        content.add(t(px + 50, y + 16, '―', 26, '#5a4a66'));
+        content.add(t(px + 50, y + 16, on ? '下の わざを えらんでね' : '― （さわって えらぶ）', 24, '#5a4a66'));
         return;
       }
       const tech = getTech(name);
       const chip = (x: number, s: string, bg: string, fg = '#ffffff') => t(x, y + 18, ` ${s} `, 18, fg).setBackgroundColor(bg).setPadding(6, 3, 6, 4);
       content.add(chip(px + 46, tech.element, `#${ELEMENT_HEX[tech.element].toString(16).padStart(6, '0')}`, tech.element === '無' || tech.element === '光' || tech.element === '雷' ? ink : '#ffffff'));
-      content.add(t(px + 110, y + 14, name, 28, ink));
+      content.add(t(px + 110, y + 14, tech.name, 28, ink));
       content.add(chip(px + pw - 120, tech.strength, tech.strength === '大技' ? '#c0182a' : '#5a4a66'));
     };
     for (let i = 0; i < MAX_SLOTS; i++) card(top + 40 + i * 76, techs.equipped[i] ?? null, i);
-    const rest = techs.learned.filter((n) => !techs.equipped.includes(n));
-    const y2 = top + 40 + MAX_SLOTS * 76 + 14;
+    const y2 = top + 40 + MAX_SLOTS * 76 + 10;
     content.add(t(px + 32, y2, `おぼえている わざ（${techs.learned.length}）`, 24, ink));
-    content.add(t(px + 32, y2 + 36, rest.length ? rest.join('・') : 'ぜんぶ そうびしています', 22, '#5a4a66').setWordWrapWidth(pw - 64));
-    content.add(t(px + 32, y2 + 110, 'わざは レベルアップのときに おぼえて、\nMONZが 自分で そうびを えらびます', 20, '#5a4a66'));
+    content.add(t(px + pw - 32, y2 + 4, sel === null ? '上の 枠を さわって えらぶ' : `${sel + 1}つめの 枠に 入れる わざを さわる`, 18, sel === null ? '#5a4a66' : '#c2410c', 1));
+    // 覚えている技(3列)。そうびしている技は 色を うすく
+    const cols = 3;
+    const cw = (pw - 64 - (cols - 1) * 8) / cols;
+    techs.learned.forEach((n, k) => {
+      const x = px + 32 + (k % cols) * (cw + 8);
+      const y = y2 + 34 + Math.floor(k / cols) * 39;
+      const used = techs.equipped.indexOf(n);
+      const g = this.add.graphics();
+      g.fillStyle(used >= 0 ? 0xe8dcc0 : 0xffffff, 1).fillRoundedRect(x, y, cw, 34, 10);
+      g.lineStyle(3, 0x16101c, 1).strokeRoundedRect(x, y, cw, 34, 10);
+      content.add(g);
+      const label = t(x + cw / 2, y + 5, (used >= 0 ? `${used + 1}:` : '') + getTech(n).name, 19, used >= 0 ? '#7a6a8a' : ink, 0.5);
+      if (label.width > cw - 10) label.setScale((cw - 10) / label.width);
+      content.add(label);
+      const hit = this.add.rectangle(x, y, cw, 34, 0xffffff, 0).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+      hit.on('pointerdown', () => {
+        if (this.techSlot === null) {
+          audio.se('tap', { pitch: 0.8 });
+          return;
+        }
+        const slot = this.techSlot;
+        const eq = [...techs.equipped];
+        while (eq.length < slots) eq.push('');
+        if (eq[slot] === n) eq[slot] = ''; // もう一度 → 外す
+        else {
+          const was = eq.indexOf(n);
+          if (was >= 0) eq[was] = eq[slot]; // ほかの枠に入っていたら 入れかえ
+          eq[slot] = n;
+        }
+        record.setTechs(eq.filter(Boolean));
+        audio.se('select');
+        this.techSlot = null;
+        redraw();
+      });
+      content.add(hit);
+    });
   }
 
   /** 中身がまだないボタン: 「じゅんび中」を出す */
