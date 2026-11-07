@@ -191,3 +191,15 @@ describe('技は 壁を 通りぬけない', () => {
     expect(m.hp).toBe(hp0);
   });
 });
+
+describe('ねらった 向きは スティックで 変わらない', () => {
+  it('スティックを 右に 入れたまま 上へ ねらって うつ → 上へ', () => {
+    const s = newAdventure(7, { hp: 20, power: 20, tough: 20, speed: 20, tech: 20 }, 1, [{ id: 'b', kind: 'beam', power: 14, cooldown: 3, element: '光', effect: 'なし', strength: '強' }]);
+    let dir = 0;
+    for (let i = 0; i < 20; i++) {
+      stepAdventure(s, { mx: 1, mz: 0, attack: false, tech: i === 0 ? 0 : null, techDir: i === 0 ? -Math.PI / 2 : null }, 1 / 30);
+      for (const e of s.events) if (e.kind === 'tech') dir = e.dir;
+    }
+    expect(dir).toBeCloseTo(-Math.PI / 2);
+  });
+});

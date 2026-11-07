@@ -75,7 +75,8 @@ const CSS = `
 /** 確認用ページかどうか(MONZ RUMBLE から 入った) */
 const isPreview = () => ['Battle3D', 'RumbleMode'].includes((window as { __MONZ_START?: string }).__MONZ_START ?? '');
 /** 確認用: ためす レベルと 型 */
-const advDev = { level: 1, type: 'power' };
+const advDev: { level: number; type: string; species: string | null } = { level: 1, type: 'power', species: null };
+const DEV_SPECIES = ['bunk', 'mofu', 'zipp', 'puni', 'klak', 'riot', 'snek', 'grit', 'vybe', 'shellz', 'crownie'];
 const DEV_LEVELS = [1, 10, 25, 45, 70];
 const DEV_TYPES = ['power', 'tough', 'speed', 'tech'];
 
@@ -118,7 +119,9 @@ export class AdventureScene extends Phaser.Scene {
     let equipped = mon.techs?.equipped ?? [];
     let growType: string | null = mon.growType ?? null;
     // 確認用ページだけ: レベルと 型を えらんで ためす(自由ポイントを 全部 その型に・技は 新しい 順に 4つ)
-    if (isPreview() && advDev.level > 1) {
+    if (isPreview() && (advDev.level > 1 || advDev.species)) {
+      // 確認用: 種族も えらべる(2026-11-07 企画者「技と 他の キャラを 試したい」)
+      if (advDev.species) me = { ...me, species: advDev.species, name: advDev.species.toUpperCase() };
       const sp = me.species as SpeciesId;
       const L = advDev.level;
       const stats = addStats(addStats(speciesStats(sp).base, autoGrowthAt(sp, 'dev', L)), { hp: 0, power: 0, tough: 0, speed: 0, tech: 0, [advDev.type]: L - 1 } as StatBlock);
@@ -152,7 +155,7 @@ export class AdventureScene extends Phaser.Scene {
     root.insertAdjacentHTML(
       'beforeend',
       `<div class="top"><button class="back">◀ もどる</button><div class="me"><div class="nm">${me.name}　Lv.${this.level}</div><div class="bar"><i></i></div><div class="num"></div></div><div class="goal"></div><button class="bagBtn">もちもの</button></div>
-       ${isPreview() ? `<div class="dev" style="position:absolute;z-index:5;left:calc(env(safe-area-inset-left) + 12px);top:calc(env(safe-area-inset-top) + 62px);display:flex;gap:6px"><button class="back devLv">確認 Lv.${advDev.level}</button><button class="back devTy">型：${STAT_LABELS[advDev.type as StatKey]}</button></div>` : ''}
+       ${isPreview() ? `<div class="dev" style="position:absolute;z-index:5;left:calc(env(safe-area-inset-left) + 12px);top:calc(env(safe-area-inset-top) + 62px);display:flex;gap:6px"><button class="back devLv">確認 Lv.${advDev.level}</button><button class="back devTy">型：${STAT_LABELS[advDev.type as StatKey]}</button><button class="back devSp">${(advDev.species ?? '自分').toUpperCase()}</button></div>` : ''}
        <div class="stickZone"><div class="stickBase"><div class="stickKnob"></div></div></div>
        <div class="stickHint">ここを<br>さわって<br>うごかす</div>
        <button class="atk">こうげき</button>
@@ -242,6 +245,11 @@ export class AdventureScene extends Phaser.Scene {
     if (isPreview()) {
       $('.devLv').addEventListener('click', () => {
         advDev.level = DEV_LEVELS[(DEV_LEVELS.indexOf(advDev.level) + 1) % DEV_LEVELS.length];
+        this.scene.restart();
+      });
+      $('.devSp').addEventListener('click', () => {
+        const i = advDev.species ? DEV_SPECIES.indexOf(advDev.species) : -1;
+        advDev.species = i + 1 < DEV_SPECIES.length ? DEV_SPECIES[i + 1] : null;
         this.scene.restart();
       });
       $('.devTy').addEventListener('click', () => {

@@ -668,12 +668,14 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
   if (p.act === 'attack' && p.actT > P.windup + P.recover) p.act = 'free';
   const len = Math.min(1, Math.hypot(inp.mx, inp.mz));
   if (p.act !== 'dead') {
-    if (len > 0.1) p.face = Math.atan2(inp.mz, inp.mx);
+    // 技・攻撃の 間は 向きを 変えない(ねらった 向きに うつ。2026-11-07 企画者「離した 方向に うって」)
+    if (len > 0.1 && p.act !== 'tech' && !(p.act === 'attack' && !p.struck)) p.face = Math.atan2(inp.mz, inp.mx);
     // スティックを いっぱいに たおすと 走る(2026-11-07 企画者「もう少し 早く 走って」)
     const run = len > 0.85 ? 1.4 : 1;
     const sp = p.speed * len * run * (p.act === 'attack' || p.act === 'tech' ? 0.35 : p.act === 'hurt' ? 0.4 : 1);
-    p.vx += (Math.cos(p.face) * sp * (len > 0.1 ? 1 : 0) - p.vx) * Math.min(1, dt * 12);
-    p.vz += (Math.sin(p.face) * sp * (len > 0.1 ? 1 : 0) - p.vz) * Math.min(1, dt * 12);
+    const mdir = len > 0.1 ? Math.atan2(inp.mz, inp.mx) : p.face;
+    p.vx += (Math.cos(mdir) * sp * (len > 0.1 ? 1 : 0) - p.vx) * Math.min(1, dt * 12);
+    p.vz += (Math.sin(mdir) * sp * (len > 0.1 ? 1 : 0) - p.vz) * Math.min(1, dt * 12);
     moveBy(s, p, p.vx * dt, p.vz * dt, P.r);
     // 攻撃: いちばん 近い モブの ほうを 向く(近ければ)
     if (inp.attack && p.act !== 'attack' && p.act !== 'tech' && s.t >= p.coolUntil) {
