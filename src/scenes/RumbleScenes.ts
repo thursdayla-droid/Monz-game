@@ -99,6 +99,8 @@ function mount(scene: Phaser.Scene, html: string): HTMLDivElement {
 /** モードえらび: ストーリーモード / バトルモード(CPU の強さをえらぶ) */
 /** モードえらびの背景(2026-11-07 企画者の絵。元は design/rumble_ui/sel_mode.png) */
 const MODE_BG = 'assets/story/sel_mode.webp';
+/** CPUの強さえらびの背景(2026-11-07 企画者の絵。元は design/rumble_ui/sel_cpu.png) */
+const CPU_BG = 'assets/story/sel_cpu.webp';
 
 export class RumbleModeScene extends Phaser.Scene {
   constructor() {
@@ -133,7 +135,7 @@ export class RumbleModeScene extends Phaser.Scene {
 
   private showCpu(root: HTMLDivElement): void {
     const inner = root.querySelector('.in') as HTMLElement;
-    inner.innerHTML = `<button class="back">◀ もどる</button>
+    inner.innerHTML = `<div class="modebg" style="background-image:url('${assetUrl(CPU_BG)}')"></div><button class="back">◀ もどる</button>
       <h2>CPU の強さを えらぶ</h2>
       <div class="cpus">${CPU_LEVELS.map(
         (c) => `<button class="cpu" data-id="${c.id}"><span>${c.name}<br><small>${c.level === 0 ? '自分と同じレベル' : c.level > 0 ? `自分より レベル +${c.level}` : `自分より レベル ${c.level}`}</small></span><span class="stars">${'★'.repeat(c.prof)}${'☆'.repeat(5 - c.prof)}</span></button>`,
