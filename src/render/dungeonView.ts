@@ -353,7 +353,7 @@ export class DungeonView {
     const cz = p.z + (Math.random() - 0.5) * this.shake;
     this.shake *= Math.exp(-dt * 12);
     // 角度は 最初の 試作と 同じ(約58度。2026-11-07 企画者「真上からは嫌・角度は最初のぐらい」)
-    this.camera.position.set(cx, 20, cz + 12.6);
+    this.camera.position.set(cx, 17, cz + 17); // 同じ日「若干 真上っぽい」→ 45度に
     this.camera.lookAt(cx, 0.6, cz);
     this.renderer.render(this.scene, this.camera);
   }
