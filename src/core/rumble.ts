@@ -105,6 +105,7 @@ export const STORY_IMAGES: Record<number, string> = {
   25: 'assets/story/ch5_25.webp', // 5章25話 RIOTRAX(中ボス。2026-11-06 企画者)
   26: 'assets/story/ch6_26.webp', // 6章26話 ZIPRAX(2026-11-07 企画者)
   27: 'assets/story/ch6_27.webp', // 6章27話 GRITBULL(2026-11-07 企画者)
+  28: 'assets/story/ch6_28.webp', // 6章28話 PUNISHROOM(2026-11-07 企画者)
 };
 
 /** 話(企画者が 書いた 文。ステージの 番号 → 題名と 行) */
@@ -562,6 +563,32 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
       { who: 'GRITBULL', text: '「だから今日は、昔話なんかで終わらせねぇ！」' },
       { who: 'GRITBULL', text: '「最初にお前と戦った俺が……今のお前の強さを確かめてやる！」' },
       { who: 'GRITBULL', text: '「さあ来い！！ 最高の一戦にしようぜ！！」' },
+    ],
+  },
+  28: {
+    title: '第28話「笑顔の奥の本気」',
+    lines: [
+      { who: null, text: 'RUMBLE CROWN、決勝ステージ第3戦。' },
+      { who: null, text: '27連勝を達成した挑戦者。' },
+      { who: null, text: '王座まで、あと3戦。' },
+      { who: null, text: '次のリングへ足を踏み入れると、突然、床のすき間から小さなきのこが顔を出した。' },
+      { who: null, text: 'ひとつ、ふたつ……。' },
+      { who: null, text: '次の瞬間、巨大なきのこが次々と生え、豪華な闘技場が光り輝く森へと姿を変えた！' },
+      { who: 'PUNISHROOM', text: '「ぷにぷに〜っ！ いらっしゃ〜い！」' },
+      { who: 'PUNISHROOM', text: '「えへへ！ びっくりした？」' },
+      { who: 'PUNISHROOM', text: '「ボクのお庭、すっごく大きくなったでしょ！」' },
+      { who: 'PUNISHROOM', text: '「今日はね、キミにどうしても伝えたいことがあるんだ。」' },
+      { who: null, text: 'PUNISHROOMが両手を広げると、無数の光る胞子が舞い上がる。' },
+      { who: 'PUNISHROOM', text: '「ボクね、ずっと戦うのが楽しかったんだ。」' },
+      { who: 'PUNISHROOM', text: '「勝っても負けても、みんなと遊べればそれでよかった。」' },
+      { who: 'PUNISHROOM', text: '「でも……キミと二回戦って、気づいちゃった。」' },
+      { who: 'PUNISHROOM', text: '「負けるのって……ちょっと悔しいんだね。」' },
+      { who: null, text: 'PUNISHROOMはいつものようにニコニコ笑っている。' },
+      { who: null, text: 'しかし、その瞳には今までにない強い光が宿っていた。' },
+      { who: 'PUNISHROOM', text: '「だから今日は、ひとつだけワガママ言ってもいい？」' },
+      { who: 'PUNISHROOM', text: '「ボク……キミに勝ちたい！」' },
+      { who: 'PUNISHROOM', text: '「えへへっ！ びっくりした？」' },
+      { who: 'PUNISHROOM', text: '「今日は最後まで、全力で遊ぼうね！」' },
     ],
   },
 };
