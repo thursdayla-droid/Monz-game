@@ -162,9 +162,13 @@ const CSS = `
 .b3d .cmds .mid{display:flex;justify-content:center}
 .b3d .cmds .dodge{width:min(96px,100%);height:46px;background:#16101c;color:#fff;border-color:#fff}
 @keyframes b3p{to{outline-color:#fff}}
-.b3d .result{position:absolute;inset:0;background:#0d0614b0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px}
-.b3d .result h1{margin:0;font-size:60px;color:#ffd23a;text-shadow:0 5px 0 #16101c}
-.b3d .result button{font:900 22px ${UI_FONT};padding:10px 28px;border-radius:14px;border:3px solid #16101c;background:#ffd23a;color:#16101c;min-width:200px}
+.b3d .result{position:absolute;inset:0;background:linear-gradient(#0d061488,#0000 30%,#0000 70%,#0d061499);display:none;flex-direction:row;align-items:flex-end;justify-content:flex-end;gap:12px;padding:0 calc(env(safe-area-inset-right) + 18px) calc(env(safe-area-inset-bottom) + 16px) 18px;box-sizing:border-box}
+.b3d .result h1{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top) + 8px);margin:0;text-align:center;font-size:min(80px,13vh);letter-spacing:.08em;color:#ffd23a;-webkit-text-stroke:3px #16101c;text-shadow:0 6px 0 #16101c;animation:b3dRes .5s ease-out}
+.b3d .result.lose h1{color:#9ab4ff}
+/* アップの時は 体力・ボタンなどを かくす(キャラだけ 見せる) */
+.b3d.ended>*:not(canvas):not(style):not(.result):not(.dev){display:none!important}
+@keyframes b3dRes{from{opacity:0;transform:scale(1.8)}to{opacity:1;transform:scale(1)}}
+.b3d .result button{font:900 19px ${UI_FONT};padding:9px 22px;border-radius:14px;border:3px solid #16101c;background:#ffd23a;color:#16101c;min-width:150px;box-shadow:0 4px 0 #16101c}
 .b3d .turn{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:#0d0614f2;z-index:30}
 .b3d .turn div{border:4px solid #ffd23a;border-radius:18px;background:#16101c;color:#ffd23a;font-weight:900;font-size:26px;padding:22px 30px;text-align:center}
 .b3d .turn small{display:block;color:#fff;font-size:14px;margin-top:8px}
@@ -1277,7 +1281,11 @@ export class Battle3DScene extends Phaser.Scene {
   private showResult(): void {
     this.ended = true;
     const w = this.battle.winner;
-    this.ui.resultTitle.textContent = w === 0 ? 'WIN!' : w === 1 ? 'LOSE…' : 'DRAW';
+    // 2026-11-07 企画者「勝ちは WIN・負けは LOSE」「キャラのアップ画面に」→ 勝ったら 自分の MONZ・負けたら 相手を アップで【仮：負けの時に 映す方】
+    this.ui.resultTitle.textContent = w === 0 ? 'WIN' : w === 1 ? 'LOSE' : 'DRAW';
+    this.ui.result.classList.toggle('lose', w === 1);
+    if (this.field) this.field.closeup = w === 1 ? 1 : 0;
+    this.root?.classList.add('ended');
     // ストーリー: 勝ったら そのマスをクリア(保存)
     if (this.params.mode === 'story' && w === 0 && this.params.stage) new LifeRecord(loadLife()).clearStage(this.params.stage);
     const leaveBtn = this.root?.querySelector('.leave') as HTMLElement | null;

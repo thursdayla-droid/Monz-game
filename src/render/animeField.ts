@@ -429,6 +429,8 @@ export class AnimeField {
   /** カメラの向き(ゆっくりついていく) */
   private camYaw: number | null = null;
   zoom = 1;
+  /** 勝ち負けが 決まったあと、この MONZ を 前から アップで 映す(2026-11-07 企画者「キャラのアップ画面にしよう」)。null = ふつうのカメラ */
+  closeup: number | null = null;
   /** モデルの読みこみが終わった(失敗したときも true。仮のモンスターのまま) */
   ready = false;
   private gradient = toonGradient();
@@ -2798,6 +2800,10 @@ export class AnimeField {
    * 2体が両方入るように距離を変える
    */
   private follow(b: AnimeBattle, dt: number): void {
+    if (this.closeup !== null) {
+      this.followCloseup(b, this.closeup, dt);
+      return;
+    }
     const [p, q] = b.f;
     const dir = Math.atan2(q.z - p.z, q.x - p.x);
     const sep = Math.hypot(q.x - p.x, q.z - p.z);
@@ -2902,6 +2908,38 @@ export class AnimeField {
     this.camera.lookAt(this.camLook);
     if (Math.abs(this.camera.zoom - this.zoom) > 1e-4) {
       this.camera.zoom = this.zoom;
+      this.camera.updateProjectionMatrix();
+    }
+  }
+
+  /** 勝ち負けの画面: 1体を 前から(少し ななめ・少し下から)アップで 映す。柱・壁に かくれない向きを さがす */
+  private followCloseup(b: AnimeBattle, side: number, dt: number): void {
+    const f = b.f[side];
+    const h = this.models[side]?.height ?? MODEL.height;
+    const dist = h * 1.35 + 1.2;
+    const camH = h * 0.62 + 0.25;
+    const look = new THREE.Vector3(f.x, h * 0.55 + f.y, f.z);
+    let want: THREE.Vector3 | null = null;
+    for (const off of [0.45, -0.45, 0.9, -0.9, 0, 1.4, -1.4, 2, -2, Math.PI]) {
+      const yaw = f.face + off;
+      const x = f.x + Math.cos(yaw) * dist;
+      const z = f.z + Math.sin(yaw) * dist;
+      if (this.arena) {
+        if (Math.hypot(x, z) > this.arena.radius - 0.6) continue;
+        const hit = rayHit(this.arena, f.x, f.z, x, z, 0, 0.3);
+        if (hit && hit.o.h + 0.3 > camH * hit.t + h * 0.5 * (1 - hit.t)) continue;
+      }
+      want = new THREE.Vector3(x, camH, z);
+      break;
+    }
+    if (!want) want = new THREE.Vector3(f.x + Math.cos(f.face) * dist * 0.7, camH + 1.5, f.z + Math.sin(f.face) * dist * 0.7);
+    this.camPos.lerp(want, 1 - Math.exp(-dt * 2.6));
+    this.camLook.lerp(look, 1 - Math.exp(-dt * 3));
+    this.shakeAmp = 0;
+    this.camera.position.copy(this.camPos);
+    this.camera.lookAt(this.camLook);
+    if (Math.abs(this.camera.zoom - 1) > 1e-4) {
+      this.camera.zoom = 1;
       this.camera.updateProjectionMatrix();
     }
   }
