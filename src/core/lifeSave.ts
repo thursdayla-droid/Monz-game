@@ -15,7 +15,7 @@ import { battleReward, TOWER_FLOORS, towerReward } from './mythclash/modes';
 import { addCards, deckOwned, fixCollection, newCollection, openPacks, PACK_PRICE, type MythCollection } from './mythclash/packs';
 import type { Rng } from './rng';
 import { rumbleReward } from './rumble';
-import { growTechs, hasTechTable, setEquip, type TechState } from './battle3d/techLearn';
+import { growTechs, hasTechTable, learnAt, pickType, setEquip, TYPE_KEYS, type TechState } from './battle3d/techLearn';
 import { renameTech } from './battle3d/techTable';
 import { instinctFor } from './autobattle/engine';
 import { addStats, autoGrowthAt, currentStats, FREE_POINTS_PER_LEVEL, levelUpRng, LOVE_RULES, rollAutoGrowth, STAT_KEYS, STAT_MAX, zeroStats, type StatBlock, type StatKey } from './stats';
@@ -47,6 +47,8 @@ export interface MonzData {
   /** レベルアップの自動成長の合計 / 自由に振り分けた合計(src/core/stats.ts) */
   auto: StatBlock;
   alloc: StatBlock;
+  /** 育ち方の 型(自由ポイントで 決まる。2026-11-07 企画者)。無い = まだ 決まっていない */
+  growType?: StatKey;
   /** 愛(お世話で育つ)。loveDay の日に、ごはん・なでるで増やした量 */
   love: number;
   loveDay: string;
@@ -179,7 +181,7 @@ function fixTechs(m: MonzData): TechState | undefined {
     const equipped = t.equipped.map(renameTech);
     return { learned, equipped: equipped.filter((n) => learned.includes(n)), ...(t.manual ? { manual: true } : {}) };
   }
-  return growTechs(m.species, m.level, stats, undefined, instinctFor(m.species, stats)).state;
+  return growTechs(m.species, m.level, stats, undefined, instinctFor(m.species, stats), m.growType ?? null).state;
 }
 
 /** 保存されていたデータを、今の形にそろえる(古い版の引き継ぎ・足りない項目の補い・おかしな値の直し)。直せなければ null */
@@ -224,6 +226,10 @@ export function migrateLife(raw: unknown, now = Date.now()): LifeData | null {
         statPoints: Math.round(num(m.statPoints, 0)),
         auto: block(m.auto),
         alloc: block(m.alloc),
+        ...(() => {
+          const g = pickType(block(m.alloc), TYPE_KEYS.includes(m.growType as StatKey) ? (m.growType as StatKey) : null);
+          return g ? { growType: g } : { growType: undefined };
+        })(),
         love: Math.min(LOVE_RULES.max, num(m.love, LOVE_RULES.initial)),
         careCount: { ...fresh.careCount, ...m.careCount },
         needs: { ...newNeeds(), ...m.needs },
@@ -703,7 +709,15 @@ export class LifeRecord {
   allocate(stat: StatKey): boolean {
     const m = this.monz;
     if (m.statPoints < 1 || !STAT_KEYS.includes(stat) || currentStats(m)[stat] >= STAT_MAX) return false;
-    this.update({}, { statPoints: m.statPoints - 1, alloc: { ...m.alloc, [stat]: m.alloc[stat] + 1 } });
+    const alloc = { ...m.alloc, [stat]: m.alloc[stat] + 1 };
+    const growType = pickType(alloc, m.growType) ?? undefined;
+    // 型が 決まった・変わった時は、その場で 型の 技を 覚える(Lv.25 から。Lv.100 で もう 上がらなくても 覚えられるように)。装備は 変えない
+    let techs = m.techs;
+    if (techs && growType && growType !== m.growType && hasTechTable(m.species)) {
+      const learned = learnAt(m.species, m.level, currentStats({ ...m, alloc }), techs.learned, growType);
+      techs = { ...techs, learned };
+    }
+    this.update({}, { statPoints: m.statPoints - 1, alloc, growType, techs });
     return true;
   }
 
@@ -743,7 +757,7 @@ export class LifeRecord {
       // 成長イベント: 技を覚える・装備を見直す(Ver.44)。育て方はこの時のステータスで見る
       if (hasTechTable(m.species)) {
         const stats = currentStats({ ...m, auto });
-        const g = growTechs(m.species, level, stats, techs, instinctFor(m.species, stats));
+        const g = growTechs(m.species, level, stats, techs, instinctFor(m.species, stats), m.growType ?? null);
         // 2026-11-07 企画者「技は MONZ が勝手にセットするんじゃなくて プレイヤーが決めよう」→ 覚えるだけ。そうびは 変えない(はじめての 技だけは 1つめの 枠に 入れる)
         techs = techs && techs.equipped.length ? { learned: g.state.learned, equipped: setEquip(g.state.learned, techs.equipped, level), manual: true } : g.state;
         learnedAt.push(g.newly);

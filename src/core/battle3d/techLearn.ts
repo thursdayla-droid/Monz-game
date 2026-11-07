@@ -37,8 +37,22 @@ export function tendency(species: string, stats: StatBlock, allowed: StatKey[] =
   return best;
 }
 
+/** 型に なる 能力(HP は 型に ならない) */
+export const TYPE_KEYS: StatKey[] = ['power', 'tough', 'speed', 'tech'];
+
 /**
- * 今の 育ち方の 型(パワー型・タフネス型 など)。ステータス画面に 出す(2026-11-07 企画者)。
+ * 自由ポイントで 決まる 型(2026-11-07 企画者「自由ポイントで決まる」)。
+ * ＋で いちばん多く 入れた 能力(パワー・タフネス・スピード・テクニック)。同じ数なら 先に その数に なった 方(prev を のこす)。
+ * どれにも 入れていなければ null(まだ 決まっていない)
+ */
+export function pickType(alloc: StatBlock, prev?: StatKey | null): StatKey | null {
+  let best: StatKey | null = prev && TYPE_KEYS.includes(prev) && alloc[prev] > 0 ? prev : null;
+  for (const k of TYPE_KEYS) if (alloc[k] > 0 && (best === null || alloc[k] > alloc[best])) best = k;
+  return best;
+}
+
+/**
+ * 今の 育ち方の 型(パワー型・タフネス型 など)。【前の 決め方。今は CPU の 相手だけ】ステータス画面に 出す(2026-11-07 企画者)。
  * その種族の表にある「○○寄り」の中から選ぶ(表にない傾向だと、何も覚えられないため)。表が なければ null
  */
 export function growthType(species: string, stats: StatBlock): StatKey | null {
@@ -47,7 +61,7 @@ export function growthType(species: string, stats: StatBlock): StatKey | null {
 }
 
 /** この行の条件を、今みたしているか */
-function meets(row: TechRow, level: number, tend: StatKey): boolean {
+function meets(row: TechRow, level: number, tend: StatKey | null): boolean {
   if (level < row.level) return false;
   if (row.condition === 'なし') return true;
   if (row.condition === '第1進化') return formAt(level) >= 2;
@@ -59,8 +73,9 @@ function meets(row: TechRow, level: number, tend: StatKey): boolean {
  * 成長イベントで覚える技。今まで覚えた技は忘れない。
  * 育て方の条件は「そのとき」の傾向で決まる(あとで育て方を変えると、別の技も覚えられる)
  */
-export function learnAt(species: string, level: number, stats: StatBlock, learned: string[] = []): string[] {
-  const tend = growthType(species, stats) ?? tendency(species, stats);
+export function learnAt(species: string, level: number, stats: StatBlock, learned: string[] = [], type?: StatKey | null): string[] {
+  // type: 自分の MONZ は 自由ポイントで 決まる 型(null = まだ 決まっていない → 型の 技は 覚えない)。undefined = CPU(前の 決め方)
+  const tend = type === undefined ? growthType(species, stats) ?? tendency(species, stats) : type;
   const out = [...learned];
   for (const row of learnset(species)) if (!out.includes(row.name) && meets(row, level, tend)) out.push(row.name);
   return out;
@@ -131,9 +146,9 @@ export function setEquip(learned: string[], wanted: string[], level: number): st
 }
 
 /** 成長イベント(レベルアップ)での更新。新しく覚えた技も返す */
-export function growTechs(species: string, level: number, stats: StatBlock, prev: TechState | undefined, instinct?: Instinct): { state: TechState; newly: string[] } {
+export function growTechs(species: string, level: number, stats: StatBlock, prev: TechState | undefined, instinct?: Instinct, type?: StatKey | null): { state: TechState; newly: string[] } {
   const before = prev?.learned ?? [];
-  const learned = learnAt(species, level, stats, before);
+  const learned = learnAt(species, level, stats, before, type);
   const newly = learned.filter((n) => !before.includes(n));
   // 自分で決めた装備は変えない(新しく開いた枠だけ、空いていれば足す)
   if (prev?.manual) {

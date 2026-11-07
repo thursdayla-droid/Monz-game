@@ -41,3 +41,23 @@ describe('最大レベル 100(2026-11-07 企画者)', () => {
     expect(r.expRate).toBe(1);
   });
 });
+
+describe('型は 自由ポイントで 決まる(2026-11-07 企画者)', () => {
+  it('いちばん多く 入れた 能力。同じ数なら 先に なった 方。HP は 型に ならない', () => {
+    const r = new LifeRecord(newLife(1));
+    for (let i = 0; i < 3000; i++) r.rumbleWin('free', 5, 5);
+    expect(r.monz.growType).toBeUndefined();
+    r.allocate('hp');
+    expect(r.monz.growType).toBeUndefined();
+    r.allocate('tough');
+    expect(r.monz.growType).toBe('tough');
+    r.allocate('speed');
+    expect(r.monz.growType).toBe('tough'); // 1 と 1 → 先の タフネス
+    r.allocate('speed');
+    expect(r.monz.growType).toBe('speed');
+    // Lv.100 でも その場で 型の 技を 覚える
+    expect(r.monz.techs?.learned).toContain('瞬速スピン');
+    expect(r.monz.techs?.learned).toContain('頑丈ドーム');
+    expect(r.monz.techs?.learned).not.toContain('剛力クラッシュ');
+  });
+});
