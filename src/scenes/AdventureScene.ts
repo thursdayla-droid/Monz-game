@@ -163,7 +163,8 @@ export class AdventureScene extends Phaser.Scene {
     const tbs = [...root.querySelectorAll('.tb')] as HTMLButtonElement[];
     tbs.forEach((b, i) => {
       const a = Math.PI * (1 - i / 3) * 0.5 + Math.PI / 2; // 180° → 90°
-      const R = 80;
+      // 2026-11-07 企画者「技ボタン 重ねないで」→ こうげきから はなし、ボタンどうしも すき間を あける
+      const R = 108;
       b.style.right = `calc(env(safe-area-inset-right) + ${26 + 46 - 23 + Math.round(-Math.cos(a) * R)}px)`;
       b.style.bottom = `calc(env(safe-area-inset-bottom) + ${26 + 46 - 23 + Math.round(Math.sin(a) * R)}px)`;
       const t = this.state.techs[i];
@@ -177,8 +178,8 @@ export class AdventureScene extends Phaser.Scene {
       });
     });
     const ib = $('.ib');
-    ib.style.right = 'calc(env(safe-area-inset-right) + 196px)';
-    ib.style.bottom = 'calc(env(safe-area-inset-bottom) + 16px)';
+    ib.style.right = 'calc(env(safe-area-inset-right) + 222px)';
+    ib.style.bottom = 'calc(env(safe-area-inset-bottom) + 12px)';
     ib.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       audio.unlock();
