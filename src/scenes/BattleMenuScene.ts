@@ -13,13 +13,14 @@ const CARD = { w: 640, h: 400 };
 
 /** 企画者のバトルセレクト画面の絵(2026-11-01。design/battle_menu/battle_menu.png・941x1672)。文字・看板は絵に入っている */
 export const BATTLE_MENU_IMAGE = 'battlemenu:bg';
-export const BATTLE_MENU_FILE = 'assets/home/battle_menu.webp';
+/** 2026-11-07 企画者の 新しい 背景(上 = MONZ RUMBLE の 雰囲気・下 = MYTHCLASH の 雰囲気。design/battle_menu/battle_menu2_bg.png)。前の絵 battle_menu.webp は 残す */
+export const BATTLE_MENU_FILE = 'assets/home/battle_menu2.webp';
+/** 看板の絵: MONZ RUMBLE は 企画者の 絵(design/rumble_ui/bm_rumble_sign.png)。MYTHCLASH は 前の 絵から 切り出した 看板【仮：新しい 看板の 絵が できたら 入れかえる】 */
+export const BATTLE_MENU_SIGNS = [
+  { key: 'battlemenu:sign:action', url: 'assets/home/bm_rumble.webp' },
+  { key: 'battlemenu:sign:mythclash', url: 'assets/home/bm_myth_old.webp' },
+] as const;
 const ART = { w: 941, h: 1672 };
-/** 押せる看板(絵の座標 [x0, y0, x1, y1]) */
-const ART_ZONES: Record<(typeof ENTRIES)[number]['id'], readonly [number, number, number, number]> = {
-  action: [38, 418, 915, 868],
-  mythclash: [40, 903, 915, 1398],
-};
 
 /** 看板2枚: 操作するバトル と MYTHCLASH。pic: 看板に使う絵とその切り抜き範囲(元の絵の座標) */
 const ENTRIES = [
@@ -57,21 +58,26 @@ export class BattleMenuScene extends Phaser.Scene {
     audio.playBgm('home');
   }
 
-  /** 企画者の絵を画面いっぱいに出し、看板の所を押せるようにする */
+  /** 企画者の背景を 画面いっぱいに出し、上半分に MONZ RUMBLE・下半分に MYTHCLASH の 看板を 置く(2026-11-07) */
   private createArt(): void {
     const k = Math.max(W / ART.w, H / ART.h);
-    const ox = (W - ART.w * k) / 2;
-    const oy = (H - ART.h * k) / 2;
-    this.add.image(ox, oy, BATTLE_MENU_IMAGE).setOrigin(0, 0).setScale(k);
-    for (const e of ENTRIES) {
-      const [x0, y0, x1, y1] = ART_ZONES[e.id];
-      const z = this.add.rectangle(ox + x0 * k, oy + y0 * k, (x1 - x0) * k, (y1 - y0) * k, 0xffffff, 0).setOrigin(0, 0).setInteractive({ useHandCursor: true });
-      z.on('pointerdown', () => {
-        z.setFillStyle(0xffffff, 0.25);
-        this.tweens.add({ targets: z, fillAlpha: 0, duration: 220 });
+    this.add.image((W - ART.w * k) / 2, (H - ART.h * k) / 2, BATTLE_MENU_IMAGE).setOrigin(0, 0).setScale(k);
+    canvasTextureOnce(this, 'bm:logo', 680, 200, (ctx) => drawGraffitiText(ctx, 680, 200, 'BATTLE', '#ffd23a', 150, -0.06));
+    const logo = this.add.image(W / 2, 150, 'bm:logo').setScale(0.3);
+    this.tweens.add({ targets: logo, scale: 0.85, duration: 420, ease: 'Back.easeOut' });
+    const ys: Record<(typeof ENTRIES)[number]['id'], number> = { action: 470, mythclash: 900 };
+    ENTRIES.forEach((e, i) => {
+      const key = `battlemenu:sign:${e.id}`;
+      if (!this.textures.exists(key)) return;
+      const img = this.add.image(W / 2 + 900, ys[e.id], key).setInteractive({ useHandCursor: true });
+      img.setScale(620 / img.width);
+      const base = img.scale;
+      this.tweens.add({ targets: img, x: W / 2, duration: 420, delay: 100 + i * 90, ease: 'Back.easeOut' });
+      img.on('pointerdown', () => {
+        this.tweens.add({ targets: img, scale: base * 0.95, duration: 70, yoyo: true });
         this.go(e.scene, false);
       });
-    }
+    });
   }
 
   /** 前の画面(プログラムで描いた看板)。絵が読めなかったときだけ使う */
