@@ -451,7 +451,8 @@ export class DungeonView {
         tip.position.x = e.len;
         g.add(tip);
         g.rotation.y = -dir;
-        g.position.set(e.x, 0.5, e.z);
+        // 体の 前から 出す(2026-11-07 企画者)
+        g.position.set(e.x + Math.cos(dir) * 0.9, 0.9, e.z + Math.sin(dir) * 0.9);
         this.addFx(g, 0.5, (k) => {
           const w = k < 0.15 ? k / 0.15 : 1 - (k - 0.15) / 0.85;
           for (const [m, op] of [[outer, 0.55], [mid, 0.8], [core, 1], [tip, 0.8]] as const) {

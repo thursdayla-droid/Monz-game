@@ -369,7 +369,7 @@ function fireTech(s: AdvState, slot: number): void {
       break;
     }
     case 'beam':
-      hitAll(inLine(s, p.x, p.z, p.face, T.beam.len, T.beam.w * area));
+      hitAll(inLine(s, p.x + Math.cos(p.face) * 0.9, p.z + Math.sin(p.face) * 0.9, p.face, T.beam.len, T.beam.w * area));
       ev('beam', T.beam.w * area, T.beam.len);
       break;
     case 'quake':
