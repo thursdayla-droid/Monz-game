@@ -20,6 +20,7 @@ const CSS = `
 .rmb h1{margin:0;font-size:34px;letter-spacing:.04em;color:#ffd23a;-webkit-text-stroke:2px #16101c;text-shadow:0 4px 0 #16101c;text-align:center}
 .rmb h2{margin:0;font-size:20px;color:#fff;text-align:center}
 /* 2026-11-07 企画者の ボタンの絵(金と紫の 看板。design/rumble_ui/button.png)。文字は 上に のせる */
+.rmb .logo{height:min(150px,40vh);margin-top:calc(-36px - env(safe-area-inset-top) * 0);filter:drop-shadow(0 4px 4px #0008);pointer-events:none}
 .rmb .modes{display:flex;gap:14px;width:min(100%,820px);justify-content:center;margin-top:auto;margin-bottom:auto}
 .rmb .big,.rmb .cpu{background:var(--btn) center/100% 100% no-repeat;border:0;aspect-ratio:3/1;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;filter:drop-shadow(0 5px 0 #0008);transition:transform .08s}
 .rmb .big:active,.rmb .cpu:active{transform:scale(.95)}
@@ -116,6 +117,8 @@ const BTN_FRAME = 'assets/story/btn_frame.webp';
 const BTN_CPU = 'assets/story/btn_cpu.webp';
 /** カーソルの絵(2026-11-07 企画者。元は design/rumble_ui/cursor.png) */
 const CURSOR = 'assets/story/cursor.webp';
+/** MONZ RUMBLE の ロゴ(2026-11-07 企画者。元は design/rumble_ui/logo.png) */
+const LOGO = 'assets/story/rumble_logo.webp';
 
 /**
  * ボタンに カーソル(王冠)を つける。さわると カーソルが そこへ 動いてから すすむ(少し 待つ)。
@@ -156,7 +159,7 @@ export class RumbleModeScene extends Phaser.Scene {
     const root = mount(
       this,
       `<div class="modebg" style="background-image:url('${assetUrl(MODE_BG)}')"></div><button class="back">◀ もどる</button>
-       <h1>MONZ RUMBLE</h1>
+       <img class="logo" src="${assetUrl(LOGO)}" alt="MONZ RUMBLE">
        <div class="modes"><button class="big story">${STORY_NAME}<small>ストーリー・ぜんぶで${STORY_COUNT}ステージ</small></button>
        <button class="big free">バトルモード<small>CPU の強さを えらんで たたかう</small></button></div>`,
     );

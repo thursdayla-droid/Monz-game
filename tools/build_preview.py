@@ -138,9 +138,10 @@ for p in sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/bgm/*.m
     # 2026-11-04: 戦闘BGM が増えて ゲームのページが 15MB をこえたので、ゲームのページだけ 16k
     import subprocess, tempfile
     tmp = tempfile.mktemp(suffix='.mp3')
+    # 2026-11-07: STREET KING のページが 15MB をこえたので、エンディング曲だけ 12k
     # 効果音は短いので、確認用ページでも音質をあまり落とさない(48kbps)
     se = p.startswith('assets/se/')
-    subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-i', pub + p, '-c:a', 'libmp3lame', '-ac', '1', '-ar', '32000' if se else ('22050' if (B3D or MYTH) else '16000'), '-b:a', '48k' if se else ('20k' if (B3D or MYTH) else '12k'), tmp], check=True)
+    subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-i', pub + p, '-c:a', 'libmp3lame', '-ac', '1', '-ar', '32000' if se else ('16000' if (STORY and 'ending' in p) else '22050' if (B3D or MYTH) else '16000'), '-b:a', '48k' if se else ('12k' if (STORY and 'ending' in p) else '20k' if (B3D or MYTH) else '12k'), tmp], check=True)
     assets[p] = 'data:audio/mpeg;base64,' + base64.b64encode(open(tmp, 'rb').read()).decode()
     os.remove(tmp)
 jsons = {p: json.load(open(pub + p)) for p in ['assets/bunk/parts/parts.json', 'assets/bunk/down/parts.json', 'assets/bunk/faces/faces.json']}
