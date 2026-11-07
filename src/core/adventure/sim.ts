@@ -20,16 +20,17 @@ export const ADV = {
   tech: {
     windup: 0.16, recover: 0.3, powDiv: 7, minMul: 1.4,
     /** 種類ごとの ため(技に あった 動きを 見せる。2026-11-07 企画者「技に あった 動きに」) */
-    windups: { drop: 0.5, pillar: 0.4, beam: 0.38, quake: 0.34, field: 0.3, debuff: 0.3, barrier: 0.22, buff: 0.25, heal: 0.25, spin: 0.14, rush: 0.12, shot: 0.12, barrage: 0.16, combo: 0.1, drain: 0.16 } as Record<string, number>,
+    windups: { drop: 0.55, pillar: 0.4, beam: 0.38, quake: 0.34, field: 0.3, debuff: 0.3, barrier: 0.22, buff: 0.25, heal: 0.25, spin: 0.14, rush: 0.12, shot: 0.12, barrage: 0.16, combo: 0.1, drain: 0.16 } as Record<string, number>,
     melee: { range: 2.4, arc: 1.2 },
-    rush: { dist: 6, speed: 18, r: 1.3 },
+    // 2026-11-07 企画者「瞬間移動は やめて」→ とっしんは 遅く 短く・とびおりは 近くへ だけ
+    rush: { dist: 4.5, speed: 11, r: 1.3 },
     spin: { r: 2.8 },
     combo: { range: 2.4, arc: 1.0, n: 3, every: 0.12 },
     shot: { speed: 14, r: 0.45, life: 1.2 },
     barrage: { n: 5, spread: 0.5 },
     beam: { len: 11, w: 1.3 },
     quake: { r: 4.2 },
-    drop: { reach: 7, r: 3 },
+    drop: { reach: 7, r: 3, move: 2.8 },
     pillar: { reach: 7, r: 3.4, mul: 1.3 },
     field: { reach: 6, r: 3.6, life: 4, every: 0.5, mul: 0.35 },
     heal: 0.3,
@@ -348,9 +349,8 @@ function fireTech(s: AdvState, slot: number): void {
       break;
     case 'drop': {
       // とび上がって 敵の 上に おちる(とんでいる 間に 近づく。下の stepAdventure)
-      const g = s.jumpTo ?? target(T.drop.reach);
-      p.x = g.x;
-      p.z = g.z;
+      // おちる ところは 今 いる ところ(ため の 間に 動いて きた)
+      const g = { x: p.x, z: p.z };
       s.jumpTo = null;
       hitAll(inCircle(s, g.x, g.z, T.drop.r * area));
       ev('drop', T.drop.r * area, 0, g.x, g.z);
@@ -649,8 +649,10 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
       s.techSlot = ti;
       if (tc.kind === 'drop') {
         const m = nearestMob(s, T.drop.reach);
-        const g = m ? { x: m.x, z: m.z } : { x: p.x + Math.cos(p.face) * T.drop.reach * 0.6, z: p.z + Math.sin(p.face) * T.drop.reach * 0.6 };
-        s.jumpTo = { ...g, sx: p.x, sz: p.z };
+        // とぶ きょりは 短く(敵が 遠くても 2.8 まで。瞬間移動に 見えないように)
+        const a = m ? Math.atan2(m.z - p.z, m.x - p.x) : p.face;
+        const d = Math.min(T.drop.move, m ? Math.max(0, Math.hypot(m.x - p.x, m.z - p.z) - 1) : T.drop.move);
+        s.jumpTo = { x: p.x + Math.cos(a) * d, z: p.z + Math.sin(a) * d, sx: p.x, sz: p.z };
       }
       s.techCd[ti] = s.t + tc.cooldown * (1 - Math.min(0.3, s.tech / 500)) * (s.growType === 'speed' ? ADV.type.speedCd : 1);
     }
