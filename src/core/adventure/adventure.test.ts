@@ -85,8 +85,8 @@ describe('冒険の 動き', () => {
 
 describe('冒険の 技・持ち物', () => {
   const st = { hp: 10, power: 10, tough: 10, speed: 10, tech: 10 };
-  it('技 A: 打つ技は 前の モブを 強く 打つ・回復の技は 回復', () => {
-    const s = newAdventure(3, st, 1, [{ id: 'a', support: false, power: 14, cooldown: 3 }, { id: 'h', support: true, power: 0, cooldown: 5 }]);
+  it('技 A: 回る 技は まわりの モブを 打つ・回復の技は 回復', () => {
+    const s = newAdventure(3, st, 1, [{ id: 'a', kind: 'spin', power: 14, cooldown: 3, element: '無', effect: 'なし', strength: '中' }, { id: 'h', kind: 'heal', power: 0, cooldown: 5, element: '自然', effect: 'なし', strength: '中' }]);
     const m = s.mobs[0];
     s.player.x = m.x - 1.2;
     s.player.z = m.z;
@@ -118,5 +118,45 @@ describe('冒険の 技・持ち物', () => {
     expect(s.player.atk).toBe(atk0 + 2);
     expect(s.bag[s.bag.length - 1]).toEqual({ kind: 'gear', slot: 'claw', rank: 'S' });
     expect(unequip(s, 'claw')).toBe(false); // いっぱい
+  });
+});
+
+import { getTech, learnset } from '../battle3d/techTable';
+import { SELF_KINDS, type AdvTech } from './sim';
+
+describe('冒険の 技: 全部の 種族の 全部の 技が 動く', () => {
+  const st = { hp: 20, power: 20, tough: 20, speed: 20, tech: 20 };
+  const toAdv = (id: string): AdvTech => {
+    const t = getTech(id);
+    return { id, kind: t.kind, power: t.power ?? 0, cooldown: Math.max(2, t.cooldown), element: t.element, effect: t.effect ?? 'なし', strength: t.strength };
+  };
+  it('打つ 技は モブに 当たる・自分の 技は 自分に 効く', () => {
+    for (const sp of ['bunk', 'mofu', 'zipp', 'puni', 'klak', 'riot', 'snek', 'grit', 'vybe', 'shellz', 'crownie'])
+      for (const row of learnset(sp)) {
+        const tc = toAdv(row.name);
+        const s = newAdventure(7, st, 1, [tc]);
+        const m = s.mobs[0];
+        s.player.x = m.x - 1.4;
+        s.player.z = m.z;
+        s.player.face = 0;
+        s.player.hp = 50;
+        const hp0 = s.mobs.reduce((a, x) => a + x.hp, 0);
+        for (let i = 0; i < 90; i++) stepAdventure(s, { mx: 0, mz: 0, attack: false, tech: i === 0 ? 0 : null }, 1 / 30);
+        const hit = s.mobs.reduce((a, x) => a + x.hp, 0) < hp0;
+        const st2 = s.mobs.some((x) => (x.atkDownUntil ?? 0) > 0 || (x.slowUntil ?? 0) > 0 || (x.stunUntil ?? 0) > 0 || (x.sleepUntil ?? 0) > 0 || (x.defDownUntil ?? 0) > 0);
+        const self = s.shieldUntil > 0 || s.atkUpUntil > 0 || s.player.hp > 50;
+        expect(hit || st2 || (SELF_KINDS.has(tc.kind) && self), `${sp} ${row.name} ${tc.kind}`).toBe(true);
+      }
+  });
+  it('タフネス型は 技を 使うと 回復する', () => {
+    const tc = toAdv('ポンポンショット');
+    const a = newAdventure(7, st, 1, [tc], 'tough');
+    const b = newAdventure(7, st, 1, [tc], 'power');
+    for (const s of [a, b]) {
+      s.player.hp = 30;
+      for (let i = 0; i < 20; i++) stepAdventure(s, { mx: 0, mz: 0, attack: false, tech: i === 0 ? 0 : null }, 1 / 30);
+    }
+    expect(a.player.hp).toBeGreaterThan(30);
+    expect(b.player.hp).toBe(30);
   });
 });

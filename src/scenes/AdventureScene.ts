@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
-import { newAdventure, stepAdventure, adventureReward, unequip, useBagItem, useHerb, BAG_MAX, SLOT_NAMES, type AdvItem, type AdvState, type AdvTech, type GearSlot } from '../core/adventure/sim';
-import { getTech, isSupportTech } from '../core/battle3d/techTable';
+import { newAdventure, stepAdventure, adventureReward, unequip, useBagItem, useHerb, BAG_MAX, SELF_KINDS, SLOT_NAMES, type AdvItem, type AdvState, type AdvTech, type GearSlot } from '../core/adventure/sim';
+import { getTech } from '../core/battle3d/techTable';
 import { RANK_HEX } from '../render/dungeonView';
 import type { Proficiency } from '../core/battle3d/config';
 import type { AnimeEntrant } from '../core/battle3d/anime';
@@ -57,7 +57,7 @@ const CSS = `
 .adv .bag .it b{font-size:15px}
 .adv .bag .note{font-size:11px;color:#c8bcd8}
 .adv .bag .close{align-self:center;font:900 16px ${UI_FONT};padding:7px 26px;border-radius:12px;border:3px solid #16101c;background:#ffd23a;color:#16101c}
-.adv .msg{position:absolute;left:0;right:0;top:34%;text-align:center;font:900 min(48px,9vh) ${UI_FONT};color:#7affd0;-webkit-text-stroke:2px #16101c;text-shadow:0 5px 0 #16101c;pointer-events:none;opacity:0;transition:opacity .3s}
+.adv .msg{position:absolute;left:0;right:0;top:30%;text-align:center;font:900 min(30px,7vh) ${UI_FONT};color:#ffe680;text-shadow:0 3px 0 #16101c,0 0 4px #16101c,0 0 8px #16101c;pointer-events:none;opacity:0;transition:opacity .3s}
 .adv .result{position:absolute;inset:0;background:#0b0712d0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px}
 .adv .result h1{margin:0;font-size:min(64px,13vh);letter-spacing:.06em;color:#ffd23a;-webkit-text-stroke:3px #16101c;text-shadow:0 6px 0 #16101c}
 .adv .result.lose h1{color:#9ab4ff}
@@ -107,10 +107,10 @@ export class AdventureScene extends Phaser.Scene {
       const id = mon.techs?.equipped[i];
       if (!id) return null;
       const t = getTech(id);
-      return { id, support: isSupportTech(id), power: t.power ?? 0, cooldown: Math.max(2, t.cooldown) };
+      return { id, kind: t.kind, power: t.power ?? 0, cooldown: Math.max(2, t.cooldown), element: t.element, effect: t.effect ?? 'なし', strength: t.strength };
     });
     this.techNames = techs.map((t) => (t ? getTech(t.id).name : ''));
-    this.state = newAdventure(seed, me.stats, 1, techs);
+    this.state = newAdventure(seed, me.stats, 1, techs, mon.growType ?? null);
     this.buildDom(me);
     audio.playBgm('battle');
     window.addEventListener('resize', this.onResize);
@@ -169,7 +169,7 @@ export class AdventureScene extends Phaser.Scene {
       b.style.bottom = `calc(env(safe-area-inset-bottom) + ${26 + 46 - 23 + Math.round(Math.sin(a) * R)}px)`;
       const t = this.state.techs[i];
       b.disabled = !t;
-      if (t?.support) b.classList.add('sup');
+      if (t && SELF_KINDS.has(t.kind)) b.classList.add('sup');
       b.title = this.techNames[i];
       b.addEventListener('pointerdown', (e) => {
         e.preventDefault();
@@ -258,7 +258,7 @@ export class AdventureScene extends Phaser.Scene {
       else if (e.kind === 'die') audio.se('burst');
       else if (e.kind === 'open') this.message('出口が ひらいた！');
       else if (e.kind === 'tech') {
-        audio.se(e.support ? 'mcHeal' : 'punchHeavy');
+        audio.se(e.fx === 'heal' || e.fx === 'barrier' || e.fx === 'buff' ? 'mcHeal' : e.fx === 'shot' ? 'whoosh' : 'punchHeavy');
         this.message(this.techNames[e.slot]);
       } else if (e.kind === 'pick') audio.se('select');
       else if (e.kind === 'full') this.message('もちものが いっぱい（20こ まで）');

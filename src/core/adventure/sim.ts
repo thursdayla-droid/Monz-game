@@ -16,8 +16,30 @@ export const ADV = {
   /** 【仮】ごほうび: モブ1体・クリア */
   reward: { mobExp: 5, mobCoins: 3, clearExp: 30, clearCoins: 20 },
   hurtTime: 0.25,
-  /** 技: 打つ 技は 前の まわりを まとめて(はんい・威力の 倍)・回復の 技は 最大HP の 割合 */
-  tech: { range: 2.8, arc: 1.8, windup: 0.16, recover: 0.3, powDiv: 7, minMul: 1.6, heal: 0.25 },
+  /** 技(種類ごとの はんい・威力の 倍)【仮】 */
+  tech: {
+    windup: 0.16, recover: 0.3, powDiv: 7, minMul: 1.4,
+    melee: { range: 2.4, arc: 1.2 },
+    rush: { dist: 6, speed: 18, r: 1.3 },
+    spin: { r: 2.8 },
+    combo: { range: 2.4, arc: 1.0, n: 3, every: 0.12 },
+    shot: { speed: 14, r: 0.45, life: 1.2 },
+    barrage: { n: 5, spread: 0.5 },
+    beam: { len: 11, w: 1.3 },
+    quake: { r: 4.2 },
+    drop: { reach: 7, r: 3 },
+    pillar: { reach: 7, r: 3.4, mul: 1.3 },
+    field: { reach: 6, r: 3.6, life: 4, every: 0.5, mul: 0.35 },
+    heal: 0.3,
+    drain: 0.5,
+    barrier: { time: 5, cut: 0.6 },
+    buff: { time: 8, up: 1.35 },
+    debuff: { r: 6, time: 6 },
+  },
+  /** 追加効果: かかる 確率(テクニックで 上がる)と 時間 */
+  status: { chance: 0.35, techDiv: 300, stun: 1.0, slow: 3, slowMul: 0.45, dot: 4, dotEvery: 0.5, dotMul: 0.12, sleep: 2.5, atkDown: 6, atkDownMul: 0.65, defDown: 6, defDownMul: 0.6 },
+  /** 型の 効果(2026-11-07 企画者「回復は タフネス型の 効果だけ」) */
+  type: { powerMul: 1.25, toughHeal: 0.06, toughCut: 0.85, speedCd: 0.75, speedShot: 1.3, techArea: 1.25, techStatus: 0.2 },
   /** 回復の実: 最大HP の 割合 */
   herbHeal: 0.4,
   /** モブが 落とす: 回復の実 25%・装備 12%【仮】。装備の ランクの 出やすさ D50 C30 B14 A5 S1 */
@@ -29,16 +51,24 @@ export const ADV = {
 
 export type ActKind = 'free' | 'attack' | 'tech' | 'hurt' | 'dead';
 
-/** 冒険で 使う 技(MONZ RUMBLE で セットした 4つ。名前は そのまま。2026-11-07 企画者)。効き目は【仮】(次の 段階で 型ごとに) */
+/**
+ * 冒険で 使う 技(MONZ RUMBLE で セットした 4つ。名前は そのまま。2026-11-07 企画者)。
+ * 役割は 決めない(企画者「スキルセットによって 攻撃や 遠距離、補助など 色々な 体験」)。効き方は 技の 種類(kind)と 名前に 合わせる
+ */
 export interface AdvTech {
   id: string;
-  /** 回復・守りの 技(タフネス型 など)= 自分を 回復。ほかは 前の 敵を まとめて 強く 打つ */
-  support: boolean;
-  /** 技の 強さ(MONZ RUMBLE の 威力) */
+  /** MONZ RUMBLE の 技の 種類(rush・shot・quake など) */
+  kind: string;
   power: number;
-  /** 待ち時間(秒) */
   cooldown: number;
+  element: string;
+  /** 追加効果(ふらつき・まひ・やけど など) */
+  effect: string;
+  strength: string;
 }
+
+/** 自分を 守る・強くする 技(ボタンを 緑に する) */
+export const SELF_KINDS = new Set(['heal', 'barrier', 'buff']);
 
 /** 装備の 場所(企画者 2026-11-07 案【仮】): ツメ = 攻撃・ヨロイ = 守り・オマモリ = HP */
 export type GearSlot = 'claw' | 'armor' | 'charm';
@@ -80,6 +110,40 @@ export interface Actor {
   coolUntil: number;
   /** モブが 気づいたか */
   awake: boolean;
+  /** 状態(時刻) */
+  stunUntil?: number;
+  slowUntil?: number;
+  sleepUntil?: number;
+  dotUntil?: number;
+  dotTick?: number;
+  dotDmg?: number;
+  atkDownUntil?: number;
+  defDownUntil?: number;
+}
+
+/** 飛ぶ 弾(自分の 技) */
+export interface Shot {
+  id: number;
+  x: number;
+  z: number;
+  vx: number;
+  vz: number;
+  r: number;
+  life: number;
+  mul: number;
+  tech: AdvTech;
+}
+
+/** 床に 残る 場(魔法陣 など) */
+export interface Field {
+  id: number;
+  x: number;
+  z: number;
+  r: number;
+  t: number;
+  life: number;
+  next: number;
+  tech: AdvTech;
 }
 
 export type AdvEvent =
@@ -87,7 +151,8 @@ export type AdvEvent =
   | { kind: 'hit'; target: number; x: number; z: number; dmg: number; crit: boolean }
   | { kind: 'die'; id: number; x: number; z: number }
   | { kind: 'open'; x: number; z: number }
-  | { kind: 'tech'; slot: number; x: number; z: number; support: boolean }
+  | { kind: 'tech'; slot: number; x: number; z: number; fx: string; dir: number; r: number; len: number; element: string; tx: number; tz: number }
+  | { kind: 'status'; target: number; x: number; z: number; effect: string }
   | { kind: 'heal'; amount: number; x: number; z: number }
   | { kind: 'drop'; drop: Drop }
   | { kind: 'pick'; drop: Drop }
@@ -115,6 +180,17 @@ export interface AdvState {
   gear: Partial<Record<GearSlot, AdvItem & { kind: 'gear' }>>;
   drops: Drop[];
   seq: number;
+  shots: Shot[];
+  fields: Field[];
+  /** 自分の 守り・強化(時刻) */
+  shieldUntil: number;
+  atkUpUntil: number;
+  /** とっしん 中(当てた モブは 1回だけ) */
+  dash: { until: number; hit: number[]; mul: number } | null;
+  /** 連続で 打つ 技(のこりの 回数・次の 時刻) */
+  combo: { left: number; next: number; mul: number } | null;
+  /** 育ち方の 型(自由ポイントで 決まる) */
+  growType: string | null;
   /** 装備の 前の 数字(装備で 足す 元) */
   base: { atk: number; tough: number; maxHp: number };
 }
@@ -133,7 +209,7 @@ function actor(id: number, x: number, z: number): Actor {
 }
 
 /** 新しい 階。stats: 自分の MONZ の ステータス・level: 階の 強さ(1 = 試作) */
-export function newAdventure(seed: number, stats: StatBlock, level = 1, techs: (AdvTech | null)[] = []): AdvState {
+export function newAdventure(seed: number, stats: StatBlock, level = 1, techs: (AdvTech | null)[] = [], growType: string | null = null): AdvState {
   const floor = generateFloor(seed);
   const rng = mulberry32(seed ^ 0x9e3779b9);
   const P = ADV.player;
@@ -162,6 +238,7 @@ export function newAdventure(seed: number, stats: StatBlock, level = 1, techs: (
   return {
     floor, rng, t: 0, player: p, mobs, tech: stats.tech, exitOpen: false, result: 'play', kills: 0, events: [],
     techs: ts, techCd: [0, 0, 0, 0], techSlot: -1, bag: [], gear: {}, drops: [], seq: 0,
+    shots: [], fields: [], shieldUntil: 0, atkUpUntil: 0, dash: null, combo: null, growType,
     base: { atk: p.atk, tough: p.tough, maxHp: p.maxHp },
   };
 }
@@ -172,6 +249,220 @@ const angDiff = (a: number, b: number) => Math.atan2(Math.sin(a - b), Math.cos(a
 function moveBy(s: AdvState, a: Actor, dx: number, dz: number, r: number): void {
   if (fits(s.floor, a.x + dx, a.z, r)) a.x += dx;
   if (fits(s.floor, a.x, a.z + dz, r)) a.z += dz;
+}
+
+/** 追加効果を かける */
+function setStatus(s: AdvState, m: Actor, effect: string, dmg: number): void {
+  const S = ADV.status;
+  if (effect === 'ふらつき') m.stunUntil = s.t + S.stun;
+  else if (effect === 'まひ' || effect === '遅くする') m.slowUntil = s.t + S.slow;
+  else if (effect === 'やけど' || effect === 'どく') {
+    m.dotUntil = s.t + S.dot;
+    m.dotTick = s.t + S.dotEvery;
+    m.dotDmg = Math.max(1, Math.round(dmg * S.dotMul));
+  } else if (effect === 'ねむり') m.sleepUntil = s.t + S.sleep;
+  else if (effect === '攻撃ダウン') m.atkDownUntil = s.t + S.atkDown;
+  else if (effect === '防御ダウン') m.defDownUntil = s.t + S.defDown;
+  else return;
+  s.events.push({ kind: 'status', target: m.id, x: m.x, z: m.z, effect });
+}
+
+/** 前の 向きの ±arc の 中・距離 range の モブ */
+function inCone(s: AdvState, x: number, z: number, dir: number, range: number, arc: number): Actor[] {
+  return s.mobs.filter((m) => m.act !== 'dead' && Math.hypot(m.x - x, m.z - z) < range + ADV.mob.r && Math.abs(angDiff(Math.atan2(m.z - z, m.x - x), dir)) < arc);
+}
+const inCircle = (s: AdvState, x: number, z: number, r: number) => s.mobs.filter((m) => m.act !== 'dead' && Math.hypot(m.x - x, m.z - z) < r + ADV.mob.r);
+/** 長い 帯(ビーム)の 中 */
+function inLine(s: AdvState, x: number, z: number, dir: number, len: number, w: number): Actor[] {
+  const c = Math.cos(dir);
+  const n = Math.sin(dir);
+  return s.mobs.filter((m) => {
+    if (m.act === 'dead') return false;
+    const dx = m.x - x;
+    const dz = m.z - z;
+    const a = dx * c + dz * n;
+    const b = -dx * n + dz * c;
+    return a > -0.5 && a < len && Math.abs(b) < w / 2 + ADV.mob.r;
+  });
+}
+const nearestMob = (s: AdvState, within: number) =>
+  s.mobs.filter((m) => m.act !== 'dead' && Math.hypot(m.x - s.player.x, m.z - s.player.z) < within).sort((a, b) => Math.hypot(a.x - s.player.x, a.z - s.player.z) - Math.hypot(b.x - s.player.x, b.z - s.player.z))[0];
+
+/** 技を 出す(ためが 終わった 時)。種類ごとに 効き方を 変える【仮】 */
+function fireTech(s: AdvState, slot: number): void {
+  const tc = s.techs[slot]!;
+  const p = s.player;
+  const T = ADV.tech;
+  const Y = ADV.type;
+  const area = s.growType === 'tech' ? Y.techArea : 1;
+  const mul = Math.max(T.minMul, tc.power / T.powDiv);
+  const hitAll = (list: Actor[], k = 1) => list.forEach((m) => {
+    m.awake = true;
+    damage(s, p, m, mul * k, tc);
+  });
+  const ev = (fx: string, r = 0, len = 0, tx = p.x, tz = p.z) => s.events.push({ kind: 'tech', slot, x: p.x, z: p.z, fx, dir: p.face, r, len, element: tc.element, tx, tz });
+  const target = (reach: number) => {
+    const m = nearestMob(s, reach);
+    return m ? { x: m.x, z: m.z } : { x: p.x + Math.cos(p.face) * reach * 0.6, z: p.z + Math.sin(p.face) * reach * 0.6 };
+  };
+  switch (tc.kind) {
+    case 'rush':
+      // とっしん: 前へ 走って、ぶつかった 敵を 打つ
+      s.dash = { until: s.t + T.rush.dist / T.rush.speed, hit: [], mul };
+      ev('rush');
+      break;
+    case 'spin':
+      hitAll(inCircle(s, p.x, p.z, T.spin.r * area));
+      ev('spin', T.spin.r * area);
+      break;
+    case 'combo':
+      // 連続で 前を 打つ
+      s.combo = { left: T.combo.n, next: s.t, mul: mul * 0.55 };
+      ev('combo', T.combo.range);
+      break;
+    case 'shot':
+    case 'barrage': {
+      const n = tc.kind === 'barrage' ? T.barrage.n : 1;
+      const sp = T.shot.speed * (s.growType === 'speed' ? Y.speedShot : 1);
+      for (let i = 0; i < n; i++) {
+        const a = p.face + (n > 1 ? (i / (n - 1) - 0.5) * T.barrage.spread * 2 : 0);
+        s.shots.push({ id: ++s.seq, x: p.x + Math.cos(a) * 0.8, z: p.z + Math.sin(a) * 0.8, vx: Math.cos(a) * sp, vz: Math.sin(a) * sp, r: T.shot.r, life: T.shot.life * (s.growType === 'speed' ? Y.speedShot : 1), mul: n > 1 ? mul * 0.55 : mul, tech: tc });
+      }
+      ev('shot');
+      break;
+    }
+    case 'beam':
+      hitAll(inLine(s, p.x, p.z, p.face, T.beam.len, T.beam.w * area));
+      ev('beam', T.beam.w * area, T.beam.len);
+      break;
+    case 'quake':
+      hitAll(inCircle(s, p.x, p.z, T.quake.r * area), 0.8);
+      ev('quake', T.quake.r * area);
+      break;
+    case 'drop': {
+      // とび上がって 敵の 上に おちる
+      const g = target(T.drop.reach);
+      p.x = g.x;
+      p.z = g.z;
+      hitAll(inCircle(s, g.x, g.z, T.drop.r * area));
+      ev('drop', T.drop.r * area, 0, g.x, g.z);
+      break;
+    }
+    case 'pillar': {
+      const g = target(T.pillar.reach);
+      hitAll(inCircle(s, g.x, g.z, T.pillar.r * area), T.pillar.mul);
+      ev('pillar', T.pillar.r * area, 0, g.x, g.z);
+      break;
+    }
+    case 'field': {
+      const g = target(T.field.reach);
+      s.fields.push({ id: ++s.seq, x: g.x, z: g.z, r: T.field.r * area, t: 0, life: T.field.life, next: 0, tech: tc });
+      ev('field', T.field.r * area, 0, g.x, g.z);
+      break;
+    }
+    case 'heal':
+      heal(s, Math.round(p.maxHp * T.heal));
+      ev('heal', 2.5);
+      break;
+    case 'drain': {
+      const list = inCone(s, p.x, p.z, p.face, T.melee.range + 0.6, T.melee.arc);
+      const hp0 = list.reduce((a, m) => a + m.hp, 0);
+      hitAll(list);
+      const got = hp0 - list.reduce((a, m) => a + m.hp, 0);
+      if (got > 0) heal(s, Math.round(got * T.drain));
+      ev('drain', T.melee.range);
+      break;
+    }
+    case 'barrier':
+      s.shieldUntil = s.t + T.barrier.time;
+      ev('barrier', 1.6);
+      break;
+    case 'buff':
+      s.atkUpUntil = s.t + T.buff.time;
+      ev('buff', 1.6);
+      break;
+    case 'debuff':
+      // ほえる・にらむ: まわりの 敵に 追加効果(必ず かかる)
+      for (const m of inCircle(s, p.x, p.z, T.debuff.r * area)) {
+        m.awake = true;
+        setStatus(s, m, tc.effect !== 'なし' ? tc.effect : '攻撃ダウン', 1);
+      }
+      ev('debuff', T.debuff.r * area);
+      break;
+    default:
+      // パンチなど: 前を 強く 打つ
+      hitAll(inCone(s, p.x, p.z, p.face, T.melee.range, T.melee.arc));
+      ev('melee', T.melee.range);
+  }
+  // タフネス型: 技を 使うたびに 少し 回復(2026-11-07 企画者「回復は タフネス型の 効果だけ」)
+  if (s.growType === 'tough') heal(s, Math.round(p.maxHp * Y.toughHeal));
+}
+
+/** 弾・場・とっしん・連続 打ち・状態の 時間を すすめる */
+function stepTechs(s: AdvState, dt: number): void {
+  const p = s.player;
+  const T = ADV.tech;
+  if (s.dash) {
+    if (s.t >= s.dash.until || p.act === 'dead') s.dash = null;
+    else {
+      moveBy(s, p, Math.cos(p.face) * T.rush.speed * dt, Math.sin(p.face) * T.rush.speed * dt, ADV.player.r);
+      for (const m of inCircle(s, p.x, p.z, T.rush.r)) {
+        if (s.dash.hit.includes(m.id)) continue;
+        s.dash.hit.push(m.id);
+        m.awake = true;
+        damage(s, p, m, s.dash.mul, s.techs[s.techSlot] ?? undefined);
+      }
+    }
+  }
+  if (s.combo && s.t >= s.combo.next) {
+    const tc = s.techs[s.techSlot] ?? undefined;
+    for (const m of inCone(s, p.x, p.z, p.face, T.combo.range, T.combo.arc)) {
+      m.awake = true;
+      damage(s, p, m, s.combo.mul, tc);
+    }
+    s.combo.left--;
+    s.combo.next = s.t + T.combo.every;
+    if (s.combo.left <= 0) s.combo = null;
+  }
+  for (const sh of s.shots) {
+    sh.x += sh.vx * dt;
+    sh.z += sh.vz * dt;
+    sh.life -= dt;
+    if (!fits(s.floor, sh.x, sh.z, 0.05)) sh.life = 0;
+    const m = inCircle(s, sh.x, sh.z, sh.r)[0];
+    if (m && sh.life > 0) {
+      m.awake = true;
+      damage(s, p, m, sh.mul, sh.tech);
+      sh.life = 0;
+    }
+  }
+  s.shots = s.shots.filter((x) => x.life > 0);
+  for (const f of s.fields) {
+    f.t += dt;
+    if (f.t >= f.next) {
+      f.next = f.t + T.field.every;
+      for (const m of inCircle(s, f.x, f.z, f.r)) {
+        m.awake = true;
+        damage(s, p, m, Math.max(T.minMul, f.tech.power / T.powDiv) * T.field.mul, f.tech);
+        if (f.tech.effect === '遅くする' || f.tech.effect === 'なし') m.slowUntil = s.t + 0.6;
+      }
+    }
+  }
+  s.fields = s.fields.filter((f) => f.t < f.life);
+  // やけど・どく
+  for (const m of s.mobs) {
+    if (m.act === 'dead' || !m.dotUntil || s.t > m.dotUntil || s.t < (m.dotTick ?? 0)) continue;
+    m.dotTick = s.t + ADV.status.dotEvery;
+    m.hp = Math.max(0, m.hp - (m.dotDmg ?? 1));
+    s.events.push({ kind: 'hit', target: m.id, x: m.x, z: m.z, dmg: m.dotDmg ?? 1, crit: false });
+    if (m.hp <= 0) {
+      m.act = 'dead';
+      m.actT = 0;
+      s.kills++;
+      s.events.push({ kind: 'die', id: m.id, x: m.x, z: m.z });
+      dropFrom(s, m);
+    }
+  }
 }
 
 /** 倒した モブが 物を 落とす【仮】 */
@@ -267,9 +558,26 @@ function pickUp(s: AdvState): void {
   }
 }
 
-function damage(s: AdvState, from: Actor, to: Actor, mul = 1): void {
+function damage(s: AdvState, from: Actor, to: Actor, mul = 1, tech?: AdvTech): void {
   const crit = from.id === 0 && s.rng() < s.tech / ADV.critDiv;
-  const dmg = Math.max(1, Math.round(from.atk * mul * (ADV.defK / (ADV.defK + to.tough)) * (0.9 + s.rng() * 0.2) * (crit ? 1.5 : 1)));
+  const S = ADV.status;
+  const Y = ADV.type;
+  let m = mul;
+  if (from.id === 0) {
+    if (s.t < s.atkUpUntil) m *= ADV.tech.buff.up;
+    if (tech && s.growType === 'power') m *= Y.powerMul;
+  } else {
+    if ((from.atkDownUntil ?? 0) > s.t) m *= S.atkDownMul;
+    if (s.t < s.shieldUntil) m *= 1 - ADV.tech.barrier.cut;
+    if (s.growType === 'tough') m *= Y.toughCut;
+  }
+  const tough = to.tough * ((to.defDownUntil ?? 0) > s.t ? S.defDownMul : 1);
+  const dmg = Math.max(1, Math.round(from.atk * m * (ADV.defK / (ADV.defK + tough)) * (0.9 + s.rng() * 0.2) * (crit ? 1.5 : 1)));
+  if (to.sleepUntil) to.sleepUntil = 0;
+  if (tech && tech.effect !== 'なし' && to.id !== 0) {
+    const chance = S.chance + s.tech / S.techDiv + (s.growType === 'tech' ? Y.techStatus : 0);
+    if (s.rng() < chance) setStatus(s, to, tech.effect, dmg);
+  }
   to.hp = Math.max(0, to.hp - dmg);
   s.events.push({ kind: 'hit', target: to.id, x: to.x, z: to.z, dmg, crit });
   // ふっとび
@@ -323,31 +631,20 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
     const T = ADV.tech;
     if (ti != null && s.techs[ti] && s.t >= s.techCd[ti] && p.act !== 'attack' && p.act !== 'tech') {
       const tc = s.techs[ti]!;
-      const near = s.mobs.filter((m) => m.act !== 'dead').sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0];
-      if (!tc.support && near && Math.hypot(near.x - p.x, near.z - p.z) < T.range + 2) p.face = Math.atan2(near.z - p.z, near.x - p.x);
+      const near = nearestMob(s, 9);
+      if (!SELF_KINDS.has(tc.kind) && near) p.face = Math.atan2(near.z - p.z, near.x - p.x);
       p.act = 'tech';
       p.actT = 0;
       p.struck = false;
       s.techSlot = ti;
-      s.techCd[ti] = s.t + tc.cooldown * (1 - Math.min(0.3, s.tech / 500));
+      s.techCd[ti] = s.t + tc.cooldown * (1 - Math.min(0.3, s.tech / 500)) * (s.growType === 'speed' ? ADV.type.speedCd : 1);
     }
     if (p.act === 'tech') {
-      const tc = s.techs[s.techSlot]!;
       if (!p.struck && p.actT >= T.windup) {
         p.struck = true;
-        s.events.push({ kind: 'tech', slot: s.techSlot, x: p.x, z: p.z, support: tc.support });
-        if (tc.support) heal(s, Math.round(p.maxHp * T.heal));
-        else
-          for (const m of s.mobs) {
-            if (m.act === 'dead') continue;
-            const d = Math.hypot(m.x - p.x, m.z - p.z);
-            if (d < T.range + ADV.mob.r && Math.abs(angDiff(Math.atan2(m.z - p.z, m.x - p.x), p.face)) < T.arc) {
-              m.awake = true;
-              damage(s, p, m, Math.max(T.minMul, tc.power / T.powDiv));
-            }
-          }
+        fireTech(s, s.techSlot);
       }
-      if (p.actT > T.windup + T.recover) p.act = 'free';
+      if (p.actT > T.windup + T.recover && !s.dash && !s.combo) p.act = 'free';
     }
     if (p.act === 'attack' && !p.struck && p.actT >= P.windup) {
       p.struck = true;
@@ -361,6 +658,7 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
       }
     }
   }
+  stepTechs(s, dt);
   // ---- モブ ----
   const M = ADV.mob;
   for (const m of s.mobs) {
@@ -374,6 +672,12 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
       if (m.actT > ADV.hurtTime) m.act = 'free';
       continue;
     }
+    // ふらつき・ねむり: 動けない
+    if ((m.stunUntil ?? 0) > s.t || (m.sleepUntil ?? 0) > s.t) {
+      if (m.act === 'attack') m.act = 'free';
+      continue;
+    }
+    const slow = (m.slowUntil ?? 0) > s.t ? ADV.status.slowMul : 1;
     const d = Math.hypot(p.x - m.x, p.z - m.z);
     if (!m.awake && d < M.aggro && lineOfSight(s.floor, m.x, m.z, p.x, p.z)) m.awake = true;
     if (!m.awake || p.act === 'dead') continue;
@@ -394,7 +698,7 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
       m.coolUntil = s.t + M.cool;
       s.events.push({ kind: 'attack', id: m.id });
     } else if (d > M.range * 0.8) {
-      moveBy(s, m, Math.cos(g) * m.speed * dt, Math.sin(g) * m.speed * dt, M.r);
+      moveBy(s, m, Math.cos(g) * m.speed * slow * dt, Math.sin(g) * m.speed * slow * dt, M.r);
     }
   }
   // モブどうし・自分と 重ならない
