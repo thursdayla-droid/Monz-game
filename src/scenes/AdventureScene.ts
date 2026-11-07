@@ -5,7 +5,9 @@ import { getTech } from '../core/battle3d/techTable';
 import { RANK_HEX } from '../render/dungeonView';
 import type { Proficiency } from '../core/battle3d/config';
 import type { AnimeEntrant } from '../core/battle3d/anime';
-import { formAt } from '../core/battle3d/techLearn';
+import { formAt, learnAt, slotsAt } from '../core/battle3d/techLearn';
+import { addStats, autoGrowthAt, speciesStats, STAT_LABELS, type StatBlock, type StatKey } from '../core/stats';
+import type { SpeciesId } from '../core/species';
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { modelFor } from '../core/roster';
 import { DungeonView } from '../render/dungeonView';
@@ -70,6 +72,13 @@ const CSS = `
 @media (orientation:portrait){.adv .rot{display:flex}}
 `;
 
+/** 確認用ページかどうか(MONZ RUMBLE から 入った) */
+const isPreview = () => ['Battle3D', 'RumbleMode'].includes((window as { __MONZ_START?: string }).__MONZ_START ?? '');
+/** 確認用: ためす レベルと 型 */
+const advDev = { level: 1, type: 'power' };
+const DEV_LEVELS = [1, 10, 25, 45, 70];
+const DEV_TYPES = ['power', 'tough', 'speed', 'tech'];
+
 const START_PROFICIENCY: Proficiency = { attack: 2, defense: 2, evasion: 2, counter: 2, spacing: 2 };
 
 export class AdventureScene extends Phaser.Scene {
@@ -98,19 +107,31 @@ export class AdventureScene extends Phaser.Scene {
     this.attack = false;
     const partner = partnerEntrant();
     this.level = partner.level;
-    const me: AnimeEntrant = { ...partner.entrant, proficiency: { ...START_PROFICIENCY }, form: formAt(partner.level) };
+    let me: AnimeEntrant = { ...partner.entrant, proficiency: { ...START_PROFICIENCY }, form: formAt(partner.level) };
     const seed = (Date.now() ^ (Math.random() * 1e9)) >>> 0;
     // 技: お世話の ステータス(わざ)で セットした 4つ(名前は MONZ RUMBLE の まま。2026-11-07 企画者)
     const life = loadLife();
     const mon = life.monz.find((m) => m.uid === life.activeMonz) ?? life.monz[0];
+    let equipped = mon.techs?.equipped ?? [];
+    let growType: string | null = mon.growType ?? null;
+    // 確認用ページだけ: レベルと 型を えらんで ためす(自由ポイントを 全部 その型に・技は 新しい 順に 4つ)
+    if (isPreview() && advDev.level > 1) {
+      const sp = me.species as SpeciesId;
+      const L = advDev.level;
+      const stats = addStats(addStats(speciesStats(sp).base, autoGrowthAt(sp, 'dev', L)), { hp: 0, power: 0, tough: 0, speed: 0, tech: 0, [advDev.type]: L - 1 } as StatBlock);
+      me = { ...me, stats, form: formAt(L) };
+      this.level = L;
+      growType = advDev.type;
+      equipped = learnAt(sp, L, stats, [], advDev.type as StatKey).slice(-slotsAt(L));
+    }
     const techs: (AdvTech | null)[] = [0, 1, 2, 3].map((i) => {
-      const id = mon.techs?.equipped[i];
+      const id = equipped[i];
       if (!id) return null;
       const t = getTech(id);
       return { id, kind: t.kind, power: t.power ?? 0, cooldown: Math.max(2, t.cooldown), element: t.element, effect: t.effect ?? 'なし', strength: t.strength };
     });
     this.techNames = techs.map((t) => (t ? getTech(t.id).name : ''));
-    this.state = newAdventure(seed, me.stats, 1, techs, mon.growType ?? null);
+    this.state = newAdventure(seed, me.stats, 1, techs, growType);
     this.buildDom(me);
     audio.playBgm('battle');
     window.addEventListener('resize', this.onResize);
@@ -128,6 +149,7 @@ export class AdventureScene extends Phaser.Scene {
     root.insertAdjacentHTML(
       'beforeend',
       `<div class="top"><button class="back">◀ もどる</button><div class="me"><div class="nm">${me.name}　Lv.${this.level}</div><div class="bar"><i></i></div><div class="num"></div></div><div class="goal"></div><button class="bagBtn">もちもの</button></div>
+       ${isPreview() ? `<div class="dev" style="position:absolute;left:calc(env(safe-area-inset-left) + 12px);top:calc(env(safe-area-inset-top) + 62px);display:flex;gap:6px"><button class="back devLv">確認 Lv.${advDev.level}</button><button class="back devTy">型：${STAT_LABELS[advDev.type as StatKey]}</button></div>` : ''}
        <div class="stickZone"><div class="stickBase"><div class="stickKnob"></div></div></div>
        <div class="stickHint">ここを<br>さわって<br>うごかす</div>
        <button class="atk">こうげき</button>
@@ -187,6 +209,17 @@ export class AdventureScene extends Phaser.Scene {
       else audio.se('back');
     });
     $('.bagBtn').addEventListener('click', () => this.openBag());
+    if (isPreview()) {
+      $('.devLv').addEventListener('click', () => {
+        advDev.level = DEV_LEVELS[(DEV_LEVELS.indexOf(advDev.level) + 1) % DEV_LEVELS.length];
+        this.scene.restart();
+      });
+      $('.devTy').addEventListener('click', () => {
+        advDev.type = DEV_TYPES[(DEV_TYPES.indexOf(advDev.type) + 1) % DEV_TYPES.length];
+        if (advDev.level === 1) advDev.level = 25;
+        this.scene.restart();
+      });
+    }
     this.view = new DungeonView(canvas, this.state, me, modelFor(me.species, this.level));
     this.resize();
   }
@@ -372,7 +405,7 @@ export class AdventureScene extends Phaser.Scene {
   private leave(): void {
     audio.se('back');
     // 確認用ページ(MONZ RUMBLE から 入った)は MONZ RUMBLE へ もどる
-    this.scene.start(['Battle3D', 'RumbleMode'].includes((window as { __MONZ_START?: string }).__MONZ_START ?? '') ? 'RumbleMode' : 'Home');
+    this.scene.start(isPreview() ? 'RumbleMode' : 'Home');
   }
 
   private cleanup(): void {
