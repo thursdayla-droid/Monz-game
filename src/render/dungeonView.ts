@@ -124,7 +124,10 @@ class MobView {
 export class DungeonView {
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
-  readonly camera = new THREE.PerspectiveCamera(42, 16 / 9, 0.1, 200);
+  /** 2026-11-07 企画者「カメラ もっと 引きで」「もっと 2D 感」→ 遠近の ない カメラで、高い ところから 見下ろす */
+  readonly camera = new THREE.OrthographicCamera(-12, 12, 7, -7, 0.1, 200);
+  /** 画面の たての 広さ(世界の 長さ) */
+  private viewH = 14;
   private grad = toonGradient();
   private rig: MonsterRig;
   private puppet: AnimeMon;
@@ -141,13 +144,13 @@ export class DungeonView {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.shadowMap.enabled = true;
     this.scene.background = new THREE.Color(0x0b0712);
-    this.scene.fog = new THREE.Fog(0x0b0712, 12, 26);
+    
     this.scene.add(new THREE.HemisphereLight(0x9a8acc, 0x2a1a30, 0.9));
     const moon = new THREE.DirectionalLight(0xc8b8ff, 0.6);
     moon.position.set(-8, 20, 6);
     this.scene.add(moon);
     // 自分の まわりを 照らす あかり(ダンジョンの 雰囲気)
-    this.torch = new THREE.PointLight(0xffb070, 30, 14, 1.4);
+    this.torch = new THREE.PointLight(0xffb070, 40, 18, 1.2);
     this.torch.castShadow = true;
     this.torch.shadow.mapSize.set(512, 512);
     this.scene.add(this.torch);
@@ -201,19 +204,19 @@ export class DungeonView {
       fl.setMatrixAt(k, m4);
       // 石の 床(少しずつ 色を 変える)
       const v = ((x * 7 + y * 13) % 5) / 5;
-      col.setRGB(0.32 + v * 0.06, 0.28 + v * 0.05, 0.36 + v * 0.06);
+      col.setRGB(0.5 + v * 0.06, 0.44 + v * 0.05, 0.5 + v * 0.06);
       fl.setColorAt(k, col);
     });
     fl.receiveShadow = true;
     this.scene.add(fl);
-    const wl = new THREE.InstancedMesh(new THREE.BoxGeometry(CELL, 2.4, CELL), new THREE.MeshLambertMaterial({ color: 0xffffff }), walls.length);
+    const wl = new THREE.InstancedMesh(new THREE.BoxGeometry(CELL, 1.6, CELL), new THREE.MeshLambertMaterial({ color: 0xffffff }), walls.length);
     walls.forEach((i, k) => {
       const x = i % f.w;
       const y = Math.floor(i / f.w);
-      m4.makeTranslation((x + 0.5) * CELL, 1.2, (y + 0.5) * CELL);
+      m4.makeTranslation((x + 0.5) * CELL, 0.8, (y + 0.5) * CELL);
       wl.setMatrixAt(k, m4);
       const v = ((x * 5 + y * 3) % 4) / 4;
-      col.setRGB(0.2 + v * 0.05, 0.16 + v * 0.04, 0.26 + v * 0.05);
+      col.setRGB(0.13 + v * 0.04, 0.09 + v * 0.03, 0.2 + v * 0.05);
       wl.setColorAt(k, col);
     });
     wl.castShadow = true;
@@ -263,7 +266,11 @@ export class DungeonView {
 
   resize(w: number, h: number): void {
     this.renderer.setSize(w, h, false);
-    this.camera.aspect = w / h;
+    const a = w / Math.max(1, h);
+    this.camera.top = this.viewH / 2;
+    this.camera.bottom = -this.viewH / 2;
+    this.camera.left = (-this.viewH * a) / 2;
+    this.camera.right = (this.viewH * a) / 2;
     this.camera.updateProjectionMatrix();
   }
 
@@ -345,7 +352,7 @@ export class DungeonView {
     const cx = p.x + (Math.random() - 0.5) * this.shake;
     const cz = p.z + (Math.random() - 0.5) * this.shake;
     this.shake *= Math.exp(-dt * 12);
-    this.camera.position.set(cx, 8, cz + 6.8);
+    this.camera.position.set(cx, 30, cz + 11);
     this.camera.lookAt(cx, 0.6, cz);
     this.renderer.render(this.scene, this.camera);
   }
