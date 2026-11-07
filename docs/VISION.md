@@ -405,3 +405,4 @@
 - 2026-11-07：企画者「倒した時 倒れたは やめよ。KO で」→ たおした時の 大きな文字は「KO」だけに
 - 2026-11-07：企画者の バトルセレクト用 MONZ RUMBLE の 看板の絵（design/rumble_ui/bm_rumble_sign.png）→ 背景の絵が できたら 入れる
 - 2026-11-07：企画者の バトルセレクトの 新しい 背景（上 = MONZ RUMBLE・下 = MYTHCLASH の 雰囲気。design/battle_menu/battle_menu2_bg.png）→ 上に「BATTLE」の 文字、上半分に MONZ RUMBLE の 看板、下半分に MYTHCLASH の 看板【仮：前の 絵から 切り出したもの。新しい 看板が できたら 入れかえ】。前の 絵（battle_menu.webp）は 残す
+- 2026-11-07：企画者の 新しい MONZ RUMBLE の 看板（文字を 上・まん中寄りに。design/rumble_ui/bm_rumble_sign2.png。白い まわりは すかした）に 入れかえ。下に MYTHCLASH の 看板と 同じように 黒い帯で「育てたモンズで戦う」

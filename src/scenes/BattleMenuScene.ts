@@ -72,7 +72,28 @@ export class BattleMenuScene extends Phaser.Scene {
       const img = this.add.image(W / 2 + 900, ys[e.id], key).setInteractive({ useHandCursor: true });
       img.setScale(620 / img.width);
       const base = img.scale;
-      this.tweens.add({ targets: img, x: W / 2, duration: 420, delay: 100 + i * 90, ease: 'Back.easeOut' });
+      const moving: Phaser.GameObjects.GameObject[] = [img];
+      // 2026-11-07 企画者「MYTHCLASH みたいに MONZ RUMBLE の下に『育てたモンズで戦う』」→ 黒い帯に 白い文字
+      if (e.id === 'action') {
+        canvasTextureOnce(this, 'bm:sub:action', 520, 64, (ctx) => {
+          ctx.fillStyle = 'rgba(10,6,16,0.92)';
+          ctx.beginPath();
+          ctx.moveTo(18, 6);
+          ctx.lineTo(520, 0);
+          ctx.lineTo(502, 58);
+          ctx.lineTo(0, 64);
+          ctx.closePath();
+          ctx.fill();
+          ctx.font = `900 34px ${UI_FONT}`;
+          ctx.fillStyle = '#ffffff';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('育てたモンズで戦う', 260, 33);
+        });
+        const sub = this.add.image(img.x, ys[e.id] + img.displayHeight * 0.23, 'bm:sub:action').setScale(0.72);
+        moving.push(sub);
+      }
+      this.tweens.add({ targets: moving, x: W / 2, duration: 420, delay: 100 + i * 90, ease: 'Back.easeOut' });
       img.on('pointerdown', () => {
         this.tweens.add({ targets: img, scale: base * 0.95, duration: 70, yoyo: true });
         this.go(e.scene, false);
