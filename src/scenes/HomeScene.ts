@@ -6,7 +6,7 @@ import { HOME_ACTIONS, HOME_ACTION_LABELS, HOME_ACTION_READY, ALL_PLACES, HOME_L
 import { MonzLife } from '../core/life';
 import { moodWord, NEEDS_RULES } from '../core/needs';
 import { clearLife, LifeRecord, loadLife, type MonzData } from '../core/lifeSave';
-import { MAX_SLOTS, SLOT_LEVELS, slotsAt } from '../core/battle3d/techLearn';
+import { growthType, MAX_SLOTS, SLOT_LEVELS, slotsAt } from '../core/battle3d/techLearn';
 import { getTech } from '../core/battle3d/techTable';
 import { ELEMENT_HEX } from '../render/animeField';
 import { mulberry32 } from '../core/rng';
@@ -899,6 +899,12 @@ export class HomeScene extends Phaser.Scene {
       const pts = m.statPoints;
       content.add(t(px + 32, py + 168, pts > 0 ? `ポイント：${pts}` : 'ポイント：なし', 28, pts > 0 ? '#c2410c' : '#5a4a66'));
       if (pts > 0) content.add(t(px + 32, py + 206, '＋をおすと 1 ずつ振り分けられます', 20, '#5a4a66'));
+      // 2026-11-07 企画者: 今の 育ち方の 型を 出す(Lv.25 から この型の 技を 覚える)
+      const gt = growthType(m.species, st);
+      if (gt) {
+        content.add(t(px + pw - 32, py + 252 + 6 * 84 - 2, `今の育ち方：${STAT_LABELS[gt]}型`, 26, '#8a35e0', 1));
+        content.add(t(px + pw - 32, py + 252 + 6 * 84 + 30, m.level >= 25 ? 'レベルアップで この型の わざを おぼえる' : 'Lv.25 から この型の わざを おぼえる', 16, '#5a4a66', 1));
+      }
       // ゲージは数字そのまま: 通常ステータスは150、愛は100でいっぱい(企画者決定)
       // 6種類
       const rows: { label: string; value: number; max: number; key?: StatKey; color: number }[] = [

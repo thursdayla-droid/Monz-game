@@ -37,6 +37,15 @@ export function tendency(species: string, stats: StatBlock, allowed: StatKey[] =
   return best;
 }
 
+/**
+ * 今の 育ち方の 型(パワー型・タフネス型 など)。ステータス画面に 出す(2026-11-07 企画者)。
+ * その種族の表にある「○○寄り」の中から選ぶ(表にない傾向だと、何も覚えられないため)。表が なければ null
+ */
+export function growthType(species: string, stats: StatBlock): StatKey | null {
+  const used = [...new Set(learnset(species).map((r) => TENDENCY[r.condition]).filter(Boolean))] as StatKey[];
+  return used.length ? tendency(species, stats, used) : null;
+}
+
 /** この行の条件を、今みたしているか */
 function meets(row: TechRow, level: number, tend: StatKey): boolean {
   if (level < row.level) return false;
@@ -51,9 +60,7 @@ function meets(row: TechRow, level: number, tend: StatKey): boolean {
  * 育て方の条件は「そのとき」の傾向で決まる(あとで育て方を変えると、別の技も覚えられる)
  */
 export function learnAt(species: string, level: number, stats: StatBlock, learned: string[] = []): string[] {
-  // 育て方は、その種族の表にある「○○寄り」の中から選ぶ(表にない傾向だと、何も覚えられないため)
-  const used = [...new Set(learnset(species).map((r) => TENDENCY[r.condition]).filter(Boolean))] as StatKey[];
-  const tend = tendency(species, stats, used.length ? used : undefined);
+  const tend = growthType(species, stats) ?? tendency(species, stats);
   const out = [...learned];
   for (const row of learnset(species)) if (!out.includes(row.name) && meets(row, level, tend)) out.push(row.name);
   return out;
