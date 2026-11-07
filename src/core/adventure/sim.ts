@@ -331,6 +331,73 @@ const aimedMob = (s: AdvState, dir: number, within: number) =>
 const nearestMob = (s: AdvState, within: number) =>
   s.mobs.filter((m) => m.act !== 'dead' && Math.hypot(m.x - s.player.x, m.z - s.player.z) < within).sort((a, b) => Math.hypot(a.x - s.player.x, a.z - s.player.z) - Math.hypot(b.x - s.player.x, b.z - s.player.z))[0];
 
+/**
+ * 技を ねらっている 間に 出す 範囲(2026-11-07 企画者「矢印じゃなくて 技の 範囲を 出して」)。
+ * band = 前へ のびる 帯(ビーム・とっしん・弾)・cone = 扇(前を 打つ)・fan = 扇に 広がる 弾・circle = 円(cx,cz が まん中)
+ */
+export interface AimShape {
+  shape: 'band' | 'cone' | 'fan' | 'circle';
+  len: number;
+  w: number;
+  arc: number;
+  r: number;
+  cx: number;
+  cz: number;
+  self: boolean;
+}
+export function aimPreview(s: AdvState, slot: number, dir: number | null): AimShape | null {
+  const tc = s.techs[slot];
+  if (!tc) return null;
+  const p = s.player;
+  const T = ADV.tech;
+  const area = s.growType === 'tech' ? ADV.type.techArea : 1;
+  const d = dir ?? p.face;
+  const base = { len: 0, w: 0, arc: 0, r: 0, cx: p.x, cz: p.z, self: false };
+  const at = (reach: number) => {
+    const m = dir != null ? aimedMob(s, d, reach) : nearestMob(s, reach);
+    if (m && lineOfSight(s.floor, p.x, p.z, m.x, m.z)) return { cx: m.x, cz: m.z };
+    const k = wallDist(s, p.x, p.z, d, reach * 0.6);
+    return { cx: p.x + Math.cos(d) * k, cz: p.z + Math.sin(d) * k };
+  };
+  switch (tc.kind) {
+    case 'beam': {
+      const bx = p.x + Math.cos(d) * 0.9;
+      const bz = p.z + Math.sin(d) * 0.9;
+      return { ...base, shape: 'band', len: Math.max(0.6, wallDist(s, bx, bz, d, T.beam.len)) + 0.9, w: T.beam.w * area };
+    }
+    case 'rush':
+      return { ...base, shape: 'band', len: Math.min(T.rush.dist, wallDist(s, p.x, p.z, d, T.rush.dist)) + T.rush.r, w: T.rush.r * 2 };
+    case 'shot': {
+      const reach = T.shot.speed * T.shot.life * (s.growType === 'speed' ? ADV.type.speedShot ** 2 : 1);
+      return { ...base, shape: 'band', len: wallDist(s, p.x, p.z, d, reach), w: T.shot.r * 2 };
+    }
+    case 'barrage':
+      return { ...base, shape: 'fan', len: T.shot.speed * T.shot.life * (s.growType === 'speed' ? ADV.type.speedShot ** 2 : 1), arc: T.barrage.spread * 2 };
+    case 'spin':
+      return { ...base, shape: 'circle', r: T.spin.r * area };
+    case 'quake':
+      return { ...base, shape: 'circle', r: T.quake.r * area };
+    case 'debuff':
+      return { ...base, shape: 'circle', r: T.debuff.r * area };
+    case 'drop': {
+      const k = Math.min(T.drop.move, wallDist(s, p.x, p.z, d, T.drop.move));
+      return { ...base, shape: 'circle', r: T.drop.r * area, cx: p.x + Math.cos(d) * k, cz: p.z + Math.sin(d) * k };
+    }
+    case 'pillar':
+      return { ...base, shape: 'circle', r: T.pillar.r * area, ...at(T.pillar.reach) };
+    case 'field':
+      return { ...base, shape: 'circle', r: T.field.r * area, ...at(T.field.reach) };
+    case 'heal':
+    case 'barrier':
+    case 'buff':
+      return { ...base, shape: 'circle', r: 1.4, self: true };
+    case 'combo':
+      return { ...base, shape: 'cone', len: T.combo.range, arc: T.combo.arc * 2 };
+    default:
+      return { ...base, shape: 'cone', len: T.melee.range + (tc.kind === 'drain' ? 0.6 : 0), arc: T.melee.arc * 2 };
+  }
+}
+
 /** その技の ため(秒) */
 export const techWindup = (kind: string): number => ADV.tech.windups[kind] ?? ADV.tech.windup;
 

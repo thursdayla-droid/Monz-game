@@ -8,7 +8,7 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import { assetUrl } from '../assetUrl';
 import { newAnimeBattle, type AnimeEntrant, type AnimeMon } from '../core/battle3d/anime';
 import { CELL, FLOOR } from '../core/adventure/dungeon';
-import { ADV, RANKS, techWindup, type Actor, type AdvEvent, type AdvItem, type AdvState, type Rank } from '../core/adventure/sim';
+import { ADV, RANKS, techWindup, type AimShape, type Actor, type AdvEvent, type AdvItem, type AdvState, type Rank } from '../core/adventure/sim';
 import type { modelFor } from '../core/roster';
 import { MonsterRig } from './monsterRig';
 
@@ -243,7 +243,8 @@ export class DungeonView {
   private dome: THREE.Mesh;
   /** 技を ねらう 矢印(床) */
   private aimObj: THREE.Group;
-  private aimState: { dir: number; auto: boolean; kind: string } | null = null;
+  private aimState: (AimShape & { auto: boolean; dir: number }) | null = null;
+  private aimKey = '';
   private buffRing: THREE.Mesh;
   /** 装備の ランクの 光(企画者「装備の 見た目 A」: ランクごとに 体の まわりが 光る) */
   private aura: THREE.Mesh;
@@ -302,23 +303,44 @@ export class DungeonView {
     this.buffRing.rotation.x = -Math.PI / 2;
     this.buffRing.visible = false;
     this.scene.add(this.buffRing);
-    // ねらいの 矢印(長押し 中だけ)
+    // ねらいの 範囲(長押し 中だけ。形は 技ごとに 作りなおす)
     this.aimObj = new THREE.Group();
-    const bar = new THREE.Mesh(new THREE.PlaneGeometry(5, 0.5), new THREE.MeshBasicMaterial({ color: 0xffe24a, transparent: true, opacity: 0.45, depthWrite: false, depthTest: false }));
-    bar.rotation.x = -Math.PI / 2;
-    bar.position.x = 3;
-    const head = new THREE.Mesh(new THREE.CircleGeometry(0.6, 3), new THREE.MeshBasicMaterial({ color: 0xffe24a, transparent: true, opacity: 0.8, depthWrite: false, depthTest: false }));
-    head.rotation.x = -Math.PI / 2;
-    head.position.x = 5.7;
-    this.aimObj.add(bar, head);
     this.aimObj.visible = false;
     this.scene.add(this.aimObj);
     this.loadModel();
   }
 
-  /** 技を ねらっている 間の 矢印(dir: 向き・auto: まだ 指を ずらしていない) */
-  setAim(a: { dir: number; auto: boolean; kind: string } | null): void {
+  /** 技を ねらっている 間の 範囲(null = かくす) */
+  setAim(a: (AimShape & { auto: boolean; dir: number }) | null): void {
     this.aimState = a;
+  }
+
+  /** 範囲の 形を 作る(床に 平らに・半とうめいの 黄色) */
+  private buildAim(a: AimShape): void {
+    for (const c of [...this.aimObj.children]) {
+      this.aimObj.remove(c);
+      const m = c as THREE.Mesh;
+      m.geometry?.dispose();
+      (m.material as THREE.Material)?.dispose();
+    }
+    const fill = (geo: THREE.BufferGeometry, op: number) => {
+      const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: a.self ? 0x6affb0 : 0xffe24a, transparent: true, opacity: op, depthWrite: false, depthTest: false, side: THREE.DoubleSide }));
+      m.rotation.x = -Math.PI / 2;
+      this.aimObj.add(m);
+      return m;
+    };
+    if (a.shape === 'band') {
+      const m = fill(new THREE.PlaneGeometry(a.len, a.w), 0.3);
+      m.position.x = a.len / 2;
+      const e = fill(new THREE.PlaneGeometry(0.12, a.w), 0.8);
+      e.position.x = a.len;
+    } else if (a.shape === 'cone' || a.shape === 'fan') {
+      fill(new THREE.CircleGeometry(a.len, 32, -a.arc / 2, a.arc), a.shape === 'fan' ? 0.22 : 0.3);
+      fill(new THREE.RingGeometry(a.len - 0.12, a.len, 32, 1, -a.arc / 2, a.arc), 0.8);
+    } else {
+      fill(new THREE.CircleGeometry(a.r, 40), 0.25);
+      fill(new THREE.RingGeometry(a.r - 0.12, a.r, 40), 0.85);
+    }
   }
 
   /** 落ちている 物(回復の実 = 緑の 実・装備 = ランクの 色の 箱) */
@@ -761,15 +783,19 @@ export class DungeonView {
         this.scene.remove(o);
         this.fieldObjs.delete(id);
       }
-    // ねらいの 矢印(自分に かける 技は 足もとの 輪だけ)
+    // ねらいの 範囲(帯・扇は 自分から 向きへ。円は その 場所に)
     const a = this.aimState;
     this.aimObj.visible = !!a;
     if (a) {
-      this.aimObj.position.set(p.x, 0.15, p.z);
-      this.aimObj.rotation.y = -a.dir;
-      const self = ['heal', 'barrier', 'buff'].includes(a.kind);
-      this.aimObj.children.forEach((c) => (c.visible = !self));
-      ((this.aimObj.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = a.auto ? 0.2 : 0.5;
+      const key = `${a.shape}:${a.len.toFixed(1)}:${a.w.toFixed(2)}:${a.arc.toFixed(2)}:${a.r.toFixed(2)}:${a.self}`;
+      if (key !== this.aimKey) {
+        this.aimKey = key;
+        this.buildAim(a);
+      }
+      const circle = a.shape === 'circle';
+      this.aimObj.position.set(circle ? a.cx : p.x, 0.14, circle ? a.cz : p.z);
+      this.aimObj.rotation.y = circle ? 0 : -a.dir;
+      this.aimObj.children.forEach((c, i) => (((c as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = (i === 0 ? 0.28 : 0.85) * (a.auto ? 0.6 : 1)));
     }
     this.dome.visible = s.t < s.shieldUntil;
     this.dome.position.set(p.x, 0.12, p.z);

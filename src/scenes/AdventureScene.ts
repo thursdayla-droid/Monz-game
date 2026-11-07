@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
-import { newAdventure, stepAdventure, adventureReward, unequip, useBagItem, useHerb, BAG_MAX, SELF_KINDS, SLOT_NAMES, type AdvItem, type AdvState, type AdvTech, type GearSlot } from '../core/adventure/sim';
+import { newAdventure, stepAdventure, adventureReward, aimPreview, unequip, useBagItem, useHerb, BAG_MAX, SELF_KINDS, SLOT_NAMES, type AdvItem, type AdvState, type AdvTech, type GearSlot } from '../core/adventure/sim';
 import { getTech } from '../core/battle3d/techTable';
 import { RANK_HEX } from '../render/dungeonView';
 import type { Proficiency } from '../core/battle3d/config';
@@ -46,6 +46,8 @@ const CSS = `
 .adv .ib{width:50px;height:50px;background:#2a8a3acc;font-size:12px;line-height:1.05}
 .adv .ib b{display:block;font-size:15px}
 .adv .ib:disabled{opacity:.4}
+.adv .cancel{position:absolute;right:calc(env(safe-area-inset-right) + 34px);bottom:calc(env(safe-area-inset-bottom) + 214px);width:66px;height:66px;border-radius:50%;border:3px solid #fff;background:#16101ccc;color:#fff;font:900 12px ${UI_FONT};display:none;align-items:center;justify-content:center;pointer-events:none;z-index:6}
+.adv .cancel.over{background:#e0303a;transform:scale(1.12)}
 .adv .tb:active,.adv .ib:active{transform:translateY(2px);box-shadow:0 1px 0 #16101c}
 .adv .bagBtn{background:#16101ccc;border:2px solid #ffffff60;color:#fff;font:900 14px ${UI_FONT};padding:7px 12px;border-radius:12px}
 .adv .bag{position:absolute;inset:0;z-index:20;background:#0b0712e6;display:none;align-items:center;justify-content:center;padding:calc(env(safe-area-inset-top) + 8px) calc(env(safe-area-inset-right) + 14px) calc(env(safe-area-inset-bottom) + 8px) calc(env(safe-area-inset-left) + 14px)}
@@ -160,6 +162,7 @@ export class AdventureScene extends Phaser.Scene {
        <div class="stickHint">ここを<br>さわって<br>うごかす</div>
        <button class="atk">こうげき</button>
        ${[0, 1, 2, 3].map((i) => `<button class="tb" data-i="${i}"><span class="cd"></span><span class="lb">${'ABCD'[i]}</span></button>`).join('')}
+       <div class="cancel">キャンセル</div>
        <button class="ib"><span class="lb">回復の実<b>0</b></span></button>
        <div class="bag"><div class="box"></div></div>
        <div class="msg"></div>
@@ -214,16 +217,28 @@ export class AdventureScene extends Phaser.Scene {
         oy = e.clientY;
         this.aim = { slot: i, dir: null };
       });
+      // ドラッグ 中だけ こうげきの 上に キャンセル(そこで はなすと うたない。2026-11-07 企画者)
+      const cancel = $('.cancel');
+      const overCancel = (e: PointerEvent) => {
+        const r = cancel.getBoundingClientRect();
+        return cancel.style.display === 'flex' && Math.hypot(e.clientX - (r.left + r.width / 2), e.clientY - (r.top + r.height / 2)) < r.width * 0.7;
+      };
       b.addEventListener('pointermove', (e) => {
         if (e.pointerId !== pid || !this.aim) return;
         const dx = e.clientX - ox;
         const dy = e.clientY - oy;
         this.aim.dir = Math.hypot(dx, dy) > 14 ? Math.atan2(dy, dx) : null;
+        cancel.style.display = this.aim.dir !== null ? 'flex' : 'none';
+        cancel.classList.toggle('over', overCancel(e));
       });
       const up = (e: PointerEvent, fire: boolean) => {
         if (e.pointerId !== pid) return;
         pid = null;
-        if (fire && this.aim) {
+        const canceled = overCancel(e);
+        cancel.style.display = 'none';
+        cancel.classList.remove('over');
+        if (canceled) audio.se('back');
+        if (fire && this.aim && !canceled) {
           this.techPress = i;
           this.techDir = this.aim.dir;
         }
@@ -326,7 +341,8 @@ export class AdventureScene extends Phaser.Scene {
       this.techPress = null;
       this.techDir = null;
     }
-    this.view.setAim(this.aim ? { dir: this.aim.dir ?? s.player.face, auto: this.aim.dir === null, kind: s.techs[this.aim.slot]?.kind ?? '' } : null);
+    const shape = this.aim ? aimPreview(s, this.aim.slot, this.aim.dir) : null;
+    this.view.setAim(shape && this.aim ? { ...shape, dir: this.aim.dir ?? s.player.face, auto: this.aim.dir === null } : null);
     for (const e of s.events) {
       if (e.kind === 'attack' && e.id === 0) audio.se('swing');
       else if (e.kind === 'hit') audio.se(e.target === 0 ? 'punch' : 'b3dPunchHit', e.crit ? { pitch: 0.8 } : undefined);
