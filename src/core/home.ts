@@ -53,8 +53,8 @@ export const HOME_ACTION_READY: Record<HomeAction, boolean> = {
   // 2026-10-22: 操作するバトル(練習場)ができた
   battle: true,
   shop: true,
-  // 冒険は これから 作る(押すと「じゅんび中」)
-  adventure: false,
+  // 冒険(2026-11-07 試作)
+  adventure: true,
 };
 
 export type Pt = [number, number];

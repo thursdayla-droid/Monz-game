@@ -596,6 +596,13 @@ export class HomeScene extends Phaser.Scene {
       this.cameras.main.fadeOut(200, 0, 0, 0);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('MinigameSelect'));
     }
+    else if (action === 'adventure') {
+      // 冒険(2026-11-07 企画者)
+      this.busy = true;
+      audio.se('next');
+      this.cameras.main.fadeOut(200, 0, 0, 0);
+      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('Adventure'));
+    }
     else if (action === 'battle') {
       // バトルメニュー: アクションバトル(練習場)と MYTHCLASH を選ぶ(企画者決定 2026-10-26)
       this.busy = true;

@@ -150,6 +150,19 @@ export class RumbleModeScene extends Phaser.Scene {
       audio.se('back');
       this.scene.start('BattleMenu');
     });
+    // 確認用ページだけ: 冒険の 試作へ(2026-11-07。冒険は お世話画面から 入るが、確認用ページには モデルが ここにしか ないため)
+    if (isPreview()) {
+      const adv = document.createElement('button');
+      adv.className = 'back';
+      adv.textContent = '冒険の試作 ▶';
+      adv.style.cssText = 'position:absolute;right:calc(env(safe-area-inset-right) + 16px);top:calc(env(safe-area-inset-top) + 14px)';
+      adv.addEventListener('click', () => {
+        audio.unlock();
+        audio.se('select');
+        this.scene.start('Adventure');
+      });
+      root.appendChild(adv);
+    }
     onPick([$('.story'), $('.free')], (b) => {
       audio.unlock();
       audio.se('select');
