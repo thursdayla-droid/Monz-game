@@ -90,7 +90,7 @@ export class BattleMenuScene extends Phaser.Scene {
           ctx.textBaseline = 'middle';
           ctx.fillText('育てたモンズで戦う', 260, 33);
         });
-        const sub = this.add.image(img.x, ys[e.id] + img.displayHeight * 0.23, 'bm:sub:action').setScale(0.72);
+        const sub = this.add.image(img.x, ys[e.id] + img.displayHeight * 0.25, 'bm:sub:action').setScale(0.98);
         moving.push(sub);
       }
       this.tweens.add({ targets: moving, x: W / 2, duration: 420, delay: 100 + i * 90, ease: 'Back.easeOut' });
