@@ -106,6 +106,7 @@ export const STORY_IMAGES: Record<number, string> = {
   26: 'assets/story/ch6_26.webp', // 6章26話 ZIPRAX(2026-11-07 企画者)
   27: 'assets/story/ch6_27.webp', // 6章27話 GRITBULL(2026-11-07 企画者)
   28: 'assets/story/ch6_28.webp', // 6章28話 PUNISHROOM(2026-11-07 企画者)
+  29: 'assets/story/ch6_29.webp', // 6章29話 MOFUGARD(2026-11-07 企画者)
 };
 
 /** 話(企画者が 書いた 文。ステージの 番号 → 題名と 行) */
@@ -589,6 +590,36 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
       { who: 'PUNISHROOM', text: '「ボク……キミに勝ちたい！」' },
       { who: 'PUNISHROOM', text: '「えへへっ！ びっくりした？」' },
       { who: 'PUNISHROOM', text: '「今日は最後まで、全力で遊ぼうね！」' },
+    ],
+  },
+  29: {
+    title: '第29話「王の器」',
+    lines: [
+      { who: null, text: 'RUMBLE CROWN、王座への最後の関門。' },
+      { who: null, text: '長い戦いを越えた挑戦者は、ついに黄金の王座が見える場所へたどり着いた。' },
+      { who: null, text: '巨大な階段を覆う花々。' },
+      { who: null, text: '静かに舞い落ちる金色の紙吹雪。' },
+      { who: null, text: 'その階段の前に、一匹のMONZが立っていた。' },
+      { who: 'MOFUGARD', text: '「……待っていたよ。」' },
+      { who: 'MOFUGARD', text: '「ふふっ。とうとう、ここまで来たんだね。」' },
+      { who: 'MOFUGARD', text: '「覚えてるかな？ ネオン街の小さな花の庭で、ボクが聞いたこと。」' },
+      { who: 'MOFUGARD', text: '「キミは、どうして王になりたいのかって。」' },
+      { who: null, text: 'MOFUGARDが静かに手を差し出す。' },
+      { who: null, text: 'その足元から巨大なツルが伸び、王座への階段を覆っていく。' },
+      { who: 'MOFUGARD', text: '「あのとき、キミは戦いで答えてくれた。」' },
+      { who: 'MOFUGARD', text: '「でもね……今のキミに、もう一度だけ聞きたいんだ。」' },
+      { who: 'MOFUGARD', text: '「王になったら、キミは何をする？」' },
+      { who: 'MOFUGARD', text: '「誰よりも強いことを証明する？」' },
+      { who: 'MOFUGARD', text: '「それとも……誰にも負けない自分であり続ける？」' },
+      { who: null, text: 'MOFUGARDの笑顔が、ゆっくりと真剣な表情に変わる。' },
+      { who: 'MOFUGARD', text: '「王冠は、強いだけじゃ背負えない。」' },
+      { who: 'MOFUGARD', text: '「そこまで歩いてきた道も、戦ってきた相手の想いも……」' },
+      { who: 'MOFUGARD', text: '「全部、背負っていく覚悟が必要なんだ。」' },
+      { who: 'MOFUGARD', text: '「だから、最後に確かめさせて。」' },
+      { who: 'MOFUGARD', text: '「キミは本当に、あの王座にふさわしいのか。」' },
+      { who: null, text: '花びらが一斉に舞い上がり、巨大なツルがリングを包み込む。' },
+      { who: 'MOFUGARD', text: '「さあ……キミの答えを見せて。」' },
+      { who: 'MOFUGARD', text: '「ボクも、すべての力で応えるよ。」' },
     ],
   },
 };
