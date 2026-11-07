@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CELL, FLOOR, generateFloor, type Floor } from './dungeon';
-import { adventureReward, newAdventure, stepAdventure } from './sim';
+import { adventureReward, BAG_MAX, newAdventure, stepAdventure, unequip, useBagItem, useHerb } from './sim';
 
 /** マス(x,y)から 歩いて 行ける マスの 距離(BFS) */
 function bfs(f: Floor, sx: number, sy: number): Int32Array {
@@ -79,5 +79,44 @@ describe('冒険の 動き', () => {
     const weak = { hp: 2, power: 2, tough: 2, speed: 2, tech: 2 };
     const r = [1, 2, 3, 4].map((sd) => play(sd, weak).result);
     expect(r).toContain('lose');
+  });
+});
+
+
+describe('冒険の 技・持ち物', () => {
+  const st = { hp: 10, power: 10, tough: 10, speed: 10, tech: 10 };
+  it('技 A: 打つ技は 前の モブを 強く 打つ・回復の技は 回復', () => {
+    const s = newAdventure(3, st, 1, [{ id: 'a', support: false, power: 14, cooldown: 3 }, { id: 'h', support: true, power: 0, cooldown: 5 }]);
+    const m = s.mobs[0];
+    s.player.x = m.x - 1.2;
+    s.player.z = m.z;
+    const hp0 = m.hp;
+    for (let i = 0; i < 20; i++) stepAdventure(s, { mx: 0, mz: 0, attack: false, tech: i === 0 ? 0 : null }, 1 / 30);
+    expect(m.hp).toBeLessThan(hp0);
+    expect(s.techCd[0]).toBeGreaterThan(s.t);
+    s.player.hp = 10;
+    for (let i = 0; i < 20; i++) stepAdventure(s, { mx: 0, mz: 0, attack: false, tech: i === 0 ? 1 : null }, 1 / 30);
+    expect(s.player.hp).toBeGreaterThan(10);
+  });
+  it('持ち物は 20個まで・回復の実・装備の 付けかえ', () => {
+    const s = newAdventure(3, st);
+    for (let i = 0; i < 25; i++) s.drops.push({ id: 100 + i, x: s.player.x, z: s.player.z, item: { kind: 'herb' } });
+    stepAdventure(s, { mx: 0, mz: 0, attack: false }, 1 / 30);
+    expect(s.bag.length).toBe(BAG_MAX);
+    expect(s.drops.length).toBe(5);
+    s.player.hp = 5;
+    expect(useHerb(s)).toBe(true);
+    expect(s.player.hp).toBeGreaterThan(5);
+    expect(s.bag.length).toBe(BAG_MAX - 1);
+    const atk0 = s.player.atk;
+    s.bag.push({ kind: 'gear', slot: 'claw', rank: 'S' });
+    expect(useBagItem(s, s.bag.length - 1)).toBe(true);
+    expect(s.player.atk).toBe(atk0 + 16);
+    expect(s.bag.length).toBe(BAG_MAX - 1);
+    s.bag.push({ kind: 'gear', slot: 'claw', rank: 'D' });
+    useBagItem(s, s.bag.length - 1); // S と 入れかえ
+    expect(s.player.atk).toBe(atk0 + 2);
+    expect(s.bag[s.bag.length - 1]).toEqual({ kind: 'gear', slot: 'claw', rank: 'S' });
+    expect(unequip(s, 'claw')).toBe(false); // いっぱい
   });
 });

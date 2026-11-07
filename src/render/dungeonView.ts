@@ -8,7 +8,7 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import { assetUrl } from '../assetUrl';
 import { newAnimeBattle, type AnimeEntrant, type AnimeMon } from '../core/battle3d/anime';
 import { CELL, FLOOR } from '../core/adventure/dungeon';
-import { ADV, type Actor, type AdvEvent, type AdvState } from '../core/adventure/sim';
+import { ADV, RANKS, type Actor, type AdvEvent, type AdvItem, type AdvState, type Rank } from '../core/adventure/sim';
 import type { modelFor } from '../core/roster';
 import { MonsterRig } from './monsterRig';
 
@@ -39,6 +39,9 @@ function numberTexture(s: string, color: string): THREE.CanvasTexture {
   g.fillText(s, 64, 34);
   return new THREE.CanvasTexture(c);
 }
+
+/** ランクの 色(D 灰・C 緑・B 青・A 紫・S 金) */
+export const RANK_HEX: Record<Rank, number> = { D: 0x9a9aa8, C: 0x4ad06a, B: 0x3a9aff, A: 0xb04aff, S: 0xffc830 };
 
 interface Pop {
   obj: THREE.Sprite;
@@ -137,6 +140,10 @@ export class DungeonView {
   private exitMat: THREE.MeshBasicMaterial;
   private pops: Pop[] = [];
   private shake = 0;
+  private drops = new Map<number, THREE.Object3D>();
+  /** 装備の ランクの 光(企画者「装備の 見た目 A」: ランクごとに 体の まわりが 光る) */
+  private aura: THREE.Mesh;
+  private auraMat: THREE.MeshBasicMaterial;
   ready = false;
 
   constructor(canvas: HTMLCanvasElement, s: AdvState, entrant: AnimeEntrant, private model: ModelPick) {
@@ -170,7 +177,41 @@ export class DungeonView {
       this.mobs.push(v);
       this.scene.add(v.root);
     }
+    this.auraMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+    this.aura = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.95, 32), this.auraMat);
+    this.aura.rotation.x = -Math.PI / 2;
+    this.scene.add(this.aura);
     this.loadModel();
+  }
+
+  /** 落ちている 物(回復の実 = 緑の 実・装備 = ランクの 色の 箱) */
+  private dropMesh(item: AdvItem): THREE.Object3D {
+    const g = new THREE.Group();
+    if (item.kind === 'herb') {
+      const m = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 8), new THREE.MeshToonMaterial({ color: 0x5ad05a, gradientMap: this.grad }));
+      const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.2, 6), new THREE.MeshToonMaterial({ color: 0x2a8a3a, gradientMap: this.grad }));
+      leaf.position.y = 0.24;
+      m.add(leaf);
+      g.add(m);
+    } else {
+      const c = RANK_HEX[item.rank];
+      const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.28), new THREE.MeshToonMaterial({ color: c, gradientMap: this.grad, emissive: c, emissiveIntensity: 0.4 }));
+      g.add(m);
+      const glow = new THREE.Mesh(new THREE.CircleGeometry(0.6, 20), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending }));
+      glow.rotation.x = -Math.PI / 2;
+      glow.position.y = -0.38;
+      g.add(glow);
+    }
+    return g;
+  }
+
+  /** 技の 光(打つ 技 = 前に 広がる オレンジの 輪・回復 = 緑の 輪)【仮】 */
+  private ringFx(x: number, z: number, color: number, r: number): void {
+    const m = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.6, 32), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending }));
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(x, 0.08, z);
+    this.scene.add(m);
+    this.pops.push({ obj: m as unknown as THREE.Sprite, t: 0, life: 0.4, vy: 0, grow: r });
   }
 
   /** 床と 壁(箱を ならべる) */
@@ -307,6 +348,23 @@ export class DungeonView {
         if (toMe) this.rig.flash = 0.12;
       } else if (e.kind === 'die') this.burst(e.x, e.z, 0xb070ff, 18);
       else if (e.kind === 'open') this.burst(e.x, e.z, 0x7affd0, 24);
+      else if (e.kind === 'drop') {
+        const o = this.dropMesh(e.drop.item);
+        o.position.set(e.drop.x, 0.45, e.drop.z);
+        this.scene.add(o);
+        this.drops.set(e.drop.id, o);
+      } else if (e.kind === 'pick') {
+        const o = this.drops.get(e.drop.id);
+        if (o) this.scene.remove(o);
+        this.drops.delete(e.drop.id);
+        this.pop(e.drop.item.kind === 'herb' ? '実' : e.drop.item.rank, e.drop.item.kind === 'herb' ? '#7aff8a' : `#${RANK_HEX[e.drop.item.rank].toString(16).padStart(6, '0')}`, p.x, 2.2, p.z, 0.8);
+      } else if (e.kind === 'tech') {
+        if (e.support) this.ringFx(e.x, e.z, 0x5aff8a, 5);
+        else this.ringFx(e.x + Math.cos(p.face) * 1.4, e.z + Math.sin(p.face) * 1.4, 0xff9a3a, 7);
+      } else if (e.kind === 'heal' && e.amount > 0) {
+        this.pop(`+${e.amount}`, '#7aff8a', e.x, 2.3, e.z, 1);
+        this.burst(e.x, e.z, 0x5aff8a, 10);
+      }
     }
     // 自分の MONZ: MONZ RUMBLE の 体を 動かす(人形に 今の 動きを 入れる)
     const f = this.puppet;
@@ -320,7 +378,7 @@ export class DungeonView {
     f.speed = Math.hypot(p.vx, p.vz);
     const W = ADV.player.windup;
     f.act =
-      p.act === 'attack'
+      p.act === 'attack' || p.act === 'tech'
         ? { k: 'tech', id: 'punch', t: p.actT, dir: p.face, fired: p.actT >= W, hit: p.actT >= W, tx: p.x, tz: p.z, windup: W, n: 1, next: 0 }
         : p.act === 'hurt'
           ? { k: 'hurt', t: p.actT, until: ADV.hurtTime }
@@ -328,6 +386,17 @@ export class DungeonView {
             ? { k: 'ko', t: p.actT }
             : { k: 'free' };
     this.rig.update(f, dt);
+    // 落ちている 物: くるくる・ふわふわ
+    for (const o of this.drops.values()) {
+      o.rotation.y += dt * 2;
+      o.position.y = 0.45 + Math.sin(now * 3 + o.id) * 0.08;
+    }
+    // 装備の ランクの 光(いちばん 高い ランク)
+    const best = (['claw', 'armor', 'charm'] as const).reduce((r, k) => Math.max(r, s.gear[k] ? RANKS.indexOf(s.gear[k]!.rank) : -1), -1);
+    this.auraMat.opacity = best < 0 ? 0 : 0.25 + best * 0.1 + Math.sin(now * 4) * 0.08;
+    if (best >= 0) this.auraMat.color.setHex(RANK_HEX[RANKS[best]]);
+    this.aura.position.set(p.x, 0.06, p.z);
+    this.aura.scale.setScalar(1 + best * 0.12);
     s.mobs.forEach((m, i) => this.mobs[i].update(m, dt, this.camera, now));
     // 出口
     this.exitMat.color.setHex(s.exitOpen ? 0x7affd0 : 0x4a3a5a);
