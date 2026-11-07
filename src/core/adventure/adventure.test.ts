@@ -160,3 +160,12 @@ describe('冒険の 技: 全部の 種族の 全部の 技が 動く', () => {
     expect(b.player.hp).toBe(30);
   });
 });
+
+describe('技を ねらって うつ(長押し → はなすと 発動)', () => {
+  it('techDir の 向きに うつ', () => {
+    const s = newAdventure(7, { hp: 20, power: 20, tough: 20, speed: 20, tech: 20 }, 1, [{ id: 'b', kind: 'beam', power: 14, cooldown: 3, element: '光', effect: 'なし', strength: '強' }]);
+    stepAdventure(s, { mx: 0, mz: 0, attack: false, tech: 0, techDir: Math.PI / 2 }, 1 / 30);
+    expect(s.player.face).toBeCloseTo(Math.PI / 2);
+    expect(s.aimed).toBe(true);
+  });
+});

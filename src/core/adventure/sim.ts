@@ -203,6 +203,8 @@ export interface AdvState {
   dash: { until: number; hit: number[]; mul: number } | null;
   /** とびおりる 技の おちる ところ(ため の 間に 近づく) */
   jumpTo: { x: number; z: number; sx: number; sz: number } | null;
+  /** 今の 技を ねらって うったか */
+  aimed: boolean;
   /** 連続で 打つ 技(のこりの 回数・次の 時刻) */
   combo: { left: number; next: number; mul: number } | null;
   /** 育ち方の 型(自由ポイントで 決まる) */
@@ -222,6 +224,8 @@ export interface AdvInput {
   attack: boolean;
   /** 押した 技(0〜3)。null = なし */
   tech?: number | null;
+  /** 技を うつ 向き(長押しで ねらった 向き。null = いちばん 近い 敵へ。2026-11-07 企画者) */
+  techDir?: number | null;
 }
 
 function actor(id: number, x: number, z: number): Actor {
@@ -262,7 +266,7 @@ export function newAdventure(seed: number, stats: StatBlock, level = 1, techs: (
   return {
     floor, rng, t: 0, player: p, mobs, tech: stats.tech, exitOpen: false, result: 'play', kills: 0, events: [],
     techs: ts, techCd: [0, 0, 0, 0], techSlot: -1, bag: [], gear: {}, drops: [], seq: 0,
-    shots: [], fields: [], shieldUntil: 0, atkUpUntil: 0, dash: null, combo: null, jumpTo: null, growType, jab: jabStyleOf(species), chain: 0, lastAtk: -9,
+    shots: [], fields: [], shieldUntil: 0, atkUpUntil: 0, dash: null, combo: null, jumpTo: null, aimed: false, growType, jab: jabStyleOf(species), chain: 0, lastAtk: -9,
     base: { atk: p.atk, tough: p.tough, maxHp: p.maxHp },
   };
 }
@@ -309,6 +313,11 @@ function inLine(s: AdvState, x: number, z: number, dir: number, len: number, w: 
     return a > -0.5 && a < len && Math.abs(b) < w / 2 + ADV.mob.r;
   });
 }
+/** その 向き(±0.6)に いる いちばん 近い 敵 */
+const aimedMob = (s: AdvState, dir: number, within: number) =>
+  s.mobs
+    .filter((m) => m.act !== 'dead' && Math.hypot(m.x - s.player.x, m.z - s.player.z) < within && Math.abs(angDiff(Math.atan2(m.z - s.player.z, m.x - s.player.x), dir)) < 0.6)
+    .sort((a, b) => Math.hypot(a.x - s.player.x, a.z - s.player.z) - Math.hypot(b.x - s.player.x, b.z - s.player.z))[0];
 const nearestMob = (s: AdvState, within: number) =>
   s.mobs.filter((m) => m.act !== 'dead' && Math.hypot(m.x - s.player.x, m.z - s.player.z) < within).sort((a, b) => Math.hypot(a.x - s.player.x, a.z - s.player.z) - Math.hypot(b.x - s.player.x, b.z - s.player.z))[0];
 
@@ -329,7 +338,8 @@ function fireTech(s: AdvState, slot: number): void {
   });
   const ev = (fx: string, r = 0, len = 0, tx = p.x, tz = p.z) => s.events.push({ kind: 'tech', slot, x: p.x, z: p.z, fx, dir: p.face, r, len, element: tc.element, tx, tz });
   const target = (reach: number) => {
-    const m = nearestMob(s, reach);
+    // ねらった 時は その向きの 敵(なければ その向きの 先)
+    const m = s.aimed ? aimedMob(s, p.face, reach) : nearestMob(s, reach);
     return m ? { x: m.x, z: m.z } : { x: p.x + Math.cos(p.face) * reach * 0.6, z: p.z + Math.sin(p.face) * reach * 0.6 };
   };
   switch (tc.kind) {
@@ -664,14 +674,19 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
     const T = ADV.tech;
     if (ti != null && s.techs[ti] && s.t >= s.techCd[ti] && p.act !== 'attack' && p.act !== 'tech') {
       const tc = s.techs[ti]!;
-      const near = nearestMob(s, 9);
-      if (!SELF_KINDS.has(tc.kind) && near) p.face = Math.atan2(near.z - p.z, near.x - p.x);
+      // 長押しで ねらった 向き(はなすと 発動)。ねらわずに 押した 時は いちばん 近い 敵へ
+      s.aimed = inp.techDir != null;
+      if (inp.techDir != null) p.face = inp.techDir;
+      else {
+        const near = nearestMob(s, 9);
+        if (!SELF_KINDS.has(tc.kind) && near) p.face = Math.atan2(near.z - p.z, near.x - p.x);
+      }
       p.act = 'tech';
       p.actT = 0;
       p.struck = false;
       s.techSlot = ti;
       if (tc.kind === 'drop') {
-        const m = nearestMob(s, T.drop.reach);
+        const m = s.aimed ? aimedMob(s, p.face, T.drop.reach) : nearestMob(s, T.drop.reach);
         // とぶ きょりは 短く(敵が 遠くても 2.8 まで。瞬間移動に 見えないように)
         const a = m ? Math.atan2(m.z - p.z, m.x - p.x) : p.face;
         const d = Math.min(T.drop.move, m ? Math.max(0, Math.hypot(m.x - p.x, m.z - p.z) - 1) : T.drop.move);

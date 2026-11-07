@@ -92,6 +92,9 @@ export class AdventureScene extends Phaser.Scene {
   /** 押した 技(0〜3) */
   private techPress: number | null = null;
   private bagOpen = false;
+  /** 長押しで ねらっている 技と 向き */
+  private aim: { slot: number; dir: number | null } | null = null;
+  private techDir: number | null = null;
   private done = false;
   private level = 1;
   private techNames: string[] = [];
@@ -193,11 +196,38 @@ export class AdventureScene extends Phaser.Scene {
       b.disabled = !t;
       if (t && SELF_KINDS.has(t.kind)) b.classList.add('sup');
       b.title = this.techNames[i];
+      // 2026-11-07 企画者「技は 長押し しながら 打つ 方向 決めたい。離すと 発動」:
+      // ボタンを おさえて 指を ずらすと その向きを ねらう(床に 矢印)。はなすと 発動。ずらさずに はなすと いちばん 近い 敵へ
+      let pid: number | null = null;
+      let ox = 0;
+      let oy = 0;
       b.addEventListener('pointerdown', (e) => {
         e.preventDefault();
         audio.unlock();
-        if (t) this.techPress = i;
+        if (!t) return;
+        pid = e.pointerId;
+        b.setPointerCapture(e.pointerId);
+        ox = e.clientX;
+        oy = e.clientY;
+        this.aim = { slot: i, dir: null };
       });
+      b.addEventListener('pointermove', (e) => {
+        if (e.pointerId !== pid || !this.aim) return;
+        const dx = e.clientX - ox;
+        const dy = e.clientY - oy;
+        this.aim.dir = Math.hypot(dx, dy) > 14 ? Math.atan2(dy, dx) : null;
+      });
+      const up = (e: PointerEvent, fire: boolean) => {
+        if (e.pointerId !== pid) return;
+        pid = null;
+        if (fire && this.aim) {
+          this.techPress = i;
+          this.techDir = this.aim.dir;
+        }
+        this.aim = null;
+      };
+      b.addEventListener('pointerup', (e) => up(e, true));
+      b.addEventListener('pointercancel', (e) => up(e, false));
     });
     const ib = $('.ib');
     ib.style.right = 'calc(env(safe-area-inset-right) + 222px)';
@@ -282,9 +312,13 @@ export class AdventureScene extends Phaser.Scene {
       this.view.render(s, [], 0);
       return;
     }
-    stepAdventure(s, { mx: this.stick.x, mz: this.stick.y, attack: this.attack || this.press, tech: this.techPress }, dt);
+    stepAdventure(s, { mx: this.stick.x, mz: this.stick.y, attack: this.attack || this.press, tech: this.techPress, techDir: this.techDir }, dt);
     if (s.events.some((e) => e.kind === 'attack' && e.id === 0)) this.press = false;
-    if (s.player.act === 'tech' || this.techPress === null || (s.techCd[this.techPress] ?? 0) > s.t) this.techPress = null;
+    if (s.player.act === 'tech' || this.techPress === null || (s.techCd[this.techPress] ?? 0) > s.t) {
+      this.techPress = null;
+      this.techDir = null;
+    }
+    this.view.setAim(this.aim ? { dir: this.aim.dir ?? s.player.face, auto: this.aim.dir === null, kind: s.techs[this.aim.slot]?.kind ?? '' } : null);
     for (const e of s.events) {
       if (e.kind === 'attack' && e.id === 0) audio.se('swing');
       else if (e.kind === 'hit') audio.se(e.target === 0 ? 'punch' : 'b3dPunchHit', e.crit ? { pitch: 0.8 } : undefined);

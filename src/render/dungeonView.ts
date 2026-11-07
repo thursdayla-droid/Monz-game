@@ -241,6 +241,9 @@ export class DungeonView {
   private shotObjs = new Map<number, THREE.Object3D>();
   private fieldObjs = new Map<number, THREE.Object3D>();
   private dome: THREE.Mesh;
+  /** 技を ねらう 矢印(床) */
+  private aimObj: THREE.Group;
+  private aimState: { dir: number; auto: boolean; kind: string } | null = null;
   private buffRing: THREE.Mesh;
   /** 装備の ランクの 光(企画者「装備の 見た目 A」: ランクごとに 体の まわりが 光る) */
   private aura: THREE.Mesh;
@@ -299,7 +302,23 @@ export class DungeonView {
     this.buffRing.rotation.x = -Math.PI / 2;
     this.buffRing.visible = false;
     this.scene.add(this.buffRing);
+    // ねらいの 矢印(長押し 中だけ)
+    this.aimObj = new THREE.Group();
+    const bar = new THREE.Mesh(new THREE.PlaneGeometry(5, 0.5), new THREE.MeshBasicMaterial({ color: 0xffe24a, transparent: true, opacity: 0.45, depthWrite: false, depthTest: false }));
+    bar.rotation.x = -Math.PI / 2;
+    bar.position.x = 3;
+    const head = new THREE.Mesh(new THREE.CircleGeometry(0.6, 3), new THREE.MeshBasicMaterial({ color: 0xffe24a, transparent: true, opacity: 0.8, depthWrite: false, depthTest: false }));
+    head.rotation.x = -Math.PI / 2;
+    head.position.x = 5.7;
+    this.aimObj.add(bar, head);
+    this.aimObj.visible = false;
+    this.scene.add(this.aimObj);
     this.loadModel();
+  }
+
+  /** 技を ねらっている 間の 矢印(dir: 向き・auto: まだ 指を ずらしていない) */
+  setAim(a: { dir: number; auto: boolean; kind: string } | null): void {
+    this.aimState = a;
   }
 
   /** 落ちている 物(回復の実 = 緑の 実・装備 = ランクの 色の 箱) */
@@ -741,6 +760,16 @@ export class DungeonView {
         this.scene.remove(o);
         this.fieldObjs.delete(id);
       }
+    // ねらいの 矢印(自分に かける 技は 足もとの 輪だけ)
+    const a = this.aimState;
+    this.aimObj.visible = !!a;
+    if (a) {
+      this.aimObj.position.set(p.x, 0.15, p.z);
+      this.aimObj.rotation.y = -a.dir;
+      const self = ['heal', 'barrier', 'buff'].includes(a.kind);
+      this.aimObj.children.forEach((c) => (c.visible = !self));
+      ((this.aimObj.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = a.auto ? 0.2 : 0.5;
+    }
     this.dome.visible = s.t < s.shieldUntil;
     this.dome.position.set(p.x, 0.12, p.z);
     this.dome.rotation.z = now * 0.8;
