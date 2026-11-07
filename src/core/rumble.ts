@@ -104,6 +104,7 @@ export const STORY_IMAGES: Record<number, string> = {
   24: 'assets/story/ch5_24.webp', // 5章24話 KLAKTRAP(2026-11-06 企画者)
   25: 'assets/story/ch5_25.webp', // 5章25話 RIOTRAX(中ボス。2026-11-06 企画者)
   26: 'assets/story/ch6_26.webp', // 6章26話 ZIPRAX(2026-11-07 企画者)
+  27: 'assets/story/ch6_27.webp', // 6章27話 GRITBULL(2026-11-07 企画者)
 };
 
 /** 話(企画者が 書いた 文。ステージの 番号 → 題名と 行) */
