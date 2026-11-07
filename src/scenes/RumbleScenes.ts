@@ -24,11 +24,6 @@ const CSS = `
 .rmb .modes{display:flex;gap:14px;width:min(100%,820px);justify-content:center;margin-top:auto;margin-bottom:auto}
 .rmb .big,.rmb .cpu{background:var(--btn) center/100% 100% no-repeat;border:0;aspect-ratio:3/1;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;filter:drop-shadow(0 5px 0 #0008);transition:transform .08s}
 .rmb .big:active,.rmb .cpu:active{transform:scale(.95)}
-/* 2026-11-07 企画者の カーソル(金の 王冠)。えらんでいる ボタンの 上で ゆれる */
-.rmb .big{position:relative}
-.rmb .cur{position:absolute;pointer-events:none;width:min(54px,13vh);left:50%;top:0;transform:translate(-50%,-78%);animation:rmbCur .8s ease-in-out infinite alternate;filter:drop-shadow(0 3px 2px #0009);z-index:2}
-.rmb .cpu .cur{width:min(36px,9vh);left:9%;transform:translate(-50%,-62%)}
-@keyframes rmbCur{from{margin-top:-5px}to{margin-top:3px}}
 .rmb .big{flex:1;max-width:400px;padding:0 9%;font:900 min(26px,5.4vh) ${UI_FONT};gap:2px;text-shadow:0 3px 0 #16101c,0 0 3px #16101c,0 0 6px #16101c}
 .rmb .big small{font-size:min(12px,3vh);font-weight:700;text-shadow:0 1px 2px #000;color:#f0e4ff}
 .rmb .story{color:#ffd23a}
@@ -115,34 +110,21 @@ function mount(scene: Phaser.Scene, html: string): HTMLDivElement {
 /** ボタンの絵(2026-11-07 企画者。元は design/rumble_ui/button.png) */
 const BTN_FRAME = 'assets/story/btn_frame.webp';
 const BTN_CPU = 'assets/story/btn_cpu.webp';
-/** カーソルの絵(2026-11-07 企画者。元は design/rumble_ui/cursor.png) */
-const CURSOR = 'assets/story/cursor.webp';
 /** MONZ RUMBLE の ロゴ(2026-11-07 企画者。元は design/rumble_ui/logo.png) */
 const LOGO = 'assets/story/rumble_logo.webp';
 
 /**
- * ボタンに カーソル(王冠)を つける。さわると カーソルが そこへ 動いてから すすむ(少し 待つ)。
- * マウスでは 上に のせるだけで 動く
+ * ボタンを さわったら すすむ(2度押し しない)。
+ * 2026-11-07 企画者「王冠のカーソルいらない」→ カーソルは 外した(絵は public/assets/story/cursor.webp・design/rumble_ui/cursor.png に 残す)
  */
-function withCursor(btns: HTMLElement[], go: (b: HTMLElement) => void): void {
-  if (!btns.length) return;
-  const cur = document.createElement('img');
-  cur.className = 'cur';
-  cur.src = assetUrl(CURSOR);
-  cur.alt = '';
-  btns[0].appendChild(cur);
+function onPick(btns: HTMLElement[], go: (b: HTMLElement) => void): void {
   let busy = false;
-  for (const b of btns) {
-    b.addEventListener('pointerenter', (e) => {
-      if ((e as PointerEvent).pointerType === 'mouse' && !busy) b.appendChild(cur);
-    });
+  for (const b of btns)
     b.addEventListener('click', () => {
       if (busy) return;
       busy = true;
-      b.appendChild(cur);
-      window.setTimeout(() => go(b), 220);
+      go(b);
     });
-  }
 }
 /** モードえらびの背景(2026-11-07 企画者の絵。元は design/rumble_ui/sel_mode.png) */
 const MODE_BG = 'assets/story/sel_mode.webp';
@@ -168,7 +150,7 @@ export class RumbleModeScene extends Phaser.Scene {
       audio.se('back');
       this.scene.start('BattleMenu');
     });
-    withCursor([$('.story'), $('.free')], (b) => {
+    onPick([$('.story'), $('.free')], (b) => {
       audio.unlock();
       audio.se('select');
       if (b.classList.contains('story')) this.scene.start('RumbleStory');
@@ -188,7 +170,7 @@ export class RumbleModeScene extends Phaser.Scene {
       audio.se('back');
       this.scene.restart();
     });
-    withCursor([...inner.querySelectorAll('.cpu')] as HTMLElement[], (b) => {
+    onPick([...inner.querySelectorAll('.cpu')] as HTMLElement[], (b) => {
       audio.se('select');
       this.scene.start('Battle3D', { mode: 'free', cpu: Number(b.dataset.id) } satisfies RumbleParams);
     });

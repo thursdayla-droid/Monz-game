@@ -1132,7 +1132,7 @@ export class Battle3DScene extends Phaser.Scene {
       case 'ko':
         this.slowT = ANIME.fx.ko.slow;
         this.zoomT = ANIME.fx.ko.slow;
-        this.big(`${b.f[e.side].name} は たおれた！`);
+        this.big('KO'); // 2026-11-07 企画者「倒れたは やめよ。KO で」
         audio.se('koBlast');
         navigator.vibrate?.(120);
         F.shake(0.4);
