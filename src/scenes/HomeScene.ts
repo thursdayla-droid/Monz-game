@@ -902,8 +902,8 @@ export class HomeScene extends Phaser.Scene {
       // 2026-11-07 企画者: 今の 育ち方の 型を 出す(Lv.25 から この型の 技を 覚える)
       // 型は ＋で いちばん多く 入れた 能力(2026-11-07 企画者「自由ポイントで決まる」)
       const gt = m.growType;
-      content.add(t(px + pw - 32, py + 252 + 6 * 84 - 2, gt ? `今の育ち方：${STAT_LABELS[gt]}型` : '育ち方：まだ 決まっていない', 26, '#8a35e0', 1));
-      content.add(t(px + pw - 32, py + 252 + 6 * 84 + 30, gt ? (m.level >= 25 ? 'レベルアップで この型の わざを おぼえる' : 'Lv.25 から この型の わざを おぼえる') : '＋で いちばん多く 入れた 能力が 型に なる（HPは のぞく）', 16, '#5a4a66', 1));
+      // 2026-11-07 企画者「今の育ち方 型 だけでいい」
+      content.add(t(px + pw - 32, py + 252 + 6 * 84 + 2, `今の育ち方：${gt ? `${STAT_LABELS[gt]}型` : 'なし'}`, 26, '#8a35e0', 1));
       // ゲージは数字そのまま: 通常ステータスは150、愛は100でいっぱい(企画者決定)
       // 6種類
       const rows: { label: string; value: number; max: number; key?: StatKey; color: number }[] = [
