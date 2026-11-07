@@ -740,10 +740,10 @@ export const ENDINGS: Record<number, EndingScene[]> = {
     },
     {
       title: '新しい朝',
-      image: null,
+      image: 'assets/story/end31_3.webp',
       lines: [
         { who: null, text: '黒い扉を抜けると、外はもう朝だった。' },
-        { who: null, text: '朝日に照らされたストリートで、見覚えのあるMONZたちが待っていた。' },
+        { who: null, text: '朝日に照らされたストリートの向こうから、聞き覚えのある声が響いてくる。' },
         { who: 'BUNKLORD', text: '「おーい、相棒！ どこ行ってたんだよ！」' },
         { who: 'ZIPRAX', text: '「おっせーぞ！ みんなずっと待ってたんだからな！」' },
         { who: 'PUNISHROOM', text: '「えへへ！ おかえり〜！」' },
