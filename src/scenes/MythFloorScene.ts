@@ -1,3 +1,4 @@
+import { mythPreviewOnly } from '../assetUrl';
 import * as Phaser from 'phaser';
 import { abilityLines } from '../core/mythclash/describe';
 import { audio } from '../audio/engine';
@@ -176,6 +177,20 @@ export class MythFloorScene extends Phaser.Scene {
         // 勝った戦い: うすく光る玉と ✓
         if (!boss) this.add.image(x, y, MYTH_FLOOR_ORB).setScale(k * 0.85).setAlpha(0.6);
         this.add.text(x, y, '✓', { fontFamily: UI_FONT, fontSize: `${Math.round(30 * k)}px`, fontStyle: '900', color: '#ffffff', stroke: '#5a2a00', strokeThickness: 5 * k }).setOrigin(0.5);
+      }
+      // 確認用ページ: 玉を さわると その 戦いへ(ざこ1・ざこ2・ボス。2026-11-07 企画者「ミスクラッシュの対戦もテストしたい」)
+      if (mythPreviewOnly() && i !== b) {
+        this.add
+          .circle(x, y, 44 * k, 0xffffff, 0.001)
+          .setInteractive({ useHandCursor: true })
+          .on('pointerdown', () => {
+            if (this.dialog || this.leaving) return;
+            audio.se('tap');
+            this.scene.restart({ match: { ...this.match, battle: i } });
+          });
+      }
+      if (i < b) {
+        // (上で 描いた)
       } else if (i === b) {
         // 今の戦い: 光る(ボスはドクロのまわりが赤く光る)
         if (boss) {

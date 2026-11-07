@@ -1,3 +1,4 @@
+import { mythPreviewOnly } from '../assetUrl';
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { loadLife } from '../core/lifeSave';
@@ -96,7 +97,8 @@ export class MythTowerScene extends Phaser.Scene {
     this.add.image(ox, oy, MYTH_TOWER_IMAGE).setOrigin(0, 0).setScale(k);
 
     const cleared = (loadLife().mythclash ?? newCollection()).towerCleared ?? 0;
-    const open = towerOpenFloors(cleared);
+    // 確認用ページ: 全部の 階に 入れる(2026-11-07 企画者「ミスクラッシュの対戦もテストしたい」)
+    const open = mythPreviewOnly() ? TOWER_FLOORS : towerOpenFloors(cleared);
     for (let f = 1; f <= TOWER_FLOORS; f++) this.floor(f, f <= cleared, f <= open, f === open && f > cleared);
 
     this.backButton();
