@@ -173,6 +173,8 @@ export class RumbleStoryScene extends Phaser.Scene {
     // エンディング: 勝ったあと、その話に エンディングが あれば 先に 流す(一枚絵と 話。さわると 次へ)
     const ending = this.from.won && this.from.justPlayed ? ENDINGS[this.from.justPlayed] : undefined;
     if (ending?.length) {
+      // エンディングの 曲(2026-11-07 企画者)。おわったら いつもの 曲に もどす
+      audio.playBgm('ending');
       let si = 0;
       let li = 0;
       const show = () => {
@@ -194,6 +196,7 @@ export class RumbleStoryScene extends Phaser.Scene {
             li = 0;
           } else {
             this.from = { justPlayed: this.from.justPlayed, won: true };
+            audio.playBgm('home');
             draw(true);
             return;
           }
@@ -206,6 +209,7 @@ export class RumbleStoryScene extends Phaser.Scene {
         (box.querySelector('.skip') as HTMLElement).addEventListener('click', (ev) => {
           ev.stopPropagation();
           audio.se('tap');
+          audio.playBgm('home');
           draw(true);
         });
         (box.querySelector('.stext') as HTMLElement).addEventListener('click', next);

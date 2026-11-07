@@ -94,10 +94,10 @@ for p in paths:
             Image.open(pub + p).resize((300, 417), Image.LANCZOS).save(bb, 'WEBP', quality=72, method=6)
             data = bb.getvalue()
         elif p.startswith('assets/story/'):
-            # 2026-11-05 STREET KING の 一枚絵(30枚まで 増える): 確認用ページでは 横1280 に(画面いっぱいに 出すのは 同じ。少し ぼける。ゲーム本体は そのまま)
+            # 2026-11-05 STREET KING の 一枚絵(30枚まで 増える): 確認用ページでは 横1024 に(画面いっぱいに 出すのは 同じ。少し ぼける。ゲーム本体は そのまま)
             bb = io.BytesIO()
             im = Image.open(pub + p)
-            im.resize((1152, round(im.height * 1152 / im.width)), Image.LANCZOS).save(bb, 'WEBP', quality=34, method=6)
+            im.resize((1024, round(im.height * 1024 / im.width)), Image.LANCZOS).save(bb, "WEBP", quality=32, method=6)
             data = bb.getvalue()
         elif p.startswith('assets/mythclash/opponents/'):
             # 対戦相手の顔(33人分)は、確認用ページでは 160×160 に小さくする(画面では丸く小さく出すので見た目はほぼ同じ)
@@ -131,7 +131,7 @@ for p in paths:
 BGM_NOT_YET: set[str] = set()
 for p in sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/bgm/*.mp3') + glob.glob(pub + 'assets/se/**/*.mp3', recursive=True)):
     # MYTHCLASH の確認用ページには、MYTHCLASH の曲と効果音だけ
-    if p in BGM_NOT_YET or (MYTH and 'mythclash' not in p) or (B3D and 'battle' not in p and not p.startswith('assets/se/')):
+    if p in BGM_NOT_YET or (MYTH and 'mythclash' not in p) or (B3D and 'battle' not in p and not (STORY and 'ending' in p) and not p.startswith('assets/se/')) or (B3D and not STORY and p.endswith(('battle2.mp3', 'battle3.mp3'))):
         continue
     # 確認用ページの大きさの上限(16MB)のため、曲は軽く(モノラル20kbps・2026-10-26 に28k→24k→20kと下げた。22kHzでは実際は16kbpsになる)して埋め込む。ゲーム本体は元の音質のまま
     # 2026-11-04: 戦闘BGM が増えて ゲームのページが 15MB をこえたので、ゲームのページだけ 16k

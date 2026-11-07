@@ -14,6 +14,8 @@ Claude Code が、音量をそろえてから `public/assets/bgm/` に入れ、`
 | MYTHCLASH パック開封 | mythclash_pack.m4a | public/assets/bgm/mythclash_pack.mp3 |
 | バトル（MONZ RUMBLE） | battle_Combat_Pulse.m4a | public/assets/bgm/battle.mp3 |
 | STREET KING 11〜20戦目のバトル（2026-11-07） | battle2_ch3-4.m4a | public/assets/bgm/battle2.mp3 |
+| STREET KING 21〜31戦目のバトル（2026-11-07） | battle3_ch5-6.m4a | public/assets/bgm/battle3.mp3 |
+| STREET KING エンディング（2026-11-07） | ending.m4a | public/assets/bgm/ending.mp3 |
 
 - 歌・ラップなし（インスト）。
 - アプリで公開してよい（商用利用できる）曲だけを使う。

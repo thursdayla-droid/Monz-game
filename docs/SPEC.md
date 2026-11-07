@@ -19,7 +19,7 @@
 | `docs/NEW5_TECHS.md` | 新しい5体（RIOT・SNEK・GRIT・VYBE・SHELLZ）の 技 85技（2026-11-05 ゲームに 入れた。とくべつな動きは まだ） |
 | `docs/CARD_BATTLE.md` | カードパック＆カードバトルの設計案（まだ作らない） |
 | `docs/MYTHCLASH.md` | カードゲーム MYTHCLASH の仕様・カード表の確認・作った所（バトルの計算と特性28種類・タイトル・パック・バインダー・デッキ編成・バトル・ストーリーモード・バトルモード）・暫定で決めた所 |
-| `docs/BATTLE.md` | バトルの仕様書（3Dバトルの名前は MONZ RUMBLE・2026-11-03。ストーリーモード STREET KING〔一枚絵で進む30ステージ＋特別編31話・敵は10種族×3形態と CROWNOR〕とバトルモード〔CPUの強さ〕）（2026-10-30 から自律型オートバトル。いちばん上が最新。下に旧アクションバトルの記録） |
+| `docs/BATTLE.md` | バトルの仕様書（3Dバトルの名前は MONZ RUMBLE・2026-11-03。ストーリーモード STREET KING〔一枚絵で進む30ステージ＋特別編31話・敵は10種族×3形態と CROWNOR。戦闘曲は 1〜10・11〜20・21〜31で 3曲、エンディング曲あり（2026-11-07）〕とバトルモード〔CPUの強さ〕）（2026-10-30 から自律型オートバトル。いちばん上が最新。下に旧アクションバトルの記録） |
 | `docs/TECH_TYPES.md` | 3Dバトルの技の型（14種類の案）と、ChatGPTに渡す技・種族の表の書き方（見本は `docs/templates/`）。2026-11-01 |
 | `docs/TECHS_ALL_DRAFT.md` | 全10種族・170技の設計案（BUNK 以外の9種族×17技。【案】・ゲームには未反映。企画者の答えは 2026-11-02 に記録）。一覧は `data/monz_techs_draft.csv`（`tools/techs_draft.py` で作る）。キャラクターの絵（RIOT・SNEK・GRIT・VYBE・SHELLZ）は `design/species/`。2026-11-02 |
 | `design/bunk/README.md` | BUNKの絵の作り方（元の絵を切り出す・描き直さない） |
