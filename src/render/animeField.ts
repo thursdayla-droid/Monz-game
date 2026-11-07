@@ -2918,7 +2918,9 @@ export class AnimeField {
     const h = this.models[side]?.height ?? MODEL.height;
     const dist = h * 1.35 + 1.2;
     const camH = h * 0.62 + 0.25;
-    const look = new THREE.Vector3(f.x, h * 0.55 + f.y, f.z);
+    // 倒れている(負けた)時は 低いところを 見る
+    const down = f.act.k === 'ko';
+    const look = new THREE.Vector3(f.x, (down ? h * 0.25 : h * 0.55) + f.y, f.z);
     let want: THREE.Vector3 | null = null;
     for (const off of [0.45, -0.45, 0.9, -0.9, 0, 1.4, -1.4, 2, -2, Math.PI]) {
       const yaw = f.face + off;

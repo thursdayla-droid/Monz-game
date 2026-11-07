@@ -1281,10 +1281,11 @@ export class Battle3DScene extends Phaser.Scene {
   private showResult(): void {
     this.ended = true;
     const w = this.battle.winner;
-    // 2026-11-07 企画者「勝ちは WIN・負けは LOSE」「キャラのアップ画面に」→ 勝ったら 自分の MONZ・負けたら 相手を アップで【仮：負けの時に 映す方】
+    // 2026-11-07 企画者「勝ちは WIN・負けは LOSE」「キャラのアップ画面に」→ 自分の MONZ を アップで
     this.ui.resultTitle.textContent = w === 0 ? 'WIN' : w === 1 ? 'LOSE' : 'DRAW';
     this.ui.result.classList.toggle('lose', w === 1);
-    if (this.field) this.field.closeup = w === 1 ? 1 : 0;
+    // 2026-11-07 企画者「WIN と LOSE は 自キャラだけでいい」→ 勝っても 負けても 自分の MONZ を 映す
+    if (this.field) this.field.closeup = 0;
     this.root?.classList.add('ended');
     // ストーリー: 勝ったら そのマスをクリア(保存)
     if (this.params.mode === 'story' && w === 0 && this.params.stage) new LifeRecord(loadLife()).clearStage(this.params.stage);
