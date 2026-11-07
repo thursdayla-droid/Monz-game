@@ -180,7 +180,7 @@ export class RumbleStoryScene extends Phaser.Scene {
         <div class="stop"><button class="back">◀ もどる</button><div class="sno"><span class="sname">${STORY_NAME}</span>${st.no === SPECIAL_NO ? '特別編　STAGE ' + st.no : `第${st.chapter}章　STAGE ${st.no} <small>/ ${STORY_COUNT}</small>`}${done ? '<em>クリア</em>' : ''}<span class="stitle">${st.title}</span><span class="sfoe">あいて：${st.enemy.name}　Lv.${st.enemy.level}　<span class="stars">${'★'.repeat(st.enemy.prof)}${'☆'.repeat(5 - st.enemy.prof)}</span>${st.enemy.boss ? '　ボス' : ''}</span></div>
           <div class="nav">${isPreview() ? `<select class="jump" title="確認用: ステージへ とぶ">${STORY_STAGES.map((x) => `<option value="${x.no}" ${x.no === no ? 'selected' : ''}>確認 ${x.no}</option>`).join('')}</select>` : ''}<button class="prev" ${no <= 1 ? 'disabled' : ''}>◀</button><button class="nxt" ${!canPlay(no + 1, cleared) ? 'disabled' : ''}>▶</button><button class="skip">とばす ▶▶</button></div></div>
         ${allClear && !isPreview() && no === STORY_TOTAL ? '<div class="clear sclear">ストーリー クリア！ ◀ で 前の話も 遊べます</div>' : ''}
-        <div class="bstart">BATTLE START!</div>
+        <div class="bstart">${st.start ?? 'BATTLE START!'}</div>
         <div class="stext">
           <div class="tx"><div class="who"></div><p class="line"></p></div>
           <button class="go"></button>
@@ -199,7 +199,7 @@ export class RumbleStoryScene extends Phaser.Scene {
         p.textContent = L.text;
         p.classList.toggle('narr', !L.who);
         const last = li >= lines.length - 1;
-        $('.go').textContent = last ? 'BATTLE START!' : '▼ つぎへ';
+        $('.go').textContent = last ? st.start ?? 'BATTLE START!' : '▼ つぎへ';
         $('.go').classList.toggle('fight', last);
       };
       const start = () => {

@@ -35,6 +35,8 @@ export interface StoryStage {
   chapter: number;
   /** 話(1行ずつ 読む。who が null は ナレーション)。さいごに BATTLE START! */
   lines: StoryLine[];
+  /** さいごの 合図(ふつうは BATTLE START!) */
+  start?: string;
 }
 
 export interface StoryLine {
@@ -107,10 +109,11 @@ export const STORY_IMAGES: Record<number, string> = {
   27: 'assets/story/ch6_27.webp', // 6章27話 GRITBULL(2026-11-07 企画者)
   28: 'assets/story/ch6_28.webp', // 6章28話 PUNISHROOM(2026-11-07 企画者)
   29: 'assets/story/ch6_29.webp', // 6章29話 MOFUGARD(2026-11-07 企画者)
+  30: 'assets/story/ch6_30.webp', // 6章30話 BUNKLORD(さいごのボス。2026-11-07 企画者)
 };
 
 /** 話(企画者が 書いた 文。ステージの 番号 → 題名と 行) */
-export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }> = {
+export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[]; start?: string }> = {
   // 2026-11-05 企画者
   1: {
     title: '第1話「最初の挑戦」',
@@ -622,6 +625,39 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
       { who: 'MOFUGARD', text: '「ボクも、すべての力で応えるよ。」' },
     ],
   },
+  30: {
+    title: '第30話「THE STREET KING」',
+    start: 'FINAL BATTLE START!',
+    lines: [
+      { who: null, text: 'ついに、最後の扉が開かれた。' },
+      { who: null, text: '目の前に広がるのは、金色に輝く巨大な闘技場。' },
+      { who: null, text: '天高くそびえる王冠。' },
+      { who: null, text: 'その下に、一匹のMONZが静かに座っていた。' },
+      { who: 'BUNKLORD', text: '「……よう。」' },
+      { who: 'BUNKLORD', text: '「へへっ。やっと来たな、相棒。」' },
+      { who: 'BUNKLORD', text: '「ずいぶん待たせてくれたじゃねぇか。」' },
+      { who: null, text: '王座から立ち上がったのは、かつて夕焼けの丘で拳を交えたBUNKだった。' },
+      { who: null, text: 'あの頃とは比べものにならないほど大きく、たくましくなった姿。' },
+      { who: null, text: 'その拳には、王者の証である金色の光が宿っていた。' },
+      { who: 'BUNKLORD', text: '「覚えてるか？ ビルの屋上で交わした約束。」' },
+      { who: 'BUNKLORD', text: '「お前が王になるまで、俺も負けずに強くなるって決めたんだ。」' },
+      { who: 'BUNKLORD', text: '「そしたらよ……お前より先に、ここまで来ちまった。」' },
+      { who: 'BUNKLORD', text: '「へへっ！ 人生ってのは面白ぇよな！」' },
+      { who: null, text: 'BUNKLORDがゆっくりと階段を下りる。' },
+      { who: null, text: 'そして、リングの中央で拳を構えた。' },
+      { who: 'BUNKLORD', text: '「俺たちは、ずっと同じ場所を目指してきた。」' },
+      { who: 'BUNKLORD', text: '「お前が戦ってきた相手も、俺が倒してきた相手も……」' },
+      { who: 'BUNKLORD', text: '「みんな、本気で王になりたかったんだ。」' },
+      { who: 'BUNKLORD', text: '「だから、この勝負だけは絶対に譲れねぇ。」' },
+      { who: 'BUNKLORD', text: '「友情も、約束も、全部ひっくるめて……」' },
+      { who: 'BUNKLORD', text: '「最後は拳で決めようぜ！！」' },
+      { who: null, text: '二匹が向かい合う。' },
+      { who: null, text: '会場の照明が消え、リングだけが金色に輝いた。' },
+      { who: null, text: 'BUNKLORDが拳を突き出す。' },
+      { who: 'BUNKLORD', text: '「来いよ、相棒。」' },
+      { who: 'BUNKLORD', text: '「これが俺たちの……最後の勝負だ！！」' },
+    ],
+  },
 };
 
 /** 種族・形態の 名前(rosterData の 表と 同じ) */
@@ -651,6 +687,7 @@ export const STORY_STAGES: StoryStage[] = Array.from({ length: STORY_COUNT }, (_
     no,
     title: STORY_SCRIPTS[no]?.title ?? (last ? 'さいごのボス' : mid ? `ステージ${no}（中ボス）` : `ステージ${no}`),
     lines: STORY_SCRIPTS[no]?.lines ?? [],
+    start: STORY_SCRIPTS[no]?.start,
     text: '（ここに話が入ります。企画者が一枚絵と文を作ります）',
     image: STORY_IMAGES[no] ?? null,
     map: CHAPTER_MAP[chapter - 1],
@@ -672,6 +709,7 @@ STORY_STAGES.push({
   no: SPECIAL_NO,
   title: STORY_SCRIPTS[SPECIAL_NO]?.title ?? '特別編',
   lines: STORY_SCRIPTS[SPECIAL_NO]?.lines ?? [],
+  start: STORY_SCRIPTS[SPECIAL_NO]?.start,
   text: '（ここに話が入ります。企画者が一枚絵と文を作ります）',
   image: STORY_IMAGES[SPECIAL_NO] ?? null,
   map: 'champion',
