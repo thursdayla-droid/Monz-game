@@ -103,6 +103,7 @@ export const STORY_IMAGES: Record<number, string> = {
   23: 'assets/story/ch5_23.webp', // 5章23話 VYGARD(2026-11-06 企画者)
   24: 'assets/story/ch5_24.webp', // 5章24話 KLAKTRAP(2026-11-06 企画者)
   25: 'assets/story/ch5_25.webp', // 5章25話 RIOTRAX(中ボス。2026-11-06 企画者)
+  26: 'assets/story/ch6_26.webp', // 6章26話 ZIPRAX(2026-11-07 企画者)
 };
 
 /** 話(企画者が 書いた 文。ステージの 番号 → 題名と 行) */
@@ -507,6 +508,32 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
       { who: 'RIOTRAX', text: '「どっちが勝っても、恨みっこなしだ！」' },
       { who: 'RIOTRAX', text: '「全部ぶつけてこい！！」' },
       { who: 'RIOTRAX', text: '「最後まで立ってたヤツが、王座へ進む！！」' },
+    ],
+  },
+  26: {
+    title: '第26話「最速の、その先へ」',
+    lines: [
+      { who: null, text: 'RUMBLE CROWN、決勝ステージ。' },
+      { who: null, text: '25戦無敗で王座への挑戦権を手にした挑戦者。' },
+      { who: null, text: '巨大な金の王冠が輝く花道へと足を踏み入れた、その瞬間。' },
+      { who: null, text: 'バチッ！！' },
+      { who: null, text: '目の前を青白い稲妻が駆け抜けた！' },
+      { who: 'ZIPRAX', text: '「よぉ！ 遅かったじゃねぇか！」' },
+      { who: 'ZIPRAX', text: '「……なんてな。俺が速すぎるだけか！」' },
+      { who: 'ZIPRAX', text: '「へへっ！ まさか本当にここまで来るとはな！」' },
+      { who: null, text: 'ZIPRAXが一瞬で姿を消す。' },
+      { who: null, text: '次の瞬間、挑戦者の背後から声が響いた。' },
+      { who: 'ZIPRAX', text: '「なあ、覚えてるか？」' },
+      { who: 'ZIPRAX', text: '「最初に戦ったとき、俺は誰よりも速いと思ってた。」' },
+      { who: 'ZIPRAX', text: '「二度目に負けたとき、もっと速くなりゃ勝てると思った。」' },
+      { who: 'ZIPRAX', text: '「でもよ……違ったんだ。」' },
+      { who: 'ZIPRAX', text: '「速く走るだけじゃ、お前には勝てねぇ。」' },
+      { who: null, text: 'ZIPRAXが静かに構える。' },
+      { who: null, text: 'その体から、今までとは比べものにならないほど激しい電撃が走った。' },
+      { who: 'ZIPRAX', text: '「だから俺は、限界ってヤツを捨ててきた！」' },
+      { who: 'ZIPRAX', text: '「今の俺がどこまで速いのか……正直、自分でもわかんねぇ！」' },
+      { who: 'ZIPRAX', text: '「お前なら、ついてこられるよな？」' },
+      { who: 'ZIPRAX', text: '「さあ、最高速で勝負だ！！」' },
     ],
   },
 };
