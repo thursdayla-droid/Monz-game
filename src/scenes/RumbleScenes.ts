@@ -64,7 +64,7 @@ const CSS = `
 .rmb .nav button{width:40px;height:36px;border:2px solid #16101c;border-radius:10px;background:#fff;color:#16101c;font:900 16px ${UI_FONT}}
 .rmb .nav button:disabled{opacity:.3}
 .rmb .sclear{position:absolute;top:calc(env(safe-area-inset-top) + 58px);left:50%;transform:translateX(-50%);white-space:nowrap}
-.rmb .bstart{position:absolute;left:0;right:0;top:38%;text-align:center;font:900 54px ${UI_FONT};color:#ffd23a;-webkit-text-stroke:3px #16101c;text-shadow:0 6px 0 #16101c;opacity:0;transform:scale(2);pointer-events:none;z-index:3}
+.rmb .bstart{position:absolute;left:0;right:0;top:38%;text-align:center;font:900 min(54px,5.6vw) ${UI_FONT};white-space:nowrap;color:#ffd23a;-webkit-text-stroke:3px #16101c;text-shadow:0 6px 0 #16101c;opacity:0;transform:scale(2);pointer-events:none;z-index:3}
 .rmb .stl.starting .bstart{animation:rmbStart .7s ease-out forwards}
 @keyframes rmbStart{0%{opacity:0;transform:scale(2.2)}40%{opacity:1;transform:scale(1)}100%{opacity:1;transform:scale(1.05)}}
 .rmb .rot{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;background:#0d0614f5}

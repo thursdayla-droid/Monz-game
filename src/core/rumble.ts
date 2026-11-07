@@ -110,6 +110,7 @@ export const STORY_IMAGES: Record<number, string> = {
   28: 'assets/story/ch6_28.webp', // 6章28話 PUNISHROOM(2026-11-07 企画者)
   29: 'assets/story/ch6_29.webp', // 6章29話 MOFUGARD(2026-11-07 企画者)
   30: 'assets/story/ch6_30.webp', // 6章30話 BUNKLORD(さいごのボス。2026-11-07 企画者)
+  31: 'assets/story/sp_31.webp', // 特別編31話 CROWNOR(2026-11-07 企画者)
 };
 
 /** 話(企画者が 書いた 文。ステージの 番号 → 題名と 行) */
@@ -656,6 +657,22 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[]; 
       { who: null, text: 'BUNKLORDが拳を突き出す。' },
       { who: 'BUNKLORD', text: '「来いよ、相棒。」' },
       { who: 'BUNKLORD', text: '「これが俺たちの……最後の勝負だ！！」' },
+    ],
+  },
+  // 題名は まだ ないので【仮】
+  31: {
+    title: '特別編「真の王」',
+    start: 'FINAL SECRET BATTLE START!',
+    lines: [
+      { who: null, text: 'CROWNORはゆっくりと立ち上がる。' },
+      { who: null, text: 'その瞬間、広間の紫の炎が一斉に大きく揺れた。' },
+      { who: null, text: 'そして、こちらを見下ろしながら不敵に笑う。' },
+      { who: 'CROWNOR', text: '「……ほう。ついにここまで来たか。」' },
+      { who: 'CROWNOR', text: '「表の王座を手にした程度で、頂点に立ったつもりか？」' },
+      { who: 'CROWNOR', text: '「いいだろう。」' },
+      { who: 'CROWNOR', text: '「教えてやる。王冠の本当の重さをな。」' },
+      { who: null, text: 'CROWNORが片手を前に突き出し、指をクイッと動かす。' },
+      { who: 'CROWNOR', text: '「来い。真の王は、ここにいる。」' },
     ],
   },
 };
