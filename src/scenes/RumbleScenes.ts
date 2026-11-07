@@ -48,6 +48,7 @@ const CSS = `
 .rmb .stitle{display:block;font-size:13px;color:#fff;margin-top:1px}
 .rmb .sfoe{display:block;font-size:11px;color:#e8dcf4;font-weight:700;text-shadow:0 1px 2px #000}
 .rmb .sfoe .stars{color:#ffb03a}
+.rmb .nav .jump{height:36px;border:2px solid #16101c;border-radius:10px;background:#ffd23a;color:#16101c;font:900 13px ${UI_FONT};padding:0 4px}
 .rmb .nav .skip{width:auto;padding:0 10px;font-size:12px}
 /* 2026-11-05 企画者「文字の枠と被ってキャラが見えない」→ 下は 細い 半とうめいの 帯だけ(題名・あいては 上へ) */
 .rmb .stext{position:relative;display:flex;align-items:center;gap:12px;padding:8px calc(env(safe-area-inset-right) + 14px) calc(env(safe-area-inset-bottom) + 8px) calc(env(safe-area-inset-left) + 14px);background:linear-gradient(#0000,#000b 35%,#000d);color:#fff;min-height:52px}
@@ -72,6 +73,9 @@ const CSS = `
 @media (orientation:portrait){.rmb .rot{display:flex}}
 .rmb .clear{background:#ffd23a;color:#16101c;border:3px solid #16101c;border-radius:12px;padding:6px 14px;font-weight:900}
 `;
+
+/** 確認用ページ(3Dバトル・STREET KING の 確認用)か。ふつうの ゲームでは 出さない */
+const isPreview = () => ['Battle3D', 'RumbleMode'].includes((window as { __MONZ_START?: string }).__MONZ_START ?? '');
 
 function mount(scene: Phaser.Scene, html: string): HTMLDivElement {
   if (!document.getElementById('rmb-css')) {
@@ -155,12 +159,15 @@ export class RumbleStoryScene extends Phaser.Scene {
 
   create(): void {
     audio.playBgm('home');
-    const cleared = loadLife().rumble?.cleared ?? 0;
+    // 確認用ページ: 全部の ステージを 遊べる(2026-11-07 企画者「各テストやりたいから出して」)
+    const cleared = isPreview() ? STORY_TOTAL : loadLife().rumble?.cleared ?? 0;
     const next = nextStage(cleared);
     const allClear = cleared >= STORY_TOTAL;
     // 2026-11-05 企画者「すごろく風はやめて、1枚絵でストーリーを進めていく感じに」:
     // 今の ステージの 一枚絵と 話を 大きく 出す → バトル。勝つと 次の 話へ。◀ ▶ で 前の 話も 見られる(もう一度 遊べる)
     let no = this.from.justPlayed && !this.from.won ? this.from.justPlayed : allClear ? STORY_TOTAL : next;
+    // 確認用: はじめは 1話から・勝ったら 次の話へ
+    if (isPreview()) no = this.from.justPlayed ? Math.min(STORY_TOTAL, this.from.justPlayed + (this.from.won ? 1 : 0)) : 1;
     const root = mount(this, '<div class="stl"></div>');
     const box = root.querySelector('.stl') as HTMLDivElement;
     const draw = (fade: boolean) => {
@@ -171,8 +178,8 @@ export class RumbleStoryScene extends Phaser.Scene {
       const lines = st.lines.length ? st.lines : [{ who: null, text: st.text }];
       box.innerHTML = `<div class="spic">${st.image ? `<img src="${assetUrl(st.image)}" alt="">` : '<span>一枚絵（企画者が作ります）</span>'}</div>
         <div class="stop"><button class="back">◀ もどる</button><div class="sno"><span class="sname">${STORY_NAME}</span>${st.no === SPECIAL_NO ? '特別編　STAGE ' + st.no : `第${st.chapter}章　STAGE ${st.no} <small>/ ${STORY_COUNT}</small>`}${done ? '<em>クリア</em>' : ''}<span class="stitle">${st.title}</span><span class="sfoe">あいて：${st.enemy.name}　Lv.${st.enemy.level}　<span class="stars">${'★'.repeat(st.enemy.prof)}${'☆'.repeat(5 - st.enemy.prof)}</span>${st.enemy.boss ? '　ボス' : ''}</span></div>
-          <div class="nav"><button class="prev" ${no <= 1 ? 'disabled' : ''}>◀</button><button class="nxt" ${!canPlay(no + 1, cleared) ? 'disabled' : ''}>▶</button><button class="skip">とばす ▶▶</button></div></div>
-        ${allClear && no === STORY_TOTAL ? '<div class="clear sclear">ストーリー クリア！ ◀ で 前の話も 遊べます</div>' : ''}
+          <div class="nav">${isPreview() ? `<select class="jump" title="確認用: ステージへ とぶ">${STORY_STAGES.map((x) => `<option value="${x.no}" ${x.no === no ? 'selected' : ''}>確認 ${x.no}</option>`).join('')}</select>` : ''}<button class="prev" ${no <= 1 ? 'disabled' : ''}>◀</button><button class="nxt" ${!canPlay(no + 1, cleared) ? 'disabled' : ''}>▶</button><button class="skip">とばす ▶▶</button></div></div>
+        ${allClear && !isPreview() && no === STORY_TOTAL ? '<div class="clear sclear">ストーリー クリア！ ◀ で 前の話も 遊べます</div>' : ''}
         <div class="bstart">BATTLE START!</div>
         <div class="stext">
           <div class="tx"><div class="who"></div><p class="line"></p></div>
@@ -213,6 +220,13 @@ export class RumbleStoryScene extends Phaser.Scene {
       $('.back').addEventListener('click', () => {
         audio.se('back');
         this.scene.start('RumbleMode');
+      });
+      const jump = box.querySelector('.jump') as HTMLSelectElement | null;
+      jump?.addEventListener('click', (ev) => ev.stopPropagation());
+      jump?.addEventListener('change', () => {
+        audio.se('tap');
+        no = Number(jump.value);
+        draw(true);
       });
       $('.prev').addEventListener('click', () => {
         if (no <= 1) return;
