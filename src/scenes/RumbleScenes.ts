@@ -27,11 +27,13 @@ const CSS = `
 .rmb .big small{font-size:min(12px,3vh);font-weight:700;text-shadow:0 1px 2px #000;color:#f0e4ff}
 .rmb .story{color:#ffd23a}
 .rmb .free{color:#9fe0ff}
-.rmb .cpus{width:min(100%,780px);display:grid;grid-template-columns:repeat(3,1fr);gap:6px 10px}
-.rmb .cpu{white-space:nowrap;padding:0 10% 2%;font:900 min(18px,4.6vh) ${UI_FONT};gap:1px;text-shadow:0 2px 0 #16101c,0 0 4px #16101c}
-.rmb .cpu .sub{display:flex;gap:6px;align-items:center}
+.rmb .cpus{width:min(100%,720px);display:grid;grid-template-columns:repeat(2,1fr);gap:4px 14px}
+/* 2026-11-07 企画者の CPU用の ボタン(右に 大きな星。design/rumble_ui/button_cpu.png): 星の中は 戦いのうまさ(★の数) */
+.rmb .cpu{position:relative;background-image:var(--btncpu);aspect-ratio:1100/227;flex-direction:row;justify-content:flex-start;gap:10px;white-space:nowrap;padding:0 19% 1% 9%;font:900 min(19px,4.8vh) ${UI_FONT};text-shadow:0 2px 0 #16101c,0 0 4px #16101c}
+.rmb .cpu .sub{display:flex;flex-direction:column;align-items:flex-start;gap:0;margin-left:auto}
 .rmb .cpu small{font-size:min(11px,2.8vh);font-weight:700;color:#e8dcf4;text-shadow:0 1px 2px #000}
-.rmb .cpu .stars{color:#ffb03a;font-size:min(14px,3.4vh);letter-spacing:2px}
+.rmb .cpu .stars{color:#ffb03a;font-size:min(12px,3vh);letter-spacing:1px}
+.rmb .cpu .pf{position:absolute;left:91%;top:47%;transform:translate(-50%,-50%);font-size:min(20px,5vh);color:#ffd23a}
 .rmb .note{font-size:12px;color:#c8bcd8;text-align:center}
 .rmb .panel{position:fixed;inset:0;z-index:3;background:#0d0614e8;display:flex;align-items:center;justify-content:center;padding:calc(env(safe-area-inset-top) + 12px) calc(env(safe-area-inset-right) + 16px) calc(env(safe-area-inset-bottom) + 12px) calc(env(safe-area-inset-left) + 16px)}
 .rmb .card{width:min(100%,560px);max-height:100%;overflow:auto;background:#fff;color:#16101c;border:4px solid #16101c;border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:10px;box-sizing:border-box}
@@ -95,6 +97,7 @@ function mount(scene: Phaser.Scene, html: string): HTMLDivElement {
   const root = document.createElement('div');
   root.className = 'rmb';
   root.style.setProperty('--btn', `url('${assetUrl(BTN_FRAME)}')`);
+  root.style.setProperty('--btncpu', `url('${assetUrl(BTN_CPU)}')`);
   // MONZ RUMBLE は スマホ横だけ(2026-11-05 企画者)。縦の あいだは「横にしてね」で おおう
   root.innerHTML = `<div class="in">${html}</div><div class="rot"><div>スマホを 横にしてね<small>MONZ RUMBLE は 横画面で あそびます</small></div></div>`;
   document.body.appendChild(root);
@@ -105,6 +108,7 @@ function mount(scene: Phaser.Scene, html: string): HTMLDivElement {
 /** モードえらび: ストーリーモード / バトルモード(CPU の強さをえらぶ) */
 /** ボタンの絵(2026-11-07 企画者。元は design/rumble_ui/button.png) */
 const BTN_FRAME = 'assets/story/btn_frame.webp';
+const BTN_CPU = 'assets/story/btn_cpu.webp';
 /** モードえらびの背景(2026-11-07 企画者の絵。元は design/rumble_ui/sel_mode.png) */
 const MODE_BG = 'assets/story/sel_mode.webp';
 /** CPUの強さえらびの背景(2026-11-07 企画者の絵。元は design/rumble_ui/sel_cpu.png) */
@@ -146,9 +150,9 @@ export class RumbleModeScene extends Phaser.Scene {
     inner.innerHTML = `<div class="modebg" style="background-image:url('${assetUrl(CPU_BG)}')"></div><button class="back">◀ もどる</button>
       <h2>CPU の強さを えらぶ</h2>
       <div class="cpus">${CPU_LEVELS.map(
-        (c) => `<button class="cpu" data-id="${c.id}"><span>${c.name}</span><span class="sub"><small>${c.level === 0 ? '自分と同じレベル' : c.level > 0 ? `レベル +${c.level}` : `レベル ${c.level}`}</small><span class="stars">${'★'.repeat(c.prof)}${'☆'.repeat(5 - c.prof)}</span></span></button>`,
+        (c) => `<button class="cpu" data-id="${c.id}"><span>${c.name}</span><span class="sub"><small>${c.level === 0 ? '同じレベル' : c.level > 0 ? `レベル +${c.level}` : `レベル ${c.level}`}</small><span class="stars">${'★'.repeat(c.prof)}${'☆'.repeat(5 - c.prof)}</span></span><b class="pf">${c.prof}</b></button>`,
       ).join('')}</div>
-      <div class="note">レベル = 自分と くらべた 強さ ／ ★ = 戦いのうまさ（よけ方・ねらい）</div>`;
+      <div class="note">レベル = 自分と くらべた 強さ ／ ★と 星の 数字 = 戦いのうまさ（よけ方・ねらい）</div>`;
     (inner.querySelector('.back') as HTMLElement).addEventListener('click', () => {
       audio.se('back');
       this.scene.restart();
