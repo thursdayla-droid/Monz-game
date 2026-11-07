@@ -695,6 +695,66 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[]; 
   },
 };
 
+/**
+ * エンディング(2026-11-07 企画者「エンディング作ろうか。1枚絵3枚ぐらい」)。その話に 勝ったあとに 流れる 一枚絵と 話。
+ * ステージの 番号 → 場面の ならび
+ */
+export interface EndingScene {
+  title: string;
+  image: string | null;
+  lines: StoryLine[];
+}
+export const ENDINGS: Record<number, EndingScene[]> = {
+  // 31話(CROWNOR)に 勝ったあと
+  31: [
+    {
+      title: '王の敗北',
+      image: 'assets/story/end31_1.webp',
+      lines: [
+        { who: null, text: '最後の一撃が決まり、CROWNORが片膝をつく。' },
+        { who: null, text: '金色の王冠が床に落ち、静かな音が広間に響く。' },
+        { who: null, text: '紫の闇のオーラがゆっくり消えていく。' },
+        { who: null, text: '長い戦いが、ついに終わった。' },
+        { who: null, text: '誰も超えることのできなかった伝説の王。' },
+        { who: null, text: 'その王が、初めて敗北を知った。' },
+        // ここから Claude の 案(2026-11-07 企画者「セリフは任せます」)【仮】
+        { who: 'CROWNOR', text: '「……フッ。そうか。」' },
+        { who: 'CROWNOR', text: '「これが……負けるということか。」' },
+        { who: 'CROWNOR', text: '「悪くない。いや……ずっと、この時を待っていたのかもしれんな。」' },
+      ],
+    },
+    {
+      title: '王冠を託す者',
+      image: null,
+      lines: [
+        { who: null, text: 'CROWNORは、床に落ちた金色の王冠をそっと拾い上げた。' },
+        { who: 'CROWNOR', text: '「この王冠は、ずっと重かった。」' },
+        { who: 'CROWNOR', text: '「誰にも負けぬ王でいるために、俺はたった一匹で、ここに座り続けてきた。」' },
+        { who: 'CROWNOR', text: '「だが、お前は違った。」' },
+        { who: 'CROWNOR', text: '「戦った相手を、みんな仲間に変えてここまで来た。」' },
+        { who: null, text: 'CROWNORが、王冠をこちらへ差し出す。' },
+        { who: 'CROWNOR', text: '「受け取れ。これは、もう俺のものではない。」' },
+        { who: 'CROWNOR', text: '「お前こそが……真のSTREET KINGだ。」' },
+      ],
+    },
+    {
+      title: '新しい朝',
+      image: null,
+      lines: [
+        { who: null, text: '黒い扉を抜けると、外はもう朝だった。' },
+        { who: null, text: '朝日に照らされたストリートで、見覚えのあるMONZたちが待っていた。' },
+        { who: 'BUNKLORD', text: '「おーい、相棒！ どこ行ってたんだよ！」' },
+        { who: 'ZIPRAX', text: '「おっせーぞ！ みんなずっと待ってたんだからな！」' },
+        { who: 'PUNISHROOM', text: '「えへへ！ おかえり〜！」' },
+        { who: null, text: '草原の岩場から始まった、名もなき挑戦者の旅。' },
+        { who: null, text: 'その旅は、ここで終わる。' },
+        { who: null, text: 'けれど、ストリートに新しい朝が来るたび、また新しい挑戦者が生まれていく。' },
+        { who: null, text: '――STREET KING　おしまい' },
+      ],
+    },
+  ],
+};
+
 /** 種族・形態の 名前(rosterData の 表と 同じ) */
 const FORM_NAME: Record<string, [string, string, string]> = {
   bunk: ['BUNK', 'BUNKER', 'BUNKLORD'], crownie: ['CROWNIE', 'CROWNIX', 'CROWNOR'], mofu: ['MOFU', 'MOFUR', 'MOFUGARD'], zipp: ['ZIPP', 'ZIPRO', 'ZIPRAX'], puni: ['PUNI', 'PUNISH', 'PUNISHROOM'], klak: ['KLAK', 'KLAKER', 'KLAKTRAP'],

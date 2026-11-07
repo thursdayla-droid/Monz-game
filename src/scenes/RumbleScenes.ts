@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { assetUrl } from '../assetUrl';
-import { canPlay, CPU_LEVELS, nextStage, SPECIAL_NO, STORY_COUNT, STORY_NAME, STORY_STAGES, STORY_TOTAL } from '../core/rumble';
+import { canPlay, CPU_LEVELS, ENDINGS, nextStage, SPECIAL_NO, STORY_COUNT, STORY_NAME, STORY_STAGES, STORY_TOTAL } from '../core/rumble';
 import { loadLife } from '../core/lifeSave';
 import { UI_FONT } from '../ui/paint';
 import type { RumbleParams } from './Battle3DScene';
@@ -170,6 +170,50 @@ export class RumbleStoryScene extends Phaser.Scene {
     if (isPreview()) no = this.from.justPlayed ? Math.min(STORY_TOTAL, this.from.justPlayed + (this.from.won ? 1 : 0)) : 1;
     const root = mount(this, '<div class="stl"></div>');
     const box = root.querySelector('.stl') as HTMLDivElement;
+    // エンディング: 勝ったあと、その話に エンディングが あれば 先に 流す(一枚絵と 話。さわると 次へ)
+    const ending = this.from.won && this.from.justPlayed ? ENDINGS[this.from.justPlayed] : undefined;
+    if (ending?.length) {
+      let si = 0;
+      let li = 0;
+      const show = () => {
+        const sc = ending[si];
+        const L = sc.lines[li];
+        box.innerHTML = `<div class="spic">${sc.image ? `<img src="${assetUrl(sc.image)}" alt="">` : '<span>一枚絵（企画者が作ります）</span>'}</div>
+          <div class="stop"><div class="sno"><span class="sname">${STORY_NAME}</span>ENDING<span class="stitle">${sc.title}</span></div><div class="nav"><button class="skip">とばす ▶▶</button></div></div>
+          <div class="stext"><div class="tx"><div class="who" style="display:${L?.who ? 'inline-block' : 'none'}">${L?.who ?? ''}</div><p class="line ${L?.who ? '' : 'narr'}">${L?.text ?? ''}</p></div><button class="go">▼ つぎへ</button></div>`;
+        if (li === 0) {
+          box.classList.remove('in2');
+          void box.offsetWidth;
+          box.classList.add('in2');
+        }
+        const next = () => {
+          audio.se('tap');
+          if (li < sc.lines.length - 1) li++;
+          else if (si < ending.length - 1) {
+            si++;
+            li = 0;
+          } else {
+            this.from = { justPlayed: this.from.justPlayed, won: true };
+            draw(true);
+            return;
+          }
+          show();
+        };
+        (box.querySelector('.go') as HTMLElement).addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          next();
+        });
+        (box.querySelector('.skip') as HTMLElement).addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          audio.se('tap');
+          draw(true);
+        });
+        (box.querySelector('.stext') as HTMLElement).addEventListener('click', next);
+        (box.querySelector('.spic') as HTMLElement).addEventListener('click', next);
+      };
+      // draw は 下で 作るので、作ってから 流す
+      window.setTimeout(show, 0);
+    }
     const draw = (fade: boolean) => {
       const st = STORY_STAGES[no - 1];
       const done = no <= cleared;
@@ -254,6 +298,6 @@ export class RumbleStoryScene extends Phaser.Scene {
       $('.stext').addEventListener('click', advance);
       $('.spic').addEventListener('click', advance);
     };
-    draw(true);
+    if (!ending?.length) draw(true);
   }
 }
