@@ -899,7 +899,6 @@ export class HomeScene extends Phaser.Scene {
       const pts = m.statPoints;
       content.add(t(px + 32, py + 168, pts > 0 ? `ポイント：${pts}` : 'ポイント：なし', 28, pts > 0 ? '#c2410c' : '#5a4a66'));
       if (pts > 0) content.add(t(px + 32, py + 206, '＋をおすと 1 ずつ振り分けられます', 20, '#5a4a66'));
-      // 2026-11-07 企画者: 今の 育ち方の 型を 出す(Lv.25 から この型の 技を 覚える)
       // 型は ＋で いちばん多く 入れた 能力(2026-11-07 企画者「自由ポイントで決まる」)
       const gt = m.growType;
       // 2026-11-07 企画者「今の育ち方 型 だけでいい」
