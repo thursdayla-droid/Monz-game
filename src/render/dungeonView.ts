@@ -23,6 +23,36 @@ function toonGradient(): THREE.DataTexture {
   return tex;
 }
 
+/** 星の 形(床に 平らに 置く) */
+function starGeometry(r: number, r2: number, n: number): THREE.ShapeGeometry {
+  const sh = new THREE.Shape();
+  for (let i = 0; i < n * 2; i++) {
+    const a = (i / (n * 2)) * Math.PI * 2;
+    const rr = i % 2 ? r2 : r;
+    if (i === 0) sh.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
+    else sh.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+  }
+  return new THREE.ShapeGeometry(sh);
+}
+
+/** 光の 玉の 絵(2D の 弾) */
+let glowTex: THREE.CanvasTexture | null = null;
+function glowTexture(): THREE.CanvasTexture {
+  if (glowTex) return glowTex;
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d')!;
+  const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,255,255,1)');
+  gr.addColorStop(0.35, 'rgba(255,255,255,0.9)');
+  gr.addColorStop(0.6, 'rgba(255,255,255,0.35)');
+  gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr;
+  g.fillRect(0, 0, 64, 64);
+  glowTex = new THREE.CanvasTexture(c);
+  return glowTex;
+}
+
 /** 床の タイル(はっきりした ふちの 石だたみ。2D の 地図のように) */
 function tileTexture(): THREE.CanvasTexture {
   const c = document.createElement('canvas');
@@ -260,10 +290,13 @@ export class DungeonView {
     this.aura.rotation.x = -Math.PI / 2;
     this.scene.add(this.aura);
     // 守りの ドーム(頑丈ドーム など)・強くなった 光
-    this.dome = new THREE.Mesh(new THREE.SphereGeometry(1.4, 24, 14, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x8ad0ff, transparent: true, opacity: 0.25, depthWrite: false, blending: THREE.AdditiveBlending }));
+    // 2D: 守りは 床の 青い 六角の わく・強化は 赤い 輪
+    this.dome = new THREE.Mesh(new THREE.RingGeometry(1.2, 1.45, 6), new THREE.MeshBasicMaterial({ color: 0x8ad0ff, transparent: true, opacity: 0.6, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending }));
+    this.dome.rotation.x = -Math.PI / 2;
     this.dome.visible = false;
     this.scene.add(this.dome);
-    this.buffRing = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 1.8, 20, 1, true), new THREE.MeshBasicMaterial({ color: 0xff5a3a, transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+    this.buffRing = new THREE.Mesh(new THREE.RingGeometry(0.95, 1.1, 24), new THREE.MeshBasicMaterial({ color: 0xff5a3a, transparent: true, opacity: 0.6, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending }));
+    this.buffRing.rotation.x = -Math.PI / 2;
     this.buffRing.visible = false;
     this.scene.add(this.buffRing);
     this.loadModel();
@@ -317,6 +350,32 @@ export class DungeonView {
     });
   }
 
+  /** 通常攻撃の 見た目(2D: 床に 平らな 光。段ごとに 左・右・大きく) */
+  private jabFx(e: Extract<AdvEvent, { kind: 'jab' }>): void {
+    if (e.style === 'shot') return;
+    const big = e.chain === 3;
+    const side = e.chain === 2 ? -1 : 1;
+    const color = e.style === 'whip' ? 0x8aff7a : e.style === 'dash' ? 0xffe24a : big ? 0xffb84a : 0xffffff;
+    const r = e.range * (big ? 1.1 : 0.95);
+    const arc = e.style === 'whip' ? 0.7 : big ? 2.6 : 1.8;
+    const m = new THREE.Mesh(new THREE.RingGeometry(r * (e.style === 'whip' ? 0.85 : 0.5), r, 24, 1, -arc / 2, arc), this.glowMat(color, 0.9, THREE.DoubleSide));
+    m.rotation.x = -Math.PI / 2;
+    m.rotation.z = -e.dir + side * (big ? 0 : 0.35);
+    m.position.set(e.x, 0.3, e.z);
+    this.addFx(m, big ? 0.3 : 0.2, (k) => {
+      m.scale.setScalar(0.8 + k * 0.3);
+      (m.material as THREE.MeshBasicMaterial).opacity = 0.9 * (1 - k);
+    });
+    if (e.style === 'dash') {
+      const t = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.6), this.glowMat(0xffe24a, 0.7, THREE.DoubleSide));
+      t.rotation.x = -Math.PI / 2;
+      t.rotation.z = -e.dir;
+      t.position.set(e.x - Math.cos(e.dir) * 0.9, 0.2, e.z - Math.sin(e.dir) * 0.9);
+      this.addFx(t, 0.25, (k) => ((t.material as THREE.MeshBasicMaterial).opacity = 0.7 * (1 - k)));
+    }
+    if (big) this.shake = Math.max(this.shake, 0.18);
+  }
+
   /** 技を 出した 時の 見た目(種類ごと) */
   private techFx(e: Extract<AdvEvent, { kind: 'tech' }>): void {
     const c = EL_HEX[e.element] ?? 0xffffff;
@@ -356,18 +415,31 @@ export class DungeonView {
         break;
       }
       case 'beam': {
-        // まっすぐ 太い 光
+        // 2026-11-07 企画者「ビームとか もっと 2D ぽく」→ 床に 平らな 光の 帯(白い しん・色の ふち・先の 丸)
         const g = new THREE.Group();
-        const core = new THREE.Mesh(new THREE.BoxGeometry(e.len, 0.5, e.r * 0.5), this.glowMat(0xffffff, 0.95));
-        const outer = new THREE.Mesh(new THREE.BoxGeometry(e.len, 0.9, e.r), this.glowMat(c, 0.6));
-        core.position.x = outer.position.x = e.len / 2;
-        g.add(outer, core);
+        const mk = (w: number, color: number, op: number) => {
+          const m = new THREE.Mesh(new THREE.PlaneGeometry(e.len, w), this.glowMat(color, op, THREE.DoubleSide));
+          m.rotation.x = -Math.PI / 2;
+          m.position.x = e.len / 2;
+          g.add(m);
+          return m;
+        };
+        const outer = mk(e.r * 1.25, c, 0.55);
+        const mid = mk(e.r * 0.7, c, 0.8);
+        const core = mk(e.r * 0.3, 0xffffff, 1);
+        const tip = new THREE.Mesh(new THREE.CircleGeometry(e.r * 0.75, 24), this.glowMat(c, 0.8));
+        tip.rotation.x = -Math.PI / 2;
+        tip.position.x = e.len;
+        g.add(tip);
         g.rotation.y = -dir;
-        g.position.set(e.x, 0.8, e.z);
-        this.addFx(g, 0.45, (k) => {
-          g.scale.set(1, 1 - k * 0.7, 1 - k * 0.7);
-          (outer.material as THREE.MeshBasicMaterial).opacity = 0.6 * (1 - k);
-          (core.material as THREE.MeshBasicMaterial).opacity = 0.95 * (1 - k);
+        g.position.set(e.x, 0.5, e.z);
+        this.addFx(g, 0.5, (k) => {
+          const w = k < 0.15 ? k / 0.15 : 1 - (k - 0.15) / 0.85;
+          for (const [m, op] of [[outer, 0.55], [mid, 0.8], [core, 1], [tip, 0.8]] as const) {
+            m.scale.set(1, Math.max(0.05, w), 1);
+            (m.material as THREE.MeshBasicMaterial).opacity = op * Math.max(0, w);
+          }
+          tip.scale.setScalar(Math.max(0.05, w));
         });
         break;
       }
@@ -382,12 +454,19 @@ export class DungeonView {
         this.shake = Math.max(this.shake, 0.4);
         break;
       case 'pillar': {
-        // 天まで のびる 光の 柱
-        const m = new THREE.Mesh(new THREE.CylinderGeometry(e.r * 0.55, e.r * 0.7, 7, 24, 1, true), this.glowMat(c, 0.7, THREE.DoubleSide));
-        m.position.set(e.tx, 3.5, e.tz);
-        this.addFx(m, 0.6, (k) => {
-          m.scale.set(1 - k * 0.5, 0.3 + Math.min(1, k * 4) * 0.7, 1 - k * 0.5);
-          (m.material as THREE.MeshBasicMaterial).opacity = 0.75 * (1 - k);
+        // 2D: 床に 光の 円と 星の 形の 光が はじける
+        const g = new THREE.Group();
+        const disc = new THREE.Mesh(new THREE.CircleGeometry(e.r, 32), this.glowMat(c, 0.6));
+        const star = new THREE.Mesh(starGeometry(e.r * 1.1, e.r * 0.35, 8), this.glowMat(0xffffff, 0.9));
+        for (const m of [disc, star]) m.rotation.x = -Math.PI / 2;
+        g.add(disc, star);
+        g.position.set(e.tx, 0.1, e.tz);
+        this.addFx(g, 0.55, (k) => {
+          disc.scale.setScalar(0.3 + k * 0.8);
+          star.scale.setScalar(0.4 + Math.min(1, k * 3) * 0.8);
+          star.rotation.z = k * 1.5;
+          (disc.material as THREE.MeshBasicMaterial).opacity = 0.6 * (1 - k);
+          (star.material as THREE.MeshBasicMaterial).opacity = 0.9 * (1 - k);
         });
         this.groundRing(e.tx, e.tz, e.r, c, 0.6, 0.3);
         this.shake = Math.max(this.shake, 0.45);
@@ -560,6 +639,7 @@ export class DungeonView {
         this.drops.delete(e.drop.id);
         this.burst(p.x, p.z, e.drop.item.kind === 'herb' ? 0x7aff8a : RANK_HEX[e.drop.item.rank], 8);
       } else if (e.kind === 'tech') this.techFx(e);
+      else if (e.kind === 'jab') this.jabFx(e);
       else if (e.kind === 'status') this.burst(e.x, e.z, 0xc080ff, 6);
       else if (e.kind === 'heal' && e.amount > 0) {
         this.burst(e.x, e.z, 0x5aff8a, 10);
@@ -583,7 +663,8 @@ export class DungeonView {
       tc
         ? { k: 'tech', id: tc.id, t: p.actT, dir: p.face, fired: p.actT >= tw, hit: p.actT >= tw, tx: p.x, tz: p.z, windup: tw, n: p.actT >= tw ? 1 : 0, next: 0 }
         : p.act === 'attack'
-          ? { k: 'tech', id: 'punch', t: p.actT, dir: p.face, fired: p.actT >= W, hit: p.actT >= W, tx: p.x, tz: p.z, windup: W, n: 1, next: 0 }
+          ? // 続け打ちの 段(1・2・3)で 左右の 手・足が かわる(MONZ RUMBLE の 通常攻撃の 動き)
+            { k: 'tech', id: 'punch', t: p.actT, dir: p.face, fired: p.actT >= W, hit: false, tx: p.x, tz: p.z, windup: W, n: p.actT >= W ? s.chain : Math.max(0, s.chain - 1), next: W + 0.16 }
           : p.act === 'hurt'
             ? { k: 'hurt', t: p.actT, until: ADV.hurtTime }
             : p.act === 'dead'
@@ -614,9 +695,13 @@ export class DungeonView {
       let o = this.shotObjs.get(sh.id);
       if (!o) {
         const c = EL_HEX[sh.tech.element] ?? 0xffffff;
+        // 2D の 弾: 平らな 光の 玉(色の まわりに 白い しん)
         const g = new THREE.Group();
-        g.add(new THREE.Mesh(new THREE.SphereGeometry(sh.r, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffffff })));
-        g.add(new THREE.Mesh(new THREE.SphereGeometry(sh.r * 1.9, 12, 8), this.glowMat(c, 0.55)));
+        const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: c, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending }));
+        glow.scale.setScalar(sh.r * 5);
+        const core = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xffffff, transparent: true, depthWrite: false, depthTest: false }));
+        core.scale.setScalar(sh.r * 2.2);
+        g.add(glow, core);
         this.scene.add(g);
         this.shotObjs.set(sh.id, g);
         o = g;
@@ -657,11 +742,12 @@ export class DungeonView {
         this.fieldObjs.delete(id);
       }
     this.dome.visible = s.t < s.shieldUntil;
-    this.dome.position.set(p.x, 0, p.z);
-    (this.dome.material as THREE.MeshBasicMaterial).opacity = 0.2 + Math.sin(now * 6) * 0.06;
+    this.dome.position.set(p.x, 0.12, p.z);
+    this.dome.rotation.z = now * 0.8;
+    (this.dome.material as THREE.MeshBasicMaterial).opacity = 0.5 + Math.sin(now * 6) * 0.15;
     this.buffRing.visible = s.t < s.atkUpUntil;
-    this.buffRing.position.set(p.x, 0.9, p.z);
-    this.buffRing.rotation.y = now * 2;
+    this.buffRing.position.set(p.x, 0.1, p.z);
+    this.buffRing.scale.setScalar(1 + Math.sin(now * 5) * 0.08);
     // 技の 光
     for (const q of this.fx) {
       q.t += dt;

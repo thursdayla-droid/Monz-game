@@ -16,6 +16,16 @@ export const ADV = {
   /** 【仮】ごほうび: モブ1体・クリア */
   reward: { mobExp: 5, mobCoins: 3, clearExp: 30, clearCoins: 20 },
   hurtTime: 0.25,
+  /** 通常攻撃の 続け打ち(この 秒数の 中で 押すと 次の 段)・3段めの 強さ */
+  chain: { keep: 0.75, last: 1.5 },
+  /** 種族ごとの 通常攻撃の とどく 長さ・はば【仮】 */
+  jab: {
+    punch: { range: 2.0, arc: 1.25 },
+    whip: { range: 3.4, arc: 0.6 },
+    shot: { range: 6, arc: 0.3 },
+    dash: { range: 2.0, arc: 1.0 },
+    snap: { range: 1.9, arc: 1.5 },
+  } as Record<string, { range: number; arc: number }>,
   /** 技(種類ごとの はんい・威力の 倍)【仮】 */
   tech: {
     windup: 0.16, recover: 0.3, powDiv: 7, minMul: 1.4,
@@ -156,6 +166,7 @@ export type AdvEvent =
   | { kind: 'open'; x: number; z: number }
   | { kind: 'tech'; slot: number; x: number; z: number; fx: string; dir: number; r: number; len: number; element: string; tx: number; tz: number }
   | { kind: 'status'; target: number; x: number; z: number; effect: string }
+  | { kind: 'jab'; style: string; chain: number; x: number; z: number; dir: number; range: number }
   | { kind: 'heal'; amount: number; x: number; z: number }
   | { kind: 'drop'; drop: Drop }
   | { kind: 'pick'; drop: Drop }
@@ -196,6 +207,10 @@ export interface AdvState {
   combo: { left: number; next: number; mul: number } | null;
   /** 育ち方の 型(自由ポイントで 決まる) */
   growType: string | null;
+  /** 通常攻撃の 種類(種族で 決まる)・続け打ちの 段 */
+  jab: string;
+  chain: number;
+  lastAtk: number;
   /** 装備の 前の 数字(装備で 足す 元) */
   base: { atk: number; tough: number; maxHp: number };
 }
@@ -214,7 +229,11 @@ function actor(id: number, x: number, z: number): Actor {
 }
 
 /** 新しい 階。stats: 自分の MONZ の ステータス・level: 階の 強さ(1 = 試作) */
-export function newAdventure(seed: number, stats: StatBlock, level = 1, techs: (AdvTech | null)[] = [], growType: string | null = null): AdvState {
+/** 種族の 通常攻撃(MOFU ムチ・PUNI 水の玉・ZIPP 電撃ダッシュ・KLAK はさむ・ほかは パンチや 爪) */
+export const jabStyleOf = (species: string): string => ({ mofu: 'whip', puni: 'shot', zipp: 'dash', klak: 'snap' } as Record<string, string>)[species] ?? 'punch';
+const WATER_JAB: AdvTech = { id: 'punch', kind: 'jab', power: 7, cooldown: 0, element: '水', effect: 'なし', strength: '弱' };
+
+export function newAdventure(seed: number, stats: StatBlock, level = 1, techs: (AdvTech | null)[] = [], growType: string | null = null, species = 'bunk'): AdvState {
   const floor = generateFloor(seed);
   const rng = mulberry32(seed ^ 0x9e3779b9);
   const P = ADV.player;
@@ -243,7 +262,7 @@ export function newAdventure(seed: number, stats: StatBlock, level = 1, techs: (
   return {
     floor, rng, t: 0, player: p, mobs, tech: stats.tech, exitOpen: false, result: 'play', kills: 0, events: [],
     techs: ts, techCd: [0, 0, 0, 0], techSlot: -1, bag: [], gear: {}, drops: [], seq: 0,
-    shots: [], fields: [], shieldUntil: 0, atkUpUntil: 0, dash: null, combo: null, jumpTo: null, growType,
+    shots: [], fields: [], shieldUntil: 0, atkUpUntil: 0, dash: null, combo: null, jumpTo: null, growType, jab: jabStyleOf(species), chain: 0, lastAtk: -9,
     base: { atk: p.atk, tough: p.tough, maxHp: p.maxHp },
   };
 }
@@ -601,7 +620,8 @@ function damage(s: AdvState, from: Actor, to: Actor, mul = 1, tech?: AdvTech): v
       s.events.push({ kind: 'die', id: to.id, x: to.x, z: to.z });
       dropFrom(s, to);
     }
-  } else if (to.act !== 'attack' || to.id === 0) {
+  } else if (to.id === 0 ? to.act !== 'tech' : to.act !== 'attack') {
+    // 自分は 技の 間は やられても 止まらない(技が 消えない)
     to.act = 'hurt';
     to.actT = 0;
   }
@@ -633,7 +653,10 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
       p.act = 'attack';
       p.actT = 0;
       p.struck = false;
-      p.coolUntil = s.t + P.cool * (1 - Math.min(0.3, s.tech / 500));
+      // 続けて 押すと 1・2・3段め(動きが 変わる。3段めは 強い。2026-11-07 企画者「通常攻撃の モーションが 全部 一緒」)
+      s.chain = s.t - s.lastAtk < ADV.chain.keep ? (s.chain % 3) + 1 : 1;
+      s.lastAtk = s.t;
+      p.coolUntil = s.t + P.cool * (1 - Math.min(0.3, s.tech / 500)) * (s.chain === 3 ? 1.6 : 1);
       s.events.push({ kind: 'attack', id: 0 });
     }
     // 技(A〜D)
@@ -676,14 +699,20 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
     }
     if (p.act === 'attack' && !p.struck && p.actT >= P.windup) {
       p.struck = true;
-      for (const m of s.mobs) {
-        if (m.act === 'dead') continue;
-        const d = Math.hypot(m.x - p.x, m.z - p.z);
-        if (d < P.range + ADV.mob.r && Math.abs(angDiff(Math.atan2(m.z - p.z, m.x - p.x), p.face)) < P.arc) {
+      // 種族ごとの 通常攻撃(MONZ RUMBLE と 同じ 考え): ムチ = 遠くまで 細く・水の玉 = 飛ばす・電撃ダッシュ = 少し 前へ・ほかは 目の前
+      const J = ADV.jab[s.jab] ?? ADV.jab.punch;
+      const mul = s.chain === 3 ? ADV.chain.last : 1;
+      if (s.jab === 'shot') {
+        const sp = ADV.tech.shot.speed;
+        s.shots.push({ id: ++s.seq, x: p.x + Math.cos(p.face) * 0.8, z: p.z + Math.sin(p.face) * 0.8, vx: Math.cos(p.face) * sp, vz: Math.sin(p.face) * sp, r: 0.35, life: 0.6, mul: 0.9 * mul, tech: WATER_JAB });
+      } else {
+        if (s.jab === 'dash') moveBy(s, p, Math.cos(p.face) * 1.6, Math.sin(p.face) * 1.6, P.r);
+        for (const m of inCone(s, p.x, p.z, p.face, J.range, J.arc * (s.chain === 3 ? 1.3 : 1))) {
           m.awake = true;
-          damage(s, p, m);
+          damage(s, p, m, mul);
         }
       }
+      s.events.push({ kind: 'jab', style: s.jab, chain: s.chain, x: p.x, z: p.z, dir: p.face, range: J.range });
     }
   }
   stepTechs(s, dt);

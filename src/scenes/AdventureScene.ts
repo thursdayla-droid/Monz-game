@@ -131,7 +131,7 @@ export class AdventureScene extends Phaser.Scene {
       return { id, kind: t.kind, power: t.power ?? 0, cooldown: Math.max(2, t.cooldown), element: t.element, effect: t.effect ?? 'なし', strength: t.strength };
     });
     this.techNames = techs.map((t) => (t ? getTech(t.id).name : ''));
-    this.state = newAdventure(seed, me.stats, 1, techs, growType);
+    this.state = newAdventure(seed, me.stats, 1, techs, growType, me.species);
     this.buildDom(me);
     audio.playBgm('battle');
     window.addEventListener('resize', this.onResize);
