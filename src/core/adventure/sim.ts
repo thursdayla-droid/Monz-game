@@ -200,7 +200,7 @@ export interface AdvState {
   shieldUntil: number;
   atkUpUntil: number;
   /** とっしん 中(当てた モブは 1回だけ) */
-  dash: { until: number; hit: number[]; mul: number } | null;
+  dash: { until: number; hit: number[]; mul: number; speed: number; jab?: boolean } | null;
   /** とびおりる 技の おちる ところ(ため の 間に 近づく) */
   jumpTo: { x: number; z: number; sx: number; sz: number } | null;
   /** 今の 技を ねらって うったか */
@@ -358,7 +358,7 @@ function fireTech(s: AdvState, slot: number): void {
   switch (tc.kind) {
     case 'rush':
       // とっしん: 前へ 走って、ぶつかった 敵を 打つ
-      s.dash = { until: s.t + T.rush.dist / T.rush.speed, hit: [], mul };
+      s.dash = { until: s.t + T.rush.dist / T.rush.speed, hit: [], mul, speed: T.rush.speed };
       ev('rush');
       break;
     case 'spin':
@@ -461,12 +461,12 @@ function stepTechs(s: AdvState, dt: number): void {
   if (s.dash) {
     if (s.t >= s.dash.until || p.act === 'dead') s.dash = null;
     else {
-      moveBy(s, p, Math.cos(p.face) * T.rush.speed * dt, Math.sin(p.face) * T.rush.speed * dt, ADV.player.r);
+      moveBy(s, p, Math.cos(p.face) * s.dash.speed * dt, Math.sin(p.face) * s.dash.speed * dt, ADV.player.r);
       for (const m of inCircle(s, p.x, p.z, T.rush.r)) {
         if (s.dash.hit.includes(m.id)) continue;
         s.dash.hit.push(m.id);
         m.awake = true;
-        damage(s, p, m, s.dash.mul, s.techs[s.techSlot] ?? undefined);
+        damage(s, p, m, s.dash.mul, s.dash.jab ? undefined : s.techs[s.techSlot] ?? undefined);
       }
     }
   }
@@ -742,11 +742,13 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
         const sp = ADV.tech.shot.speed;
         s.shots.push({ id: ++s.seq, x: p.x + Math.cos(p.face) * 0.8, z: p.z + Math.sin(p.face) * 0.8, vx: Math.cos(p.face) * sp, vz: Math.sin(p.face) * sp, r: 0.35, life: 0.6, mul: 0.9 * mul, tech: WATER_JAB });
       } else {
-        if (s.jab === 'dash') moveBy(s, p, Math.cos(p.face) * 1.6, Math.sin(p.face) * 1.6, P.r);
-        for (const m of inCone(s, p.x, p.z, p.face, J.range, J.arc * (s.chain === 3 ? 1.3 : 1))) {
-          m.awake = true;
-          damage(s, p, m, mul);
-        }
+        // ZIPP の 電撃ダッシュ: 速く 走って ぶつかる(瞬間移動に しない。2026-11-07 企画者「早くても いい」)
+        if (s.jab === 'dash') s.dash = { until: s.t + 0.16, hit: [], mul, speed: 13, jab: true };
+        else
+          for (const m of inCone(s, p.x, p.z, p.face, J.range, J.arc * (s.chain === 3 ? 1.3 : 1))) {
+            m.awake = true;
+            damage(s, p, m, mul);
+          }
       }
       s.events.push({ kind: 'jab', style: s.jab, chain: s.chain, x: p.x, z: p.z, dir: p.face, range: J.range });
     }
