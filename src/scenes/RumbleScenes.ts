@@ -23,6 +23,11 @@ const CSS = `
 .rmb .modes{display:flex;gap:14px;width:min(100%,820px);justify-content:center;margin-top:auto;margin-bottom:auto}
 .rmb .big,.rmb .cpu{background:var(--btn) center/100% 100% no-repeat;border:0;aspect-ratio:3/1;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;filter:drop-shadow(0 5px 0 #0008);transition:transform .08s}
 .rmb .big:active,.rmb .cpu:active{transform:scale(.95)}
+/* 2026-11-07 企画者の カーソル(金の 王冠)。えらんでいる ボタンの 上で ゆれる */
+.rmb .big{position:relative}
+.rmb .cur{position:absolute;pointer-events:none;width:min(54px,13vh);left:50%;top:0;transform:translate(-50%,-78%);animation:rmbCur .8s ease-in-out infinite alternate;filter:drop-shadow(0 3px 2px #0009);z-index:2}
+.rmb .cpu .cur{width:min(36px,9vh);left:9%;transform:translate(-50%,-62%)}
+@keyframes rmbCur{from{margin-top:-5px}to{margin-top:3px}}
 .rmb .big{flex:1;max-width:400px;padding:0 9%;font:900 min(26px,5.4vh) ${UI_FONT};gap:2px;text-shadow:0 3px 0 #16101c,0 0 3px #16101c,0 0 6px #16101c}
 .rmb .big small{font-size:min(12px,3vh);font-weight:700;text-shadow:0 1px 2px #000;color:#f0e4ff}
 .rmb .story{color:#ffd23a}
@@ -109,6 +114,33 @@ function mount(scene: Phaser.Scene, html: string): HTMLDivElement {
 /** ボタンの絵(2026-11-07 企画者。元は design/rumble_ui/button.png) */
 const BTN_FRAME = 'assets/story/btn_frame.webp';
 const BTN_CPU = 'assets/story/btn_cpu.webp';
+/** カーソルの絵(2026-11-07 企画者。元は design/rumble_ui/cursor.png) */
+const CURSOR = 'assets/story/cursor.webp';
+
+/**
+ * ボタンに カーソル(王冠)を つける。さわると カーソルが そこへ 動いてから すすむ(少し 待つ)。
+ * マウスでは 上に のせるだけで 動く
+ */
+function withCursor(btns: HTMLElement[], go: (b: HTMLElement) => void): void {
+  if (!btns.length) return;
+  const cur = document.createElement('img');
+  cur.className = 'cur';
+  cur.src = assetUrl(CURSOR);
+  cur.alt = '';
+  btns[0].appendChild(cur);
+  let busy = false;
+  for (const b of btns) {
+    b.addEventListener('pointerenter', (e) => {
+      if ((e as PointerEvent).pointerType === 'mouse' && !busy) b.appendChild(cur);
+    });
+    b.addEventListener('click', () => {
+      if (busy) return;
+      busy = true;
+      b.appendChild(cur);
+      window.setTimeout(() => go(b), 220);
+    });
+  }
+}
 /** モードえらびの背景(2026-11-07 企画者の絵。元は design/rumble_ui/sel_mode.png) */
 const MODE_BG = 'assets/story/sel_mode.webp';
 /** CPUの強さえらびの背景(2026-11-07 企画者の絵。元は design/rumble_ui/sel_cpu.png) */
@@ -133,15 +165,11 @@ export class RumbleModeScene extends Phaser.Scene {
       audio.se('back');
       this.scene.start('BattleMenu');
     });
-    $('.story').addEventListener('click', () => {
+    withCursor([$('.story'), $('.free')], (b) => {
       audio.unlock();
       audio.se('select');
-      this.scene.start('RumbleStory');
-    });
-    $('.free').addEventListener('click', () => {
-      audio.unlock();
-      audio.se('select');
-      this.showCpu(root);
+      if (b.classList.contains('story')) this.scene.start('RumbleStory');
+      else this.showCpu(root);
     });
   }
 
@@ -157,11 +185,10 @@ export class RumbleModeScene extends Phaser.Scene {
       audio.se('back');
       this.scene.restart();
     });
-    for (const b of [...inner.querySelectorAll('.cpu')] as HTMLElement[])
-      b.addEventListener('click', () => {
-        audio.se('select');
-        this.scene.start('Battle3D', { mode: 'free', cpu: Number(b.dataset.id) } satisfies RumbleParams);
-      });
+    withCursor([...inner.querySelectorAll('.cpu')] as HTMLElement[], (b) => {
+      audio.se('select');
+      this.scene.start('Battle3D', { mode: 'free', cpu: Number(b.dataset.id) } satisfies RumbleParams);
+    });
   }
 }
 
