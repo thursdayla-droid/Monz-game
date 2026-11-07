@@ -31,3 +31,13 @@ describe('rumbleWin: 1回目と 2回目', () => {
     expect(r.snapshot.rumble).toEqual({ cleared: 3, cpuWon: [5, 1] });
   });
 });
+
+describe('最大レベル 100(2026-11-07 企画者)', () => {
+  it('どれだけ 勝っても 100 で 止まる', () => {
+    const r = new LifeRecord(newLife(1));
+    for (let i = 0; i < 3000; i++) r.rumbleWin('free', 5, 5);
+    expect(r.monz.level).toBe(100);
+    expect(r.monz.exp).toBe(0);
+    expect(r.expRate).toBe(1);
+  });
+});

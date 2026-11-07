@@ -20,6 +20,8 @@ import { renameTech } from './battle3d/techTable';
 import { instinctFor } from './autobattle/engine';
 import { addStats, autoGrowthAt, currentStats, FREE_POINTS_PER_LEVEL, levelUpRng, LOVE_RULES, rollAutoGrowth, STAT_KEYS, STAT_MAX, zeroStats, type StatBlock, type StatKey } from './stats';
 
+/** 最大レベル(2026-11-07 企画者) */
+export const MAX_LEVEL = 100;
 export const LIFE_KEY = 'monz:life';
 export const LIFE_BACKUP_KEY = 'monz:life:backup';
 export const LIFE_VERSION = 4;
@@ -187,7 +189,7 @@ export function migrateLife(raw: unknown, now = Date.now()): LifeData | null {
   const base = newLife(now);
   if (d.version === 1) {
     // 版1: MONZ1匹ぶんのレベル・経験値・様子が、データのいちばん上にあった
-    const level = num(d.level, 1, 1);
+    const level = Math.min(MAX_LEVEL, num(d.level, 1, 1));
     const m = { ...base.monz[0], level, exp: num(d.exp, 0), expDay: String(d.expDay ?? base.monz[0].expDay), expToday: num(d.expToday, 0), needs: { ...newNeeds(), ...(d.needs as object) } };
     const items = Array.isArray(d.items) ? (d.items as unknown[]).map(String) : [];
     return migrateLife({ ...base, coins: d.coins, monz: [m], inventory: { owned: items, placed: [] }, place: d.place, lastSeen: d.lastSeen, version: 2 }, now);
@@ -198,7 +200,7 @@ export function migrateLife(raw: unknown, now = Date.now()): LifeData | null {
     // 自由ポイントは (N−1) を未使用として入れ直す(版3で0.1ずつ振り分けていたぶんも、いったんポイントに戻す)。
     // 足すのではなく「レベルから決まる値」をそのまま入れ、版も上がるので、2回かかることはない。愛・名前などはそのまま。
     const monz4 = (Array.isArray(d.monz) ? (d.monz as Record<string, unknown>[]) : []).map((m) => {
-      const level = Math.floor(num(m?.level, 1, 1));
+      const level = Math.min(MAX_LEVEL, Math.floor(num(m?.level, 1, 1)));
       const species = String(m?.species);
       if (!isSpecies(species) || typeof m?.uid !== 'string') return m;
       const { stats: _old, ...rest } = m;
@@ -217,7 +219,7 @@ export function migrateLife(raw: unknown, now = Date.now()): LifeData | null {
       return {
         ...fresh,
         ...m,
-        level: Math.floor(num(m.level, 1, 1)),
+        level: Math.min(MAX_LEVEL, Math.floor(num(m.level, 1, 1))),
         exp: num(m.exp, 0),
         statPoints: Math.round(num(m.statPoints, 0)),
         auto: block(m.auto),
@@ -402,6 +404,7 @@ export class LifeRecord {
 
   /** 次のレベルまでの進み具合(0〜1) */
   get expRate(): number {
+    if (this.monz.level >= MAX_LEVEL) return 1;
     return Math.min(1, this.monz.exp / expToNext(this.monz.level));
   }
 
@@ -718,12 +721,17 @@ export class LifeRecord {
     const room = care ? NEEDS_RULES.dailyExpCap - used : Infinity;
     const got = Math.max(0, Math.min(amount, room));
     let { level, exp, statPoints, auto } = m;
+    // 2026-11-07 企画者「最大レベルは 100」: 100 になったら 経験値は たまらない
+    if (level >= MAX_LEVEL) {
+      if (exp !== 0 || level > MAX_LEVEL) this.update({}, { level: MAX_LEVEL, exp: 0 });
+      return;
+    }
     let techs = m.techs;
     exp += got;
     const ups: number[] = [];
     const gains: StatBlock[] = [];
     const learnedAt: string[][] = [];
-    while (exp >= expToNext(level)) {
+    while (level < MAX_LEVEL && exp >= expToNext(level)) {
       exp -= expToNext(level);
       level++;
       // 自動成長(ランダムに合計+3。得意な能力ほど入りやすい)と、自由ポイント+1
@@ -741,6 +749,7 @@ export class LifeRecord {
         learnedAt.push(g.newly);
       } else learnedAt.push([]);
     }
+    if (level >= MAX_LEVEL) exp = 0;
     this.update({}, { level, exp, statPoints, auto, techs, expDay: today, expToday: care ? used + got : used, expPetToday: kind === 'pet' ? usedPet + got : usedPet });
     if (got > 0) this.emit({ type: 'exp', exp, level });
     for (const [i, lv] of ups.entries()) {
