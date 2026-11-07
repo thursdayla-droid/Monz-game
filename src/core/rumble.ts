@@ -536,6 +536,33 @@ export const STORY_SCRIPTS: Record<number, { title: string; lines: StoryLine[] }
       { who: 'ZIPRAX', text: '「さあ、最高速で勝負だ！！」' },
     ],
   },
+  27: {
+    title: '第27話「すべては、あの一戦から」',
+    lines: [
+      { who: null, text: 'RUMBLE CROWN、決勝ステージ第2戦。' },
+      { who: null, text: '王座まで、残された戦いはあとわずか。' },
+      { who: null, text: '巨大なリングに足を踏み入れると、会場の照明がすべて消えた。' },
+      { who: null, text: 'そして、一本のスポットライトがリングの中央を照らす。' },
+      { who: null, text: 'そこには、山のように巨大な獣が立っていた。' },
+      { who: 'GRITBULL', text: '「……よう。」' },
+      { who: 'GRITBULL', text: '「へへっ。ずいぶん遠くまで来たもんだな、俺たち。」' },
+      { who: 'GRITBULL', text: '「覚えてるか？ あの草原の岩場。」' },
+      { who: 'GRITBULL', text: '「お前が最初にぶっ倒した相手……それが俺だ。」' },
+      { who: null, text: 'GRITBULLが拳を打ち合わせる。' },
+      { who: null, text: 'その衝撃で、リングの床に大きな亀裂が走った。' },
+      { who: 'GRITBULL', text: '「あのときのお前は、名前も知られてねぇ挑戦者だった。」' },
+      { who: 'GRITBULL', text: '「俺だって、ただのケンカ自慢だった。」' },
+      { who: 'GRITBULL', text: '「まさか二匹とも、こんな場所まで来るなんてな。」' },
+      { who: 'GRITBULL', text: '「……なあ、ひとつ聞かせろよ。」' },
+      { who: 'GRITBULL', text: '「お前、あのころより強くなったと思うか？」' },
+      { who: null, text: 'GRITBULLがゆっくりと構える。' },
+      { who: 'GRITBULL', text: '「俺は強くなったぜ。」' },
+      { who: 'GRITBULL', text: '「何度負けても立ち上がって、ここまで来た！」' },
+      { who: 'GRITBULL', text: '「だから今日は、昔話なんかで終わらせねぇ！」' },
+      { who: 'GRITBULL', text: '「最初にお前と戦った俺が……今のお前の強さを確かめてやる！」' },
+      { who: 'GRITBULL', text: '「さあ来い！！ 最高の一戦にしようぜ！！」' },
+    ],
+  },
 };
 
 /** 種族・形態の 名前(rosterData の 表と 同じ) */
