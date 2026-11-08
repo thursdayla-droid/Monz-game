@@ -223,6 +223,8 @@ export class HomeScene extends Phaser.Scene {
     this.buildMenu();
     // 公開ページ(main)では 開発用ボタンを 出さない(2026-11-08 企画者「開発用ボタンは 外す」)
     if ((import.meta.env as Record<string, string | undefined>).VITE_RELEASE !== '1') this.buildTestButtons();
+    // 公開ページでも テストの 間だけ「最初から」を 出す(2026-11-08 企画者「お願い」)【仮：出す 前に 外す】
+    else this.buildRestartButton();
     if (this.pendingPlace) this.startEdit(this.pendingPlace);
     // 2026-11-08 全画面: 画面が のびた ぶん、上の 表示は いちばん 上・下の ボタンは いちばん 下へ(fillTall の あと)
     this.events.once(Phaser.Scenes.Events.CREATE, () => this.anchorUi());
@@ -580,6 +582,22 @@ export class HomeScene extends Phaser.Scene {
         this.tweens.add({ targets: btn, scale: 0.9, duration: 70, yoyo: true });
         this.act(action);
       });
+    });
+  }
+
+  /** 【テスト用】公開ページの「最初から」だけ(確認して から 消す) */
+  private buildRestartButton(): void {
+    const b = this.add
+      .text(W - 16, 330 + 60, '最初から', { fontFamily: UI_FONT, fontSize: '20px', color: '#ffffff', backgroundColor: '#16101caa', padding: { x: 10, y: 6 } })
+      .setOrigin(1, 0)
+      .setDepth(DEPTH.ui)
+      .setInteractive({ useHandCursor: true });
+    b.on('pointerup', () => {
+      if (!window.confirm('データを ぜんぶ 消して 最初から やり直しますか？')) return;
+      this.resetting = true;
+      clearSave();
+      clearLife();
+      this.scene.start('Title');
     });
   }
 
