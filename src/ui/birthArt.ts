@@ -123,6 +123,11 @@ export function drawShell(ctx: CanvasRenderingContext2D, egg: CanvasImageSource,
   ctx.lineWidth = 6;
   ctx.stroke();
   ctx.restore();
+  // 2026-11-08 企画者「割れた卵に 白い枠みたいなのが 出てる」: ふちの 線が 卵の 外(すきとおった 所)にも 出ていた → 卵の 形で 切りぬく
+  ctx.save();
+  ctx.globalCompositeOperation = 'destination-in';
+  ctx.drawImage(egg, 0, 0, w, h);
+  ctx.restore();
 }
 
 /** 放射状の光(加算で重ねる) */
