@@ -43,7 +43,7 @@ export function watchViewport(scene: Phaser.Scene, onChange: () => void): void {
 /** ふつうの たての 画面の 大きさ */
 export const PORTRAIT_SIZE = { w: 720, h: 1280 } as const;
 /** 自分で 画面の 大きさを 決める 画面(MYTHCLASH・3D・冒険・ストーリーなど)は さわらない */
-const OWN_SIZE = new Set(['Boot', 'Birth', 'Title', 'Battle3D', 'RumbleMode', 'RumbleStory', 'Adventure', 'AutoBattle', 'Battle', 'Compare', 'BunkParts', 'MythTitle', 'MythMode', 'MythDeck', 'MythTower', 'MythFloor', 'MythBattle', 'MythGuide', 'Binder']);
+const OWN_SIZE = new Set(['Boot', 'Birth', 'Title', 'MinigameSelect', 'Battle3D', 'RumbleMode', 'RumbleStory', 'Adventure', 'AutoBattle', 'Battle', 'Compare', 'BunkParts', 'MythTitle', 'MythMode', 'MythDeck', 'MythTower', 'MythFloor', 'MythBattle', 'MythGuide', 'Binder']);
 
 /**
  * 2026-11-08 企画者「下の 余白が 気になる・アプリゲームとして 出すから 全画面がいい」:

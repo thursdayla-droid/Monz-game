@@ -7,28 +7,32 @@ import { canvasTexture, canvasTextureOnce, UI_FONT } from '../ui/paint';
 import { drawPanel } from '../ui/homeArt';
 import { homeIconKey } from './HomeScene';
 import { preloadPacks } from '../render/packs';
+import { fillSize } from '../ui/viewport';
 
 const W = 720;
 const H = 1280;
 const CARD = { w: 660, h: 176, gap: 22, top: 300 };
 
-/** 企画者のセレクト画面の絵(design/minigame/select.png・941x1671)。押せる場所は、この絵の座標で決める */
+/**
+ * 企画者のセレクト画面の絵(design/minigame/select.png)。押せる場所は、この絵の座標で決める。
+ * 2026-11-08 全画面用の 縦長の 絵(852x1846)に 作り直し(前の 絵 941x1671 は unused/)
+ */
 export const SELECT_IMAGE = 'mg:select';
-const ART = { w: 941, h: 1671 };
-const ART_BACK = [30, 38, 255, 110];
+const ART = { w: 852, h: 1846 };
+const ART_BACK = [26, 128, 238, 204];
 /** 上から MONZ CARD・ダッシュモンズ・？？？×3 の看板 */
 const ART_CARDS = [
-  [38, 420, 910, 640],
-  [38, 668, 910, 890],
-  [38, 925, 910, 1132],
-  [38, 1160, 910, 1367],
-  [38, 1393, 910, 1602],
+  [33, 494, 822, 691],
+  [33, 723, 822, 924],
+  [33, 954, 822, 1140],
+  [33, 1165, 822, 1353],
+  [33, 1375, 822, 1562],
 ];
 /** 企画者の絵に名前まで描いてあるゲームの数(これより後のゲームは、？？？の上に名前を重ねて出す) */
 const ART_PAINTED = 2;
 /** 看板の中の「？？？・説明」と「SOON」の場所(看板の左上からの位置) */
-const ART_SLOT_TEXT = [332, 36, 712, 176];
-const ART_SLOT_SOON = [712, 12, 858, 176];
+const ART_SLOT_TEXT = [300, 30, 620, 172];
+const ART_SLOT_SOON = [620, 10, 770, 110];
 
 /**
  * あとから届いた看板の絵(ゲームの id ごと)。frame: 絵の中の黄色い枠の位置(元の絵の大きさ srcW での座標)。
@@ -39,7 +43,7 @@ export const SELECT_CARD_ART: Record<string, { key: string; file: string; srcW: 
 };
 
 /** 絵に描いてある「0」を隠して、本当のコインの数を出す場所 */
-const ART_COIN_NUMBER = [715, 52, 846, 104];
+const ART_COIN_NUMBER = [650, 140, 772, 190];
 
 /**
  * ミニゲームのセレクト画面(お世話画面の「ミニゲーム」から開く)。
@@ -64,9 +68,14 @@ export class MinigameSelectScene extends Phaser.Scene {
 
   /** 企画者の絵で作る */
   private buildFromArt(): void {
+    // 全画面: 絵の 形の まま 横はばに 合わせる(画面が 絵より 長ければ 下は 背景色)
     const sx = W / ART.w;
-    const sy = H / ART.h;
-    this.add.image(0, 0, SELECT_IMAGE).setOrigin(0, 0).setDisplaySize(W, H);
+    const sy = sx;
+    const tall = Math.max(fillSize(this, { w: W, h: H }, { minRatio: 0.4, maxRatio: W / H }).h, H);
+    this.scale.setGameSize(W, tall);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(W, H));
+    this.cameras.main.setBackgroundColor('#0b0a18');
+    this.add.image(0, 0, SELECT_IMAGE).setOrigin(0, 0).setDisplaySize(W, ART.h * sy);
     const zone = ([x0, y0, x1, y1]: number[], onTap: (z: Phaser.GameObjects.Rectangle) => void) => {
       const z = this.add.rectangle(x0 * sx, y0 * sy, (x1 - x0) * sx, (y1 - y0) * sy, 0xffffff, 0).setOrigin(0, 0).setInteractive({ useHandCursor: true });
       z.on('pointerdown', () => onTap(z));
@@ -134,7 +143,7 @@ export class MinigameSelectScene extends Phaser.Scene {
 
   private toast(msg: string): void {
     const t = this.add
-      .text(W / 2, H * 0.5, msg, { fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: '#ffffff', backgroundColor: '#16101cdd', padding: { x: 22, y: 12 } })
+      .text(W / 2, this.scale.height * 0.5, msg, { fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: '#ffffff', backgroundColor: '#16101cdd', padding: { x: 22, y: 12 } })
       .setOrigin(0.5)
       .setDepth(10);
     this.tweens.add({ targets: t, alpha: 0, y: t.y - 40, delay: 900, duration: 400, onComplete: () => t.destroy() });
