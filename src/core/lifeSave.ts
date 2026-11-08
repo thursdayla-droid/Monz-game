@@ -145,6 +145,9 @@ export const newMonz = (species: SpeciesId, uid: string, now = Date.now()): Monz
   bornAt: now,
 });
 
+/** 生まれた 時の コイン(2026-11-08 企画者「テストだから 最初 産まれたら 10000コイン スタート」)【仮：テスト用。出す 前に もどす】 */
+export const START_COINS = 10000;
+
 export const newLife = (now = Date.now(), species: SpeciesId = 'bunk'): LifeData => ({
   version: LIFE_VERSION,
   coins: 0,

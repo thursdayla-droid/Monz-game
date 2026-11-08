@@ -6,7 +6,7 @@ import { HOME_ACTIONS, HOME_ACTION_LABELS, HOME_ACTION_READY, ALL_PLACES, HOME_L
 import { MonzLife } from '../core/life';
 import { moodWord, NEEDS_RULES } from '../core/needs';
 import { clearLife, LifeRecord, loadLife, type MonzData } from '../core/lifeSave';
-import { safeInsets } from '../ui/viewport';
+import { fillSize, safeInsets } from '../ui/viewport';
 import { MAX_SLOTS, SLOT_LEVELS, slotsAt } from '../core/battle3d/techLearn';
 import { getTech } from '../core/battle3d/techTable';
 import { ELEMENT_HEX } from '../render/animeField';
@@ -240,7 +240,9 @@ export class HomeScene extends Phaser.Scene {
     const img = this.add.image(W / 2, H / 2, homeImageKey(this.place)).setDepth(-10);
     const w = img.width;
     const h = img.height;
-    const k = layout.fit === 'contain' ? Math.min(W / w, H / h) : Math.max(W / w, H / h);
+    // 全画面(2026-11-08): 画面が 上下に のびる ぶんまで 部屋の 絵で うめる(床の 範囲も 同じ 倍で 合わせる)
+    const tallH = fillSize(this, { w: W, h: H }, { minRatio: 0.4, maxRatio: W / H }).h;
+    const k = layout.fit === 'contain' ? Math.min(W / w, tallH / h) : Math.max(W / w, tallH / h);
     img.setScale(k);
     const ox = (W - w * k) / 2;
     const oy = (H - h * k) / 2;
@@ -539,7 +541,9 @@ export class HomeScene extends Phaser.Scene {
     if (ex <= 0) return;
     const safe = safeInsets(this);
     const up = Math.max(0, ex - safe.top);
-    const down = Math.max(0, ex - safe.bottom);
+    // 2026-11-08 企画者「下を のばしたから ボタンの 位置 おかしい。もう少し バランスよく 下に」:
+    // iPhone の 下の バーの ぶんを まるごと あけると 下が 広く あきすぎるので、半分だけ よける
+    const down = Math.max(0, ex - safe.bottom * 0.45);
     for (const o of this.children.list) {
       const g = o as unknown as Phaser.GameObjects.Components.Depth & Phaser.GameObjects.Components.Transform;
       if (g.depth !== DEPTH.ui && g.depth !== DEPTH.ui - 1) continue;

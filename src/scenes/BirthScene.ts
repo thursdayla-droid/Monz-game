@@ -14,7 +14,7 @@ import { canvasTexture, UI_FONT } from '../ui/paint';
 import { createNameplate } from '../ui/nameplate';
 import { askName } from '../ui/nameInput';
 import { cleanName } from '../core/naming';
-import { LifeRecord, loadLife } from '../core/lifeSave';
+import { START_COINS, LifeRecord, loadLife } from '../core/lifeSave';
 import { preloadPacks, releasePack } from '../render/packs';
 import { addSoundButton } from '../ui/soundButton';
 
@@ -345,6 +345,8 @@ export class BirthScene extends Phaser.Scene {
           // 生まれたMONZの種族にする(最初の質問で決まった MONZ)
           if (isSpecies(monz)) record.setSpecies(monz);
           record.setName(name);
+          // テスト: 生まれたら 10000 コイン(2026-11-08 企画者)【仮】
+          if (record.coins < START_COINS) record.add(START_COINS - record.coins);
           audio.se('select');
           this.revealName(name, brain);
         }),

@@ -6,7 +6,7 @@ import { BATTLE_MODE, BATTLE_UNLOCK_FROM, battleLevelOpen, type MythMatch } from
 import { battleUnlocked, kindsToUnlock, newCollection } from '../core/mythclash/packs';
 import { preloadPacks } from '../render/packs';
 import { UI_FONT } from '../ui/paint';
-import { fillSize } from '../ui/viewport';
+import { fillSize, safeInsets } from '../ui/viewport';
 import { MYTH_TITLE_IMAGE } from './MythTitleScene';
 
 const W = 720;
@@ -90,8 +90,9 @@ export class MythModeScene extends Phaser.Scene {
     this.layer?.destroy();
     const L = this.add.container(0, 0);
     this.layer = L;
-    const back = this.text(90, 46, '◀ もどる', 28, '#ffffff').setBackgroundColor('#16101ccc').setPadding(14, 6, 14, 8).setInteractive({ useHandCursor: true });
-    back.on('pointerdown', () => {
+    // 2026-11-08 企画者「左上の 戻る 押せない・二重・もう少し 下に」→ 下げて 大きく・はなした 時に 動く(押した 時だと 次の 画面の 戻るまで 反応していた)
+    const back = this.add.text(24, safeInsets(this).top + 80, '◀ もどる', { fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: '#ffffff', backgroundColor: '#16101ccc', padding: { x: 22, y: 14 } }).setInteractive({ useHandCursor: true });
+    back.on('pointerup', () => {
       if (this.view === 'mode') this.go('MythTitle');
       else this.switchView('mode');
     });

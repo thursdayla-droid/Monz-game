@@ -7,7 +7,7 @@ import { mythPreviewOnly } from '../assetUrl';
 import { CARD_ART_IDS } from '../ui/mythCardArt';
 import { MYTH_PACK_IMAGE, openPackBuy } from '../ui/packBuy';
 import { openMythSettings } from '../ui/mythSettings';
-import { fillSize, watchViewport } from '../ui/viewport';
+import { fillSize, safeInsets, watchViewport } from '../ui/viewport';
 
 /**
  * 企画者のタイトルの絵(design/mythclash/title.png・縦長 852x1846。2026-10-26 に新しいロゴ入りの絵へ差しかえ。前の絵は design/mythclash/unused/)。
@@ -90,16 +90,18 @@ export class MythTitleScene extends Phaser.Scene {
       });
     }
     // もどる(絵にないので、左上の空いている所に出す)。バトルメニューへ
+    // 2026-11-08 企画者「左上の 戻る 押せない・もう少し 下に」→ iPhone の 切りかき・Safari の バーを よけて 下げる。はなした 時に 動く
+    const topY = safeInsets(this).top + 80;
     const back = this.add
-      .text(28, 28, '◀ もどる', { fontFamily: UI_FONT, fontSize: '40px', fontStyle: '900', color: '#ffffff', backgroundColor: '#16101ccc', padding: { x: 22, y: 12 } })
+      .text(28, topY, '◀ もどる', { fontFamily: UI_FONT, fontSize: '40px', fontStyle: '900', color: '#ffffff', backgroundColor: '#16101ccc', padding: { x: 24, y: 16 } })
       .setInteractive({ useHandCursor: true });
-    back.on('pointerdown', () => {
+    back.on('pointerup', () => {
       audio.se('back');
       this.go('BattleMenu');
     });
     // 設定(企画者 2026-11-01)。絵にないので、右上の空いている所に出す。お知らせ・ランキングは作らない(企画者)
     const settings = this.add
-      .text(this.W - 28, 28, '⚙ 設定', { fontFamily: UI_FONT, fontSize: '40px', fontStyle: '900', color: '#ffffff', backgroundColor: '#16101ccc', padding: { x: 22, y: 12 } })
+      .text(this.W - 28, topY, '⚙ 設定', { fontFamily: UI_FONT, fontSize: '40px', fontStyle: '900', color: '#ffffff', backgroundColor: '#16101ccc', padding: { x: 22, y: 12 } })
       .setOrigin(1, 0)
       .setInteractive({ useHandCursor: true });
     settings.on('pointerdown', () => {
