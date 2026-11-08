@@ -211,7 +211,8 @@ export class HomeScene extends Phaser.Scene {
 
     this.buildTop(record.monz.name ?? speciesName(monz));
     this.buildMenu();
-    this.buildTestButtons();
+    // 公開ページ(main)では 開発用ボタンを 出さない(2026-11-08 企画者「開発用ボタンは 外す」)
+    if ((import.meta.env as Record<string, string | undefined>).VITE_RELEASE !== '1') this.buildTestButtons();
     if (this.pendingPlace) this.startEdit(this.pendingPlace);
 
     this.cameras.main.fadeIn(400, 0, 0, 0);
