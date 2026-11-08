@@ -14,6 +14,8 @@ from PIL import Image
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 out = sys.argv[1]
 MYTH = '--myth' in sys.argv[2:]
+# 2026-11-08: 麻雀RPG の 確認用ページ(--mahjong)。牌の 絵と 音だけ。TAP TO START → 対局
+MJ = '--mahjong' in sys.argv[2:]
 # 3Dオートバトルの確認用ページ(2026-11-01)。絵は入れない(仮の人形なので)。曲はバトルの1曲だけ
 # 2026-11-05: STREET KING(ストーリー)の 確認用ページ(--story)。10種族の 第1形態の モデル + 一枚絵
 STORY = '--story' in sys.argv[2:]
@@ -46,6 +48,8 @@ if B3D:
         paths = [p for p in paths if not p.endswith('crownor.glb')]
 elif MYTH:
     paths = myth_paths + card_paths
+elif MJ:
+    paths = sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/mahjong/*.webp'))
 else:
     paths = ['assets/title/title_v2.webp', 'assets/bunk/reference/bunk_hires_cutout.png', 'assets/bunk/reference/bunk_down_cutout.png']
     for d in ['parts', 'down', 'faces']:
@@ -132,6 +136,8 @@ for p in paths:
 BGM_NOT_YET: set[str] = set()
 for p in sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/bgm/*.mp3') + glob.glob(pub + 'assets/se/**/*.mp3', recursive=True)):
     # MYTHCLASH の確認用ページには、MYTHCLASH の曲と効果音だけ
+    if MJ and not (p.startswith('assets/se/') or p.endswith('battle.mp3')):
+        continue
     if p in BGM_NOT_YET or (MYTH and 'mythclash' not in p) or (B3D and 'battle' not in p and not (STORY and 'ending' in p) and not p.startswith('assets/se/')) or (B3D and not STORY and p.endswith(('battle2.mp3', 'battle3.mp3'))):
         continue
     # 確認用ページの大きさの上限(16MB)のため、曲は軽く(モノラル20kbps・2026-10-26 に28k→24k→20kと下げた。22kHzでは実際は16kbpsになる)して埋め込む。ゲーム本体は元の音質のまま
@@ -148,7 +154,7 @@ jsons = {p: json.load(open(pub + p)) for p in ['assets/bunk/parts/parts.json', '
 html = open(out).read()
 start = html.index('<script>window.__MONZ_ASSETS') if '__MONZ_ASSETS' in html else html.index('<script type="module">')
 # MYTHCLASH の確認用ページは MYTHCLASH のタイトルから。ゲームの確認用ページはカードの絵を読みにいかない(入れていないので)
-flags = "window.__MONZ_START = 'RumbleMode'; window.__MONZ_NO_CARD_ART = true;" if B3D else "window.__MONZ_START = 'MythTitle';" if MYTH else 'window.__MONZ_NO_CARD_ART = true;'
+flags = "window.__MONZ_START = 'Mahjong'; window.__MONZ_NO_CARD_ART = true;" if MJ else "window.__MONZ_START = 'RumbleMode'; window.__MONZ_NO_CARD_ART = true;" if B3D else "window.__MONZ_START = 'MythTitle';" if MYTH else 'window.__MONZ_NO_CARD_ART = true;'
 html = html[:start] + '<script>window.__MONZ_ASSETS = ' + json.dumps(assets) + ';\nwindow.__MONZ_JSON = ' + json.dumps(jsons) + ';\n' + flags + '</script>\n' + \
     '<script type="module">\ndocument.getElementById(\'boot\')?.remove();\n' + js + '\n</script>\n'
 open(out, 'w').write(html)
