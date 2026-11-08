@@ -9,7 +9,7 @@ import type { Meld } from '../core/mahjong/score';
 import { EAST, isRed, type Kind, kindOf, type Tile } from '../core/mahjong/tiles';
 import { randomSeed } from '../core/rng';
 import { loadLife } from '../core/lifeSave';
-import { careFiles, careKey, hasCareImage } from '../render/careView';
+import { careFaceKey, careFiles, careKey, hasCareImage } from '../render/careView';
 import { UI_FONT } from '../ui/paint';
 import { fillSize, viewRatio, watchViewport } from '../ui/viewport';
 
@@ -506,65 +506,146 @@ export class MahjongScene extends Phaser.Scene {
   private showResult(r: RoundResult): void {
     const d = damageOf(r, BOSS);
     this.hp = applyDamage(this.hp, d);
+    // 2026-11-08 企画者「ロンされたら 敵の 顔・自分が アガったら 勇者の 顔が 一瞬」→ 顔の カットイン の あとで 結果
+    if (r.kind === 'win') {
+      const w = r.wins[0];
+      this.cutIn(w.seat, w.from === null ? 'ツモ！' : 'ロン！', () => this.resultPanel(r, d));
+    } else this.resultPanel(r, d);
+  }
+
+  /** アガった 人の 顔が 横から 大きく 出る(約1.2秒) */
+  private cutIn(seat: number, word: string, done: () => void): void {
+    const sp = this.actors[seat]?.getData('sp') as string;
+    const mine = seat === PLAYER_SEAT;
+    const c = this.add.container(this.W / 2, H / 2).setDepth(85);
+    const band = this.add.rectangle(0, 0, this.W + 40, 260, mine ? 0xffd23a : 0xff4a6a, 0.95).setAngle(-6);
+    const band2 = this.add.rectangle(0, 0, this.W + 40, 230, 0x16101c, 0.92).setAngle(-6);
+    c.add([band, band2]);
+    const face = this.textures.exists(careFaceKey(sp)) ? this.add.image(mine ? -this.W * 0.18 : this.W * 0.18, 0, careFaceKey(sp)) : null;
+    if (face) {
+      face.setScale(250 / face.height);
+      if (!mine) face.setFlipX(true);
+      c.add(face);
+    }
+    const t = this.text(mine ? this.W * 0.12 : -this.W * 0.12, 0, word, 110, mine ? '#ffd23a' : '#ff6a8a', 12);
+    c.add(t);
+    c.setX(mine ? -this.W : this.W * 2);
+    audio.se(mine ? 'mcThunder' : 'mcSlash');
+    this.tweens.add({ targets: c, x: this.W / 2, duration: 220, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: t, scale: { from: 1.5, to: 1 }, duration: 300, delay: 120, ease: 'Back.easeOut' });
+    this.time.delayedCall(1150, () => {
+      this.tweens.add({ targets: c, x: mine ? this.W * 2 : -this.W, duration: 200, ease: 'Quad.easeIn', onComplete: () => c.destroy() });
+      done();
+    });
+  }
+
+  /** 結果: 役を 1つずつ → さいごに 点数と いっしょに アガった 人が 相手を 攻撃 */
+  private resultPanel(r: RoundResult, d: Damage): void {
     const panel = this.add.container(this.W / 2, H / 2).setDepth(80);
-    panel.add(this.add.rectangle(0, 0, 820, 520, 0x16101c, 0.95).setStrokeStyle(5, 0xffd23a));
-    const lines: string[] = [];
+    panel.add(this.add.rectangle(0, 0, 860, 580, 0x16101c, 0.95).setStrokeStyle(5, 0xffd23a));
     let title = '';
+    const rows: { text: string; color: string; size: number }[] = [];
+    let total = '';
     if (r.kind === 'win') {
       const w = r.wins[0];
       title = `${SEAT_NAME[w.seat]}の ${w.from === null ? 'ツモ' : 'ロン'}！`;
       for (const wn of r.wins) {
         const sc = wn.score;
-        if (r.wins.length > 1) lines.push(`【${SEAT_NAME[wn.seat]}】`);
-        lines.push(sc.yaku.map((y) => `${y.name} ${y.yakuman ? (y.yakuman > 1 ? 'ダブル役満' : '役満') : `${y.han}翻`}`).join('  '));
-        if (sc.dora) lines.push(`ドラ ${sc.dora}`);
-        lines.push(`${sc.yakuman ? sc.limit : `${sc.han}翻 ${sc.fu}符 ${sc.limit}`}  ${(wn.from === null ? wn.paid.reduce((a, b) => a + b, 0) : sc.ron).toLocaleString()}点`);
+        if (r.wins.length > 1) rows.push({ text: `【${SEAT_NAME[wn.seat]}】`, color: '#ffb03a', size: 18 });
+        for (const y of sc.yaku) rows.push({ text: `${y.name}　${y.yakuman ? (y.yakuman > 1 ? 'ダブル役満' : '役満') : `${y.han}翻`}`, color: '#ffffff', size: 21 });
+        if (sc.dora) rows.push({ text: `ドラ　${sc.dora}翻`, color: '#ffb03a', size: 21 });
+        total += `${total ? '\n' : ''}${sc.yakuman ? sc.limit : `${sc.han}翻 ${sc.fu}符 ${sc.limit}`}  ${(wn.from === null ? wn.paid.reduce((a, b) => a + b, 0) : sc.ron).toLocaleString()}点`;
       }
       // アガった 手
-      const wn = r.wins[0];
-      const p = this.round.players[wn.seat];
-      const hand = [...p.hand, ...(wn.from === null ? [] : [this.round.lastTile!.tile])];
-      hand.forEach((t, i) => panel.add(this.tile(-((hand.length - 1) * 40) / 2 + i * 40, -170, texOf(t), 38)));
-      if (this.round.players[wn.seat].riichi) {
+      const p = this.round.players[w.seat];
+      const hand = [...p.hand, ...(w.from === null ? [] : [this.round.lastTile!.tile])];
+      hand.forEach((t, i) => panel.add(this.tile(-((hand.length - 1) * 42) / 2 + i * 42, -200, texOf(t), 40)));
+      if (p.riichi) {
         const ura = uraIndicators(this.round);
-        panel.add(this.text(-300, -118, '裏ドラ表示', 14, '#ffb03a'));
-        ura.forEach((k, i) => panel.add(this.tile(-230 + i * 28, -118, kindTex(k), 26)));
+        panel.add(this.text(-330, -146, '裏ドラ表示', 14, '#ffb03a'));
+        ura.forEach((k, i) => panel.add(this.tile(-262 + i * 28, -146, kindTex(k), 26)));
       }
     } else {
       title = r.reason === 'kyuushu' ? '九種九牌で 流局' : r.nagashi?.length ? `流し満貫！(${r.nagashi.map((n) => SEAT_NAME[n.seat]).join('・')})` : '流局';
-      if (r.reason === 'exhaust') lines.push(`テンパイ: ${r.tenpai.map((t, i) => (t ? SEAT_NAME[i] : '')).filter(Boolean).join('・') || 'なし'}`);
+      if (r.reason === 'exhaust') rows.push({ text: `テンパイ: ${r.tenpai.map((t, i) => (t ? SEAT_NAME[i] : '')).filter(Boolean).join('・') || 'なし'}`, color: '#ffffff', size: 20 });
     }
-    panel.add(this.text(0, -226, title, 34, '#ffd23a', 6));
-    panel.add(this.text(0, -40, lines.join('\n'), 18, '#ffffff').setWordWrapWidth(760));
-    this.damageText(panel, d);
-    this.redrawHudOnly();
-    const res = stageResult(this.hp);
-    const next = () => {
-      panel.destroy();
-      if (res) return this.finish(res);
-      nextRound(this.mj);
-      if (this.mj.over) return this.endHanchan();
-      this.step();
-    };
-    const b = this.text(0, 210, res ? 'つぎへ' : 'つぎの 局へ', 26, '#16101c').setInteractive({ useHandCursor: true });
-    b.setBackgroundColor('#ffd23a').setPadding(24, 10, 24, 10);
-    b.on('pointerdown', () => {
-      audio.se('next');
-      next();
+    panel.add(this.text(0, -254, title, 34, '#ffd23a', 6));
+    // 役を 1つずつ(左がわ)
+    const step = 300;
+    rows.forEach((row, i) => {
+      const t = this.text(-210, -110 + i * 30, row.text, row.size, row.color).setAlpha(0);
+      panel.add(t);
+      this.time.delayedCall(250 + i * step, () => {
+        t.setAlpha(1);
+        audio.se('tap', { pitch: 1 + i * 0.06 });
+        this.tweens.add({ targets: t, x: { from: -250, to: -210 }, duration: 160, ease: 'Quad.easeOut' });
+      });
     });
-    panel.add(b);
-    if (d.toEnemy || d.toPlayer) audio.se(d.toEnemy ? 'mcHit' : 'punchHeavy');
-    for (const h of d.hits) this.attackAnim(h.winner, h.target === 'enemy' ? [1, 2, 3] : [0]);
+    const tEnd = 250 + rows.length * step + 200;
+    const res = stageResult(this.hp);
+    this.time.delayedCall(tEnd, () => {
+      if (total) {
+        const tt = this.text(-210, 150, total, 26, '#ffd23a', 5);
+        panel.add(tt);
+        this.tweens.add({ targets: tt, scale: { from: 1.5, to: 1 }, duration: 300, ease: 'Back.easeOut' });
+      }
+      // 攻撃の 絵(右がわ)
+      for (const h of d.hits) this.attackScene(panel, h.winner, h.target === 'enemy');
+      if (d.hits.length) this.time.delayedCall(450, () => this.damageText(panel, d));
+      this.redrawHudOnly();
+      for (const h of d.hits) this.attackAnim(h.winner, h.target === 'enemy' ? [1, 2, 3] : [0]);
+      this.time.delayedCall(d.hits.length ? 900 : 100, () => {
+        const b = this.text(0, 248, res ? 'つぎへ' : 'つぎの 局へ', 26, '#16101c').setInteractive({ useHandCursor: true });
+        b.setBackgroundColor('#ffd23a').setPadding(24, 10, 24, 10);
+        b.on('pointerdown', () => {
+          audio.se('next');
+          panel.destroy();
+          if (res) return this.finish(res);
+          nextRound(this.mj);
+          if (this.mj.over) return this.endHanchan();
+          this.step();
+        });
+        panel.add(b);
+      });
+    });
   }
 
-  private damageText(panel: Phaser.GameObjects.Container, d: Damage): void {
+  /** 結果の 右がわ: アガった 人が 相手に 飛びかかる 絵(自分なら 勇者 → 敵、敵なら 敵 → 勇者) */
+  private attackScene(panel: Phaser.GameObjects.Container, winner: number, toEnemy: boolean): void {
+    const atkSp = this.actors[winner]?.getData('sp') as string;
+    const defSp = toEnemy ? (this.actors[BOSS]?.getData('sp') as string) : (this.actors[0]?.getData('sp') as string);
+    const mk = (sp: string, x: number, flip: boolean) => {
+      if (!this.textures.exists(careKey(sp))) return null;
+      const img = this.add.image(x, 60, careKey(sp)).setOrigin(0.5, 0.5);
+      img.setScale(200 / img.height).setFlipX(flip);
+      panel.add(img);
+      return img;
+    };
+    // 攻撃する 側は 左、受ける 側は 右(向かい合う)
+    const def = mk(defSp, 300, true);
+    const atk = mk(atkSp, 110, false);
+    if (!atk || !def) return;
+    this.tweens.add({ targets: atk, x: 230, y: 40, angle: 12, duration: 180, delay: 80, yoyo: true, hold: 120, ease: 'Quad.easeIn' });
+    this.time.delayedCall(260, () => {
+      // 当たった 光
+      const star = this.add.star(270, 50, 10, 30, 90, 0xffd23a).setStrokeStyle(5, 0xffffff);
+      panel.add(star);
+      this.tweens.add({ targets: star, scale: { from: 0.3, to: 1.4 }, alpha: { from: 1, to: 0 }, angle: 40, duration: 420, onComplete: () => star.destroy() });
+      def.setTint(0xff6a6a);
+      this.tweens.add({ targets: def, x: { from: 290, to: 310 }, duration: 50, yoyo: true, repeat: 5, onComplete: () => def.clearTint() });
+      this.cameras.main.shake(220, toEnemy ? 0.004 : 0.008);
+      audio.se(toEnemy ? 'punchHeavy' : 'punch');
+    });
+  }
+
+  private damageText(panel: Phaser.GameObjects.Container, d: Damage, x = 205, y = 170): void {
     if (d.toEnemy) {
-      const t = this.text(0, 110, `敵チームに ${d.toEnemy.toLocaleString()} ダメージ！`, 40, '#ff6a8a', 7);
+      const t = this.text(x, y, `敵に ${d.toEnemy.toLocaleString()} ダメージ！`, 34, '#ff6a8a', 7);
       panel.add(t);
       this.tweens.add({ targets: t, scale: { from: 1.6, to: 1 }, duration: 380, ease: 'Back.easeOut' });
     }
     if (d.toPlayer) {
-      const t = this.text(0, d.toEnemy ? 160 : 110, `あなたに ${d.toPlayer.toLocaleString()} ダメージ…`, 34, '#9fe0ff', 6);
+      const t = this.text(x, d.toEnemy ? y + 36 : y, `あなたに ${d.toPlayer.toLocaleString()} ダメージ…`, 30, '#9fe0ff', 6);
       panel.add(t);
       this.cameras.main.shake(260, 0.006);
     }
@@ -586,10 +667,10 @@ export class MahjongScene extends Phaser.Scene {
     panel.add(this.text(0, -170, '半荘 おわり', 34, '#ffd23a', 6));
     panel.add(this.text(0, -70, ranks.map((s, i) => `${i + 1}位 ${SEAT_NAME[s]}  ${this.mj.points[s]}点`).join('\n'), 20, '#ffffff'));
     panel.add(this.text(0, 40, `あなたの ウマ: ${d.toEnemy ? `+${d.toEnemy}` : d.toPlayer ? `-${d.toPlayer}` : '0'}`, 22, '#ffb03a'));
-    this.damageText(panel, d);
+    this.damageText(panel, d, 0, 100);
     this.redrawHudOnly();
     const res = stageResult(this.hp);
-    const b = this.text(0, 160, res ? 'つぎへ' : 'つぎの 半荘へ', 26, '#16101c').setInteractive({ useHandCursor: true });
+    const b = this.text(0, 170, res ? 'つぎへ' : 'つぎの 半荘へ', 26, '#16101c').setInteractive({ useHandCursor: true });
     b.setBackgroundColor('#ffd23a').setPadding(24, 10, 24, 10);
     b.on('pointerdown', () => {
       audio.se('next');
