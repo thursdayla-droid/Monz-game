@@ -72,4 +72,12 @@ if (!import.meta.env.DEV && location.protocol.startsWith('http')) {
 }
 
 // 開発中だけ、確認用にゲームを外から触れるようにする
+// 2026-11-08 企画者「やってる人のデータを消さないで」: iPhone などに「この ゲームの 保存データは 自動で 消さないで」と お願いする
+// (ことわられても ゲームは そのまま 動く)
+try {
+  void navigator.storage?.persist?.().catch(() => undefined);
+} catch {
+  /* できない 環境でも 続ける */
+}
+
 if (import.meta.env.DEV) Object.assign(window, { __monzGame: game, __monzAudio: audio });

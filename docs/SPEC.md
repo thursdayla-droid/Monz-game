@@ -164,6 +164,7 @@
 - `monz:save`：最初の質問の答え（`src/core/save.ts`）
 - `monz:life`（版4）：コイン・MONZ（レベル・経験値・ステータス・愛・お腹など）・持ち物（`owned`／置いた家具 `placed`：場所・向き・大きさ）・部屋 `place`・`secretRoom`（VIPを見つけた）・`vipOpen`（VIP開放）・ミニゲームの記録・もらった報酬の番号・MYTHCLASH（`mythclash`：持っているカード・デッキ・タワーのクリアした階 `towerCleared`）
 - 保存のたびに1つ前を `monz:life:backup` に残す。古い形のデータは読みこむときに今の形に直す
+- 遊んでいる人の データは 消さない（2026-11-08）。起動時に `navigator.storage.persist()` で 自動で 消さないよう お願いする。公開ページでは `?reset` は 効かない
 - **データの形を変えるときは、今のデータが読めなくならないようにする**（`migrateLife` と `tests/` で確かめる）
 
 ## 9. まだ作っていないもの・今後の予定
