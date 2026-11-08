@@ -91,7 +91,7 @@ export class MythModeScene extends Phaser.Scene {
     const L = this.add.container(0, 0);
     this.layer = L;
     // 2026-11-08 企画者「左上の 戻る 押せない・二重・もう少し 下に」→ 下げて 大きく・はなした 時に 動く(押した 時だと 次の 画面の 戻るまで 反応していた)
-    const back = this.add.text(24, safeInsets(this).top + 80, '◀ もどる', { fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: '#ffffff', backgroundColor: '#16101ccc', padding: { x: 22, y: 14 } }).setInteractive({ useHandCursor: true });
+    const back = this.add.text(24, safeInsets(this).top + 30, '◀ もどる', { fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: '#ffffff', backgroundColor: '#16101ccc', padding: { x: 22, y: 14 } }).setInteractive({ useHandCursor: true });
     back.on('pointerup', () => {
       if (this.view === 'mode') this.go('MythTitle');
       else this.switchView('mode');

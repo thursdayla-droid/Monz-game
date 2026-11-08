@@ -57,7 +57,7 @@ function fitStandalone(): void {
   const sw = Math.min(screen.width, screen.height);
   const sh = Math.max(screen.width, screen.height);
   el.style.width = `${portrait ? sw : sh}px`;
-  el.style.height = `${portrait ? sh : sw}px`;
+  el.style.height = `calc(${portrait ? sh : sw}px - env(safe-area-inset-top))`;
   el.style.right = 'auto';
   el.style.bottom = 'auto';
   game.scale.refresh();

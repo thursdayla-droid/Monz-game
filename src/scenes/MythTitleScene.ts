@@ -91,7 +91,7 @@ export class MythTitleScene extends Phaser.Scene {
     }
     // もどる(絵にないので、左上の空いている所に出す)。バトルメニューへ
     // 2026-11-08 企画者「左上の 戻る 押せない・もう少し 下に」→ iPhone の 切りかき・Safari の バーを よけて 下げる。はなした 時に 動く
-    const topY = safeInsets(this).top + 80;
+    const topY = safeInsets(this).top + 30;
     const back = this.add
       .text(28, topY, '◀ もどる', { fontFamily: UI_FONT, fontSize: '40px', fontStyle: '900', color: '#ffffff', backgroundColor: '#16101ccc', padding: { x: 24, y: 16 } })
       .setInteractive({ useHandCursor: true });

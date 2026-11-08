@@ -144,5 +144,7 @@ export function safeInsets(scene: Phaser.Scene): { top: number; bottom: number }
   const b = parseFloat(cs.paddingBottom) || 0;
   d.remove();
   const k = scene.scale.gameSize.width / Math.max(1, scene.scale.parentSize.width || globalThis.innerWidth || 720);
-  return { top: t * k, bottom: b * k };
+  // ゲームの 画面は 時計・電池の 下から はじまる(index.html)ので、上は もう よけなくて いい
+  void t;
+  return { top: 0, bottom: b * k };
 }
