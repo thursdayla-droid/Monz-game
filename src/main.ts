@@ -56,5 +56,20 @@ game.events.once(Phaser.Core.Events.READY, () => {
   for (const s of game.scene.scenes) s.events.on(Phaser.Scenes.Events.CREATE, () => fillTall(s));
 });
 
+// 2026-11-08: iPhone が 古い 版を 覚えたまま 開くと、新しい 絵と 合わずに ずれた → 公開ページでは 新しい 版が あれば 読みこみ直す
+if (!import.meta.env.DEV && location.protocol.startsWith('http')) {
+  const mine = [...document.scripts].map((x) => x.src).find((u) => /assets\/index-[^/]+\.js/.test(u));
+  fetch(`./?v=${Date.now()}`, { cache: 'no-store' })
+    .then((r) => r.text())
+    .then((html) => {
+      const m = html.match(/assets\/index-[^"']+\.js/);
+      if (mine && m && !mine.endsWith(m[0]) && sessionStorage.getItem('monz:reloaded') !== m[0]) {
+        sessionStorage.setItem('monz:reloaded', m[0]);
+        location.reload();
+      }
+    })
+    .catch(() => {});
+}
+
 // 開発中だけ、確認用にゲームを外から触れるようにする
 if (import.meta.env.DEV) Object.assign(window, { __monzGame: game, __monzAudio: audio });
