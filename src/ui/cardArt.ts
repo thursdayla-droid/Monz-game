@@ -8,7 +8,7 @@ import { COLORS, INK, roundRectPath, speckle, splat, UI_FONT } from './paint';
  */
 /** 企画者の絵(design/minigame/ → make_card_assets.py で切り抜き) */
 export const CARD_IMAGES = {
-  'cardimg:title': 'card_title.webp',
+  'cardimg:title': 'card_title_v2.webp',
   'cardimg:logo': 'card_logo.webp',
   'cardimg:back': 'card_back.webp',
   'cardimg:deck': 'card_deck.webp',

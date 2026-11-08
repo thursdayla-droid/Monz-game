@@ -8,7 +8,7 @@ import { prefetchPacks, preloadPacks, releasePack } from '../render/packs';
 const FONT = 'system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif';
 export const TITLE_IMAGE = 'title:image';
 // 2026-11-08 企画者の 縦長の 絵(852x1846。前の 絵は unused/title/)
-export const TITLE_FILE = 'assets/title/title.webp';
+export const TITLE_FILE = 'assets/title/title_v2.webp';
 
 /**
  * タイトル画面。企画者が用意したタイトルの絵(design/title/title.png)をそのまま全面に出す。

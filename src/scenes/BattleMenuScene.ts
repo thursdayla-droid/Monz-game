@@ -15,7 +15,7 @@ const CARD = { w: 640, h: 400 };
 /** 企画者のバトルセレクト画面の絵(2026-11-01。design/battle_menu/battle_menu.png・941x1672)。文字・看板は絵に入っている */
 export const BATTLE_MENU_IMAGE = 'battlemenu:bg';
 /** 2026-11-07 企画者の 新しい 背景(上 = MONZ RUMBLE の 雰囲気・下 = MYTHCLASH の 雰囲気。design/battle_menu/battle_menu2_bg.png)。前の絵 battle_menu.webp は 残す */
-export const BATTLE_MENU_FILE = 'assets/home/battle_menu2.webp';
+export const BATTLE_MENU_FILE = 'assets/home/battle_menu_v3.webp';
 /** 看板の絵: MONZ RUMBLE は 企画者の 絵(design/rumble_ui/bm_rumble_sign.png)。MYTHCLASH は 前の 絵から 切り出した 看板【仮：新しい 看板の 絵が できたら 入れかえる】 */
 export const BATTLE_MENU_SIGNS = [
   { key: 'battlemenu:sign:action', url: 'assets/home/bm_rumble.webp' },
