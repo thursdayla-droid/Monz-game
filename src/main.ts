@@ -85,6 +85,22 @@ if (!import.meta.env.DEV && location.protocol.startsWith('http')) {
     .catch(() => {});
 }
 
+// 2026-11-08 企画者(スクショ)「公開テストで 画面が アップに なっちゃう」:
+// iPhone は 2本の 指(スティック＋ボタン)や すばやい 2回 タップを「拡大」と みなす → 拡大を 止める
+const stopZoom = (e: Event) => e.preventDefault();
+for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, stopZoom, { passive: false });
+document.addEventListener('touchmove', (e) => {
+  if (e.touches.length > 1 || ((e as TouchEvent & { scale?: number }).scale ?? 1) !== 1) e.preventDefault();
+}, { passive: false });
+let lastTouchEnd = 0;
+document.addEventListener('touchend', (e) => {
+  const now = Date.now();
+  const el = e.target as HTMLElement | null;
+  // ボタン・入力欄は そのまま(2回目の タップが 消えない ように)
+  if (now - lastTouchEnd < 350 && !el?.closest('button, input, textarea, select, a')) e.preventDefault();
+  lastTouchEnd = now;
+}, { passive: false });
+
 // 開発中だけ、確認用にゲームを外から触れるようにする
 // 2026-11-08 企画者「やってる人のデータを消さないで」: iPhone などに「この ゲームの 保存データは 自動で 消さないで」と お願いする
 // (ことわられても ゲームは そのまま 動く)
