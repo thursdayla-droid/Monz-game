@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { fillSize } from '../ui/viewport';
 import { audio } from '../audio/engine';
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { newSeed, type Rng } from '../core/rng';
@@ -35,7 +36,9 @@ export const SLUGGER_LOGO_FILE = 'assets/minigame/slugger_logo.webp';
 
 /** 球場の背景(企画者の絵) */
 export const SLUGGER_BG_KEY = 'slug:bg';
-export const SLUGGER_BG_FILE = 'assets/minigame/slugger_bg.webp';
+// 2026-11-08 全画面用の 縦長の 絵(852x1846。前の 絵は unused/)。前の 絵の 球場が この 絵の 上から 258px・0.91倍の 所に ある
+export const SLUGGER_BG_FILE = 'assets/minigame/slugger_bg_v2.webp';
+const BG_FIT = { scale: 0.91, top: 258, w: 852, h: 1846 };
 
 const W = 720;
 const H = 1280;
@@ -121,7 +124,20 @@ export class SluggerScene extends Phaser.Scene {
     this.makeTextures();
 
     // 球場: 企画者の絵(読めなかったときだけプログラムで描いた仮の絵)
-    if (this.textures.exists(SLUGGER_BG_KEY)) this.add.image(0, 0, SLUGGER_BG_KEY).setOrigin(0, 0).setDisplaySize(W, H);
+    if (this.textures.exists(SLUGGER_BG_KEY)) {
+      // 前の 絵と 同じ 所に 球場が くるように 置き、のびた 画面の ぶんは 上(空)を 見せる(全画面 2026-11-08)
+      const k = (W / 941) / BG_FIT.scale;
+      const top = -BG_FIT.top * k;
+      this.add.image((W - BG_FIT.w * k) / 2, top, SLUGGER_BG_KEY).setOrigin(0, 0).setScale(k);
+      const tall = Math.max(H, fillSize(this, { w: W, h: H }, { minRatio: 0.4, maxRatio: W / H }).h);
+      const bottom = top + BG_FIT.h * k;
+      const ex = tall - H;
+      const below = Math.max(0, Math.min(ex, bottom - H));
+      this.scale.setGameSize(W, tall);
+      this.cameras.main.setSize(W, tall);
+      this.cameras.main.setScroll(0, -(ex - below));
+      this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(W, H));
+    }
     else {
       canvasTextureOnce(this, 'slug:stadium', W, H, (ctx) => drawStadium(ctx, W, H));
       this.add.image(0, 0, 'slug:stadium').setOrigin(0, 0);
