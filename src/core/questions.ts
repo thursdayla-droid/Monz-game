@@ -91,11 +91,36 @@ export function isComplete(answers: Answers): boolean {
   return QUESTIONS.every((q) => q.choices.some((c) => c.id === answers[q.id]));
 }
 
+/** 最初に 生まれる MONZ の 候補(敵 専用の CROWNIE は 出ない) */
+export const FIRST_MONZ = ['bunk', 'mofu', 'zipp', 'puni', 'klak', 'riot', 'snek', 'grit', 'vybe', 'shellz'] as const;
+
 /**
- * 回答から最初に出会うMONZを決める場所。
- * 【未確定】判定ルールは企画者が決める。今は判定しない(null を返す)。
- * MONZがBUNKしかいないあいだは、呼び出し側でBUNKを出している。
+ * 答えごとに 生まれやすく なる MONZ【仮：Claude の 案。企画者が 変えられる】。
+ * 種族の 性格(stats.ts の コメント)に 合わせた: BUNK 元気・パワー／MOFU のんびり・守り／ZIPP 速い／PUNI のんびり・変わり者／KLAK 作戦・メカ／
+ * RIOT 暴れる／SNEK クール・ずる賢い／GRIT 重い・まじめ／VYBE クール・電気・目立ちたがり／SHELLZ のんびり・かたい
  */
-export function decideFirstMonz(_answers: Answers): string | null {
-  return null;
+const LEAN: Record<string, Record<string, string[]>> = {
+  personality: { energetic: ['bunk', 'riot', 'zipp'], easygoing: ['mofu', 'puni', 'shellz'], cool: ['snek', 'vybe', 'zipp'], quirky: ['klak', 'puni', 'vybe'] },
+  world: { city: ['bunk', 'vybe', 'riot', 'klak'], forest: ['mofu', 'snek', 'grit', 'puni'], ruins: ['klak', 'shellz', 'grit', 'snek'] },
+  play: { battle: ['riot', 'grit', 'bunk'], collect: ['klak', 'vybe', 'zipp'], adventure: ['zipp', 'snek', 'shellz'], live: ['mofu', 'puni', 'bunk'] },
+  pinch: { charge: ['bunk', 'riot', 'grit'], plan: ['klak', 'snek', 'vybe'], team: ['mofu', 'puni', 'shellz'], run: ['zipp', 'snek', 'mofu'] },
+  money: { police: ['grit', 'shellz', 'mofu'], lookaround: ['snek', 'klak', 'zipp'], yakiniku: ['bunk', 'riot', 'puni'], sns: ['vybe', 'zipp', 'klak'] },
+};
+
+/** 答えから 決まる 生まれやすさ(どの MONZ も 1 は ある = 必ず どれでも 生まれる 見こみが ある) */
+export function firstMonzWeights(answers: Answers): Record<string, number> {
+  const w: Record<string, number> = Object.fromEntries(FIRST_MONZ.map((m) => [m, 1]));
+  for (const [q, a] of Object.entries(answers)) for (const m of LEAN[q]?.[a] ?? []) w[m] += 2;
+  return w;
+}
+
+/**
+ * 回答から 最初に 出会う MONZ を 決める(2026-11-08 企画者「質問から 色んな MONZ が 生まれるように。この 答えだから これしか 産まれないってのも やめて」)。
+ * 答えで 生まれやすさが 変わるが、くじ引きなので 同じ 答えでも ちがう MONZ が 生まれる。rnd: 0〜1 の 乱数
+ */
+export function decideFirstMonz(answers: Answers, rnd: () => number = Math.random): string {
+  const w = firstMonzWeights(answers);
+  let r = rnd() * Object.values(w).reduce((a, b) => a + b, 0);
+  for (const m of FIRST_MONZ) if ((r -= w[m]) < 0) return m;
+  return FIRST_MONZ[FIRST_MONZ.length - 1];
 }

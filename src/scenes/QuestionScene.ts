@@ -196,7 +196,7 @@ export class QuestionScene extends Phaser.Scene {
   private finish(): void {
     this.busy = true;
     // 【未確定】判定ルールが決まるまで判定しない。いまはMONZがBUNKしかいないのでBUNKにする。
-    const firstMonz = decideFirstMonz(this.answers) ?? 'bunk';
+    const firstMonz = decideFirstMonz(this.answers);
     writeSave({ version: SAVE_VERSION, answers: { ...this.answers }, answeredAt: new Date().toISOString(), firstMonz });
     const flash = this.add.rectangle(0, 0, W, 1280, Phaser.Display.Color.HexStringToColor(CREAM).color).setOrigin(0, 0).setAlpha(0);
     this.tweens.add({

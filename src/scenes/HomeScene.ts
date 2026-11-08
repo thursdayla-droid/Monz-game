@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { speciesName } from '../core/species';
+import { isSpecies, speciesName } from '../core/species';
 import { audio } from '../audio/engine';
 import { BunkBrain } from '../core/bunkBehavior';
 import { HOME_ACTIONS, HOME_ACTION_LABELS, HOME_ACTION_READY, ALL_PLACES, HOME_LAYOUTS, clipPolygonX, insidePolygon, randomPointIn, savedHomePlace, type HomeAction, type HomePlace, type Pt } from '../core/home';
@@ -14,7 +14,9 @@ import { mulberry32 } from '../core/rng';
 import { currentStats, LOVE_RULES, shownLove, STAT_KEYS, STAT_LABELS, STAT_MAX, type StatBlock, type StatKey } from '../core/stats';
 import { clearSave, loadSave } from '../core/save';
 import { BUNK_MOTION, BunkView, cutoutKey, TEST_PERSONALITY } from '../render/bunkView';
+import { FIRST_MONZ } from '../core/questions';
 import { MOFU_CUTOUT_KEY, MofuView } from '../render/mofuView';
+import { CareView, careFaceKey, careKey, hasCareImage, loadCare } from '../render/careView';
 import { drawCoin, drawHeart, drawIcon, drawMeat, drawMeatImage, drawMenuButton, drawPanel } from '../ui/homeArt';
 import { canvasTexture, canvasTextureOnce, drawPaper, UI_FONT } from '../ui/paint';
 import { openSoundSettings } from '../ui/soundButton';
@@ -79,7 +81,7 @@ export const MEAT_FILE = 'meat.webp';
  */
 export class HomeScene extends Phaser.Scene {
   /** お世話しているMONZの姿(種族で変わる。2026-11-03 MOFU) */
-  private view?: BunkView | MofuView;
+  private view?: BunkView | MofuView | CareView;
   private species = 'bunk';
   private life?: MonzLife;
   private shadow?: Phaser.GameObjects.Ellipse;
@@ -125,6 +127,8 @@ export class HomeScene extends Phaser.Scene {
     const life0 = loadLife();
     const sp = (life0.monz.find((m) => m.uid === life0.activeMonz) ?? life0.monz[0])?.species;
     preloadPacks(this, sp === 'mofu' ? ['bunk', 'mofu', 'home'] : ['bunk', 'home']);
+    // ほかの 種族は 企画者の お世話用の 絵(2026-11-08)
+    if (sp) loadCare(this.load, sp);
     preloadFurniture(this, loadLife().inventory.owned);
   }
 
@@ -168,7 +172,12 @@ export class HomeScene extends Phaser.Scene {
     this.life = life;
     this.shadow = this.add.ellipse(life.x, life.y, 300, 46, 0x000000, 0.28);
     this.species = record.monz.species;
-    const view = this.species === 'mofu' ? new MofuView(this, life.x, life.y, this.scaleRange[0]) : new BunkView(this, life.x, life.y, this.scaleRange[0]);
+    const view =
+      this.species === 'mofu'
+        ? new MofuView(this, life.x, life.y, this.scaleRange[0])
+        : hasCareImage(this.species) && this.textures.exists(careKey(this.species))
+          ? new CareView(this, life.x, life.y, this.scaleRange[0], this.species)
+          : new BunkView(this, life.x, life.y, this.scaleRange[0]);
     view.still = false;
     this.view = view;
     this.poseImg = this.add.image(life.x, life.y, '__DEFAULT').setOrigin(0.5, 1).setVisible(false);
@@ -280,8 +289,9 @@ export class HomeScene extends Phaser.Scene {
     card.add(this.add.image(0, 0, 'home:card').setOrigin(0, 0));
     // 顔(正式なBUNKの絵から切り抜く)
     canvasTexture(this, 'home:portrait', 116, 116, (ctx) => {
-      const mofu = this.species === 'mofu' && this.textures.exists(MOFU_CUTOUT_KEY);
-      const src = this.textures.get(mofu ? MOFU_CUTOUT_KEY : cutoutKey('guard')).getSourceImage() as HTMLImageElement;
+      const care = hasCareImage(this.species) && this.textures.exists(careFaceKey(this.species));
+      const mofu = care || (this.species === 'mofu' && this.textures.exists(MOFU_CUTOUT_KEY));
+      const src = this.textures.get(care ? careFaceKey(this.species) : mofu ? MOFU_CUTOUT_KEY : cutoutKey('guard')).getSourceImage() as HTMLImageElement;
       const r = 54;
       ctx.save();
       ctx.beginPath();
@@ -600,9 +610,10 @@ export class HomeScene extends Phaser.Scene {
     // 【仮】部屋を変えるのは、いずれショップでコインを使う(企画者決定)。ショップができるまでの確認用
     button(498, '部屋を選び直す', () => this.scene.start('RoomSelect'));
     button(414, '+1000コイン', () => this.record?.add(1000));
-    // 確認用(2026-11-03): BUNK と MOFU を切りかえて、お世話画面の動きを見る
-    button(540, this.species === 'mofu' ? 'BUNKにする' : 'MOFUにする', () => {
-      this.record?.setSpecies(this.species === 'mofu' ? 'bunk' : 'mofu');
+    // 確認用(2026-11-03 → 2026-11-08 全種族): 種族を じゅんばんに 切りかえて、お世話画面の 姿を 見る
+    const next = FIRST_MONZ[(FIRST_MONZ.indexOf(this.species as (typeof FIRST_MONZ)[number]) + 1) % FIRST_MONZ.length];
+    button(540, `${speciesName(next)}にする`, () => {
+      if (isSpecies(next)) this.record?.setSpecies(next);
       this.scene.restart();
     });
     // 時間を進めて、お腹がすいたり眠くなったりするのを確かめる

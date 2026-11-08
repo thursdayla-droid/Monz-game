@@ -23,8 +23,20 @@ describe('questions', () => {
     expect(isComplete({ ...answers, money: 'unknown' })).toBe(false);
   });
 
-  it('【未確定】判定ルールが決まるまで、判定しない', () => {
-    expect(decideFirstMonz({})).toBeNull();
+  it('同じ 答えでも いろいろな MONZ が 生まれる・答えで 生まれやすさが 変わる(2026-11-08 企画者)', () => {
+    const answers = { personality: 'energetic', world: 'city', play: 'battle', pinch: 'charge', money: 'yakiniku' };
+    let seed = 1;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const got: Record<string, number> = {};
+    for (let i = 0; i < 3000; i++) {
+      const m = decideFirstMonz(answers, rnd);
+      got[m] = (got[m] ?? 0) + 1;
+    }
+    expect(Object.keys(got).length).toBe(10);
+    expect(got.crownie).toBeUndefined();
+    // 元気・街・バトル・正面突破・焼肉 → BUNK・RIOT が 生まれやすい
+    expect(got.bunk).toBeGreaterThan(got.shellz);
+    expect(got.riot).toBeGreaterThan(got.mofu);
   });
 });
 

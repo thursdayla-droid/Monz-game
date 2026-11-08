@@ -8,6 +8,7 @@ import { mulberry32, range } from '../core/rng';
 import LAYOUT from '../render/birthLayout.json';
 import { BUNK_MOTION, BunkView, TEST_PERSONALITY } from '../render/bunkView';
 import { MofuView } from '../render/mofuView';
+import { CareView, careKey, hasCareImage, loadCare } from '../render/careView';
 import { isSpecies } from '../core/species';
 import { SHELL_PIECES, drawCracks, drawGlow, drawRays, drawShell } from '../ui/birthArt';
 import { canvasTexture, UI_FONT } from '../ui/paint';
@@ -72,7 +73,7 @@ const FLAP = 0.95;
  * MONZの正体は卵が割れるまで見せない。MONZの絵は元の画像のまま。
  */
 export class BirthScene extends Phaser.Scene {
-  private view?: BunkView | MofuView;
+  private view?: BunkView | MofuView | CareView;
   private brain?: BunkBrain;
   private t = 0;
   private alive = false;
@@ -83,7 +84,9 @@ export class BirthScene extends Phaser.Scene {
 
   preload(): void {
     // 生まれるMONZ(最初の質問で決まる。2026-11-03 MOFU の絵ができた)
-    preloadPacks(this, loadSave()?.firstMonz === 'mofu' ? ['bunk', 'mofu', 'birth'] : ['bunk', 'birth']);
+    const first = loadSave()?.firstMonz ?? 'bunk';
+    preloadPacks(this, first === 'mofu' ? ['bunk', 'mofu', 'birth'] : ['bunk', 'birth']);
+    loadCare(this.load, first);
   }
 
   create(data: { intro?: boolean }): void {
@@ -318,7 +321,12 @@ export class BirthScene extends Phaser.Scene {
 
   /** 籠の中にMONZを出す(目を閉じている → 目を開ける → 少し体を動かす → 名前) */
   private spawn(monz: string): void {
-    const view = monz === 'mofu' ? new MofuView(this, NEST_X, MONZ_FEET, MONZ_SCALE) : new BunkView(this, NEST_X, MONZ_FEET, MONZ_SCALE);
+    const view =
+      monz === 'mofu'
+        ? new MofuView(this, NEST_X, MONZ_FEET, MONZ_SCALE)
+        : hasCareImage(monz) && this.textures.exists(careKey(monz))
+          ? new CareView(this, NEST_X, MONZ_FEET, MONZ_SCALE, monz)
+          : new BunkView(this, NEST_X, MONZ_FEET, MONZ_SCALE);
     view.setDepth(5);
     view.still = false;
     const brain = new BunkBrain(BUNK_MOTION.behavior, Date.now() & 0xffff, TEST_PERSONALITY);
