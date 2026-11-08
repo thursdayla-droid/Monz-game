@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { fillSize } from '../ui/viewport';
 import { audio } from '../audio/engine';
 import { preloadPacks } from '../render/packs';
 import { drawGraffitiText } from '../ui/cardArt';
@@ -20,7 +21,8 @@ export const BATTLE_MENU_SIGNS = [
   { key: 'battlemenu:sign:action', url: 'assets/home/bm_rumble.webp' },
   { key: 'battlemenu:sign:mythclash', url: 'assets/home/bm_myth_old.webp' },
 ] as const;
-const ART = { w: 941, h: 1672 };
+// 2026-11-08 全画面用の 縦長の 背景(852x1846。前の 背景は unused/)
+const ART = { w: 852, h: 1846 };
 
 /** 看板2枚: 操作するバトル と MYTHCLASH。pic: 看板に使う絵とその切り抜き範囲(元の絵の座標) */
 const ENTRIES = [
@@ -60,12 +62,18 @@ export class BattleMenuScene extends Phaser.Scene {
 
   /** 企画者の背景を 画面いっぱいに出し、上半分に MONZ RUMBLE・下半分に MYTHCLASH の 看板を 置く(2026-11-07) */
   private createArt(): void {
-    const k = Math.max(W / ART.w, H / ART.h);
-    this.add.image((W - ART.w * k) / 2, (H - ART.h * k) / 2, BATTLE_MENU_IMAGE).setOrigin(0, 0).setScale(k);
+    // 全画面: 絵を 横はばに 合わせて 上から(画面の 形まで のばす)
+    const tall = Math.max(fillSize(this, { w: W, h: H }, { minRatio: 0.4, maxRatio: W / H }).h, H);
+    this.scale.setGameSize(W, tall);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(W, H));
+    this.cameras.main.setBackgroundColor('#1a0c24');
+    const k = W / ART.w;
+    this.add.image(0, 0, BATTLE_MENU_IMAGE).setOrigin(0, 0).setScale(k);
     canvasTextureOnce(this, 'bm:logo', 680, 200, (ctx) => drawGraffitiText(ctx, 680, 200, 'BATTLE', '#ffd23a', 150, -0.06));
     const logo = this.add.image(W / 2, 150, 'bm:logo').setScale(0.3);
     this.tweens.add({ targets: logo, scale: 0.85, duration: 420, ease: 'Back.easeOut' });
-    const ys: Record<(typeof ENTRIES)[number]['id'], number> = { action: 470, mythclash: 900 };
+    // 上の ステージ・下の 魔法陣の 前の 空いた 所に 看板
+    const ys: Record<(typeof ENTRIES)[number]['id'], number> = { action: 520, mythclash: 930 };
     ENTRIES.forEach((e, i) => {
       const key = `battlemenu:sign:${e.id}`;
       if (!this.textures.exists(key)) return;
