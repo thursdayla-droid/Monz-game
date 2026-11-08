@@ -7,7 +7,7 @@ import { prefetchPacks, preloadPacks, releasePack } from '../render/packs';
 
 const FONT = 'system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif';
 export const TITLE_IMAGE = 'title:image';
-// 2026-11-08 企画者の 縦長の 絵(830x1896。前の 絵は unused/title/)
+// 2026-11-08 企画者の 縦長の 絵(852x1846。前の 絵は unused/title/)
 export const TITLE_FILE = 'assets/title/title.webp';
 
 /**
