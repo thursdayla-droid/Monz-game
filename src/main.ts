@@ -31,6 +31,7 @@ import { ShopScene } from './scenes/ShopScene';
 import { AdventureScene } from './scenes/AdventureScene';
 import { SplashScene } from './scenes/SplashScene';
 import { TitleScene } from './scenes/TitleScene';
+import { fillTall } from './ui/viewport';
 
 const game = new Phaser.Game({
   // ?canvas を付けるとCanvas描画で動かす(表示がおかしいときの確認用)
@@ -46,6 +47,11 @@ const game = new Phaser.Game({
   // 1回の描画で使うテクスチャを1枚に限定する。複数枚にすると一部の環境でパーツが欠けて描かれたため。
   render: { antialias: true, maxTextures: 1 },
   scene: [BootScene, SplashScene, TitleScene, QuestionScene, BirthScene, RoomSelectScene, HomeScene, ShopScene, MinigameSelectScene, CardTitleScene, CardPlayScene, DashScene, SluggerScene, BattleMenuScene, AutoBattleScene, Battle3DScene, RumbleModeScene, RumbleStoryScene, AdventureScene, BattleScene, MythTitleScene, MythPackScene, BinderScene, MythBattleScene, MythDeckScene, MythModeScene, MythTowerScene, MythFloorScene, MythGuideScene, CompareScene, BunkPartsScene],
+});
+
+// 2026-11-08 企画者「全画面がいい」: たての 画面を スマホの 形まで のばす(背景を 広げる)
+game.events.once(Phaser.Core.Events.READY, () => {
+  for (const s of game.scene.scenes) s.events.on(Phaser.Scenes.Events.CREATE, () => fillTall(s));
 });
 
 // 開発中だけ、確認用にゲームを外から触れるようにする

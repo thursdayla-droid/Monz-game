@@ -114,7 +114,7 @@ export class CardTitleScene extends Phaser.Scene {
   private howTo(): void {
     audio.se('tap');
     const box = this.add.container(0, 0).setDepth(20);
-    const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.7).setOrigin(0, 0).setInteractive();
+    const dim = this.add.rectangle(0, -400, W, H + 800, 0x000000, 0.7).setOrigin(0, 0).setInteractive();
     canvasTextureOnce(this, 'card:howpanel', 640, 900, (ctx) => drawPanel(ctx, 640, 900, 98));
     const panel = this.add.image(W / 2, H / 2, 'card:howpanel');
     const logo = this.textures.exists('cardimg:logo') ? this.add.image(W / 2, H / 2 - 470, 'cardimg:logo').setScale(0.6) : null;

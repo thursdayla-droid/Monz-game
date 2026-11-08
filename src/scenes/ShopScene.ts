@@ -75,7 +75,7 @@ export class ShopScene extends Phaser.Scene {
       const bg = this.add.image(W / 2, H / 2, homeImageKey(place));
       bg.setScale(Math.max(W / bg.width, H / bg.height));
     }
-    this.add.rectangle(0, 0, W, H, 0x0d0614, 0.78).setOrigin(0, 0);
+    this.add.rectangle(0, -400, W, H + 800, 0x0d0614, 0.78).setOrigin(0, 0);
     this.buildHeader();
     this.chrome = this.add.container(0, 0);
     this.list = this.add.container(0, 0);
@@ -287,7 +287,7 @@ export class ShopScene extends Phaser.Scene {
   private dialog(lines: { text: string; size: number; color?: string; image?: string }[], buttons: { label: string; kind: 'yes' | 'no' | 'off'; onTap?: () => void }[]): void {
     this.busy = true;
     const box = this.add.container(0, 0).setDepth(100);
-    const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.55).setOrigin(0, 0).setInteractive();
+    const dim = this.add.rectangle(0, -400, W, H + 800, 0x000000, 0.55).setOrigin(0, 0).setInteractive();
     const h = 100 + lines.reduce((s, l) => s + (l.image ? DIALOG_IMAGE_H : l.size * 1.3 * l.text.split('\n').length) + 14, 0) + (buttons.length ? 100 : 0);
     const top = H / 2 - h / 2;
     const g = this.add.graphics();
@@ -335,7 +335,7 @@ export class ShopScene extends Phaser.Scene {
     const max = Math.max(1, Math.min(99, Math.floor(coins / price)));
     let n = 1;
     const box = this.add.container(0, 0).setDepth(100);
-    const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.55).setOrigin(0, 0).setInteractive();
+    const dim = this.add.rectangle(0, -400, W, H + 800, 0x000000, 0.55).setOrigin(0, 0).setInteractive();
     const h = 520;
     const top = H / 2 - h / 2;
     const g = this.add.graphics();
@@ -409,7 +409,7 @@ export class ShopScene extends Phaser.Scene {
   private prizeDialog(tally: Map<string, number>): void {
     this.busy = true;
     const box = this.add.container(0, 0).setDepth(100);
-    const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.55).setOrigin(0, 0).setInteractive();
+    const dim = this.add.rectangle(0, -400, W, H + 800, 0x000000, 0.55).setOrigin(0, 0).setInteractive();
     const h = 520;
     const top = H / 2 - h / 2;
     const g = this.add.graphics();

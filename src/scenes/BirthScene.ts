@@ -259,7 +259,7 @@ export class BirthScene extends Phaser.Scene {
     // 割れて光が広がる → ---- シーン5: MONZ誕生(約3秒) ----
     const burst = () => {
       audio.se('burst');
-      const flash = this.add.rectangle(0, 0, W, H, 0xfffbe8).setOrigin(0, 0).setScrollFactor(0).setDepth(50).setAlpha(0);
+      const flash = this.add.rectangle(0, -400, W, H + 800, 0xfffbe8).setOrigin(0, 0).setScrollFactor(0).setDepth(50).setAlpha(0);
       this.tweens.add({
         targets: flash,
         alpha: 1,

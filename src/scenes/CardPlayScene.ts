@@ -229,7 +229,7 @@ export class CardPlayScene extends Phaser.Scene {
     audio.se('tap');
     const box = this.add.container(0, 0).setDepth(40);
     this.big = box;
-    const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.7).setOrigin(0, 0).setInteractive();
+    const dim = this.add.rectangle(0, -400, W, H + 800, 0x000000, 0.7).setOrigin(0, 0).setInteractive();
     const g = this.add.graphics();
     g.fillStyle(0x0d0a14, 1).fillRoundedRect(16, 240, W - 32, 860, 24);
     g.lineStyle(6, 0x2fa8ff, 1).strokeRoundedRect(16, 240, W - 32, 860, 24);
@@ -410,7 +410,7 @@ export class CardPlayScene extends Phaser.Scene {
     // 手札を隠す(考える時間にできないように)
     this.hand.forEach((h) => h?.setVisible(false));
     const box = this.add.container(0, 0).setDepth(50);
-    const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.8).setOrigin(0, 0).setInteractive();
+    const dim = this.add.rectangle(0, -400, W, H + 800, 0x000000, 0.8).setOrigin(0, 0).setInteractive();
     const title = this.add.image(W / 2, 420, this.graffiti('PAUSE', '#ffd23a', 110));
     const go = this.add.text(W / 2, 640, '  つづける  ', { fontFamily: UI_FONT, fontSize: '40px', fontStyle: '900', color: INK, backgroundColor: '#ffd23a', padding: { x: 20, y: 10 } }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     const quit = this.add.text(W / 2, 780, '  やめる  ', { fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: '#ffffff', backgroundColor: '#8a35e0', padding: { x: 20, y: 10 } }).setOrigin(0.5).setInteractive({ useHandCursor: true });
@@ -446,7 +446,7 @@ export class CardPlayScene extends Phaser.Scene {
     this.record.grant({ runId: `${this.playId}:r${n}`, source: 'card', coins: CARD_REWARD.clearCoins, exp: CARD_REWARD.clearExp });
     audio.se('sting');
     const box = this.add.container(0, 0).setDepth(50);
-    const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.65).setOrigin(0, 0).setInteractive();
+    const dim = this.add.rectangle(0, -400, W, H + 800, 0x000000, 0.65).setOrigin(0, 0).setInteractive();
     const t1 = this.add.image(W / 2, 170, this.graffiti(`ROUND ${n}`, '#ffffff', 90));
     const t2 = this.add.image(W / 2, 290, this.graffiti('CLEAR!', '#ffd23a', 120));
     canvasTextureOnce(this, 'card:clearpanel', 560, 330, (ctx) => drawPanel(ctx, 560, 330, 95));
@@ -486,7 +486,7 @@ export class CardPlayScene extends Phaser.Scene {
     this.cameras.main.shake(200, 0.006);
     this.time.delayedCall(500, () => {
       const box = this.add.container(0, 0).setDepth(50);
-      const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.75).setOrigin(0, 0).setInteractive();
+      const dim = this.add.rectangle(0, -400, W, H + 800, 0x000000, 0.75).setOrigin(0, 0).setInteractive();
       const title = this.add.image(W / 2, 170, this.graffiti('GAME OVER', '#c9c4d6', 100));
       // 倒れたキャラクター(企画者の絵)
       const monz = this.textures.exists('cardimg:overMonz') ? this.add.image(W / 2, 395, 'cardimg:overMonz').setScale(0.62) : null;

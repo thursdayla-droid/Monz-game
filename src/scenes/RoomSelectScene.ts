@@ -138,7 +138,7 @@ export class RoomSelectScene extends Phaser.Scene {
   private reveal(): void {
     this.revealed = true;
     audio.se('burst');
-    const flash = this.add.rectangle(0, 0, W, H, 0xfff1c0, 0.9).setOrigin(0, 0).setDepth(50);
+    const flash = this.add.rectangle(0, -400, W, H + 800, 0xfff1c0, 0.9).setOrigin(0, 0).setDepth(50);
     this.tweens.add({ targets: flash, alpha: 0, duration: 700, onComplete: () => flash.destroy() });
     const t = this.add
       .text(W / 2, 520, 'SECRET\nVIP ROOM', { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '64px', color: '#ffd76a', stroke: INK, strokeThickness: 12, align: 'center' })
@@ -182,7 +182,7 @@ export class RoomSelectScene extends Phaser.Scene {
     this.leaving = true;
     audio.se('tap');
     const box = this.add.container(0, 0).setDepth(60);
-    const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.55).setOrigin(0, 0).setInteractive();
+    const dim = this.add.rectangle(0, -400, W, H + 800, 0x000000, 0.55).setOrigin(0, 0).setInteractive();
     const g = this.add.graphics();
     g.fillStyle(0xfbf1dc, 1).fillRoundedRect(50, 420, W - 100, 400, 24);
     g.lineStyle(8, 0x16101c, 1).strokeRoundedRect(50, 420, W - 100, 400, 24);

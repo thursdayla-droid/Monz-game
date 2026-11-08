@@ -269,7 +269,7 @@ export class SluggerScene extends Phaser.Scene {
     this.hud.setVisible(false);
     this.controls.setVisible(false);
     const box = this.add.container(0, 0).setDepth(20);
-    const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.45).setOrigin(0, 0).setInteractive();
+    const dim = this.add.rectangle(0, -400, W, H + 800, 0x000000, 0.45).setOrigin(0, 0).setInteractive();
     // ロゴ(企画者の絵)。読めなかったときだけ文字で
     const logo: Phaser.GameObjects.GameObject[] = this.textures.exists(SLUGGER_LOGO_KEY)
       ? [this.add.image(W / 2, 300, SLUGGER_LOGO_KEY)]
@@ -303,7 +303,7 @@ export class SluggerScene extends Phaser.Scene {
   private howTo(): void {
     audio.se('tap');
     const box = this.add.container(0, 0).setDepth(30);
-    const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.7).setOrigin(0, 0).setInteractive();
+    const dim = this.add.rectangle(0, -400, W, H + 800, 0x000000, 0.7).setOrigin(0, 0).setInteractive();
     canvasTextureOnce(this, 'slug:howpanel3', 600, 460, (ctx) => drawPanel(ctx, 600, 460, 101));
     const panel = this.add.image(W / 2, H / 2, 'slug:howpanel3');
     const text = [
@@ -448,7 +448,7 @@ export class SluggerScene extends Phaser.Scene {
   private showMiss(title: string, hint: string): void {
     audio.se('slam', { pitch: 0.9 });
     this.cameras.main.shake(200, 0.007);
-    const red = this.add.rectangle(0, 0, W, H, 0xff2040, 0.25).setOrigin(0, 0).setDepth(14);
+    const red = this.add.rectangle(0, -400, W, H + 800, 0xff2040, 0.25).setOrigin(0, 0).setDepth(14);
     this.tweens.add({ targets: red, alpha: 0, duration: 400, onComplete: () => red.destroy() });
     this.popText(title, '#ff4f6a', 96);
     if (hint) this.popText(hint, '#ffffff', 34, 690);
@@ -621,7 +621,7 @@ export class SluggerScene extends Phaser.Scene {
     this.resetCursorSize();
     this.tweens.pauseAll();
     const box = this.add.container(0, 0).setDepth(30);
-    const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.75).setOrigin(0, 0).setInteractive();
+    const dim = this.add.rectangle(0, -400, W, H + 800, 0x000000, 0.75).setOrigin(0, 0).setInteractive();
     const t = this.add.text(W / 2, 440, 'PAUSE', { fontFamily: ARIAL, fontSize: '110px', color: '#ffd23a', stroke: INK, strokeThickness: 16 }).setOrigin(0.5);
     const go = this.button(W / 2, 660, '  つづける  ', '#ffd23a', INK, 40);
     const quit = this.button(W / 2, 800, '  やめる  ', '#8a35e0', '#ffffff', 34);
@@ -654,7 +654,7 @@ export class SluggerScene extends Phaser.Scene {
     this.time.delayedCall(700, () => {
       audio.se('slam');
       const box = this.add.container(0, 0).setDepth(30);
-      const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.72).setOrigin(0, 0).setInteractive();
+      const dim = this.add.rectangle(0, -400, W, H + 800, 0x000000, 0.72).setOrigin(0, 0).setInteractive();
       const title = this.add.text(W / 2, 170, 'GAME OVER', { fontFamily: ARIAL, fontSize: '96px', color: '#c9c4d6', stroke: INK, strokeThickness: 16 }).setOrigin(0.5);
       const score = this.add.text(W / 2, 300, `${s.score.toLocaleString()}m`, { fontFamily: ARIAL, fontSize: '80px', color: '#ffd23a', stroke: INK, strokeThickness: 14 }).setOrigin(0.5);
       canvasTextureOnce(this, 'slug:overpanel', 600, 520, (ctx) => drawPanel(ctx, 600, 520, 97));

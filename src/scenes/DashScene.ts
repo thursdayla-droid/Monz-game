@@ -120,7 +120,7 @@ export class DashScene extends Phaser.Scene {
   private showTitle(): void {
     this.phase = 'ready';
     const box = this.add.container(0, 0).setDepth(20);
-    const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.35).setOrigin(0, 0).setInteractive();
+    const dim = this.add.rectangle(0, -400, W, H + 800, 0x000000, 0.35).setOrigin(0, 0).setInteractive();
     const logo = this.add.image(W / 2, 290, DASH_LOGO_KEY);
     const sub = this.add.text(W / 2, 480, 'ダッシュモンズ', { fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: '#ffffff', stroke: INK, strokeThickness: 8 }).setOrigin(0.5);
     const rec = loadLife().records.dash;
@@ -155,7 +155,7 @@ export class DashScene extends Phaser.Scene {
   private howTo(): void {
     audio.se('tap');
     const box = this.add.container(0, 0).setDepth(30);
-    const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.7).setOrigin(0, 0).setInteractive();
+    const dim = this.add.rectangle(0, -400, W, H + 800, 0x000000, 0.7).setOrigin(0, 0).setInteractive();
     canvasTextureOnce(this, 'dash:howpanel2', 600, 420, (ctx) => drawPanel(ctx, 600, 420, 99));
     const panel = this.add.image(W / 2, H / 2, 'dash:howpanel2');
     const text = [
@@ -186,7 +186,7 @@ export class DashScene extends Phaser.Scene {
   private pause(): void {
     this.phase = 'paused';
     const box = this.add.container(0, 0).setDepth(30);
-    const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.75).setOrigin(0, 0).setInteractive();
+    const dim = this.add.rectangle(0, -400, W, H + 800, 0x000000, 0.75).setOrigin(0, 0).setInteractive();
     const t = this.add.text(W / 2, 440, 'PAUSE', { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '110px', color: '#ffd23a', stroke: INK, strokeThickness: 16 }).setOrigin(0.5);
     const go = this.button(W / 2, 660, '  つづける  ', '#ffd23a', INK, 40);
     const quit = this.button(W / 2, 800, '  やめる  ', '#8a35e0', '#ffffff', 34);
@@ -217,7 +217,7 @@ export class DashScene extends Phaser.Scene {
     this.cameras.main.shake(200, 0.006);
     this.time.delayedCall(500, () => {
       const box = this.add.container(0, 0).setDepth(30);
-      const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.7).setOrigin(0, 0).setInteractive();
+      const dim = this.add.rectangle(0, -400, W, H + 800, 0x000000, 0.7).setOrigin(0, 0).setInteractive();
       const title = this.add.text(W / 2, 200, 'GAME OVER', { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '96px', color: '#c9c4d6', stroke: INK, strokeThickness: 16 }).setOrigin(0.5);
       const monz = this.textures.exists('cardimg:overMonz') ? this.add.image(W / 2, 420, 'cardimg:overMonz').setScale(0.6) : null;
       const why = this.add.text(W / 2, 575, this.s.over === 'hit' ? 'トゲに当たった！' : this.s.over === 'magma' ? 'マグマをふんだ！' : '落ちちゃった！', { fontFamily: UI_FONT, fontSize: '32px', fontStyle: '900', color: '#ff8a9a' }).setOrigin(0.5);

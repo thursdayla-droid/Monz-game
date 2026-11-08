@@ -6,6 +6,7 @@ import { HOME_ACTIONS, HOME_ACTION_LABELS, HOME_ACTION_READY, ALL_PLACES, HOME_L
 import { MonzLife } from '../core/life';
 import { moodWord, NEEDS_RULES } from '../core/needs';
 import { clearLife, LifeRecord, loadLife, type MonzData } from '../core/lifeSave';
+import { safeInsets } from '../ui/viewport';
 import { MAX_SLOTS, SLOT_LEVELS, slotsAt } from '../core/battle3d/techLearn';
 import { getTech } from '../core/battle3d/techTable';
 import { ELEMENT_HEX } from '../render/animeField';
@@ -214,6 +215,8 @@ export class HomeScene extends Phaser.Scene {
     // 公開ページ(main)では 開発用ボタンを 出さない(2026-11-08 企画者「開発用ボタンは 外す」)
     if ((import.meta.env as Record<string, string | undefined>).VITE_RELEASE !== '1') this.buildTestButtons();
     if (this.pendingPlace) this.startEdit(this.pendingPlace);
+    // 2026-11-08 全画面: 画面が のびた ぶん、上の 表示は いちばん 上・下の ボタンは いちばん 下へ(fillTall の あと)
+    this.events.once(Phaser.Scenes.Events.CREATE, () => this.anchorUi());
 
     this.cameras.main.fadeIn(400, 0, 0, 0);
     audio.playBgm('home');
@@ -528,6 +531,24 @@ export class HomeScene extends Phaser.Scene {
     this.tweens.add({ targets: t, scale: 1, duration: 420, ease: 'Back.easeOut' });
     this.tweens.add({ targets: t, alpha: 0, y: t.y - 60, delay: 2600, duration: 500, onComplete: () => t.destroy() });
     this.hearts(3);
+  }
+
+  /** のびた 画面に 合わせて、上の 表示を 上へ・下の ボタンを 下へ */
+  private anchorUi(): void {
+    const ex = -this.cameras.main.scrollY;
+    if (ex <= 0) return;
+    const safe = safeInsets(this);
+    const up = Math.max(0, ex - safe.top);
+    const down = Math.max(0, ex - safe.bottom);
+    for (const o of this.children.list) {
+      const g = o as unknown as Phaser.GameObjects.Components.Depth & Phaser.GameObjects.Components.Transform;
+      if (g.depth !== DEPTH.ui && g.depth !== DEPTH.ui - 1) continue;
+      if (g.y > H / 2) {
+        g.y += down;
+        // ボタンの 下の 暗い 帯は 下まで のばす
+        if (o instanceof Phaser.GameObjects.Rectangle) o.setSize(o.width, o.height + ex);
+      } else g.y -= up;
+    }
   }
 
   // ---------------- 下のメニュー ----------------
@@ -880,7 +901,7 @@ export class HomeScene extends Phaser.Scene {
     const py = 170;
     const ink = '#16101c';
     const layer = this.add.container(0, 0).setDepth(DEPTH.popup);
-    const shade = this.add.rectangle(0, 0, W, H, 0x0d0614, 0.75).setOrigin(0, 0).setInteractive();
+    const shade = this.add.rectangle(0, -400, W, H + 800, 0x0d0614, 0.75).setOrigin(0, 0).setInteractive();
     canvasTextureOnce(this, 'home:statusPanel', pw, ph, (ctx) => drawPanel(ctx, pw, ph, 97));
     layer.add([shade, this.add.image(px, py, 'home:statusPanel').setOrigin(0, 0)]);
     const t = (x: number, y: number, s: string, size: number, color = ink, ox = 0) =>
@@ -965,7 +986,7 @@ export class HomeScene extends Phaser.Scene {
     const confirm = (key: StatKey) => {
       audio.se('tap');
       const box = this.add.container(0, 0);
-      const dim = this.add.rectangle(0, 0, W, H, 0x000000, 0.5).setOrigin(0, 0).setInteractive();
+      const dim = this.add.rectangle(0, -400, W, H + 800, 0x000000, 0.5).setOrigin(0, 0).setInteractive();
       const g = this.add.graphics();
       g.fillStyle(0xfbf1dc, 1).fillRoundedRect(80, 470, W - 160, 330, 24);
       g.lineStyle(8, 0x16101c, 1).strokeRoundedRect(80, 470, W - 160, 330, 24);
@@ -1100,7 +1121,7 @@ export class HomeScene extends Phaser.Scene {
       [`${label}は`, 'じゅんび中！'].forEach((l, i) => ctx.fillText(l, 260, p.y + p.h / 2 + (i - 0.5) * 60));
       ctx.textAlign = 'left';
     });
-    const shade = this.add.rectangle(0, 0, W, H, 0x000000, 0.45).setOrigin(0, 0).setDepth(DEPTH.popup).setInteractive();
+    const shade = this.add.rectangle(0, -400, W, H + 800, 0x000000, 0.45).setOrigin(0, 0).setDepth(DEPTH.popup).setInteractive();
     const card = this.add.image(W / 2, H * 0.45, key).setDepth(DEPTH.popup + 1).setScale(0.6).setAlpha(0);
     this.tweens.add({ targets: card, scale: 1, alpha: 1, duration: 260, ease: 'Back.easeOut' });
     const close = () => {

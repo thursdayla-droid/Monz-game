@@ -536,10 +536,12 @@ export class Battle3DScene extends Phaser.Scene {
         .join('');
       const ft = focus ? getTech(focus) : null;
       const descHtml = focus && ft ? `<div class="desc"><b>${esc(ft.name)}</b><small>${KIND_JP[ft.kind] ?? ''}・${ft.element}・${ft.strength}${ft.effect !== 'なし' ? `・${ft.effect}` : ''}・待ち ${ft.cooldown.toFixed(1)}秒</small>${esc(techDesc(focus))}</div>` : '';
-      el.innerHTML = `<h2>わざを セットしよう（${count()}/${slots}）</h2>
+      // 2026-11-08 企画者「バトルモード 左上の 戻る 押せない」: 技えらびの 画面が 上の 戻るを かくしていた → この 画面にも 戻るを 置く
+      el.innerHTML = `<button class="back sback" style="position:absolute;left:calc(env(safe-area-inset-left) + 10px);top:calc(env(safe-area-inset-top) + 8px)">◀</button><h2>わざを セットしよう（${count()}/${slots}）</h2>
         <div class="row"><div><div class="slots">${slotHtml}</div>${descHtml}<div class="note">${sel >= 0 ? `わざ ${sel + 1} に入れる わざを さわってね<br>ほかの枠をさわると 入れかえ` : 'わざをさわると入る・もう一度で外れる<br>枠をさわると 入れかえできる'}</div></div><div class="list">${list}</div></div>
         <button class="go" ${count() || !this.learned.length ? '' : 'disabled'}>バトルスタート！</button>`;
       (el.querySelector('.list') as HTMLElement).scrollTop = scroll;
+      (el.querySelector('.sback') as HTMLElement).addEventListener('click', () => this.leave());
       for (const d of [...el.querySelectorAll('.slot[data-s]')] as HTMLElement[]) {
         d.addEventListener('click', () => {
           const i = Number(d.dataset.s);
