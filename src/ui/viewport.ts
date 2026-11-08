@@ -55,7 +55,10 @@ export function fillTall(scene: Phaser.Scene): void {
   const { w, h } = PORTRAIT_SIZE;
   if (scene.scale.gameSize.width !== w || scene.scale.gameSize.height !== h) return;
   const tall = fillSize(scene, PORTRAIT_SIZE, { minRatio: 0.4, maxRatio: w / h }).h;
-  if (tall <= h + 2) return;
+  if (tall <= h + 2) {
+    keepBelowNotch(scene, 0);
+    return;
+  }
   const ex = (tall - h) / 2;
   scene.scale.setGameSize(w, tall);
   const cam = scene.cameras.main;
@@ -85,6 +88,27 @@ export function fillTall(scene: Phaser.Scene): void {
     }
   }
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.scale.setGameSize(w, h));
+  keepBelowNotch(scene, ex);
+}
+
+/**
+ * 2026-11-08 企画者「ミニゲーム セレクトや ミニゲームでも 左上の 戻る 押せない」:
+ * 全画面(viewport-fit=cover)だと 画面の いちばん 上は iPhone の 時計・電池の 所で、さわっても ゲームに とどかない。
+ * 上の はしに ある 表示(戻る・コイン など)を その下まで 下げる。ex: 画面が 上に のびた 長さ(ゲームの 長さ)
+ */
+function keepBelowNotch(scene: Phaser.Scene, ex: number): void {
+  if (scene.scene.key === 'Home') return; // お世話画面は 自分で 合わせる(anchorUi)
+  const need = safeInsets(scene).top + 14 - ex;
+  if (need <= 0) return;
+  const { w, h } = PORTRAIT_SIZE;
+  for (const o of scene.children.list) {
+    const g = o as unknown as Phaser.GameObjects.Components.Transform & { getBounds?: () => Phaser.Geom.Rectangle };
+    if (typeof g.getBounds !== 'function') continue;
+    const b = g.getBounds();
+    // 画面 いっぱいの 背景は そのまま
+    if (b.left <= 1 && b.right >= w - 1 && b.height >= h * 0.5) continue;
+    if (b.top < 150 && b.height < 300) g.y += need;
+  }
 }
 
 /** iPhone の 上の 切りかき・下の バー の ぶん(ゲームの 長さ)。全画面の 時に 表示を そこへ かからないように */

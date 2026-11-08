@@ -9,7 +9,7 @@ import { battleUnlocked, deckOwned, kindsToUnlock, ownedCount } from '../core/my
 import { showCardZoom } from '../ui/cardZoom';
 import { drawMythCard, MYTH_CARD_H, MYTH_CARD_W, needCardArt, useCardArt } from '../ui/mythCardArt';
 import { canvasTextureOnce, UI_FONT } from '../ui/paint';
-import { fillSize } from '../ui/viewport';
+import { fillSize, safeInsets } from '../ui/viewport';
 import type { MythMatch } from '../core/mythclash/modes';
 import { CPU_LABELS } from '../core/mythclash/cpu';
 
@@ -103,7 +103,7 @@ export class MythDeckScene extends Phaser.Scene {
     this.layer = L;
     const H = this.H;
     const col = this.record.mythclash;
-    const back = this.text(90, 46, '◀ もどる', 28, '#ffffff').setBackgroundColor('#16101ccc').setPadding(14, 6, 14, 8).setInteractive({ useHandCursor: true });
+    const back = this.text(90, 46 + safeInsets(this).top, '◀ もどる', 28, '#ffffff').setBackgroundColor('#16101ccc').setPadding(14, 6, 14, 8).setInteractive({ useHandCursor: true });
     // モードえらびから来たときは、そこへもどる
     back.on('pointerdown', () => this.goBack());
     L.add([back, this.text(W / 2 + 60, 46, this.mode === 'edit' ? 'チーム編成' : `デッキ編成${this.matchLabel()}`, 40, '#ffd23a').setStroke('#16101c', 8)]);

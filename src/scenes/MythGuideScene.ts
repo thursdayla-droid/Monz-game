@@ -3,7 +3,7 @@ import { audio } from '../audio/engine';
 import { preloadPacks } from '../render/packs';
 import { ELEMENT_COLORS } from '../ui/mythCardArt';
 import { UI_FONT } from '../ui/paint';
-import { fillSize } from '../ui/viewport';
+import { fillSize, safeInsets } from '../ui/viewport';
 import { MYTH_TITLE_IMAGE } from './MythTitleScene';
 
 const W = 720;
@@ -166,7 +166,7 @@ export class MythGuideScene extends Phaser.Scene {
       img.setCrop(0, 0, img.width, 560).setScale(W / img.width);
     }
     const back = this.add
-      .text(24, 30, '◀ もどる', { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '900', color: '#ffffff', backgroundColor: '#16101ccc', padding: { x: 16, y: 8 } })
+      .text(24, 30 + safeInsets(this).top, '◀ もどる', { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '900', color: '#ffffff', backgroundColor: '#16101ccc', padding: { x: 16, y: 8 } })
       .setInteractive({ useHandCursor: true });
     back.on('pointerdown', () => this.leave());
     this.add.text(W / 2 + 60, 54, 'ゲームガイド', { fontFamily: UI_FONT, fontSize: '40px', fontStyle: '900', color: '#ffd23a', stroke: '#16101c', strokeThickness: 8 }).setOrigin(0.5);

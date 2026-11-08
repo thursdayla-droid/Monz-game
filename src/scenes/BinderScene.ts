@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { safeInsets } from '../ui/viewport';
 import { abilityLines } from '../core/mythclash/describe';
 import { showCardZoom } from '../ui/cardZoom';
 import { preloadPacks } from '../render/packs';
@@ -72,10 +73,10 @@ export class BinderScene extends Phaser.Scene {
     for (let y = 120; y < H; y += 170) bg.fillStyle(0xb8a070, 1).fillCircle(13, y, 6);
 
     const back = this.add
-      .text(24, 30, '◀ もどる', { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '900', color: '#ffffff', backgroundColor: '#16101ccc', padding: { x: 16, y: 8 } })
+      .text(24, 30 + safeInsets(this).top, '◀ もどる', { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '900', color: '#ffffff', backgroundColor: '#16101ccc', padding: { x: 16, y: 8 } })
       .setInteractive({ useHandCursor: true });
     back.on('pointerdown', () => this.leave());
-    this.add.text(W / 2 + 70, 54, 'カードバインダー', { fontFamily: UI_FONT, fontSize: '40px', fontStyle: '900', color: '#ffd23a', stroke: '#16101c', strokeThickness: 8 }).setOrigin(0.5);
+    this.add.text(W / 2 + 70, 54 + safeInsets(this).top, 'カードバインダー', { fontFamily: UI_FONT, fontSize: '40px', fontStyle: '900', color: '#ffd23a', stroke: '#16101c', strokeThickness: 8 }).setOrigin(0.5);
     // 数えるのはパックのカード(100種類)だけ。特別なカード(Mr.CLASH)は別のページ
     const kinds = CARDS.filter((c) => ownedCount(this.col, c.id) > 0).length;
     this.add.text(W / 2, 130, `所持種類数：${kinds}/${CARDS.length}`, { fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: '#ffffff' }).setOrigin(0.5);
