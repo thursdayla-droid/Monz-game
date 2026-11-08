@@ -64,8 +64,8 @@ export function fillTall(scene: Phaser.Scene): void {
   const cam = scene.cameras.main;
   cam.setSize(w, tall);
   cam.setScroll(0, -ex);
-  // 背景を 広げる(画面 いっぱいを おおっている 物だけ)
-  for (const o of scene.children.list) {
+  // 背景を 広げる(画面 いっぱいを おおっている 物だけ)。とちゅうで 物が 増えるので 写しを 回す
+  for (const o of [...scene.children.list]) {
     const g = o as Phaser.GameObjects.Image & Phaser.GameObjects.Components.GetBounds;
     if (typeof g.getBounds !== 'function' || (g as unknown as { scrollFactorY?: number }).scrollFactorY === 0) continue;
     const b = g.getBounds();
@@ -74,11 +74,11 @@ export function fillTall(scene: Phaser.Scene): void {
     const k = (tall + 2) / Math.max(1, b.height);
     if (k <= 1) continue;
     const cx = (b.left + b.right) / 2;
+    void cx;
     if (o instanceof Phaser.GameObjects.Image || o instanceof Phaser.GameObjects.Sprite) {
-      g.setScale(g.scaleX * k, g.scaleY * k);
-      const nb = g.getBounds();
-      g.x += cx - (nb.left + nb.right) / 2;
-      g.y += h / 2 - (nb.top + nb.bottom) / 2;
+      // 2026-11-08 企画者「MONZ SLUGGER が ずれちゃってる」: 絵を 大きく すると 絵の 上に 重ねた ボタン・看板と ずれる。
+      // → 絵は そのまま、上と 下に 絵の はしを 鏡に うつして つなげる(のびた 所だけ)
+      extendImage(scene, o, b, -ex, tall - ex);
     } else {
       // 四角・絵を かいた もの: たてだけ のばす
       const t = o as unknown as Phaser.GameObjects.Components.Transform;
@@ -89,6 +89,29 @@ export function fillTall(scene: Phaser.Scene): void {
   }
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.scale.setGameSize(w, h));
   keepBelowNotch(scene, ex);
+}
+
+/** 絵の 上下に、絵の はしを 鏡に うつした 帯を 足す(top〜bottom: 画面の 上下の はし。ゲームの 座標) */
+function extendImage(scene: Phaser.Scene, img: Phaser.GameObjects.Image | Phaser.GameObjects.Sprite, b: Phaser.Geom.Rectangle, top: number, bottom: number): void {
+  const fr = img.frame;
+  const src = fr.source.image as CanvasImageSource;
+  const band = (gap: number, atTop: boolean) => {
+    if (gap <= 1) return;
+    // 絵の いちばん はしの 数行を のばして つなげる(鏡に すると 戻るなどが さかさに 2つ 見えたため)
+    const hs = 4;
+    const key = `ext:${img.texture.key}:${fr.name}:${atTop ? 't' : 'b'}`;
+    if (!scene.textures.exists(key)) {
+      const c = scene.textures.createCanvas(key, fr.cutWidth, hs);
+      const ctx = c?.getContext();
+      if (!c || !ctx) return;
+      ctx.drawImage(src, fr.cutX, atTop ? fr.cutY : fr.cutY + fr.cutHeight - hs, fr.cutWidth, hs, 0, 0, fr.cutWidth, hs);
+      c.refresh();
+    }
+    const e = scene.add.image(b.left, atTop ? b.top : b.bottom, key).setOrigin(0, atTop ? 1 : 0).setDisplaySize(b.width, gap + 2).setDepth(img.depth).setTint(0x8a8a98);
+    scene.children.moveBelow(e as unknown as Phaser.GameObjects.GameObject, img as unknown as Phaser.GameObjects.GameObject);
+  };
+  band(b.top - top, true);
+  band(bottom - b.bottom, false);
 }
 
 /**

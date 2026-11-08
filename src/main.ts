@@ -49,6 +49,23 @@ const game = new Phaser.Game({
   scene: [BootScene, SplashScene, TitleScene, QuestionScene, BirthScene, RoomSelectScene, HomeScene, ShopScene, MinigameSelectScene, CardTitleScene, CardPlayScene, DashScene, SluggerScene, BattleMenuScene, AutoBattleScene, Battle3DScene, RumbleModeScene, RumbleStoryScene, AdventureScene, BattleScene, MythTitleScene, MythPackScene, BinderScene, MythBattleScene, MythDeckScene, MythModeScene, MythTowerScene, MythFloorScene, MythGuideScene, CompareScene, BunkPartsScene],
 });
 
+// 2026-11-08 ホーム画面から 開いた 時(iPhone): 画面の 高さが 時計・電池の ぶん 短く 計られ、下に すき間が できる → 画面 そのものの 大きさに する
+function fitStandalone(): void {
+  const el = document.getElementById('game');
+  if (!el || !(navigator as { standalone?: boolean }).standalone) return;
+  const portrait = window.matchMedia('(orientation: portrait)').matches;
+  const sw = Math.min(screen.width, screen.height);
+  const sh = Math.max(screen.width, screen.height);
+  el.style.width = `${portrait ? sw : sh}px`;
+  el.style.height = `${portrait ? sh : sw}px`;
+  el.style.right = 'auto';
+  el.style.bottom = 'auto';
+  game.scale.refresh();
+}
+fitStandalone();
+window.addEventListener('resize', () => setTimeout(fitStandalone, 50));
+window.addEventListener('orientationchange', () => setTimeout(fitStandalone, 300));
+
 // 2026-11-08 企画者「全画面がいい」: たての 画面を スマホの 形まで のばす(背景を 広げる)
 game.events.once(Phaser.Core.Events.READY, () => {
   for (const s of game.scene.scenes) s.events.on(Phaser.Scenes.Events.CREATE, () => fillTall(s));
