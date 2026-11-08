@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { fillSize } from '../ui/viewport';
 import { audio } from '../audio/engine';
 import { INTRO, QUESTIONS, decideFirstMonz, type Answers } from '../core/questions';
 import { SAVE_VERSION, writeSave } from '../core/save';
@@ -36,7 +37,9 @@ export class QuestionScene extends Phaser.Scene {
   }
 
   create(): void {
-    canvasTexture(this, 'ui:street', W, 1280, (ctx) => drawStreet(ctx, W, 1280));
+    // 全画面: スマホの 形の 高さで 描く(2026-11-08)
+    const tallH = Math.max(1280, fillSize(this, { w: W, h: 1280 }, { minRatio: 0.4, maxRatio: W / 1280 }).h);
+    canvasTexture(this, 'ui:street', W, tallH, (ctx) => drawStreet(ctx, W, tallH));
     this.add.image(0, 0, 'ui:street').setOrigin(0, 0);
     this.show(0);
     this.cameras.main.fadeIn(300, 0, 0, 0);

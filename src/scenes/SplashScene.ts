@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { fillSize } from '../ui/viewport';
 import { audio } from '../audio/engine';
 import { canvasTexture, COLORS, UI_FONT } from '../ui/paint';
 
@@ -20,7 +21,9 @@ export class SplashScene extends Phaser.Scene {
   }
 
   create(): void {
-    const { width: W, height: H } = this.scale;
+    const { width: W, height: H0 } = this.scale;
+    // 全画面: スマホの 形の 高さで 描く(2026-11-08)
+    const H = Math.max(H0, fillSize(this, { w: W, h: H0 }, { minRatio: 0.4, maxRatio: W / H0 }).h);
     canvasTexture(this, 'ui:splash', W, H, (ctx) => {
       const g = ctx.createRadialGradient(W / 2, H * 0.55, 40, W / 2, H * 0.55, H * 0.75);
       g.addColorStop(0, '#3a1f4d');
