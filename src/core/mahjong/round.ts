@@ -264,10 +264,10 @@ export function turnOptions(s: RoundState): TurnOptions {
   // 打牌
   if (p.riichi) o.discards = s.drawn !== null ? [s.drawn] : [];
   else o.discards = [...new Set(p.hand)].filter((t) => !p.kuikae.includes(kindOf(t)));
-  // リーチ(門前・1000点以上・山が 4枚以上)
+  // リーチ(門前・山が 4枚以上。点数が 足りなくても できる: 企画者 2026-11-08)
   const closed = p.melds.every((m) => m.type === 'ankan');
   // (14枚で テンパイ以上の 時だけ 調べる)
-  if (!p.riichi && closed && s.drawn !== null && s.cfg.points[seat] >= 1000 && s.live.length >= 4 && shanten(counts, p.melds.length) <= 0) {
+  if (!p.riichi && closed && s.drawn !== null && s.live.length >= 4 && shanten(counts, p.melds.length) <= 0) {
     for (const t of new Set(p.hand)) {
       const rest = [...p.hand];
       removeTile(rest, t);

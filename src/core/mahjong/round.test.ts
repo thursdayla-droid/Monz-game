@@ -125,7 +125,7 @@ describe('ダメージ(仕様書 4)', () => {
 
 void kindOf;
 
-describe('流し満貫・飛び(企画者 2026-11-08)', () => {
+describe('流し満貫・点数マイナス(企画者 2026-11-08)', () => {
   it('捨て牌が 全部 么九牌で 鳴かれていなければ 満貫(子: 親4000・子2000)', () => {
     const s = startRound({ seed: 5, dealer: 0, roundWind: EAST, honba: 0, sticks: 0, points: [25000, 25000, 25000, 25000] });
     const yao = parseTiles('19m19p19s1234z');
@@ -140,12 +140,12 @@ describe('流し満貫・飛び(企画者 2026-11-08)', () => {
     // プレイヤー(席0)は 親で 4000 払う → 4000 ダメージ
     expect(damageOf(r, 1).toPlayer).toBe(4000);
   });
-  it('点数が 0 より 下に なったら 半荘おわり', () => {
+  it('点数が 0 より 下に なっても 半荘は 続く・リーチも できる', () => {
     const g = newGame(9);
     g.round.result = { kind: 'win', wins: [], delta: [-26000, 26000, 0, 0] };
     nextRound(g);
-    expect(g.over).toBe(true);
-    expect(g.tobi).toBe(true);
+    expect(g.over).toBe(false);
+    expect(g.points[0]).toBe(-1000);
   });
 });
 

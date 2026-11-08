@@ -7,7 +7,7 @@ import { EAST, SOUTH } from './tiles';
  * - 流局(親が ノーテン) → 親が 次へ・本場 +1
  * - 子が アガる → 親が 次へ・本場 0
  * - 九種九牌 → 親は そのまま・本場 +1
- * 南4局が おわったら 半荘おわり。だれかの 点数が 0 より 下に なったら 半荘おわり(飛び。企画者 2026-11-08「点数 なくなったら 終わり」。0点ちょうどは 続ける【仮】)。
+ * 南4局が おわったら 半荘おわり。点数が 0 より 下に なっても 続ける(飛びなし。企画者 2026-11-08: 勝ち負けは HP だけで 決める)。
  * 西入・アガリやめは なし。半荘が おわって HP が 残って いれば 次の 半荘(企画者 2026-11-08。rpg 側で 新しく 始める)
  */
 export interface GameState {
@@ -23,8 +23,6 @@ export interface GameState {
   /** 何回目の 局か(種を 変える ため) */
   count: number;
   over: boolean;
-  /** 飛びで おわった */
-  tobi: boolean;
   rules?: Partial<RoundRules>;
 }
 
@@ -36,7 +34,7 @@ function begin(g: GameState): void {
 }
 
 export function newGame(seed: number, startDealer = 0, rules?: Partial<RoundRules>): GameState {
-  const g = { seed, points: [START_POINTS, START_POINTS, START_POINTS, START_POINTS], roundWind: EAST, kyoku: 0, startDealer, honba: 0, sticks: 0, count: 0, over: false, tobi: false, rules } as GameState;
+  const g = { seed, points: [START_POINTS, START_POINTS, START_POINTS, START_POINTS], roundWind: EAST, kyoku: 0, startDealer, honba: 0, sticks: 0, count: 0, over: false, rules } as GameState;
   begin(g);
   return g;
 }
@@ -66,11 +64,6 @@ export function nextRound(g: GameState): void {
     }
   }
   g.count++;
-  if (g.points.some((p) => p < 0)) {
-    g.over = true;
-    g.tobi = true;
-    return;
-  }
   if (g.roundWind > SOUTH) {
     g.over = true;
     return;
@@ -97,7 +90,6 @@ export function nextHanchan(g: GameState): void {
   g.roundWind = EAST;
   g.kyoku = 0;
   g.over = false;
-  g.tobi = false;
   g.count++;
   begin(g);
 }
