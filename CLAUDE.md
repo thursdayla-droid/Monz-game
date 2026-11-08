@@ -8,6 +8,7 @@
 3. バトル：`docs/BATTLE.md`（アクションバトル。BUNKから作る）
 4. カードゲーム：`docs/MYTHCLASH.md`（MYTHCLASH。バトルの計算は `src/core/mythclash/`、画面はまだ。`docs/CARD_BATTLE.md` は古い案）
 5. 冒険：`docs/ADVENTURE.md`（2026-11-07〜。作る順番どおりに）
+5.5 麻雀RPG（ミニゲーム④）：`docs/MAHJONG.md`（2026-11-08〜）
 6. まだ作らない仕様：`docs/EVOLUTION.md`（進化）
 
 ## 守ること
