@@ -56,7 +56,10 @@ export function fillTall(scene: Phaser.Scene): void {
   if (scene.scale.gameSize.width !== w || scene.scale.gameSize.height !== h) return;
   const tall = fillSize(scene, PORTRAIT_SIZE, { minRatio: 0.4, maxRatio: w / h }).h;
   if (tall <= h + 2) return;
-  const ex = (tall - h) / 2;
+  // 2026-11-08 企画者(スクショ)「上が おかしい」: 上下に 半分ずつ のばすと 上に すじの 帯が 出る →
+  // 画面の 上に そろえて、のびた ぶんは 下だけ(お世話画面は 上下に 分けて 自分で 合わせる)
+  const centered = scene.scene.key === 'Home';
+  const ex = centered ? (tall - h) / 2 : 0;
   scene.scale.setGameSize(w, tall);
   const cam = scene.cameras.main;
   cam.setSize(w, tall);
@@ -81,7 +84,7 @@ export function fillTall(scene: Phaser.Scene): void {
       const t = o as unknown as Phaser.GameObjects.Components.Transform;
       t.scaleY *= k;
       const nb = g.getBounds();
-      t.y += h / 2 - (nb.top + nb.bottom) / 2;
+      t.y += -ex - nb.top;
     }
   }
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.scale.setGameSize(w, h));
@@ -105,6 +108,14 @@ function extendImage(scene: Phaser.Scene, img: Phaser.GameObjects.Image | Phaser
     }
     const e = scene.add.image(b.left, atTop ? b.top : b.bottom, key).setOrigin(0, atTop ? 1 : 0).setDisplaySize(b.width, gap + 2).setDepth(img.depth).setTint(0x8a8a98);
     scene.children.moveBelow(e as unknown as Phaser.GameObjects.GameObject, img as unknown as Phaser.GameObjects.GameObject);
+    // 絵から はなれるほど 暗く(すじが 目立たない ように)
+    const y0 = atTop ? b.top - gap - 2 : b.bottom;
+    const fade = scene.add.graphics().setDepth(img.depth);
+    const dark = 0x1b1024;
+    if (atTop) fade.fillGradientStyle(dark, dark, dark, dark, 1, 1, 0.2, 0.2);
+    else fade.fillGradientStyle(dark, dark, dark, dark, 0.2, 0.2, 1, 1);
+    fade.fillRect(b.left, y0, b.width, gap + 2);
+    scene.children.moveAbove(fade as unknown as Phaser.GameObjects.GameObject, e as unknown as Phaser.GameObjects.GameObject);
   };
   band(b.top - top, true);
   band(bottom - b.bottom, false);
