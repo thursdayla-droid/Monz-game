@@ -115,55 +115,79 @@ export class MahjongScene extends Phaser.Scene {
     this.W = Math.max(1280, fillSize(this, { w: 1280, h: H }, { minRatio: 1280 / H, maxRatio: 2.2 }).w);
     this.scale.setGameSize(this.W, H);
     this.cameras.main.setSize(this.W, H);
-    const tw = Math.min(900, Math.max(820, this.W - 520));
-    this.geo = { cx: this.W / 2, cy: 296, tw, sp: (this.W - tw) / 2 };
-    // 明るい 背景(2026-11-08 企画者「もう少し 明るい 感じ」「昔の 麻雀ゲーム みたい」→ 紫から オレンジの グラデーション＋光の 粒)
+    const tw = Math.min(980, Math.max(820, this.W - 480));
+    this.geo = { cx: this.W / 2, cy: 378, tw, sp: (this.W - tw) / 2 };
+    // 背景(2026-11-08 企画者の イメージの 絵: こい 紫の 街・オレンジと 紫の ななめの 筋・金の 粒)
     const g = this.bg?.clear();
     if (!g) return;
-    g.fillGradientStyle(0x7a3cff, 0x7a3cff, 0xff8a4a, 0xff8a4a, 1).fillRect(0, 0, this.W, H);
+    g.fillGradientStyle(0x2a0f52, 0x2a0f52, 0x6a2cc0, 0x6a2cc0, 1).fillRect(0, 0, this.W, H);
     const rnd = (i: number) => ((Math.sin(i * 12.9898) * 43758.5453) % 1 + 1) % 1;
-    for (let i = 0; i < 60; i++) {
-      g.fillStyle(i % 3 ? 0xffffff : 0xffd23a, 0.12 + rnd(i + 7) * 0.2).fillCircle(rnd(i) * this.W, rnd(i + 99) * H, 2 + rnd(i + 3) * 6);
+    for (let i = 0; i < 14; i++) {
+      const x = rnd(i + 40) * this.W;
+      const y = rnd(i + 70) * H;
+      const len = 120 + rnd(i + 5) * 260;
+      g.fillStyle(i % 2 ? 0xff8a3a : 0xb04aff, 0.18 + rnd(i) * 0.2);
+      g.fillTriangle(x, y, x + len, y - len * 0.45, x + len + 26, y - len * 0.45 + 10);
     }
+    for (let i = 0; i < 50; i++) g.fillStyle(i % 3 ? 0xffd23a : 0xffffff, 0.15 + rnd(i + 7) * 0.25).fillCircle(rnd(i) * this.W, rnd(i + 99) * H, 1.5 + rnd(i + 3) * 4);
   }
 
-  // ---------------- 左右の キャラ ----------------
+  // ---------------- キャラ(敵3人は 上に 横一列・自分は 左下。企画者の イメージの 絵) ----------------
 
   private buildActors(): void {
     this.actors.forEach((a) => a.destroy());
     this.actors = [0, 1, 2, 3].map((seat) => {
       const sp = seat === 0 ? this.heroSp : ENEMY_SPECIES[seat];
+      const big = seat === BOSS || seat === 0;
+      const r = big ? 56 : 46;
       const c = this.add.container(0, 0).setDepth(5);
-      const shadow = this.add.ellipse(0, 4, 150, 30, 0x16101c, 0.35);
-      c.add(shadow);
-      if (this.textures.exists(careKey(sp))) {
-        const img = this.add.image(0, 0, careKey(sp)).setOrigin(0.5, 1);
-        img.setScale(260 / img.height);
+      const frame = this.add.graphics();
+      const col = seat === 0 ? 0x3ad070 : seat === BOSS ? 0xff4a6a : 0x9b5cff;
+      frame.fillStyle(0x16101c, 0.92).fillRoundedRect(-r, -r, r * 2, r * 2, 18);
+      frame.lineStyle(5, col, 1).strokeRoundedRect(-r, -r, r * 2, r * 2, 18);
+      c.add(frame);
+      const key = this.textures.exists(careFaceKey(sp)) ? careFaceKey(sp) : careKey(sp);
+      if (this.textures.exists(key)) {
+        const img = this.add.image(0, 2, key);
+        img.setScale((r * 1.85) / Math.max(img.width, img.height));
         if (seat !== 0) img.setFlipX(true);
         c.add(img);
+      } else c.add(this.add.rectangle(0, 0, 1, 1, 0, 0));
+      // 名前の 札
+      const name = seat === 0 ? 'プレイヤー' : seat === BOSS ? 'ボス' : '子分';
+      const tag = this.text(0, r + 14, name, big ? 18 : 15, '#ffffff', 0);
+      tag.setBackgroundColor(seat === 0 ? '#1f8a4a' : seat === BOSS ? '#d0304a' : '#5a34b0').setPadding(10, 3, 10, 3);
+      c.add(tag);
+      // ボスに 王冠
+      if (seat === BOSS) {
+        const cr = this.add.graphics();
+        cr.fillStyle(0xffd23a, 1).lineStyle(3, 0x16101c, 1);
+        const pts = [-26, 0, -26, -22, -13, -8, 0, -28, 13, -8, 26, -22, 26, 0].map((v, i) => (i % 2 ? v - r + 4 : v));
+        cr.beginPath();
+        cr.moveTo(pts[0], pts[1]);
+        for (let i = 2; i < pts.length; i += 2) cr.lineTo(pts[i], pts[i + 1]);
+        cr.closePath();
+        cr.fillPath();
+        cr.strokePath();
+        c.add(cr);
       }
-      const label = this.text(0, 22, seat === 0 ? '勇者(あなた)' : seat === BOSS ? 'ボス' : SEAT_NAME[seat], 18, seat === BOSS ? '#ffd23a' : '#ffffff', 5);
-      c.add(label);
       c.setData('sp', sp);
-      // 息をする ように 上下
-      this.tweens.add({ targets: c.list[1] ?? c, scaleY: { from: (c.list[1] as Phaser.GameObjects.Image | undefined)?.scaleY ?? 1, to: ((c.list[1] as Phaser.GameObjects.Image | undefined)?.scaleY ?? 1) * 1.03 }, duration: 900 + seat * 120, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      this.tweens.add({ targets: c, scale: { from: 1, to: 1.04 }, duration: 900 + seat * 130, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
       return c;
     });
     this.placeActors();
   }
 
-  /** 勇者は 左の 帯・敵3匹は 右の 帯(ボスは 大きく 上、子分は 下に 2匹) */
+  /** 敵: ボスは 上の まん中・子分は その 左右(それぞれの 席の 側)。自分は 左下 */
   private placeActors(): void {
-    const { sp } = this.geo;
-    const W = this.W;
-    const k = Math.min(1, sp / 260);
-    const pos: [number, number, number][] = [
-      [sp / 2, 470, 1.0 * k],
-      [W - sp / 2 + sp * 0.24, 560, 0.62 * k],
-      [W - sp / 2, 360, 0.95 * k],
-      [W - sp / 2 - sp * 0.24, 560, 0.62 * k],
+    const { cx, sp } = this.geo;
+    const pos: [number, number][] = [
+      [Math.max(80, sp / 2), 420],
+      [cx + 330, 96],
+      [cx, 92],
+      [cx - 330, 96],
     ];
-    this.actors.forEach((a, i) => a.setPosition(pos[i][0], pos[i][1]).setScale(pos[i][2]).setData('home', [pos[i][0], pos[i][1]]));
+    this.actors.forEach((a, i) => a.setPosition(pos[i][0], pos[i][1]).setData('home', pos[i]));
   }
 
   /** アガった 人が 相手に 体当たり → 相手が ゆれて 赤く 光る */
@@ -172,8 +196,8 @@ export class MahjongScene extends Phaser.Scene {
     const [hx, hy] = a.getData('home') as [number, number];
     const t0 = this.actors[targets[0]];
     const [tx] = t0.getData('home') as [number, number];
-    const dx = Math.sign(tx - hx) * Math.min(120, Math.abs(tx - hx) * 0.25);
-    this.tweens.add({ targets: a, x: hx + dx, y: hy - 30, duration: 160, yoyo: true, ease: 'Quad.easeOut' });
+    const [, ty] = t0.getData('home') as [number, number];
+    this.tweens.add({ targets: a, x: hx + (tx - hx) * 0.25, y: hy + (ty - hy) * 0.25, duration: 160, yoyo: true, ease: 'Quad.easeOut' });
     this.time.delayedCall(170, () => {
       for (const t of targets) {
         const v = this.actors[t];
@@ -263,11 +287,13 @@ export class MahjongScene extends Phaser.Scene {
     const { cx, cy, tw } = this.geo;
     // 卓(明るい 紫・金の ふち)
     const g = this.add.graphics();
-    g.fillStyle(0x16101c, 0.35).fillRoundedRect(cx - tw / 2 + 6, 14, tw, 572, 40);
-    g.fillGradientStyle(0x9b6bff, 0x9b6bff, 0x6a3fd0, 0x6a3fd0, 1).fillRoundedRect(cx - tw / 2, 8, tw, 572, 40);
-    g.lineStyle(8, 0xffd23a, 1).strokeRoundedRect(cx - tw / 2, 8, tw, 572, 40);
-    g.lineStyle(3, 0xffffff, 0.35).strokeRoundedRect(cx - tw / 2 + 12, 20, tw - 24, 548, 30);
-    g.fillStyle(0xfff4dc, 1).fillRoundedRect(cx - 98, cy - 88, 196, 176, 18);
+    const top = 142;
+    const bot = 602;
+    g.fillStyle(0x0b0614, 0.45).fillRoundedRect(cx - tw / 2 + 6, top + 8, tw, bot - top, 34);
+    g.fillGradientStyle(0x4a2290, 0x4a2290, 0x2c1260, 0x2c1260, 1).fillRoundedRect(cx - tw / 2, top, tw, bot - top, 34);
+    g.lineStyle(7, 0xffb03a, 1).strokeRoundedRect(cx - tw / 2, top, tw, bot - top, 34);
+    g.lineStyle(2, 0xffd23a, 0.5).strokeRoundedRect(cx - tw / 2 + 12, top + 12, tw - 24, bot - top - 24, 26);
+    g.fillStyle(0x16101c, 0.95).fillRoundedRect(cx - 98, cy - 88, 196, 176, 18);
     g.lineStyle(4, 0xff8a3a, 1).strokeRoundedRect(cx - 98, cy - 88, 196, 176, 18);
     this.layer.add(g);
     this.drawCenter(cx, cy);
@@ -294,10 +320,10 @@ export class MahjongScene extends Phaser.Scene {
     const s = this.round;
     const g = this.mj;
     const wind = '東南西北'[g.roundWind - EAST] ?? '東';
-    this.layer.add(this.text(cx, cy - 66, `${wind}${g.kyoku + 1}局  ${g.honba}本場`, 20, '#7a2cd0'));
-    this.layer.add(this.text(cx, cy - 42, `のこり ${s.live.length}  リーチ棒 ${s.cfg.sticks}`, 14, '#5a4a66'));
+    this.layer.add(this.text(cx, cy - 66, `${wind}${g.kyoku + 1}局  ${g.honba}本場`, 21, '#ffd23a'));
+    this.layer.add(this.text(cx, cy - 42, `のこり ${s.live.length}  リーチ棒 ${s.cfg.sticks}`, 14, '#e8dcf4'));
     const ind = doraIndicators(s);
-    this.layer.add(this.text(cx - 70, cy - 10, 'ドラ', 14, '#e0502a'));
+    this.layer.add(this.text(cx - 70, cy - 10, 'ドラ', 14, '#ffb03a'));
     ind.forEach((k, i) => this.layer.add(this.tile(cx - 40 + i * 27, cy - 10, kindTex(k), 25)));
     // 4人の 点数(それぞれの 席の 向きに 置く。手番の 人は 黄色)
     const pos = [
@@ -309,7 +335,7 @@ export class MahjongScene extends Phaser.Scene {
     for (let i = 0; i < 4; i++) {
       const w = '東南西北'[seatWind(s, i) - EAST];
       const [x, y] = pos[i];
-      this.layer.add(this.text(x, y, `${w} ${g.points[i]}`, 14, i === s.turn ? '#e0502a' : '#16101c'));
+      this.layer.add(this.text(x, y, `${w} ${g.points[i]}`, 14, i === s.turn ? '#ffd23a' : '#ffffff'));
     }
   }
 
@@ -321,13 +347,13 @@ export class MahjongScene extends Phaser.Scene {
     const c = this.add.container(cx, cy).setRotation(rot);
     this.layer.add(c);
     // 河: 6枚ずつ
-    const rw = 36;
+    const rw = 32;
     const rh = rw * (172 / 132);
     p.discards.forEach((d, i) => {
       const row = Math.min(3, Math.floor(i / 6));
       const col = i - row * 6 + (row === 3 ? 6 * 0 : 0);
       const x = -3 * rw + rw / 2 + (row === 3 ? i - 18 : col) * rw;
-      const y = 100 + row * rh + rh / 2;
+      const y = 94 + row * rh + rh / 2;
       const img = this.tile(x, y, texOf(d.tile), rw, d.riichi ? Math.PI / 2 : 0);
       if (d.called) img.setAlpha(0.35);
       c.add(img);
@@ -341,12 +367,14 @@ export class MahjongScene extends Phaser.Scene {
     // 伏せた 手(CPU)
     const bw = 24;
     const n = p.hand.length;
-    for (let i = 0; i < n; i++) c.add(this.tile(-((n - 1) * bw) / 2 + i * bw, 258, 'mj:back', bw - 1));
+    for (let i = 0; i < n; i++) if (seat !== BOSS) c.add(this.tile(-((n - 1) * bw) / 2 + i * bw, 300, 'mj:back', bw - 1));
     // 鳴いた 牌
-    this.drawMelds(c, p.melds, ((n - 1) * bw) / 2 + 16, 258, 26);
+    // ボスは 顔が 卓の 上に あるので 伏せた 手は 出さず、鳴いた 牌は 卓の 右上に
+    if (seat === BOSS) this.drawMelds(c, p.melds, -300, 218, 26);
+    else this.drawMelds(c, p.melds, ((n - 1) * bw) / 2 + 16, 300, 26);
     // 名前・リーチ
     if (p.riichi) {
-      const nameT = this.text(-((n - 1) * bw) / 2 - 50, 258, 'リーチ', 18, '#ffd23a', 5);
+      const nameT = seat === BOSS ? this.text(170, 218, 'リーチ', 18, '#ffd23a', 5) : this.text(-((n - 1) * bw) / 2 - 50, 300, 'リーチ', 18, '#ffd23a', 5);
       nameT.setRotation(-rot);
       c.add(nameT);
     }
@@ -429,16 +457,18 @@ export class MahjongScene extends Phaser.Scene {
       this.ui.add(g);
       this.ui.add(this.text(x + w / 2, y - 15, `${label}  ${v.toLocaleString()}`, 16, '#ffffff'));
     };
-    const bw = Math.min(300, sp - 36);
-    bar(sp / 2 - bw / 2, 96, bw, 'あなたの HP', this.hp.player, this.hp.playerMax, 0x3ad070);
-    bar(W - sp / 2 - bw / 2, 96, bw, '敵チーム HP', this.hp.enemy, this.hp.enemyMax, 0xff4a6a);
+    // 敵チームの HP は 上の まん中に 大きく・自分の HP は 左下の 顔の 下
+    const ew = Math.min(620, this.geo.tw - 160);
+    bar(W / 2 - ew / 2, 30, ew, '敵チーム(ボス＋子分2人) HP', this.hp.enemy, this.hp.enemyMax, 0xff4a6a);
+    const pw = Math.max(170, Math.min(240, sp - 30));
+    bar(Math.max(80, sp / 2) - pw / 2, 566, pw, 'HP', this.hp.player, this.hp.playerMax, 0x3ad070);
     // やめる(左上)
     const back = this.text(70, 28, '◀ やめる', 17, '#ffffff', 0).setInteractive({ useHandCursor: true });
     back.setBackgroundColor('#16101caa').setPadding(12, 6, 12, 6);
     back.on('pointerup', () => this.quit());
     this.ui.add(back);
     // オートパス(鳴きを 聞かない。ロンは 聞く)
-    const ap = this.text(sp / 2, 530, `オートパス ${autoPass ? 'ON' : 'OFF'}`, 18, autoPass ? '#16101c' : '#ffffff').setInteractive({ useHandCursor: true });
+    const ap = this.text(W - Math.max(90, sp / 2), 470, `オートパス ${autoPass ? 'ON' : 'OFF'}`, 18, autoPass ? '#16101c' : '#ffffff').setInteractive({ useHandCursor: true });
     ap.setBackgroundColor(autoPass ? '#ffd23a' : '#16101caa').setPadding(14, 8, 14, 8);
     ap.on('pointerdown', () => {
       autoPass = !autoPass;
