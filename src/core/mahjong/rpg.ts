@@ -1,3 +1,4 @@
+import { ranks, type GameState } from './game';
 import type { RoundResult } from './round';
 
 /**
@@ -64,3 +65,17 @@ export function applyDamage(hp: Hp, d: Damage): Hp {
   return { ...hp, player: Math.max(0, hp.player - d.toPlayer), enemy: Math.max(0, hp.enemy - d.toEnemy) };
 }
 export const stageResult = (hp: Hp): 'clear' | 'lose' | null => (hp.enemy <= 0 ? 'clear' : hp.player <= 0 ? 'lose' : null);
+
+/**
+ * ウマ(半荘の おわりの 順位で つく 点)。企画者 2026-11-08「ウマは 自分のだけで いい」:
+ * プレイヤーの ウマだけを 使い、プラスなら 敵へ、マイナスなら 自分への ダメージ。CPU の ウマは なにも しない。
+ * 大きさは【仮：1位 +10,000・2位 +5,000・3位 −5,000・4位 −10,000】
+ */
+export const UMA = [10000, 5000, -5000, -10000] as const;
+export function umaDamage(g: GameState): Damage {
+  const u = UMA[ranks(g)[PLAYER_SEAT]];
+  const d: Damage = { toEnemy: 0, toPlayer: 0, hits: [] };
+  if (u > 0) d.toEnemy = u;
+  if (u < 0) d.toPlayer = -u;
+  return d;
+}

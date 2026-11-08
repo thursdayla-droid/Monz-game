@@ -88,3 +88,16 @@ export function ranks(g: GameState): number[] {
   order.forEach((seat, i) => (r[seat] = i));
   return r;
 }
+
+/**
+ * 次の 半荘(企画者 2026-11-08「次の 半荘は 点数を 戻さない」「倒すか やられたら 終了」)。
+ * 点数・本場・供託は そのまま、東1局から。起家は 同じ
+ */
+export function nextHanchan(g: GameState): void {
+  g.roundWind = EAST;
+  g.kyoku = 0;
+  g.over = false;
+  g.tobi = false;
+  g.count++;
+  begin(g);
+}

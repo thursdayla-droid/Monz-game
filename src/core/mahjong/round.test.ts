@@ -148,3 +148,24 @@ describe('流し満貫・飛び(企画者 2026-11-08)', () => {
     expect(g.tobi).toBe(true);
   });
 });
+
+describe('ウマ・次の 半荘(企画者 2026-11-08)', () => {
+  it('自分の 順位の ウマだけ: 1位は 敵へ・4位は 自分へ', async () => {
+    const { umaDamage } = await import('./rpg');
+    const g = newGame(2);
+    g.points = [40000, 30000, 20000, 10000];
+    expect(umaDamage(g)).toMatchObject({ toEnemy: 10000, toPlayer: 0 });
+    g.points = [10000, 30000, 20000, 40000];
+    expect(umaDamage(g)).toMatchObject({ toEnemy: 0, toPlayer: 10000 });
+  });
+  it('次の 半荘は 点数を 戻さない', async () => {
+    const { nextHanchan } = await import('./game');
+    const g = newGame(2);
+    g.points = [40000, 30000, 20000, 10000];
+    g.over = true;
+    nextHanchan(g);
+    expect(g.points).toEqual([40000, 30000, 20000, 10000]);
+    expect(g.round.cfg.points).toBe(g.points);
+    expect([g.roundWind, g.kyoku, g.over]).toEqual([EAST, 0, false]);
+  });
+});
