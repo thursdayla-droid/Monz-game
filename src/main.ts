@@ -31,7 +31,7 @@ import { ShopScene } from './scenes/ShopScene';
 import { AdventureScene } from './scenes/AdventureScene';
 import { SplashScene } from './scenes/SplashScene';
 import { TitleScene } from './scenes/TitleScene';
-import { fillTall } from './ui/viewport';
+import { fillTall, watchViewport } from './ui/viewport';
 
 const game = new Phaser.Game({
   // ?canvas を付けるとCanvas描画で動かす(表示がおかしいときの確認用)
@@ -52,8 +52,22 @@ const game = new Phaser.Game({
 // 2026-11-08: ホーム画面から 開いた 時の 大きさ合わせ(fitStandalone)は やめた。画面の 外に はみ出して 下の ボタンが 切れたため。かわりに 時計・電池の 帯を 黒に(index.html)
 
 // 2026-11-08 企画者「全画面がいい」: たての 画面を スマホの 形まで のばす(背景を 広げる)
+/** 向きが 変わったら 作り直す 画面(作り直しても 遊んでいる 中身が 消えない メニュー・お世話画面) */
+const RELAYOUT_ON_ROTATE = new Set(['Title', 'Home', 'BattleMenu', 'MinigameSelect', 'CardTitle', 'RoomSelect']);
+
 game.events.once(Phaser.Core.Events.READY, () => {
-  for (const s of game.scene.scenes) s.events.on(Phaser.Scenes.Events.CREATE, () => fillTall(s));
+  for (const s of game.scene.scenes) {
+    s.events.on(Phaser.Scenes.Events.CREATE, () => {
+      fillTall(s);
+      // 2026-11-08 企画者「バトルセレクトで 横画面に してから 縦に したら 左上の 戻る 押せない」:
+      // 画面の 大きさは 開いた 時の 向きで 決めるので、向きが 変わったら 作り直す(たての メニュー画面だけ)
+      if (RELAYOUT_ON_ROTATE.has(s.scene.key))
+        watchViewport(s, () => {
+          if (!s.scene.isActive() || s.cameras.main.fadeEffect.isRunning) return;
+          s.scene.restart();
+        });
+    });
+  }
 });
 
 // 2026-11-08: iPhone が 古い 版を 覚えたまま 開くと、新しい 絵と 合わずに ずれた → 公開ページでは 新しい 版が あれば 読みこみ直す
