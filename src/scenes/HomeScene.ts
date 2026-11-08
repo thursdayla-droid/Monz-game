@@ -39,7 +39,7 @@ const DEPTH = { monz: 10, effect: 30, ui: 40, popup: 60 };
 
 /** 企画者の部屋の絵(design/home/rooms/ → public/assets/home/rooms/)。_thumb は部屋を選ぶ画面の小さい絵 */
 /** 作り直した 部屋の 絵(2026-11-08 全画面用。名前を 変えて 古い 絵と まざらないように) */
-const ROOM_FILE_NAME: Partial<Record<HomePlace, string>> = { street: 'street_v2', pop: 'pop_v2', future: 'future_v2' };
+const ROOM_FILE_NAME: Partial<Record<HomePlace, string>> = { street: 'street_v2', pop: 'pop_v2', future: 'future_v2', room4: 'room4_v2' };
 export const homeImageFile = (p: HomePlace, thumb = false) => `assets/home/rooms/${ROOM_FILE_NAME[p] ?? p}${thumb ? '_thumb' : ''}.webp`;
 export const homeImageKey = (p: HomePlace, thumb = false) => `home:bg:${p}${thumb ? ':thumb' : ''}`;
 
