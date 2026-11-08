@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { fillSize } from '../ui/viewport';
 import { audio } from '../audio/engine';
 import { loadLife } from '../core/lifeSave';
 import { TURN_SECONDS } from '../core/monzCard';
@@ -32,11 +33,18 @@ export class CardTitleScene extends Phaser.Scene {
     audio.playBgm('card');
   }
 
-  /** 企画者のタイトルの絵(design/minigame/card_title.png・941x1672)。押せる所は絵の座標で決める */
+  /**
+   * 企画者のタイトルの絵(design/minigame/card_title.png)。押せる所は絵の座標で決める。
+   * 2026-11-08 全画面用の 縦長の 絵(852x1846)に 作り直し(前の 絵 941x1672 は unused/)
+   */
   private buildFromArt(): void {
-    const sx = W / 941;
-    const sy = H / 1672;
-    this.add.image(0, 0, 'cardimg:title').setOrigin(0, 0).setDisplaySize(W, H);
+    const sx = W / 852;
+    const sy = sx;
+    const tall = Math.max(fillSize(this, { w: W, h: H }, { minRatio: 0.4, maxRatio: W / H }).h, H);
+    this.scale.setGameSize(W, tall);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(W, H));
+    this.cameras.main.setBackgroundColor('#2a2238');
+    this.add.image(0, 0, 'cardimg:title').setOrigin(0, 0).setDisplaySize(W, 1846 * sy);
     const zone = ([x0, y0, x1, y1]: number[], onTap: () => void) => {
       const z = this.add.rectangle(x0 * sx, y0 * sy, (x1 - x0) * sx, (y1 - y0) * sy, 0xffffff, 0).setOrigin(0, 0).setInteractive({ useHandCursor: true });
       z.on('pointerdown', () => {
@@ -45,15 +53,15 @@ export class CardTitleScene extends Phaser.Scene {
         onTap();
       });
     };
-    zone([35, 40, 265, 115], () => this.back());
-    zone([140, 1210, 820, 1395], () => this.play());
-    zone([245, 1480, 690, 1585], () => this.howTo());
+    zone([28, 125, 242, 202], () => this.back());
+    zone([130, 1180, 745, 1360], () => this.play());
+    zone([225, 1428, 630, 1525], () => this.howTo());
     // 絵に描いてあるコインの数を隠して、本当の数を出す
-    this.add.rectangle(728 * sx, 46 * sy, 108 * sx, 46 * sy, 0x01060e, 1).setOrigin(0, 0);
+    this.add.rectangle(672 * sx, 136 * sy, 100 * sx, 44 * sy, 0x00070f, 1).setOrigin(0, 0);
     const life = loadLife();
-    this.add.text(834 * sx, 69 * sy, life.coins.toLocaleString(), { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '28px', color: '#ffffff' }).setOrigin(1, 0.5);
+    this.add.text(762 * sx, 158 * sy, life.coins.toLocaleString(), { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '28px', color: '#ffffff' }).setOrigin(1, 0.5);
     const rec = life.records.card;
-    if (rec) this.add.text(W / 2, 1172 * sy, `自己ベスト：${rec.bestScore}枚（ラウンド${rec.bestRound}）`, { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '900', color: '#ffd23a', stroke: INK, strokeThickness: 8 }).setOrigin(0.5);
+    if (rec) this.add.text(W / 2, 1150 * sy, `自己ベスト：${rec.bestScore}枚（ラウンド${rec.bestRound}）`, { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '900', color: '#ffd23a', stroke: INK, strokeThickness: 8 }).setOrigin(0.5);
   }
 
   private back(): void {
