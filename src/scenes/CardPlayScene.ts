@@ -89,7 +89,11 @@ export class CardPlayScene extends Phaser.Scene {
     canvasTextureOnce(this, backImg ? 'card:backimg' : 'card:back', CARD_W, CARD_H, (ctx) => drawCardBack(ctx, backImg));
     this.backKey = backImg ? 'card:backimg' : 'card:back';
     // 背景(企画者の絵。なければ仮の壁)
-    if (this.textures.exists('cardimg:bg')) this.add.image(0, 0, 'cardimg:bg').setOrigin(0, 0).setDisplaySize(W, H);
+    // 2026-11-08 全画面用の 縦長の 絵(852x1846): 横はばに 合わせて 上から(画面が のびても 絵で うまる)
+    if (this.textures.exists('cardimg:bg')) {
+      const bg = this.add.image(0, 0, 'cardimg:bg').setOrigin(0, 0);
+      bg.setScale(Math.max(W / bg.width, H / bg.height));
+    }
     else {
       canvasTextureOnce(this, 'card:table', W, H, (ctx) => drawCardTable(ctx, W, H));
       this.add.image(0, 0, 'card:table').setOrigin(0, 0);
