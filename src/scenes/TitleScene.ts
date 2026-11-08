@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { fillSize } from '../ui/viewport';
 import { audio } from '../audio/engine';
 import { loadSave } from '../core/save';
 import { addSoundButton } from '../ui/soundButton';
@@ -6,7 +7,8 @@ import { prefetchPacks, preloadPacks, releasePack } from '../render/packs';
 
 const FONT = 'system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif';
 export const TITLE_IMAGE = 'title:image';
-export const TITLE_FILE = 'assets/title/title.png';
+// 2026-11-08 企画者の 縦長の 絵(830x1896。前の 絵は unused/title/)
+export const TITLE_FILE = 'assets/title/title.webp';
 
 /**
  * タイトル画面。企画者が用意したタイトルの絵(design/title/title.png)をそのまま全面に出す。
@@ -33,6 +35,10 @@ export class TitleScene extends Phaser.Scene {
     prefetchPacks(this, loadSave() ? ['bunk', 'home'] : ['bunk', 'birth']);
     // タイトルの絵は大きいので、この画面を離れたらメモリから外す(戻ってきたら読み直す)
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => releasePack(this, 'title'));
+    // 全画面: 画面の 形まで のばしてから 絵を 出す(縦長の 絵なので 帯は いらない)
+    const tallH = fillSize(this, { w: 720, h: 1280 }, { minRatio: 0.4, maxRatio: 720 / 1280 }).h;
+    this.scale.setGameSize(720, tallH);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(720, 1280));
     const { width, height } = this.scale;
     const img = this.add.image(width / 2, height / 2, TITLE_IMAGE);
     // 画面をすき間なくおおう大きさ(縦横比はほぼ同じなので、はみ出しはわずか)
