@@ -67,7 +67,14 @@ export interface WinResult {
 
 export type RoundResult =
   | { kind: 'win'; wins: WinResult[]; delta: number[] }
-  | { kind: 'draw'; reason: 'exhaust' | 'kyuushu'; tenpai: boolean[]; delta: number[] };
+  | {
+      kind: 'draw';
+      reason: 'exhaust' | 'kyuushu';
+      tenpai: boolean[];
+      delta: number[];
+      /** 流し満貫の 人と 払った 点(席ごと。払った人が プラス)(企画者 2026-11-08「流し満貫 アリ」) */
+      nagashi?: { seat: number; paid: number[] }[];
+    };
 
 export type RoundEvent =
   | { type: 'draw'; seat: number; rinshan: boolean }
@@ -512,8 +519,26 @@ export function resolveReactions(s: RoundState, choices: Reaction[]): RoundResul
 /** 荒牌流局(テンパイの 人に 3000点を 分ける) */
 function exhaustiveDraw(s: RoundState): RoundResult {
   const tenpai = s.players.map((_, i) => waitsOf(s, i).length > 0);
-  const n = tenpai.filter(Boolean).length;
   const delta = [0, 0, 0, 0];
+  // 流し満貫(企画者 2026-11-08 アリ): 捨て牌が 全部 么九牌で 1枚も 鳴かれていない → 満貫ツモと 同じ 点。
+  // その 時は ノーテン罰符は なし・本場は 付けない【仮：ふつうの 決まり】
+  const nagashi = s.players
+    .map((p, seat) => ({ p, seat }))
+    .filter(({ p }) => p.discards.length > 0 && p.discards.every((d) => isYaochu(kindOf(d.tile)) && !d.called))
+    .map(({ seat }) => {
+      const paid = [0, 0, 0, 0];
+      for (let i = 0; i < 4; i++) if (i !== seat) paid[i] = i === s.cfg.dealer || seat === s.cfg.dealer ? 4000 : 2000;
+      return { seat, paid };
+    });
+  if (nagashi.length) {
+    for (const n of nagashi)
+      for (let i = 0; i < 4; i++) {
+        delta[i] -= n.paid[i];
+        delta[n.seat] += n.paid[i];
+      }
+    return endWith(s, { kind: 'draw', reason: 'exhaust', tenpai, delta, nagashi });
+  }
+  const n = tenpai.filter(Boolean).length;
   if (n > 0 && n < 4) for (let i = 0; i < 4; i++) delta[i] = tenpai[i] ? 3000 / n : -3000 / (4 - n);
   return endWith(s, { kind: 'draw', reason: 'exhaust', tenpai, delta });
 }

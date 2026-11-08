@@ -18,7 +18,20 @@ export interface Damage {
 
 export function damageOf(r: RoundResult, bossSeat: number): Damage {
   const d: Damage = { toEnemy: 0, toPlayer: 0, hits: [] };
-  if (r.kind !== 'win') return d;
+  if (r.kind !== 'win') {
+    // 流し満貫【仮：ツモと 同じ ように ダメージに する】
+    for (const n of r.nagashi ?? []) {
+      if (n.seat === PLAYER_SEAT) {
+        const amount = n.paid.reduce((a, b) => a + b, 0);
+        d.toEnemy += amount;
+        d.hits.push({ winner: n.seat, from: null, amount, target: 'enemy' });
+      } else if (n.paid[PLAYER_SEAT] > 0) {
+        d.toPlayer += n.paid[PLAYER_SEAT];
+        d.hits.push({ winner: n.seat, from: null, amount: n.paid[PLAYER_SEAT], target: 'player' });
+      }
+    }
+    return d;
+  }
   for (const w of r.wins) {
     if (w.seat === PLAYER_SEAT) {
       let amount: number;

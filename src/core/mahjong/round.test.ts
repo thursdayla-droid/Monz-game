@@ -124,3 +124,27 @@ describe('ダメージ(仕様書 4)', () => {
 });
 
 void kindOf;
+
+describe('流し満貫・飛び(企画者 2026-11-08)', () => {
+  it('捨て牌が 全部 么九牌で 鳴かれていなければ 満貫(子: 親4000・子2000)', () => {
+    const s = startRound({ seed: 5, dealer: 0, roundWind: EAST, honba: 0, sticks: 0, points: [25000, 25000, 25000, 25000] });
+    const yao = parseTiles('19m19p19s1234z');
+    s.players[1].discards = yao.map((tile) => ({ tile, riichi: false, called: false, tsumogiri: false }));
+    s.players[2].discards = parseTiles('5m').map((tile) => ({ tile, riichi: false, called: false, tsumogiri: false }));
+    s.live = [];
+    s.lastTile = { seat: 2, tile: s.players[2].discards[0].tile };
+    s.phase = 'react';
+    const r = resolveReactions(s, [null, null, null, null])!;
+    expect(r.kind).toBe('draw');
+    expect(r.delta).toEqual([-4000, 8000, -2000, -2000]);
+    // プレイヤー(席0)は 親で 4000 払う → 4000 ダメージ
+    expect(damageOf(r, 1).toPlayer).toBe(4000);
+  });
+  it('点数が 0 より 下に なったら 半荘おわり', () => {
+    const g = newGame(9);
+    g.round.result = { kind: 'win', wins: [], delta: [-26000, 26000, 0, 0] };
+    nextRound(g);
+    expect(g.over).toBe(true);
+    expect(g.tobi).toBe(true);
+  });
+});
