@@ -325,21 +325,21 @@ export class HomeFurniture {
   }
 
   private onDown(p: Phaser.Input.Pointer): void {
-    if (p.y >= this.panelTop) return;
+    if (p.worldY >= this.panelTop) return;
     // いちばん手前にある家具から順に、触った所にあるか見る
-    const hit = [...this.items].sort((a, b) => b.img.depth - a.img.depth).find((it) => it.img.getBounds().contains(p.x, p.y));
+    const hit = [...this.items].sort((a, b) => b.img.depth - a.img.depth).find((it) => it.img.getBounds().contains(p.worldX, p.worldY));
     this.select(hit);
     if (!hit) return;
     audio.se('tap');
-    this.drag = { dx: p.x - hit.x, dy: p.y - hit.y, lastX: hit.x, lastY: hit.y };
+    this.drag = { dx: p.worldX - hit.x, dy: p.worldY - hit.y, lastX: hit.x, lastY: hit.y };
   }
 
   private onMove(p: Phaser.Input.Pointer): void {
     const it = this.selected;
     if (!it || !this.drag || !p.isDown) return;
     const ys = this.floor.map((q) => q[1]);
-    it.x = p.x - this.drag.dx;
-    it.y = Phaser.Math.Clamp(p.y - this.drag.dy, Math.min(...ys), Math.max(...ys));
+    it.x = p.worldX - this.drag.dx;
+    it.y = Phaser.Math.Clamp(p.worldY - this.drag.dy, Math.min(...ys), Math.max(...ys));
     // カーペットは、選んだ大きさのまま入るいちばん近い所に寄せる(奥に行っても小さくなりすぎないように。企画者の指示 2026-10-22)
     if (isWalkable(it.item)) {
       const near = this.nearestFullFit(it, it.x, it.y);

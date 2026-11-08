@@ -186,7 +186,8 @@ export class HomeScene extends Phaser.Scene {
     // 指でなでる・タップ: 画面のどこを触ったかで判断する(MONZの体のあたりなら反応。座る・眠るなどの絵のときも同じ)
     // 手のカーソルは画面のどこを触っても出る(ボタン・上の表示の所は除く)。MONZが反応するのは、MONZを触ったときだけ
     this.input.on('pointerdown', (p: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
-      if (over.length || p.y < 170 || p.y > MENU.y - MENU.h / 2 - 14) return;
+      // 2026-11-08: 画面を のばした ぶん カメラが ずれているので、ゲームの 中の 位置(worldY)で 見る
+      if (over.length || p.worldY < 170 - this.uiShift.up || p.worldY > MENU.y - MENU.h / 2 - 14 + this.uiShift.down) return;
       this.startStroke(p);
     });
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => this.moveStroke(p));
@@ -550,6 +551,9 @@ export class HomeScene extends Phaser.Scene {
   }
 
   /** のびた 画面に 合わせて、上の 表示を 上へ・下の ボタンを 下へ */
+  /** anchorUi で 上の 表示・下の ボタンを ずらした 量 */
+  private uiShift = { up: 0, down: 0 };
+
   private anchorUi(): void {
     const ex = -this.cameras.main.scrollY;
     if (ex <= 0) return;
@@ -558,6 +562,7 @@ export class HomeScene extends Phaser.Scene {
     // 2026-11-08 企画者「下を のばしたから ボタンの 位置 おかしい。もう少し バランスよく 下に」:
     // iPhone の 下の バーの ぶんを まるごと あけると 下が 広く あきすぎるので、半分だけ よける
     const down = Math.max(0, ex - safe.bottom * 0.45);
+    this.uiShift = { up, down };
     for (const o of this.children.list) {
       const g = o as unknown as Phaser.GameObjects.Components.Depth & Phaser.GameObjects.Components.Transform;
       if (g.depth !== DEPTH.ui && g.depth !== DEPTH.ui - 1) continue;
@@ -749,37 +754,37 @@ export class HomeScene extends Phaser.Scene {
   private startStroke(p: Phaser.Input.Pointer): void {
     if (this.busy || !this.life) return;
     if (this.strokeHand) this.tweens.killTweensOf(this.strokeHand);
-    const onMonz = this.onMonz(p.x, p.y);
+    const onMonz = this.onMonz(p.worldX, p.worldY);
     // 床を押さえたら、BUNKが指を追いかけてくる(企画者決定 2026-10-22。眠い・機嫌が悪い・お腹がすいているときは来ない)
-    const follow = !onMonz && this.life.follow(this.tipOf(p.x, p.y));
-    this.stroke = { x: p.x, y: p.y, dist: 0, sinceTick: 0, ticks: 0, happy: 0, angry: false, onMonz, follow };
+    const follow = !onMonz && this.life.follow(this.tipOf(p.worldX, p.worldY));
+    this.stroke = { x: p.worldX, y: p.worldY, dist: 0, sinceTick: 0, ticks: 0, happy: 0, angry: false, onMonz, follow };
     // 触ったらすぐ手を出す(指で隠れないよう、指の少し上に)
-    this.showStrokeHand(p.x, p.y);
+    this.showStrokeHand(p.worldX, p.worldY);
   }
 
   private moveStroke(p: Phaser.Input.Pointer): void {
     const s = this.stroke;
     const life = this.life;
     if (!s || !life || !p.isDown || s.angry) return;
-    const d = Math.hypot(p.x - s.x, p.y - s.y);
-    s.x = p.x;
-    s.y = p.y;
-    this.showStrokeHand(p.x, p.y);
+    const d = Math.hypot(p.worldX - s.x, p.worldY - s.y);
+    s.x = p.worldX;
+    s.y = p.worldY;
+    this.showStrokeHand(p.worldX, p.worldY);
     if (s.follow) {
       // 指がBUNKの体の上に来たら(BUNKが追いついた・指をBUNKにのせた)、追いかけるのをやめて なでるに切りかえる
-      if (this.onMonz(p.x, p.y)) {
+      if (this.onMonz(p.worldX, p.worldY)) {
         life.follow(null);
         s.follow = false;
         s.onMonz = true;
         s.dist = 0;
         s.sinceTick = 0;
       } else {
-        life.follow(this.tipOf(p.x, p.y));
+        life.follow(this.tipOf(p.worldX, p.worldY));
         return;
       }
     }
     // MONZの体の上をなぞっているときだけ数える
-    if (!this.onMonz(p.x, p.y)) return;
+    if (!this.onMonz(p.worldX, p.worldY)) return;
     s.dist += d;
     s.sinceTick += d;
     if (s.sinceTick < HomeScene.STROKE_STEP) return;
