@@ -44,7 +44,7 @@ function playRound(s: RoundState, rnd: () => number) {
   return s.result!;
 }
 
-const SEEDS = Number(process.env.MJ_SEEDS ?? 150);
+const SEEDS = 150;
 describe('1局の 流れ', () => {
   it('配牌は 13枚・親は 14枚・王牌14枚・山の 残り', () => {
     const s = startRound({ seed: 1, dealer: 0, roundWind: EAST, honba: 0, sticks: 0, points: [25000, 25000, 25000, 25000] });
@@ -56,7 +56,6 @@ describe('1局の 流れ', () => {
     let wins = 0;
     let draws = 0;
     for (let seed = 1; seed <= SEEDS; seed++) {
-      const t0 = performance.now();
       let x = seed;
       const rnd = () => ((x = (x * 1103515245 + 12345) >>> 0) / 2 ** 32);
       const g = newGame(seed);
@@ -73,7 +72,6 @@ describe('1局の 流れ', () => {
         expect(g.points.reduce((a, b) => a + b, 0) + g.sticks * 1000).toBe(100000);
       }
       expect(g.over).toBe(true);
-      if (seed <= 3) process.stdout.write(`game ${seed} ${(performance.now() - t0).toFixed(0)}ms rounds ${g.count}\n`);
     }
     expect(wins).toBeGreaterThan(draws / 3);
   }, 120000);
