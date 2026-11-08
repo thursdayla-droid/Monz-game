@@ -12,11 +12,12 @@ import type { RumbleParams } from './Battle3DScene';
  */
 const CSS = `
 .rmb{position:fixed;inset:0;z-index:50;background:radial-gradient(circle at 50% 20%,#3a1460,#120818 70%);color:#fff;font-family:${UI_FONT};user-select:none;-webkit-user-select:none;overflow:auto;-webkit-overflow-scrolling:touch}
-.rmb .in{min-height:100%;box-sizing:border-box;padding:calc(env(safe-area-inset-top) + 14px) calc(env(safe-area-inset-right) + 16px) calc(env(safe-area-inset-bottom) + 20px) calc(env(safe-area-inset-left) + 16px);display:flex;flex-direction:column;gap:14px;align-items:center}
+.rmb .in{min-height:100%;box-sizing:border-box;padding:calc(env(safe-area-inset-top) + 26px) calc(env(safe-area-inset-right) + 16px) calc(env(safe-area-inset-bottom) + 20px) calc(env(safe-area-inset-left) + 16px);display:flex;flex-direction:column;gap:14px;align-items:center}
 /* 2026-11-07 企画者のモードえらびの絵(左＝ストリート・右＝王冠のバトルステージ) */
 .rmb .modebg{position:fixed;inset:0;z-index:-1;background:#120818 center/cover no-repeat}
 .rmb .modebg::after{content:'';position:absolute;inset:0;background:linear-gradient(#0000 40%,#0006)}
-.rmb .back{align-self:flex-start;background:#16101ccc;border:0;color:#fff;font:900 15px ${UI_FONT};padding:8px 12px;border-radius:10px}
+/* 2026-11-08 企画者「左上の 戻る 押せない」: iPhone の Safari(横)は 画面の いちばん 上を さわると バーが 出て ボタンに とどかない → 少し 下げて 大きく */
+.rmb .back{align-self:flex-start;background:#16101ccc;border:0;color:#fff;font:900 16px ${UI_FONT};padding:11px 16px;border-radius:12px;min-height:44px}
 .rmb h1{margin:0;font-size:34px;letter-spacing:.04em;color:#ffd23a;-webkit-text-stroke:2px #16101c;text-shadow:0 4px 0 #16101c;text-align:center}
 .rmb h2{margin:0;font-size:20px;color:#fff;text-align:center}
 /* 2026-11-07 企画者の ボタンの絵(金と紫の 看板。design/rumble_ui/button.png)。文字は 上に のせる */
@@ -52,7 +53,7 @@ const CSS = `
 @keyframes rmbIn{from{opacity:0}to{opacity:1}}
 .rmb .spic{position:absolute;inset:0;background:#2a1a3a;display:flex;align-items:center;justify-content:center;color:#a898b8;font-size:15px;font-weight:700}
 .rmb .spic img{width:100%;height:100%;object-fit:cover;object-position:50% 8%}
-.rmb .stop{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 10px) calc(env(safe-area-inset-right) + 14px) 10px calc(env(safe-area-inset-left) + 14px);background:linear-gradient(#000c,#0000)}
+.rmb .stop{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 20px) calc(env(safe-area-inset-right) + 14px) 10px calc(env(safe-area-inset-left) + 14px);background:linear-gradient(#000c,#0000)}
 .rmb .stop .back{align-self:center}
 .rmb .sno{flex:1;text-align:center;font:900 18px ${UI_FONT};color:#ffd23a;text-shadow:0 2px 0 #16101c,0 0 6px #000}
 .rmb .sname{display:block;font-size:11px;letter-spacing:.2em;color:#fff;-webkit-text-stroke:0;opacity:.85}

@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { fillSize } from '../ui/viewport';
 import { speciesName } from '../core/species';
 import { audio } from '../audio/engine';
 import { BunkBrain } from '../core/bunkBehavior';
@@ -18,7 +19,8 @@ import { preloadPacks, releasePack } from '../render/packs';
 import { addSoundButton } from '../ui/soundButton';
 
 const W = 720;
-const H = 1280;
+/** 画面の 高さ(2026-11-08 全画面: スマホの 形まで のばす。create で 決める) */
+let H = 1280;
 
 /** 企画者の画像(design/birth/ → design/birth/make_assets.py で切り分け) */
 export const BIRTH_FILES = {
@@ -36,12 +38,22 @@ const key = birthKey;
 // 籠の場面: ふつうの画面の位置。卵が落ちてきたら、ここへ切りかえる
 const BASKET_TOP = 0;
 // 空の場面: 籠の場面より上(別の場所)に、空の絵を少し大きく出す。卵を追ってカメラが下へ動く
-const SKY_SCALE = (H * 1.2) / LAYOUT.sky.h;
-const SKY_H = LAYOUT.sky.h * SKY_SCALE;
-const SKY_TOP = -SKY_H - 400;
-const BASKET_SCALE = H / LAYOUT.basket.h;
-const NEST_X = W / 2 + (LAYOUT.basket.nest[0] - LAYOUT.basket.w / 2) * BASKET_SCALE;
-const NEST_Y = BASKET_TOP + LAYOUT.basket.nest[1] * BASKET_SCALE;
+let SKY_SCALE = (H * 1.2) / LAYOUT.sky.h;
+let SKY_H = LAYOUT.sky.h * SKY_SCALE;
+let SKY_TOP = -SKY_H - 400;
+let BASKET_SCALE = H / LAYOUT.basket.h;
+let NEST_X = W / 2 + (LAYOUT.basket.nest[0] - LAYOUT.basket.w / 2) * BASKET_SCALE;
+let NEST_Y = BASKET_TOP + LAYOUT.basket.nest[1] * BASKET_SCALE;
+/** 画面の 高さが 決まったら 場所を 計算し直す */
+function relayout(h: number): void {
+  H = h;
+  SKY_SCALE = (H * 1.2) / LAYOUT.sky.h;
+  SKY_H = LAYOUT.sky.h * SKY_SCALE;
+  SKY_TOP = -SKY_H - 400;
+  BASKET_SCALE = H / LAYOUT.basket.h;
+  NEST_X = W / 2 + (LAYOUT.basket.nest[0] - LAYOUT.basket.w / 2) * BASKET_SCALE;
+  NEST_Y = BASKET_TOP + LAYOUT.basket.nest[1] * BASKET_SCALE;
+}
 /** 籠の中の卵の大きさ・卵の底の位置 */
 const EGG_SCALE = 0.75;
 const EGG_BOTTOM = NEST_Y + 12;
@@ -79,6 +91,12 @@ export class BirthScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => releasePack(this, 'birth', 'birth:'));
     this.alive = false;
     this.t = 0;
+    // 全画面(2026-11-08 企画者「タイトルから 生まれるまでも 全画面」): 画面の 高さを スマホの 形に 合わせ、絵を その高さで 出す
+    const tall = fillSize(this, { w: W, h: 1280 }, { minRatio: 0.4, maxRatio: W / 1280 }).h;
+    relayout(tall);
+    this.scale.setGameSize(W, tall);
+    this.cameras.main.setSize(W, tall);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(W, 1280));
     const monz = loadSave()?.firstMonz ?? 'bunk';
     addSoundButton(this, 56, H - 56).setScrollFactor(0).setDepth(60);
     if (data.intro) this.playIntro(monz);
