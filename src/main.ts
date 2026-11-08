@@ -101,6 +101,25 @@ document.addEventListener('touchend', (e) => {
   lastTouchEnd = now;
 }, { passive: false });
 
+// もう 拡大されて しまった 時(前の 版で 拡大した・向きを 変えた など)は もとの 大きさに 戻す
+const vv = (globalThis as { visualViewport?: VisualViewport }).visualViewport;
+const resetZoom = () => {
+  if (!vv || vv.scale <= 1.01) {
+    if (globalThis.scrollX || globalThis.scrollY) globalThis.scrollTo(0, 0);
+    return;
+  }
+  const meta = document.querySelector('meta[name=viewport]');
+  if (meta) {
+    const c = meta.getAttribute('content') ?? '';
+    meta.setAttribute('content', c.replace('maximum-scale=1', 'maximum-scale=1.0001'));
+    setTimeout(() => meta.setAttribute('content', c), 50);
+  }
+  globalThis.scrollTo(0, 0);
+};
+vv?.addEventListener('resize', resetZoom);
+globalThis.addEventListener('orientationchange', () => setTimeout(resetZoom, 300));
+setTimeout(resetZoom, 500);
+
 // 開発中だけ、確認用にゲームを外から触れるようにする
 // 2026-11-08 企画者「やってる人のデータを消さないで」: iPhone などに「この ゲームの 保存データは 自動で 消さないで」と お願いする
 // (ことわられても ゲームは そのまま 動く)
