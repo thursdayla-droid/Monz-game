@@ -137,7 +137,7 @@ export class MahjongScene extends Phaser.Scene {
       const faceKey = `mjc:${art}_face`;
       const bodyKey = `mjc:${art}`;
       const big = seat === BOSS || seat === 0;
-      const r = seat === BOSS ? 46 : big ? 56 : 44;
+      const r = seat === BOSS ? 52 : big ? 56 : 50;
       const c = this.add.container(0, 0).setDepth(5);
       const frame = this.add.graphics();
       const col = seat === 0 ? 0x3ad070 : seat === BOSS ? 0xff4a6a : 0x9b5cff;
@@ -180,9 +180,10 @@ export class MahjongScene extends Phaser.Scene {
     const { cx, sp } = this.geo;
     const pos: [number, number][] = [
       [Math.max(80, sp / 2), 420],
-      [cx + 330, 70],
-      [cx, 80],
-      [cx - 330, 70],
+      // 2026-11-09 企画者「ボスの スペース 狭い。子分は 左右で いい」→ 子分は 左右の あいた 所・ボスだけ 上の まん中
+      [this.W - Math.max(90, sp / 2), 250],
+      [cx, 86],
+      [Math.max(80, sp / 2), 210],
     ];
     this.actors.forEach((a, i) => a.setPosition(pos[i][0], pos[i][1]).setData('home', pos[i]));
   }
