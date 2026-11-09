@@ -1,3 +1,4 @@
+import { capReward, MINIGAME_REWARD_MULT } from './modes';
 import { mulberry32, type Rng } from './rng';
 
 /**
@@ -99,9 +100,10 @@ export function play(r: Round, slot: number): Round | null {
  * - 出したカード4枚ごとにEXP+1
  * - ゲームオーバーのとき、10枚以上出していたら、出した枚数÷5コイン(切り捨て)。9枚以下はコインもEXPもなし
  */
+// 2026-11-09 企画者「5倍に」→ コイン・EXP を 5倍(1回の プレイで 最大 1,000。modes.ts)
 export const CARD_REWARD = {
-  clearCoins: 100,
-  clearExp: 10,
+  clearCoins: 500,
+  clearExp: 50,
   cardsPerExp: 4,
   minCardsForReward: 10,
   cardsPerCoin: 5,
@@ -111,7 +113,7 @@ export const CARD_REWARD = {
 export function cardReward(cards: number, clears: number): { coins: number; exp: number } {
   const R = CARD_REWARD;
   const enough = cards >= R.minCardsForReward;
-  const coins = clears * R.clearCoins + (enough ? Math.floor(cards / R.cardsPerCoin) : 0);
-  const exp = clears * R.clearExp + (enough ? Math.floor(cards / R.cardsPerExp) : 0);
-  return { coins, exp };
+  const coins = clears * R.clearCoins + (enough ? Math.floor(cards / R.cardsPerCoin) * MINIGAME_REWARD_MULT : 0);
+  const exp = clears * R.clearExp + (enough ? Math.floor(cards / R.cardsPerExp) * MINIGAME_REWARD_MULT : 0);
+  return capReward({ coins, exp });
 }

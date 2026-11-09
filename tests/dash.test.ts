@@ -157,14 +157,14 @@ describe('DASH MONZ', () => {
     expect(autoplay(5, 20).dist).toBe(autoplay(5, 20).dist);
   });
 
-  it('rewards 1 coin per 500m', () => {
+  it('rewards 5 coins per 500m (2026-11-09 5倍)', () => {
     expect(dashReward(99)).toEqual({ coins: 0, exp: 0 });
     expect(dashReward(499)).toEqual({ coins: 0, exp: 0 });
-    expect(dashReward(500)).toEqual({ coins: 1, exp: 1 });
-    expect(dashReward(599)).toEqual({ coins: 1, exp: 1 });
-    expect(dashReward(600)).toEqual({ coins: 1, exp: 2 });
-    expect(dashReward(1250)).toEqual({ coins: 2, exp: 8 });
-    expect(dashReward(2400)).toEqual({ coins: 4, exp: 20 });
-    expect(dashReward(3000)).toEqual({ coins: 6, exp: 20 });
+    expect(dashReward(500)).toEqual({ coins: 5, exp: 5 });
+    expect(dashReward(599)).toEqual({ coins: 5, exp: 5 });
+    expect(dashReward(600)).toEqual({ coins: 5, exp: 10 });
+    expect(dashReward(1250)).toEqual({ coins: 10, exp: 40 });
+    expect(dashReward(2400)).toEqual({ coins: 20, exp: 100 });
+    expect(dashReward(3000)).toEqual({ coins: 30, exp: 100 });
   });
 });

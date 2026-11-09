@@ -17,6 +17,14 @@ export interface MinigameInfo {
 /** 目標の数(セレクト画面には、まだ決まっていないぶんも「？？？」の枠を出す) */
 export const MINIGAME_SLOTS = 5;
 
+/**
+ * ミニゲーム(MONZ CARD・ダッシュモンズ・MONZ SLUGGER)の ごほうびの 倍率と 1回の プレイの 上限
+ * (2026-11-09 企画者「経験値と コイン 5倍に。少なすぎた。1回の プレイで 経験値と コイン 最大 1,000 まで」)
+ */
+export const MINIGAME_REWARD_MULT = 5;
+export const MINIGAME_REWARD_MAX = 1000;
+export const capReward = (r: { coins: number; exp: number }) => ({ coins: Math.min(MINIGAME_REWARD_MAX, r.coins), exp: Math.min(MINIGAME_REWARD_MAX, r.exp) });
+
 export const MINIGAMES: readonly MinigameInfo[] = [
   { id: 'card', title: 'MONZ CARD', ready: true, scene: 'CardTitle', score: '出したカードの枚数', color: '#8a35e0' },
   // 【企画段階】ルールが決まるまで作らない

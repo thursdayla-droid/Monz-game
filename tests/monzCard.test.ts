@@ -68,10 +68,11 @@ describe('MONZ CARD rules', () => {
     if (bad >= 0) expect(play(r, bad)).toBeNull();
   });
 
-  it('rewards: 100 coins per clear, partial only from 10 cards', () => {
+  it('rewards: 500 coins per clear (2026-11-09 5倍・最大1000), partial only from 10 cards', () => {
     expect(cardReward(9, 0)).toEqual({ coins: 0, exp: 0 });
-    expect(cardReward(10, 0)).toEqual({ coins: 2, exp: 2 });
-    expect(cardReward(51, 1)).toEqual({ coins: 110, exp: 22 });
-    expect(cardReward(102, 2).coins).toBe(220);
+    expect(cardReward(10, 0)).toEqual({ coins: 10, exp: 10 });
+    expect(cardReward(51, 1)).toEqual({ coins: 550, exp: 110 });
+    expect(cardReward(102, 2).coins).toBe(1000);
+    expect(cardReward(200, 5)).toEqual({ coins: 1000, exp: 500 });
   });
 });

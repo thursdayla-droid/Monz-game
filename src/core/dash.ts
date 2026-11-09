@@ -1,3 +1,4 @@
+import { capReward, MINIGAME_REWARD_MULT } from './modes';
 import { mulberry32, range, type Rng } from './rng';
 
 /**
@@ -318,4 +319,5 @@ export const meters = (s: DashState): number => Math.floor(s.dist / DASH.pxPerMe
 export const DASH_REWARD = { metersPerCoin: 500, expFrom: 500, metersPerExp: 100, maxExp: 20 } as const;
 /** 経験値(企画者決定 2026-10-21): 500mで1、そこから100mごとに1(499mまでは0) */
 const dashExp = (m: number) => (m < DASH_REWARD.expFrom ? 0 : Math.min(DASH_REWARD.maxExp, 1 + Math.floor((m - DASH_REWARD.expFrom) / DASH_REWARD.metersPerExp)));
-export const dashReward = (m: number) => ({ coins: Math.floor(m / DASH_REWARD.metersPerCoin), exp: dashExp(m) });
+// 2026-11-09 企画者「5倍に」(1回で 最大 1,000)
+export const dashReward = (m: number) => capReward({ coins: Math.floor(m / DASH_REWARD.metersPerCoin) * MINIGAME_REWARD_MULT, exp: dashExp(m) * MINIGAME_REWARD_MULT });

@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { LifeRecord, loadLife } from '../core/lifeSave';
+import { MINIGAME_REWARD_MAX } from '../core/modes';
 import {
   CARD_REWARD,
   cardReward,
@@ -447,7 +448,10 @@ export class CardPlayScene extends Phaser.Scene {
     this.phase = 'clear';
     this.clears++;
     const n = this.r.round;
-    this.record.grant({ runId: `${this.playId}:r${n}`, source: 'card', coins: CARD_REWARD.clearCoins, exp: CARD_REWARD.clearExp });
+    // 1回の プレイで 最大 1,000(2026-11-09 企画者)
+    const gotC = Math.max(0, Math.min(CARD_REWARD.clearCoins, MINIGAME_REWARD_MAX - (this.clears - 1) * CARD_REWARD.clearCoins));
+    const gotE = Math.max(0, Math.min(CARD_REWARD.clearExp, MINIGAME_REWARD_MAX - (this.clears - 1) * CARD_REWARD.clearExp));
+    this.record.grant({ runId: `${this.playId}:r${n}`, source: 'card', coins: gotC, exp: gotE });
     audio.se('sting');
     const box = this.add.container(0, 0).setDepth(50);
     const dim = this.add.rectangle(0, -400, W, H + 800, 0x000000, 0.65).setOrigin(0, 0).setInteractive();
@@ -459,7 +463,7 @@ export class CardPlayScene extends Phaser.Scene {
     const monz = this.textures.exists('cardimg:clearMonz') ? this.add.image(W / 2, 475, 'cardimg:clearMonz').setScale(0.6) : null;
     if (monz) this.tweens.add({ targets: monz, y: monz.y - 18, duration: 420, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     const txt = this.add
-      .text(W / 2, 760, `52枚すべて出しました！\n\nコイン  +${CARD_REWARD.clearCoins}\nEXP  +${CARD_REWARD.clearExp}\n\n今回の累計コイン  ${this.clears * CARD_REWARD.clearCoins}`, { fontFamily: UI_FONT, fontSize: '32px', fontStyle: '900', color: INK, align: 'center' })
+      .text(W / 2, 760, `52枚すべて出しました！\n\nコイン  +${gotC}\nEXP  +${gotE}\n\n今回の累計コイン  ${Math.min(MINIGAME_REWARD_MAX, this.clears * CARD_REWARD.clearCoins)}`, { fontFamily: UI_FONT, fontSize: '32px', fontStyle: '900', color: INK, align: 'center' })
       .setOrigin(0.5);
     const next = this.add.text(W / 2, 1000, '  次のラウンドへ ▶  ', { fontFamily: UI_FONT, fontSize: '40px', fontStyle: '900', color: INK, backgroundColor: '#ffd23a', padding: { x: 20, y: 12 } }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     box.add([dim, t1, t2, panel, txt, next]);
@@ -481,7 +485,10 @@ export class CardPlayScene extends Phaser.Scene {
     if (this.phase === 'over') return;
     this.phase = 'over';
     this.closeBigTracker();
-    const part = cardReward(this.cardsPlayed, 0);
+    // 合計が 1,000 を こえない ように、ラウンドクリアで もう もらった 分を 引く
+    const total0 = cardReward(this.cardsPlayed, this.clears);
+    const before = { coins: Math.min(MINIGAME_REWARD_MAX, this.clears * CARD_REWARD.clearCoins), exp: Math.min(MINIGAME_REWARD_MAX, this.clears * CARD_REWARD.clearExp) };
+    const part = { coins: Math.max(0, total0.coins - before.coins), exp: Math.max(0, total0.exp - before.exp) };
     this.record.grant({ runId: `${this.playId}:end`, source: 'card', coins: part.coins, exp: part.exp });
     const best = this.record.record('card', this.cardsPlayed, this.r.round);
     const total = cardReward(this.cardsPlayed, this.clears);
