@@ -88,7 +88,7 @@ export class MahjongQuestScene extends Phaser.Scene {
       this.draw();
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(720, 1280));
-    audio.playBgm(this.mode === 'title' ? 'home' : 'battle');
+    audio.playBgm(this.mode === 'title' ? 'home' : 'mahjong');
     this.draw();
     this.cameras.main.fadeIn(250, 0, 0, 0);
   }

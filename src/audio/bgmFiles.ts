@@ -11,9 +11,10 @@
  * - battle3: STREET KING 21〜31戦目の バトル(2026-11-07 企画者「20-31戦目までバトルBGMはこれで」。元は music/battle3_ch5-6.m4a)
  * - ending: STREET KING の エンディング(2026-11-07 企画者。元は music/ending.m4a)
  * - battle2: STREET KING 11〜20戦目の バトル(2026-11-07 企画者「11戦目から20戦目までバトルBGMはこれで」。元は music/battle2_ch3-4.m4a)
+ * - mahjong: 麻雀クエストの 対戦(2026-11-09 企画者。元は music/mahjong_battle.m4a)
  * - battle: 「Combat Pulse」バトル(MONZ RUMBLE・オートバトルなど)(2026-11-04 企画者「これは戦闘BGMにしてください」。元は music/battle_Combat_Pulse.m4a)
  */
-export type BgmName = 'main' | 'home' | 'card' | 'dash' | 'slugger' | 'mythclash' | 'mythclashPack' | 'battle' | 'battle2' | 'battle3' | 'ending';
+export type BgmName = 'main' | 'home' | 'card' | 'dash' | 'slugger' | 'mythclash' | 'mythclashPack' | 'battle' | 'battle2' | 'battle3' | 'ending' | 'mahjong';
 
 export interface BgmFile {
   file: string;
@@ -36,4 +37,5 @@ export const BGM_FILES: Record<BgmName, BgmFile> = {
   battle2: { file: 'battle2.mp3', loop: true, volume: 0.55 },
   battle3: { file: 'battle3.mp3', loop: true, volume: 0.55 },
   ending: { file: 'ending.mp3', loop: true },
+  mahjong: { file: 'mahjong.mp3', loop: true, volume: 0.6 },
 };

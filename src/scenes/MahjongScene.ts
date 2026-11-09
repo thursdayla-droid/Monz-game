@@ -115,7 +115,7 @@ export class MahjongScene extends Phaser.Scene {
     const lv = [LEVELS[0], ...this.st.levels];
     this.cpus = [0, 1, 2, 3].map((i) => makeCpu(lv[i], seed + i * 977));
     this.hp = { player: START_HP, playerMax: START_HP, enemy: this.st.enemyHp, enemyMax: this.st.enemyHp };
-    audio.playBgm('battle');
+    audio.playBgm('mahjong');
     this.cameras.main.fadeIn(250, 0, 0, 0);
     this.step();
   }
