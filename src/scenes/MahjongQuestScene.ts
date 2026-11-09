@@ -5,6 +5,7 @@ import { clearStage, loadProgress, resetRun, saveProgress, type MjProgress } fro
 import { ENDING_ART, ENDING_STORY, STAGE_COUNT, STAGES, stageAt } from '../core/mahjong/stages';
 import { UI_FONT } from '../ui/paint';
 import { fillSize, viewRatio, watchViewport } from '../ui/viewport';
+import { ITEMS, itemInfo, type ItemId } from '../core/mahjong/items';
 
 /**
  * MAHJONG QUEST の 対局の 外の 画面(2026-11-09 企画者「最初 1枚絵で 軽く ストーリーを 伝えて、敵の 1枚絵が 出て 対局開始」)。
@@ -12,14 +13,14 @@ import { fillSize, viewRatio, watchViewport } from '../ui/viewport';
  * 1枚絵は まだ ない【仮：絵が 届くまで 色と 文字・キャラの 絵で 代わり】
  */
 const H = 720;
-type Mode = 'title' | 'story' | 'intro' | 'clear' | 'lose' | 'ending';
+type Mode = 'title' | 'story' | 'intro' | 'clear' | 'lose' | 'ending' | 'shop' | 'pick';
 export interface QuestParams {
   mode?: Mode;
   /** clear の 時: もらえる ゴールド */
   gold?: number;
 }
 
-const CHAR_FILES = ['hero', 'boss', 'minion_a', 'minion_b'];
+const CHAR_FILES = ['hero', 'boss', 'minion_a', 'minion_b', 'shop'];
 /** タイトルの 絵(2026-11-09 企画者。design/mahjong/title.png。たて長)。絵の 中の ボタンの 場所(元の 絵 934×1685 の 座標) */
 const TITLE_ART = { w: 934, h: 1685, start: [118, 1318, 816, 1482], howto: [226, 1500, 708, 1636] } as const;
 
@@ -202,7 +203,9 @@ export class MahjongQuestScene extends Phaser.Scene {
       this.tweens.add({ targets: [t1, t2], scale: { from: 2, to: 1 }, alpha: { from: 0, to: 1 }, duration: 380, ease: 'Back.easeOut' });
       this.cameras.main.shake(300, 0.006);
       audio.se('mcSlash');
-      this.time.delayedCall(700, () => this.button(W / 2, H - 70, '対局 開始！', '#ffd23a', () => this.startMatch()));
+      // STAGE 2 から(1周目の STAGE 1 は 使えない: 仕様書 5)、持っていれば アイテムを えらぶ
+      const canUse = (this.prog.stage > 0 || this.prog.lap > 1) && Object.values(this.prog.items).some((n) => n > 0);
+      this.time.delayedCall(700, () => this.button(W / 2, H - 70, '対局 開始！', '#ffd23a', () => (canUse ? this.go('pick') : this.startMatch(null))));
       return;
     }
     if (this.mode === 'clear') {
@@ -213,8 +216,19 @@ export class MahjongQuestScene extends Phaser.Scene {
       this.charImg('mjc:hero', W / 2, 420, 300, false);
       this.text(W / 2, 600, `+${this.params.gold ?? 0}G  （もちもの ${this.prog.gold}G）`, 34, '#ffffff', 6);
       audio.se('cheer');
-      // 道具屋は 5段目【仮：今は すぐ 次へ】
-      this.button(W / 2, H - 50, 'つぎの ステージへ', '#ffd23a', () => this.go('story'));
+      this.button(W / 2 - 200, H - 50, '道具屋へ', '#ff8a3a', () => {
+        this.shopSay = 'いらっしゃい。\nいい モン あるぜ。';
+        this.go('shop');
+      });
+      this.button(W / 2 + 200, H - 50, 'つぎの ステージへ', '#ffd23a', () => this.go('story'));
+      return;
+    }
+    if (this.mode === 'shop') {
+      this.drawShop();
+      return;
+    }
+    if (this.mode === 'pick') {
+      this.drawPick();
       return;
     }
     if (this.mode === 'lose') {
@@ -337,9 +351,70 @@ export class MahjongQuestScene extends Phaser.Scene {
     this.draw();
   }
 
-  private startMatch(): void {
+  private startMatch(item: ItemId | null): void {
     this.busy = true;
     this.cameras.main.fadeOut(250, 0, 0, 0);
-    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('Mahjong', { stage: this.prog.stage, lap: this.prog.lap }));
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('Mahjong', { stage: this.prog.stage, lap: this.prog.lap, item }));
+  }
+
+  /** アイテムの 札(名前・説明・右に ボタン) */
+  private itemRow(y: number, id: ItemId, right: string, color: string, enabled: boolean, onTap: () => void, sub: string): void {
+    const W = this.W;
+    const info = itemInfo(id)!;
+    const x0 = W / 2 - 140;
+    const g = this.add.graphics();
+    g.fillStyle(0x16101c, 0.9).fillRoundedRect(x0, y - 40, 660, 80, 14).lineStyle(3, 0xffd23a, 0.8).strokeRoundedRect(x0, y - 40, 660, 80, 14);
+    this.add.text(x0 + 20, y - 26, info.name, { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '900', color: '#ffd23a' });
+    this.add.text(x0 + 20, y + 8, `${info.text}  ${sub}`, { fontFamily: UI_FONT, fontSize: '17px', fontStyle: '700', color: '#ffffff' });
+    const b = this.text(x0 + 580, y, right, 22, enabled ? '#16101c' : '#777788').setBackgroundColor(enabled ? color : '#3a2a4a').setPadding(14, 8, 14, 8);
+    if (enabled)
+      b.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
+        if (this.busy) return;
+        onTap();
+      });
+  }
+
+  /** 道具屋(お店の ネコ・5つの アイテム・ゴールド) */
+  private shopSay = 'いらっしゃい。\nいい モン あるぜ。';
+
+  private drawShop(): void {
+    const W = this.W;
+    this.bg(0x2a0f52, 0x6a2cc0);
+    const cat = this.charImg('mjc:shop', W / 2 - 400, 400, 460, false);
+    cat.setFlipX(false);
+    this.text(W / 2 - 400, 90, '道具屋', 48, '#ffd23a', 8);
+    this.text(W / 2 - 400, 160, this.shopSay, 22, '#ffffff', 5);
+    this.text(W / 2 + 190, 40, `もちもの  ${this.prog.gold}G`, 28, '#ffd23a', 6);
+    ITEMS.forEach((it, i) => {
+      const have = this.prog.items[it.id] ?? 0;
+      this.itemRow(120 + i * 92, it.id, `${it.price}G`, '#ffd23a', this.prog.gold >= it.price, () => {
+        this.prog.gold -= it.price;
+        this.prog.items[it.id] = have + 1;
+        saveProgress(this.prog);
+        audio.se('happy');
+        this.shopSay = 'まいど！\nまた 来な。';
+        this.draw();
+      }, have ? `(${have}こ)` : '');
+    });
+    this.button(W / 2 + 190, H - 40, 'もどる', '#ffffff', () => this.go('clear'));
+  }
+
+  /** 対局の 前に アイテムを 1つ えらぶ(使うと 1こ 減る) */
+  private drawPick(): void {
+    const W = this.W;
+    this.bg(0x1a0d36, 0x4a2290);
+    this.text(W / 2, 50, 'アイテムを 1つ 使う？', 36, '#ffd23a', 7);
+    const own = ITEMS.filter((it) => (this.prog.items[it.id] ?? 0) > 0);
+    own.forEach((it, i) => {
+      const n = this.prog.items[it.id];
+      this.itemRow(140 + i * 92, it.id, 'つかう', '#3ad070', true, () => {
+        this.prog.items[it.id] = n - 1;
+        if (this.prog.items[it.id] <= 0) delete this.prog.items[it.id];
+        saveProgress(this.prog);
+        audio.se('mcMagic');
+        this.startMatch(it.id);
+      }, `(${n}こ)`);
+    });
+    this.button(W / 2 + 40, H - 50, '使わない', '#ffffff', () => this.startMatch(null));
   }
 }

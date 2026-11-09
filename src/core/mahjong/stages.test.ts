@@ -48,3 +48,23 @@ describe('やめたら 最初から(企画者 2026-11-09)', () => {
     expect(p).toEqual({ ...newProgress(), clears: 8 });
   });
 });
+
+describe('アイテム(仕様書 6)', () => {
+  const win = (seat: number, from: number | null) => ({ kind: 'win' as const, delta: [0, 0, 0, 0], wins: [{ seat, from, paid: [0, 0, 0, 0], score: {} as never }] });
+  const dmg = (toEnemy: number, toPlayer: number) => ({ toEnemy, toPlayer, hits: [{ winner: toEnemy ? 0 : 2, from: null, amount: toEnemy || toPlayer, target: (toEnemy ? 'enemy' : 'player') as 'enemy' | 'player' }] });
+  it('こんぼう 2倍・おまもり +3000・たま 最大HPの20%・やくそう 回復', async () => {
+    const { applyItem } = await import('./items');
+    expect(applyItem('konbou', dmg(8000, 0), win(0, 2), 30000).damage.toEnemy).toBe(16000);
+    expect(applyItem('omamori', dmg(8000, 0), win(0, 2), 30000).damage.toEnemy).toBe(11000);
+    expect(applyItem('tama', dmg(8000, 0), win(0, 2), 30000).damage.toEnemy).toBe(14000);
+    const y = applyItem('yakusou', dmg(8000, 0), win(0, 2), 30000);
+    expect([y.damage.toEnemy, y.heal, y.used]).toEqual([8000, 8000, true]);
+  });
+  it('攻撃系は 敵が アガった 時は 発動しない・てつのたては 半分', async () => {
+    const { applyItem } = await import('./items');
+    expect(applyItem('konbou', dmg(0, 8000), win(2, 0), 30000).used).toBe(false);
+    const t = applyItem('tate', dmg(0, 8000), win(2, 0), 30000);
+    expect([t.damage.toPlayer, t.used]).toEqual([4000, true]);
+    expect(applyItem('tate', dmg(8000, 0), win(0, 2), 30000).used).toBe(false);
+  });
+});

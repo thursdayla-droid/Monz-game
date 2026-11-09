@@ -9,6 +9,7 @@ import type { Meld } from '../core/mahjong/score';
 import { EAST, isRed, type Kind, kindOf, type Tile } from '../core/mahjong/tiles';
 import { randomSeed } from '../core/rng';
 import { stageAt, type StageInfo } from '../core/mahjong/stages';
+import { applyItem, itemInfo, type ItemId } from '../core/mahjong/items';
 import { UI_FONT } from '../ui/paint';
 import { fillSize, viewRatio, watchViewport } from '../ui/viewport';
 
@@ -80,11 +81,30 @@ export class MahjongScene extends Phaser.Scene {
     super('Mahjong');
   }
 
-  init(data: { stage?: number; lap?: number }): void {
+  /** この ステージで 使った アイテム(発動したら null) */
+  private item: ItemId | null = null;
+
+  init(data: { stage?: number; lap?: number; item?: ItemId | null }): void {
     this.stageNo = data?.stage ?? 0;
     this.lap = data?.lap ?? 1;
     this.st = stageAt(this.stageNo, this.lap);
+    this.item = data?.item ?? null;
+    this.sys.settings.data = {};
   }
+
+  /** アイテムの 効果を かけて HP を 動かす(発動したら 消して 表示) */
+  private hitWithItem(d: Damage, r: RoundResult | null): Damage {
+    const e = applyItem(this.item, d, r, this.hp.enemyMax);
+    this.hp = applyDamage(this.hp, e.damage);
+    if (e.heal) this.hp = { ...this.hp, player: Math.min(this.hp.playerMax, this.hp.player + e.heal) };
+    if (e.used) {
+      const name = itemInfo(this.item!)?.name ?? '';
+      this.item = null;
+      this.itemFlash = `${name} 発動！${e.heal ? `  HP +${e.heal.toLocaleString()}` : ''}`;
+    }
+    return e.damage;
+  }
+  private itemFlash = '';
 
   preload(): void {
     for (const f of TILE_FILES) if (!this.textures.exists(`mj:${f}`)) this.load.image(`mj:${f}`, assetUrl(`assets/mahjong/${f}.webp`));
@@ -541,6 +561,8 @@ export class MahjongScene extends Phaser.Scene {
     const pw = Math.max(170, Math.min(240, sp - 30));
     // 2026-11-09 企画者「左の 牌が 主人公の 体力ゲージと 少し 被ってる」→ 上へ
     bar(Math.max(80, sp / 2) - pw / 2, 530, pw, 'HP', this.hp.player, this.hp.playerMax, 0x3ad070);
+    // 使っている アイテム(まだ 発動していない)
+    if (this.item) this.ui.add(this.text(Math.max(80, sp / 2), 588, `アイテム: ${itemInfo(this.item)?.name ?? ''}`, 15, '#ffd23a', 4));
     // やめる(左上)
     const back = this.text(70, 28, '◀ やめる', 17, '#ffffff', 0).setInteractive({ useHandCursor: true });
     back.setBackgroundColor('#16101caa').setPadding(12, 6, 12, 6);
@@ -622,8 +644,7 @@ export class MahjongScene extends Phaser.Scene {
   // ---------------- 結果 ----------------
 
   private showResult(r: RoundResult): void {
-    const d = damageOf(r, BOSS);
-    this.hp = applyDamage(this.hp, d);
+    const d = this.hitWithItem(damageOf(r, BOSS), r);
     // 2026-11-08 企画者「ロンされたら 敵の 顔・自分が アガったら 勇者の 顔が 一瞬」→ 顔の カットイン の あとで 結果
     if (r.kind === 'win') {
       const w = r.wins[0];
@@ -759,6 +780,14 @@ export class MahjongScene extends Phaser.Scene {
   }
 
   private damageText(panel: Phaser.GameObjects.Container, d: Damage, x = 205, y = 170): void {
+    // アイテムが 発動した 時は 金色の 帯で 知らせる
+    if (this.itemFlash) {
+      const f = this.text(x, y - 46, this.itemFlash, 24, '#16101c', 0).setBackgroundColor('#ffd23a').setPadding(14, 4, 14, 4);
+      panel.add(f);
+      this.tweens.add({ targets: f, scale: { from: 1.6, to: 1 }, duration: 320, ease: 'Back.easeOut' });
+      audio.se('mcMagic');
+      this.itemFlash = '';
+    }
     if (d.toEnemy) {
       const t = this.text(x, y, `敵に ${d.toEnemy.toLocaleString()} ダメージ！`, 34, '#ff6a8a', 7);
       panel.add(t);
@@ -780,8 +809,7 @@ export class MahjongScene extends Phaser.Scene {
   /** 半荘 おわり: ウマ(自分の だけ)を HP に → 次の 半荘(点数は そのまま) */
   private endHanchan(): void {
     const ranks = [0, 1, 2, 3].sort((a, b) => this.mj.points[b] - this.mj.points[a]);
-    const d = umaDamage(this.mj);
-    this.hp = applyDamage(this.hp, d);
+    const d = this.hitWithItem(umaDamage(this.mj), null);
     const panel = this.add.container(this.W / 2, H / 2).setDepth(80);
     panel.add(this.add.rectangle(0, 0, 720, 420, 0x16101c, 0.95).setStrokeStyle(5, 0xffd23a));
     panel.add(this.text(0, -170, '半荘 おわり', 34, '#ffd23a', 6));
