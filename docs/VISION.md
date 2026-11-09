@@ -481,3 +481,4 @@
 - 2026-11-09：企画者の STAGE 5 の ボス（人間。ピンクの Tシャツ・グレーの スウェット・エナジードリンク。design/mahjong/chars/s5_boss.png）。黒い もやの 背景を 消して 切りぬき（s5_boss_cut.png）。顔・カットイン・攻撃の 絵・敵の 紹介に。敵の 絵は ステージごとに 持てる ように した（stages.ts の art）。STAGE 5 の 子分2人は まだ【仮：オオカミ】
 - 2026-11-09：企画者の STAGE 5 の 子分2体（ムラサキの クマ＝子分A・カラス＝子分B。design/mahjong/chars/s5_minion_a.png・s5_minion_b.png）。クマの 白い 背景は 消して 切りぬき。これで STAGE 5 の 敵3体が そろった
 - 2026-11-09：企画者の 話の 1枚絵（STAGE 1 の 前。勇者が 牌を にぎって 立ちあがる・うしろに オオカミ団。design/mahjong/story/stage1.png）。話の 場面は 絵を 画面いっぱいに（ゆっくり 少し 近づく）・文字は 下の 帯に。ほかの 話の 絵は 届いたら 入れる（stages.ts の storyArt・エンディングは story/ending.webp）
+- 2026-11-09：企画者の 話の 1枚絵（STAGE 2 の 前。月夜の 屋根の 上から ノラネコ団が 勇者を 見下ろす。design/mahjong/story/stage2.png）

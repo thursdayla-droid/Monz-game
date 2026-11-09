@@ -52,6 +52,8 @@ export const STAGES: readonly StageInfo[] = [
     art: WOLVES,
     // 2026-11-09 企画者の 背景(月夜の 屋上)
     bg: 'stage2',
+    // 2026-11-09 企画者の 話の 1枚絵(屋根の 上の ノラネコ団)
+    storyArt: 'stage2',
     tint: 0x7fd4ff,
   },
   {
