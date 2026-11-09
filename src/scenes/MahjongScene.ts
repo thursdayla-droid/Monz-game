@@ -105,7 +105,7 @@ export class MahjongScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(720, 1280));
     this.cameras.main.setBackgroundColor('#5a2fb0');
     this.bg = this.add.graphics().setDepth(-10);
-    this.bgImg = this.st.bg && this.textures.exists(`mj:bg:${this.st.bg}`) ? this.add.image(0, 0, `mj:bg:${this.st.bg}`).setDepth(-9) : undefined;
+    this.bgImg = this.st.bg && this.textures.exists(`mj:bg:${this.st.bg}`) ? this.add.image(0, 0, `mj:bg:${this.st.bg}`).setDepth(-9).setTint(0x9a8cb4) : undefined; // 2026-11-09 企画者「背景 明るすぎる。若干 暗めで」
     this.layout();
     this.layer = this.add.container(0, 0);
     this.buildActors();
