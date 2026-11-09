@@ -63,7 +63,8 @@ export const STAGES: readonly StageInfo[] = [
     enemyHp: 60000,
     levels: [3, 3, 3],
     gold: 300,
-    art: WOLVES,
+    // 2026-11-09 企画者の ワニ団(ボス＝王冠と 葉巻の ワニ・子分A＝ヘルメットの ワニ・子分B＝ゴーグルと スコップの ワニ)
+    art: { boss: 's3_boss', minionA: 's3_minion_a', minionB: 's3_minion_b' },
     // 2026-11-09 企画者の 背景(地下水路)
     bg: 'stage3',
     // 2026-11-09 企画者の 話の 1枚絵(たいまつの 勇者と 水の 中の ワニ団)
