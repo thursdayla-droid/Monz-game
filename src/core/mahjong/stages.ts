@@ -3,7 +3,7 @@ import type { Level } from './ai';
 /**
  * MAHJONG QUEST の ステージ(2026-11-09 企画者「5ステージ 作りたい。5ステージ目 クリアしたら 2周目」)。
  * - 敵は ステージごとに ぜんぶ ちがう(企画者 2026-11-09)。STAGE 1 は オオカミ団。2〜5 の 絵は まだ【仮：絵が 届くまで オオカミの 色ちがい】
- * - 敵の HP は どの ステージも 30,000(企画者 2026-11-09)
+ * - 敵の HP は 30,000 / 50,000 / 60,000 / 80,000 / 100,000(企画者 2026-11-09)
  * - CPU の 強さは ステージごとに 上がる・2周目は さらに +1【仮】
  * - 勝ちの ゴールド 200 / 250 / 300 / 350 / 500G・2周目は 1.5倍(企画者 2026-11-09 OK)
  * - 話の 文は Claude の 下書き【仮：企画者が 直す】
@@ -37,7 +37,7 @@ export const STAGES: readonly StageInfo[] = [
   {
     name: '？？？団',
     story: 'オオカミ団を やぶった 勇者。\nだが 街の 奥には もっと 強い 一味が いた…。',
-    enemyHp: 30000,
+    enemyHp: 50000,
     levels: [2, 3, 2],
     gold: 250,
     art: WOLVES,
@@ -46,7 +46,7 @@ export const STAGES: readonly StageInfo[] = [
   {
     name: '？？？団',
     story: 'うわさを 聞いた 一味が 勇者を 待ちかまえる。\n「その 牌、こっちに よこしな！」',
-    enemyHp: 30000,
+    enemyHp: 60000,
     levels: [3, 3, 3],
     gold: 300,
     art: WOLVES,
@@ -55,7 +55,7 @@ export const STAGES: readonly StageInfo[] = [
   {
     name: '？？？団',
     story: '王の 城の 門番たちが 立ちふさがる。\nあと 少しで 街を とりもどせる！',
-    enemyHp: 30000,
+    enemyHp: 80000,
     levels: [3, 4, 3],
     gold: 350,
     art: WOLVES,
@@ -64,7 +64,7 @@ export const STAGES: readonly StageInfo[] = [
   {
     name: '？？？団',
     story: 'ついに 城の いちばん 上へ。\n街を 支配する 王との さいごの 対局が はじまる！',
-    enemyHp: 30000,
+    enemyHp: 100000,
     levels: [4, 5, 4],
     gold: 500,
     art: WOLVES,
