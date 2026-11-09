@@ -477,3 +477,4 @@
 - 2026-11-09：企画者の STAGE 2（ノラネコ団）の 背景（月夜の 屋上・魚の 骨・ちょうちん。design/mahjong/bg/stage2.png）を 入れた
 - 2026-11-09：企画者の STAGE 3（ワニ団）の 背景（地下水路・緑の 水・たいまつ。design/mahjong/bg/stage3.png）を 入れた
 - 2026-11-09：企画者の STAGE 4（ゴリラ団）の 背景（夕やけの 城の 門・かがり火。design/mahjong/bg/stage4.png）を 入れた
+- 2026-11-09：企画者の STAGE 5（城の あるじ）の 背景（城の 最上階・赤い じゅうたん・金の 燭台・月夜の 窓。design/mahjong/bg/stage5.png）を 入れた。これで 5ステージの 背景が そろった

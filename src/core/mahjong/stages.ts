@@ -79,6 +79,8 @@ export const STAGES: readonly StageInfo[] = [
     levels: [4, 5, 4],
     gold: 500,
     art: WOLVES,
+    // 2026-11-09 企画者の 背景(城の 最上階)
+    bg: 'stage5',
     tint: 0xff6a8a,
   },
 ];
