@@ -63,6 +63,8 @@ export class MahjongScene extends Phaser.Scene {
   private dealtRound: RoundState | null = null;
   /** 配っている 間の 自分の 牌の 並び(配った 順。おわると 並べかえ) */
   private dealOrder: Tile[] = [];
+  /** もう 見た 局の できごとの 数(リーチの 声を 1回だけ 出す ため) */
+  private seenEv = 0;
   private finished: 'clear' | 'lose' | null = null;
   private leaving = false;
   /** 左右の キャラ(席ごと。0 = 勇者) */
@@ -236,8 +238,21 @@ export class MahjongScene extends Phaser.Scene {
     const s = this.round;
     if (this.finished) return;
     // 局の はじめは 高速で 配牌(2026-11-09 企画者「最初 高速で 配牌して ほしい」)
+    // だれかが リーチしたら 顔と「リーチ！」(2026-11-09 企画者「いつ 敵が リーチしたのか 分からない」)
+    if (this.dealtRound === s) {
+      const fresh = s.events.slice(this.seenEv);
+      this.seenEv = s.events.length;
+      const rc = fresh.find((e) => e.type === 'discard' && e.riichi) as { seat: number } | undefined;
+      if (rc && s.phase !== 'end') {
+        this.wait = { kind: 'none' };
+        this.redraw();
+        this.cutIn(rc.seat, 'リーチ！', () => this.step(), 900);
+        return;
+      }
+    }
     if (this.dealtRound !== s && s.phase === 'turn') {
       this.dealtRound = s;
+      this.seenEv = 0;
       this.playDeal(() => this.step());
       return;
     }
@@ -532,6 +547,15 @@ export class MahjongScene extends Phaser.Scene {
       if (autoPass && this.wait.kind === 'react' && !reactOptions(this.round, PLAYER_SEAT).ron) this.resolve(null);
     });
     this.ui.add(ap);
+    // リーチ中の 人の 顔に「リーチ」の 札
+    this.round.players.forEach((p, seat) => {
+      if (!p.riichi) return;
+      const a = this.actors[seat];
+      if (!a) return;
+      const [x, y] = a.getData('home') as [number, number];
+      const tag = this.text(x + (x > this.W / 2 ? -82 : 82), y - 20, 'リーチ', 20, '#16101c', 0).setBackgroundColor('#ff8a3a').setPadding(10, 3, 10, 3).setAngle(-8);
+      this.ui.add(tag);
+    });
   }
 
   private button(x: number, y: number, label: string, color: string, onTap: () => void): void {
@@ -599,7 +623,7 @@ export class MahjongScene extends Phaser.Scene {
   }
 
   /** アガった 人の 顔が 横から 大きく 出る(約1.2秒) */
-  private cutIn(seat: number, word: string, done: () => void): void {
+  private cutIn(seat: number, word: string, done: () => void, ms = 1150): void {
     const faceKey = this.actors[seat]?.getData('face') as string;
     const left = this.actors[seat]?.getData('left') as boolean;
     const mine = seat === PLAYER_SEAT;
@@ -620,7 +644,7 @@ export class MahjongScene extends Phaser.Scene {
     audio.se(mine ? 'mcThunder' : 'mcSlash');
     this.tweens.add({ targets: c, x: this.W / 2, duration: 220, ease: 'Back.easeOut' });
     this.tweens.add({ targets: t, scale: { from: 1.5, to: 1 }, duration: 300, delay: 120, ease: 'Back.easeOut' });
-    this.time.delayedCall(1150, () => {
+    this.time.delayedCall(ms, () => {
       this.tweens.add({ targets: c, x: mine ? this.W * 2 : -this.W, duration: 200, ease: 'Quad.easeIn', onComplete: () => c.destroy() });
       done();
     });
