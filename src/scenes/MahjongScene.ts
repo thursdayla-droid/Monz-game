@@ -8,6 +8,7 @@ import { doDiscard, doKan, doKyuushu, doTsumo, doraIndicators, reactOptions, res
 import type { Meld } from '../core/mahjong/score';
 import { EAST, isRed, type Kind, kindOf, type Tile } from '../core/mahjong/tiles';
 import { randomSeed } from '../core/rng';
+import { stageAt, type StageInfo } from '../core/mahjong/stages';
 import { UI_FONT } from '../ui/paint';
 import { fillSize, viewRatio, watchViewport } from '../ui/viewport';
 
@@ -69,8 +70,19 @@ export class MahjongScene extends Phaser.Scene {
   /** 卓の まん中・左右の 帯の はば */
   private geo = { cx: 640, cy: 300, sp: 230, tw: 820 };
 
+  /** 今の ステージ(MahjongQuest から) */
+  private stageNo = 0;
+  private lap = 1;
+  private st!: StageInfo;
+
   constructor() {
     super('Mahjong');
+  }
+
+  init(data: { stage?: number; lap?: number }): void {
+    this.stageNo = data?.stage ?? 0;
+    this.lap = data?.lap ?? 1;
+    this.st = stageAt(this.stageNo, this.lap);
   }
 
   preload(): void {
@@ -96,8 +108,9 @@ export class MahjongScene extends Phaser.Scene {
     this.ui = this.add.container(0, 0).setDepth(50);
     const seed = randomSeed();
     this.mj = newGame(seed, 0);
-    this.cpus = [0, 1, 2, 3].map((i) => makeCpu(LEVELS[i], seed + i * 977));
-    this.hp = { player: START_HP, playerMax: START_HP, enemy: START_HP, enemyMax: START_HP };
+    const lv = [LEVELS[0], ...this.st.levels];
+    this.cpus = [0, 1, 2, 3].map((i) => makeCpu(lv[i], seed + i * 977));
+    this.hp = { player: START_HP, playerMax: START_HP, enemy: this.st.enemyHp, enemyMax: this.st.enemyHp };
     audio.playBgm('battle');
     this.cameras.main.fadeIn(250, 0, 0, 0);
     this.step();
@@ -147,6 +160,7 @@ export class MahjongScene extends Phaser.Scene {
       if (this.textures.exists(faceKey)) {
         const img = this.add.image(0, 2, faceKey);
         img.setScale((r * 1.85) / Math.max(img.width, img.height));
+        if (seat !== 0 && this.st.tint) img.setTint(this.st.tint);
         c.add(img);
       } else c.add(this.add.rectangle(0, 0, 1, 1, 0, 0));
       // 名前の 札
@@ -761,11 +775,14 @@ export class MahjongScene extends Phaser.Scene {
     const panel = this.add.container(this.W / 2, H / 2).setDepth(90);
     panel.add(this.add.rectangle(0, 0, 640, 320, 0x16101c, 0.96).setStrokeStyle(6, res === 'clear' ? 0xffd23a : 0x9fe0ff));
     panel.add(this.text(0, -60, res === 'clear' ? 'STAGE CLEAR!' : 'GAME OVER', 60, res === 'clear' ? '#ffd23a' : '#9fe0ff', 8));
-    const b = this.text(0, 80, 'もどる', 26, '#16101c').setInteractive({ useHandCursor: true });
-    b.setBackgroundColor('#ffd23a').setPadding(24, 10, 24, 10);
-    b.on('pointerdown', () => this.quit(true));
-    panel.add(b);
     audio.se(res === 'clear' ? 'cheer' : 'back');
+    // クリア → ゴールド / 負け → やりなおし(MahjongQuest)
+    this.time.delayedCall(1600, () => {
+      if (this.leaving) return;
+      this.leaving = true;
+      this.cameras.main.fadeOut(300, 0, 0, 0);
+      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('MahjongQuest', res === 'clear' ? { mode: 'clear', gold: this.st.gold } : { mode: 'lose' }));
+    });
   }
 
   private quit(force = false): void {
@@ -774,9 +791,7 @@ export class MahjongScene extends Phaser.Scene {
     this.leaving = true;
     this.timer?.remove();
     audio.se('back');
-    // 確認用ページ(麻雀だけ)では もう一度 対局から
-    if ((window as { __MONZ_START?: string }).__MONZ_START === 'Mahjong') this.scene.restart();
-    else this.scene.start('MinigameSelect');
+    this.scene.start('MahjongQuest', { mode: 'title' });
   }
 
   /** 開発用: 今の 状態(テスト用) */

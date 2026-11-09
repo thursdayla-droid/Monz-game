@@ -23,5 +23,5 @@ export const MINIGAMES: readonly MinigameInfo[] = [
   { id: 'dash', title: 'ダッシュモンズ', ready: true, scene: 'Dash', score: '走った距離', color: '#ff8a1f' },
   { id: 'slugger', title: 'MONZ SLUGGER', ready: true, scene: 'Slugger', score: 'スコア', color: '#2fb8e0' },
   // ④ MAHJONG QUEST(2026-11-08 企画者 仕様書 Ver.1.0。docs/MAHJONG.md。名前は 企画者「MONZ いらない」)
-  { id: 'mahjong', title: 'MAHJONG QUEST', ready: true, scene: 'Mahjong', score: 'ステージ', color: '#9b5cff' },
+  { id: 'mahjong', title: 'MAHJONG QUEST', ready: true, scene: 'MahjongQuest', score: 'ステージ', color: '#9b5cff' },
 ];
