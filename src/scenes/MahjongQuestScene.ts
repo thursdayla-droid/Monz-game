@@ -280,6 +280,20 @@ export class MahjongQuestScene extends Phaser.Scene {
     const st = `${this.prog.lap >= 2 ? `${this.prog.lap}周目 ` : ''}STAGE ${this.prog.stage + 1}  ${this.prog.gold}G`;
     this.text(W - 130, 36, st, 20, '#ffffff', 0).setBackgroundColor('#16101caa').setPadding(12, 6, 12, 6);
     this.backButton();
+    // 【テスト用】確認用ページ・開発中だけ: ゴールドを 足して 道具屋へ(STAGE 2 から 遊べる 状態に)。2026-11-09 企画者「アイテム屋 見たい」
+    const testOnly = (window as { __MONZ_START?: string }).__MONZ_START === 'MahjongQuest' || (import.meta.env as Record<string, unknown>).DEV;
+    if (testOnly) {
+      const tb = this.text(W / 2, 110, 'テスト: +2000G で 道具屋へ', 22, '#16101c', 0).setBackgroundColor('#9fe0ff').setPadding(14, 8, 14, 8).setInteractive({ useHandCursor: true });
+      tb.on('pointerdown', () => {
+        audio.unlock();
+        audio.se('select');
+        this.prog.gold += 2000;
+        if (this.prog.stage === 0 && this.prog.lap === 1) this.prog.stage = 1;
+        saveProgress(this.prog);
+        this.shopSay = 'いらっしゃい。\nいい モン あるぜ。';
+        this.go('shop');
+      });
+    }
   }
 
   /** 遊び方(報酬の 決まりは 書かない: CLAUDE.md) */
