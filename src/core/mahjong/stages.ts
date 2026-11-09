@@ -22,6 +22,8 @@ export interface StageInfo {
   art: { boss: string; minionA: string; minionB: string };
   /** 対局の 背景(public/assets/mahjong/bg/<名前>.webp。横長)。ない 時は 色の 背景 */
   bg?: string;
+  /** 話の 1枚絵(public/assets/mahjong/story/<名前>.webp。横長)。ない 時は 背景と 勇者 */
+  storyArt?: string;
   /** (使わない)絵が まだの 時の 色ちがい。企画者「敵の 色 へん」で やめた 2026-11-09 */
   tint?: number;
 }
@@ -38,6 +40,8 @@ export const STAGES: readonly StageInfo[] = [
     art: WOLVES,
     // 2026-11-09 企画者の 背景(夜の 路地裏)
     bg: 'stage1',
+    // 2026-11-09 企画者の 話の 1枚絵(勇者が 牌を にぎって 立ちあがる)
+    storyArt: 'stage1',
   },
   {
     name: 'ノラネコ団',
@@ -87,6 +91,8 @@ export const STAGES: readonly StageInfo[] = [
 ];
 
 export const STAGE_COUNT = STAGES.length;
+/** エンディングの 1枚絵(まだ なら ファイルが ない) */
+export const ENDING_ART = 'ending';
 export const ENDING_STORY = '街に 平和が もどった！\n…でも、どこかで まだ 牌の 音が する。\nもっと 強い 敵が 待つ 2周目へ！';
 
 /** その 周の その ステージ(2周目からは CPU が +1・ゴールド 1.5倍) */

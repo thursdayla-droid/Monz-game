@@ -2,7 +2,7 @@ import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { assetUrl } from '../assetUrl';
 import { clearStage, loadProgress, resetRun, saveProgress, type MjProgress } from '../core/mahjong/progress';
-import { ENDING_STORY, STAGE_COUNT, STAGES, stageAt } from '../core/mahjong/stages';
+import { ENDING_ART, ENDING_STORY, STAGE_COUNT, STAGES, stageAt } from '../core/mahjong/stages';
 import { UI_FONT } from '../ui/paint';
 import { fillSize, viewRatio, watchViewport } from '../ui/viewport';
 
@@ -63,6 +63,7 @@ export class MahjongQuestScene extends Phaser.Scene {
     for (const n of [...CHAR_FILES, ...new Set(STAGES.flatMap((st) => [st.art.boss, st.art.minionA, st.art.minionB]))]) if (!this.textures.exists(`mjc:${n}`)) this.load.image(`mjc:${n}`, assetUrl(`assets/mahjong/chars/${n}.webp`));
     if (!this.textures.exists('mj:title')) this.load.image('mj:title', assetUrl('assets/mahjong/title.webp'));
     // 敵の 1枚絵の うしろに 使う ステージの 背景
+    for (const st of STAGES) if (st.storyArt && !this.textures.exists(`mj:story:${st.storyArt}`)) this.load.image(`mj:story:${st.storyArt}`, assetUrl(`assets/mahjong/story/${st.storyArt}.webp`));
     for (const st of STAGES) if (st.bg && !this.textures.exists(`mj:bg:${st.bg}`)) this.load.image(`mj:bg:${st.bg}`, assetUrl(`assets/mahjong/bg/${st.bg}.webp`));
   }
 
@@ -148,18 +149,24 @@ export class MahjongQuestScene extends Phaser.Scene {
     }
     if (viewRatio(this) < 1) this.turnHint();
     if (this.mode === 'story' || this.mode === 'ending') {
-      // 話の 1枚絵【仮：絵が 届くまで 背景と 勇者】
+      // 話の 1枚絵(企画者の 絵。ない 時は 背景と 勇者)
       this.bg(0x16081f, 0x3a1670);
-      this.charImg('mjc:hero', W / 2, 360, 360, false).setAlpha(0.35);
-      this.text(W / 2, 80, this.mode === 'ending' ? 'ENDING' : stageLabel, 40, '#ffd23a', 8);
+      const artKey = `mj:story:${this.mode === 'ending' ? ENDING_ART : st.storyArt ?? ''}`;
+      if (this.textures.exists(artKey)) {
+        const im = this.add.image(W / 2, H / 2, artKey);
+        im.setScale(Math.max(W / im.width, H / im.height));
+        this.tweens.add({ targets: im, scale: im.scale * 1.04, duration: 6000, ease: 'Sine.easeOut' });
+      } else this.charImg('mjc:hero', W / 2, 360, 360, false).setAlpha(0.35);
+      this.text(W / 2, 50, this.mode === 'ending' ? 'ENDING' : stageLabel, 36, '#ffd23a', 8);
+      // 文字は 下の 帯に(絵を かくさない ように)
       const box = this.add.graphics();
-      box.fillStyle(0x16101c, 0.88).fillRoundedRect(W / 2 - 520, 430, 1040, 190, 20).lineStyle(4, 0xffd23a).strokeRoundedRect(W / 2 - 520, 430, 1040, 190, 20);
+      box.fillStyle(0x16101c, 0.82).fillRoundedRect(W / 2 - 560, 520, 1120, 170, 20).lineStyle(4, 0xffd23a).strokeRoundedRect(W / 2 - 560, 520, 1120, 170, 20);
       const msg = this.mode === 'ending' ? ENDING_STORY : st.story;
-      const t = this.text(W / 2, 525, '', 28, '#ffffff');
+      const t = this.text(W / 2, 605, '', 28, '#ffffff');
       // 文字を 1文字ずつ
       let i = 0;
       const ev = this.time.addEvent({ delay: 35, loop: true, callback: () => t.setText(msg.slice(0, ++i)) && i >= msg.length && ev.remove() });
-      this.text(W - 120, H - 40, 'タップで つぎへ ▶', 20, '#e8dcf4', 4);
+      this.text(W / 2 + 470, 676, 'タップで つぎへ ▶', 18, '#e8dcf4', 4);
       // 押した 指で すぐ 次へ 進まない ように 少し 待ってから。文字の 途中で さわったら まず 全部 出す
       this.time.delayedCall(350, () => {
         const onTap = () => {

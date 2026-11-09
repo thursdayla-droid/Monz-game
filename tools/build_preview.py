@@ -51,7 +51,7 @@ elif MYTH:
 elif MJ:
     paths = sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/mahjong/*.webp'))
     # 左右の キャラ(勇者 ZIPP・ボス RIOT・子分 SNEK／GRIT【仮】)
-    paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/mahjong/chars/*.webp') + glob.glob(pub + 'assets/mahjong/bg/*.webp'))
+    paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/mahjong/chars/*.webp') + glob.glob(pub + 'assets/mahjong/bg/*.webp') + glob.glob(pub + 'assets/mahjong/story/*.webp'))
 else:
     paths = ['assets/title/title_v2.webp', 'assets/bunk/reference/bunk_hires_cutout.png', 'assets/bunk/reference/bunk_down_cutout.png']
     for d in ['parts', 'down', 'faces']:
