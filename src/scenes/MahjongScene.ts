@@ -8,8 +8,6 @@ import { doDiscard, doKan, doKyuushu, doTsumo, doraIndicators, reactOptions, res
 import type { Meld } from '../core/mahjong/score';
 import { EAST, isRed, type Kind, kindOf, type Tile } from '../core/mahjong/tiles';
 import { randomSeed } from '../core/rng';
-import { loadLife } from '../core/lifeSave';
-import { careFaceKey, careFiles, careKey, hasCareImage } from '../render/careView';
 import { UI_FONT } from '../ui/paint';
 import { fillSize, viewRatio, watchViewport } from '../ui/viewport';
 
@@ -26,20 +24,11 @@ const START_HP = 30000;
 const LEVELS: (1 | 2 | 3 | 4 | 5)[] = [1, 2, 3, 2];
 /**
  * 左右の あいた 所に 出す キャラ(2026-11-08 企画者「左右 余ってる 所に 敵3匹と 勇者が 戦ってる 姿」)。
- * 勇者は 自分の MONZ(お世話用の 絵が ある 種族。ない 時は ZIPP)。敵は【仮】ボス RIOT・子分 SNEK／GRIT。
- * 絵は あとで 企画者の 絵に 入れかえ【仮】
+ * 絵は すべて 企画者の 絵(主人公＝勇者・ボス・子分2匹。design/mahjong/chars/)。
  */
 /** 敵の 絵(2026-11-08 企画者が ChatGPT で 作った オオカミ。左を 向いている)。1 = 子分A(黄色)・2 = ボス・3 = 子分B(青紫) */
 const ENEMY_ART: Record<number, string> = { 1: 'minion_a', 2: 'boss', 3: 'minion_b' };
-const CHAR_FILES = ['boss', 'minion_a', 'minion_b', 'shop'].flatMap((n) => [n, `${n}_face`]);
-const heroSpecies = (): string => {
-  try {
-    const sp = loadLife().monz[0]?.species;
-    return sp && hasCareImage(sp) ? sp : 'zipp';
-  } catch {
-    return 'zipp';
-  }
-};
+const CHAR_FILES = ['hero', 'boss', 'minion_a', 'minion_b', 'shop'].flatMap((n) => [n, `${n}_face`]);
 /** オートパス(鳴き・明槓を 聞かない。ロンは 聞く)。企画者 2026-11-08「オートパスが ほしい」 */
 let autoPass = false;
 /** CPU が 1手 打つ 間(ミリ秒) */
@@ -77,7 +66,6 @@ export class MahjongScene extends Phaser.Scene {
   private leaving = false;
   /** 左右の キャラ(席ごと。0 = 勇者) */
   private actors: Phaser.GameObjects.Container[] = [];
-  private heroSp = 'zipp';
   /** 卓の まん中・左右の 帯の はば */
   private geo = { cx: 640, cy: 300, sp: 230, tw: 820 };
 
@@ -87,8 +75,6 @@ export class MahjongScene extends Phaser.Scene {
 
   preload(): void {
     for (const f of TILE_FILES) if (!this.textures.exists(`mj:${f}`)) this.load.image(`mj:${f}`, assetUrl(`assets/mahjong/${f}.webp`));
-    this.heroSp = heroSpecies();
-    for (const f of careFiles(this.heroSp)) if (!this.textures.exists(f.key)) this.load.image(f.key, assetUrl(f.url));
     for (const n of CHAR_FILES) if (!this.textures.exists(`mjc:${n}`)) this.load.image(`mjc:${n}`, assetUrl(`assets/mahjong/chars/${n}.webp`));
   }
 
@@ -146,9 +132,10 @@ export class MahjongScene extends Phaser.Scene {
   private buildActors(): void {
     this.actors.forEach((a) => a.destroy());
     this.actors = [0, 1, 2, 3].map((seat) => {
-      const sp = this.heroSp;
-      const faceKey = seat === 0 ? (this.textures.exists(careFaceKey(sp)) ? careFaceKey(sp) : careKey(sp)) : `mjc:${ENEMY_ART[seat]}_face`;
-      const bodyKey = seat === 0 ? careKey(sp) : `mjc:${ENEMY_ART[seat]}`;
+      // 2026-11-09 企画者「主人公 これに しよう」→ 主人公は 企画者の 勇者の 絵(design/mahjong/chars/hero.png。正面向き)
+      const art = seat === 0 ? 'hero' : ENEMY_ART[seat];
+      const faceKey = `mjc:${art}_face`;
+      const bodyKey = `mjc:${art}`;
       const big = seat === BOSS || seat === 0;
       const r = seat === BOSS ? 46 : big ? 56 : 44;
       const c = this.add.container(0, 0).setDepth(5);
