@@ -18,6 +18,9 @@ export interface StageInfo {
   /** CPU の 強さ(子分A・ボス・子分B) */
   levels: [Level, Level, Level];
   gold: number;
+  /** お世話の MONZ に もらえる コインと 経験値(クリアした 時。企画者 2026-11-09) */
+  monzCoins: number;
+  monzExp: number;
   /** 敵の 絵(public/assets/mahjong/chars/<名前>.webp)。boss, minionA, minionB */
   art: { boss: string; minionA: string; minionB: string };
   /** 対局の 背景(public/assets/mahjong/bg/<名前>.webp。横長)。ない 時は 色の 背景 */
@@ -37,6 +40,8 @@ export const STAGES: readonly StageInfo[] = [
     enemyHp: 30000,
     levels: [1, 2, 1],
     gold: 200,
+    monzCoins: 100,
+    monzExp: 10,
     art: WOLVES,
     // 2026-11-09 企画者の 背景(夜の 路地裏)
     bg: 'stage1',
@@ -49,6 +54,8 @@ export const STAGES: readonly StageInfo[] = [
     enemyHp: 50000,
     levels: [2, 3, 2],
     gold: 250,
+    monzCoins: 150,
+    monzExp: 12,
     // 2026-11-09 企画者の ノラネコ団(ボス＝王冠の 太った ネコ・子分A＝フードの ネコ・子分B＝ニット帽の ネコ)
     art: { boss: 's2_boss', minionA: 's2_minion_a', minionB: 's2_minion_b' },
     // 2026-11-09 企画者の 背景(月夜の 屋上)
@@ -63,6 +70,8 @@ export const STAGES: readonly StageInfo[] = [
     enemyHp: 60000,
     levels: [3, 3, 3],
     gold: 300,
+    monzCoins: 200,
+    monzExp: 15,
     // 2026-11-09 企画者の ワニ団(ボス＝王冠と 葉巻の ワニ・子分A＝ヘルメットの ワニ・子分B＝ゴーグルと スコップの ワニ)
     art: { boss: 's3_boss', minionA: 's3_minion_a', minionB: 's3_minion_b' },
     // 2026-11-09 企画者の 背景(地下水路)
@@ -77,6 +86,8 @@ export const STAGES: readonly StageInfo[] = [
     enemyHp: 80000,
     levels: [3, 4, 3],
     gold: 350,
+    monzCoins: 250,
+    monzExp: 18,
     // 2026-11-09 企画者の ゴリラ団(ボス＝かぶとと 盾の ゴリラ・子分A＝やりの 茶色の ゴリラ・子分B＝ハンマーの 銀色の ゴリラ)
     art: { boss: 's4_boss', minionA: 's4_minion_a', minionB: 's4_minion_b' },
     // 2026-11-09 企画者の 背景(夕やけの 城の 門)
@@ -91,6 +102,8 @@ export const STAGES: readonly StageInfo[] = [
     enemyHp: 100000,
     levels: [4, 5, 4],
     gold: 500,
+    monzCoins: 400,
+    monzExp: 25,
     // 2026-11-09 企画者の ボス(人間・ピンクの Tシャツと エナジードリンク)と 子分(クマ・カラス)
     art: { boss: 's5_boss', minionA: 's5_minion_a', minionB: 's5_minion_b' },
     // 2026-11-09 企画者の 背景(城の 最上階)
@@ -102,6 +115,8 @@ export const STAGES: readonly StageInfo[] = [
 ];
 
 export const STAGE_COUNT = STAGES.length;
+/** 負けた 時に MONZ が もらえる 経験値(企画者 2026-11-09) */
+export const LOSE_MONZ_EXP = 3;
 /** エンディングの 1枚絵(まだ なら ファイルが ない) */
 export const ENDING_ART = 'ending';
 export const ENDING_STORY = '街に 平和が もどった！\n…でも、どこかで まだ 牌の 音が する。\nもっと 強い 敵が 待つ 2周目へ！';
@@ -111,5 +126,5 @@ export function stageAt(index: number, lap: number): StageInfo {
   const s = STAGES[index];
   const up = Math.max(0, lap - 1);
   const lv = (n: Level) => Math.min(5, n + up) as Level;
-  return { ...s, levels: [lv(s.levels[0]), lv(s.levels[1]), lv(s.levels[2])], gold: Math.round(s.gold * (lap >= 2 ? 1.5 : 1)) };
+  return { ...s, levels: [lv(s.levels[0]), lv(s.levels[1]), lv(s.levels[2])], gold: Math.round(s.gold * (lap >= 2 ? 1.5 : 1)), monzCoins: Math.round(s.monzCoins * (lap >= 2 ? 1.5 : 1)) };
 }

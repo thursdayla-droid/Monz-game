@@ -2,7 +2,8 @@ import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { assetUrl } from '../assetUrl';
 import { clearStage, loadProgress, resetRun, saveProgress, type MjProgress } from '../core/mahjong/progress';
-import { ENDING_ART, ENDING_STORY, STAGE_COUNT, STAGES, stageAt } from '../core/mahjong/stages';
+import { ENDING_ART, ENDING_STORY, LOSE_MONZ_EXP, STAGE_COUNT, STAGES, stageAt } from '../core/mahjong/stages';
+import { LifeRecord, loadLife, LIFE_KEY } from '../core/lifeSave';
 import { UI_FONT } from '../ui/paint';
 import { fillSize, viewRatio, watchViewport } from '../ui/viewport';
 import { ITEMS, itemInfo, type ItemId } from '../core/mahjong/items';
@@ -80,6 +81,20 @@ export class MahjongQuestScene extends Phaser.Scene {
       setSessionFlag(true);
     }
     // クリアの ごほうびは ここで 1回だけ 足して 保存
+    // お世話の MONZ への ごほうび(コイン・経験値。企画者 2026-11-09)。クリア・負けの 時に 1回だけ
+    this.monzReward = null;
+    if (this.mode === 'clear' || this.mode === 'lose') {
+      const st = stageAt(this.prog.stage, this.prog.lap);
+      const r = this.mode === 'clear' ? { coins: st.monzCoins, exp: st.monzExp } : { coins: 0, exp: LOSE_MONZ_EXP };
+      try {
+        if (localStorage.getItem(LIFE_KEY)) {
+          const rec = new LifeRecord(loadLife());
+          if (rec.grant({ runId: `mahjong:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`, source: 'mahjong', ...r })) this.monzReward = r;
+        }
+      } catch {
+        /* 保存できなくても 続ける */
+      }
+    }
     if (this.mode === 'clear') {
       const { lapUp } = clearStage(this.prog, this.params.gold ?? 0);
       saveProgress(this.prog);
@@ -237,8 +252,9 @@ export class MahjongQuestScene extends Phaser.Scene {
       const prev = (this.prog.stage + STAGE_COUNT - 1) % STAGE_COUNT;
       const t = this.text(W / 2, 150, `STAGE ${prev + 1} CLEAR!`, 80, '#ffd23a', 12);
       this.tweens.add({ targets: t, scale: { from: 1.8, to: 1 }, duration: 450, ease: 'Back.easeOut' });
-      this.charImg('mjc:hero', W / 2, 420, 300, false);
-      this.text(W / 2, 600, `+${this.params.gold ?? 0}G  （もちもの ${this.prog.gold}G）`, 34, '#ffffff', 6);
+      this.charImg('mjc:hero', W / 2, 390, 250, false);
+      this.text(W / 2, 560, `+${this.params.gold ?? 0}G  （もちもの ${this.prog.gold}G）`, 34, '#ffffff', 6);
+      if (this.monzReward) this.text(W / 2, 606, `MONZ に  +${this.monzReward.coins} コイン  +${this.monzReward.exp} けいけんち`, 24, '#ffd23a', 5);
       audio.se('cheer');
       this.button(W / 2 - 200, H - 50, '道具屋へ', '#ff8a3a', () => {
         this.shopSay = 'いらっしゃい。\nいい モン あるぜ。';
@@ -260,6 +276,7 @@ export class MahjongQuestScene extends Phaser.Scene {
       this.text(W / 2, 170, 'GAME OVER', 90, '#9fe0ff', 12);
       this.charImg('mjc:hero', W / 2, 440, 280, false).setTint(0x8888aa);
       this.text(W / 2, 590, `${stageLabel} から やりなおし`, 28, '#ffffff', 6);
+      if (this.monzReward) this.text(W / 2, 630, `MONZ に  +${this.monzReward.exp} けいけんち`, 22, '#ffd23a', 5);
       this.button(W / 2 - 170, H - 50, 'もう一度', '#ffd23a', () => this.go('intro'));
       this.button(W / 2 + 170, H - 50, 'タイトルへ', '#ffffff', () => this.go('title'));
     }
@@ -425,6 +442,9 @@ export class MahjongQuestScene extends Phaser.Scene {
   /** 道具屋(お店の ネコ・5つの アイテム・ゴールド) */
   /** テスト: 話だけ 見ている 間(もとの ステージ・周を 覚えておく) */
   private tour: { stage: number; lap: number } | null = null;
+
+  /** この 画面で MONZ に あげた ごほうび */
+  private monzReward: { coins: number; exp: number } | null = null;
 
   private shopSay = 'いらっしゃい。\nいい モン あるぜ。';
 
