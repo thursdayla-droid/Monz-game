@@ -1,6 +1,6 @@
 import type * as Phaser from 'phaser';
 import { abilityOf } from '../core/mythclash/abilities';
-import { cardNo, type CardDefinition, type Element, type Rarity } from '../core/mythclash/cards';
+import { card, cardNo, type CardDefinition, type Element, type Rarity } from '../core/mythclash/cards';
 import { assetUrl } from '../assetUrl';
 import { roundRectPath, UI_FONT } from './paint';
 
@@ -50,13 +50,46 @@ export function useCardArt(scene: Phaser.Scene): void {
   for (const id of CARD_ART_IDS) {
     if (cardArt.has(id) || !scene.textures.exists(cardArtKey(id))) continue;
     cardArt.set(id, scene.textures.get(cardArtKey(id)).getSourceImage() as HTMLImageElement);
-    removeDrawnCards(scene, id);
+    removeDrawnCards(scene, id, true);
   }
 }
 
 /** その絵で描いたカード(バトルでかくした形も) */
-function removeDrawnCards(scene: Phaser.Scene, id: number): void {
-  for (const k of [`mc:card:${id}`, `mc:card:${id}:h`, `mc:card:${id}:a`, `mc:card:${id}:h:a`]) if (scene.textures.exists(k)) scene.textures.remove(k);
+function removeDrawnCards(scene: Phaser.Scene, id: number, redraw = false): void {
+  const used = texturesInUse(scene);
+  for (const k of [`mc:card:${id}`, `mc:card:${id}:h`, `mc:card:${id}:a`, `mc:card:${id}:h:a`]) {
+    if (!scene.textures.exists(k)) continue;
+    if (!used.has(k)) scene.textures.remove(k);
+    else if (redraw && k === `mc:card:${id}`) {
+      // 画面に 出ている カードは 消さずに、その場で 絵の 入った カードに 描き直す
+      const t = scene.textures.get(k) as Phaser.Textures.CanvasTexture;
+      const ctx = typeof t.getContext === 'function' ? t.getContext() : null;
+      const def = card(id);
+      if (!ctx || !def) continue;
+      ctx.clearRect(0, 0, MYTH_CARD_W, MYTH_CARD_H);
+      drawMythCard(ctx, def);
+      t.refresh();
+    }
+  }
+}
+
+/**
+ * 今 画面に 出ている 物が 使っている 絵の 名前。
+ * 2026-11-09 企画者(友だち)「チーム編成で フリーズ」: ページを めくった 時に、まだ 画面に 出ている カードの 絵を
+ * メモリから 外して しまい、描く ところで 止まって いた → 使っている 絵は 外さない
+ */
+function texturesInUse(scene: Phaser.Scene): Set<string> {
+  const used = new Set<string>();
+  const walk = (list: readonly Phaser.GameObjects.GameObject[]) => {
+    for (const o of list) {
+      const k = (o as Phaser.GameObjects.Image).texture?.key;
+      if (k) used.add(k);
+      const kids = (o as Phaser.GameObjects.Container).list;
+      if (Array.isArray(kids)) walk(kids);
+    }
+  };
+  for (const sc of scene.sys.game.scene.getScenes(false)) if (sc.sys.displayList) walk(sc.sys.displayList.list);
+  return used;
 }
 
 /**
@@ -74,13 +107,20 @@ function forgetOldArt(scene: Phaser.Scene, want: Set<number>): void {
     if (i >= 0) recentArt.splice(i, 1);
     recentArt.push(id);
   }
+  // 画面に 出ている(大きく 見ている など)絵は 外さない
+  const used = texturesInUse(scene);
   while (recentArt.length > KEEP_ART) {
-    const i = recentArt.findIndex((id) => !want.has(id));
+    const i = recentArt.findIndex((id) => !want.has(id) && !used.has(cardArtKey(id)));
     if (i < 0) break;
     const [id] = recentArt.splice(i, 1);
     cardArt.delete(id);
     if (scene.textures.exists(cardArtKey(id))) scene.textures.remove(cardArtKey(id));
     removeDrawnCards(scene, id);
+  }
+  // 前に 画面に 出ていて 外せなかった カード(絵は もう 外した もの)を、今 使っていなければ 外す
+  for (const k of scene.textures.getTextureKeys()) {
+    const m = /^mc:card:(\d+)/.exec(k);
+    if (m && CARD_ART_IDS.includes(Number(m[1])) && !recentArt.includes(Number(m[1])) && !used.has(k)) scene.textures.remove(k);
   }
 }
 
