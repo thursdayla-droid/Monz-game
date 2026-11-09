@@ -67,6 +67,12 @@ export class MahjongScene extends Phaser.Scene {
   /** リーチの 牌を えらんでいる */
   private riichiMode = false;
   private timer?: Phaser.Time.TimerEvent;
+  /** 配牌の 途中(席ごとの 配った 枚数)。null = 配り おわり */
+  private dealt: number[] | null = null;
+  /** 配った 局(局が 変わったら また 配る) */
+  private dealtRound: RoundState | null = null;
+  /** 配っている 間の 自分の 牌の 並び(配った 順。おわると 並べかえ) */
+  private dealOrder: Tile[] = [];
   private finished: 'clear' | 'lose' | null = null;
   private leaving = false;
   /** 左右の キャラ(席ごと。0 = 勇者) */
@@ -187,9 +193,9 @@ export class MahjongScene extends Phaser.Scene {
     const { cx, sp } = this.geo;
     const pos: [number, number][] = [
       [Math.max(80, sp / 2), 420],
-      [cx + 330, 96],
-      [cx, 86],
-      [cx - 330, 96],
+      [cx + 330, 70],
+      [cx, 80],
+      [cx - 330, 70],
     ];
     this.actors.forEach((a, i) => a.setPosition(pos[i][0], pos[i][1]).setData('home', pos[i]));
   }
@@ -227,6 +233,12 @@ export class MahjongScene extends Phaser.Scene {
     this.riichiMode = false;
     const s = this.round;
     if (this.finished) return;
+    // 局の はじめは 高速で 配牌(2026-11-09 企画者「最初 高速で 配牌して ほしい」)
+    if (this.dealtRound !== s && s.phase === 'turn') {
+      this.dealtRound = s;
+      this.playDeal(() => this.step());
+      return;
+    }
     if (s.phase === 'end') {
       this.wait = { kind: 'result' };
       this.redraw();
@@ -261,6 +273,38 @@ export class MahjongScene extends Phaser.Scene {
     this.wait = { kind: 'none' };
     this.redraw();
     this.later(120, () => this.resolve(null));
+  }
+
+  /** 親から 順に 4枚ずつ 3回 → 1枚ずつ(約1.2秒)。おわると 自分の 牌を 並べかえる */
+  private playDeal(done: () => void): void {
+    const s = this.round;
+    const dealer = s.cfg.dealer;
+    const chunks: [number, number][] = [];
+    for (let r = 0; r < 3; r++) for (let i = 0; i < 4; i++) chunks.push([(dealer + i) % 4, 4]);
+    for (let i = 0; i < 4; i++) chunks.push([(dealer + i) % 4, 1]);
+    const mine = s.players[0].hand.filter((t) => !(s.turn === 0 && t === s.drawn));
+    // 配る 順は ばらばら(種から 決める)
+    this.dealOrder = [...mine].sort((a, b) => ((a * 2654435761) % 997) - ((b * 2654435761) % 997));
+    this.dealt = [0, 0, 0, 0];
+    this.wait = { kind: 'none' };
+    this.redraw();
+    let i = 0;
+    const tick = () => {
+      if (i < chunks.length) {
+        const [seat, n] = chunks[i++];
+        this.dealt![seat] += n;
+        audio.se('tap', { pitch: 1.3 + (i % 4) * 0.08 });
+        this.redraw();
+        this.later(70, tick);
+        return;
+      }
+      // 並べかえて おわり
+      this.dealt = null;
+      audio.se('plop');
+      this.redraw();
+      this.later(250, done);
+    };
+    this.later(200, tick);
   }
 
   private later(ms: number, f: () => void): void {
@@ -372,8 +416,9 @@ export class MahjongScene extends Phaser.Scene {
     // 2026-11-08 企画者「ボスの 牌 今 出てないから 表示して ほしい」→ ボスも 伏せた 手を 出す(顔の すぐ 下)
     const bw = seat === BOSS ? 22 : 24;
     const dy = seat === BOSS ? 226 : 300;
-    const n = p.hand.length;
-    for (let i = 0; i < n; i++) c.add(this.tile(-((n - 1) * bw) / 2 + i * bw, dy, 'mj:back', bw - 1));
+    const n = this.dealt ? Math.min(this.dealt[seat], 13) : p.hand.length;
+    const full = this.dealt ? 13 : n;
+    for (let i = 0; i < n; i++) c.add(this.tile(-((full - 1) * bw) / 2 + i * bw, dy, 'mj:back', bw - 1));
     // 鳴いた 牌(伏せた 手の 横)
     this.drawMelds(c, p.melds, ((n - 1) * bw) / 2 + 16, dy, seat === BOSS ? 24 : 26);
     // 名前・リーチ
@@ -409,9 +454,11 @@ export class MahjongScene extends Phaser.Scene {
     const meldW0 = p.melds.reduce((a, m) => a + m.tiles.length * meldTile + 14, 0);
     const tw = Math.min(96, Math.floor((W - 30 - meldW0 - 20) / 14.4));
     const th = tw * (172 / 132);
-    const drawn = s.turn === 0 && s.drawn !== null ? s.drawn : null;
-    const hand = drawn !== null ? p.hand.filter((t) => t !== drawn) : [...p.hand];
+    const drawn = s.turn === 0 && s.drawn !== null && !this.dealt ? s.drawn : null;
+    let hand = drawn !== null ? p.hand.filter((t) => t !== drawn) : [...p.hand];
     hand.sort((a, b) => a - b);
+    // 配っている 間は 配った 分だけ(配った 順のまま)
+    if (this.dealt) hand = this.dealOrder.slice(0, this.dealt[0]);
     const all = drawn !== null ? [...hand, drawn] : hand;
     const meldW = meldW0;
     const total = all.length * tw + (drawn !== null ? 14 : 0);
@@ -462,8 +509,9 @@ export class MahjongScene extends Phaser.Scene {
       this.ui.add(this.text(x + w / 2, y - 15, `${label}  ${v.toLocaleString()}`, 16, '#ffffff'));
     };
     // 敵チームの HP は 上の まん中に 大きく・自分の HP は 左下の 顔の 下
-    const ew = Math.min(620, this.geo.tw - 160);
-    bar(W / 2 - ew / 2, 30, ew, '敵チーム(ボス＋子分2人) HP', this.hp.enemy, this.hp.enemyMax, 0xff4a6a);
+    // 2026-11-09 企画者「敵の HP 上だと 窮屈だから 右上の 空いてる とこで いい」
+    const ew = Math.max(190, Math.min(280, sp - 30));
+    bar(W - Math.max(110, sp / 2) - ew / 2, 44, ew, '敵チーム HP', this.hp.enemy, this.hp.enemyMax, 0xff4a6a);
     const pw = Math.max(170, Math.min(240, sp - 30));
     bar(Math.max(80, sp / 2) - pw / 2, 566, pw, 'HP', this.hp.player, this.hp.playerMax, 0x3ad070);
     // やめる(左上)
