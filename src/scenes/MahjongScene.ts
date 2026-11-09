@@ -195,11 +195,11 @@ export class MahjongScene extends Phaser.Scene {
   private placeActors(): void {
     const { cx, sp } = this.geo;
     const pos: [number, number][] = [
-      [Math.max(80, sp / 2), 372],
+      [Math.max(80, sp / 2), 398],
       // 2026-11-09 企画者「ボスの スペース 狭い。子分は 左右で いい」→ 子分は 左右の あいた 所・ボスだけ 上の まん中
-      [this.W - Math.max(90, sp / 2), 250],
+      [this.W - Math.max(90, sp / 2), 220],
       [cx, 62],
-      [Math.max(80, sp / 2), 210],
+      [Math.max(80, sp / 2), 220],
     ];
     this.actors.forEach((a, i) => a.setPosition(pos[i][0], pos[i][1]).setData('home', pos[i]));
   }
@@ -532,7 +532,7 @@ export class MahjongScene extends Phaser.Scene {
     bar(W - Math.max(110, sp / 2) - ew / 2, 44, ew, '敵チーム HP', this.hp.enemy, this.hp.enemyMax, 0xff4a6a);
     const pw = Math.max(170, Math.min(240, sp - 30));
     // 2026-11-09 企画者「左の 牌が 主人公の 体力ゲージと 少し 被ってる」→ 上へ
-    bar(Math.max(80, sp / 2) - pw / 2, 500, pw, 'HP', this.hp.player, this.hp.playerMax, 0x3ad070);
+    bar(Math.max(80, sp / 2) - pw / 2, 530, pw, 'HP', this.hp.player, this.hp.playerMax, 0x3ad070);
     // やめる(左上)
     const back = this.text(70, 28, '◀ やめる', 17, '#ffffff', 0).setInteractive({ useHandCursor: true });
     back.setBackgroundColor('#16101caa').setPadding(12, 6, 12, 6);
