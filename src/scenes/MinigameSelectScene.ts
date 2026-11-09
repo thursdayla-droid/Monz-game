@@ -40,6 +40,8 @@ const ART_SLOT_SOON = [620, 10, 770, 110];
  */
 export const SELECT_CARD_ART: Record<string, { key: string; file: string; srcW: number; frame: [number, number, number, number] }> = {
   slugger: { key: 'mg:card:slugger', file: 'assets/minigame/select_slugger.webp', srcW: 2172, frame: [29, 141, 2139, 672] },
+  // 2026-11-09 企画者「麻雀クエスト ミニゲームに 追加しよう」→ 看板は タイトルの ロゴと 勇者から 作った【仮：企画者の 看板の 絵が 来たら 入れかえ】
+  mahjong: { key: 'mg:card:mahjong', file: 'assets/minigame/select_mahjong.webp', srcW: 2172, frame: [29, 141, 2139, 672] },
 };
 
 /** 絵に描いてある「0」を隠して、本当のコインの数を出す場所 */
