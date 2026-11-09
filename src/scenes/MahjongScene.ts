@@ -566,8 +566,9 @@ export class MahjongScene extends Phaser.Scene {
     // 使っている アイテム(まだ 発動していない)
     if (this.item) this.ui.add(this.text(Math.max(80, sp / 2), 588, `アイテム: ${itemInfo(this.item)?.name ?? ''}`, 15, '#ffd23a', 4));
     // やめる(左上)
-    const back = this.text(70, 28, '◀ やめる', 17, '#ffffff', 0).setInteractive({ useHandCursor: true });
-    back.setBackgroundColor('#16101caa').setPadding(12, 6, 12, 6);
+    // 2026-11-09 企画者「やめる 押せない。もう少し 下に」→ iPhone の 横画面の 上の はしと 切りかきを よけて 大きく
+    const back = this.text(Math.max(110, this.geo.sp / 2), 100, '◀ やめる', 22, '#ffffff', 0).setInteractive({ useHandCursor: true });
+    back.setBackgroundColor('#16101ccc').setPadding(18, 12, 18, 12);
     back.on('pointerup', () => this.quit());
     this.ui.add(back);
     // オートパス(鳴きを 聞かない。ロンは 聞く)
