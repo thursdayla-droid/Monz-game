@@ -124,7 +124,7 @@ export class MahjongScene extends Phaser.Scene {
     this.scale.setGameSize(this.W, H);
     this.cameras.main.setSize(this.W, H);
     const tw = Math.min(980, Math.max(820, this.W - 480));
-    this.geo = { cx: this.W / 2, cy: 378, tw, sp: (this.W - tw) / 2 };
+    this.geo = { cx: this.W / 2, cy: 386, tw, sp: (this.W - tw) / 2 };
     // 背景(2026-11-08 企画者の イメージの 絵: こい 紫の 街・オレンジと 紫の ななめの 筋・金の 粒)
     const g = this.bg?.clear();
     if (!g) return;
@@ -150,7 +150,7 @@ export class MahjongScene extends Phaser.Scene {
       const faceKey = `mjc:${art}_face`;
       const bodyKey = `mjc:${art}`;
       const big = seat === BOSS || seat === 0;
-      const r = seat === BOSS ? 52 : big ? 56 : 50;
+      const r = seat === BOSS ? 46 : big ? 56 : 50;
       const c = this.add.container(0, 0).setDepth(5);
       const frame = this.add.graphics();
       const col = seat === 0 ? 0x3ad070 : seat === BOSS ? 0xff4a6a : 0x9b5cff;
@@ -173,7 +173,7 @@ export class MahjongScene extends Phaser.Scene {
       if (seat === BOSS) {
         const cr = this.add.graphics();
         cr.fillStyle(0xffd23a, 1).lineStyle(3, 0x16101c, 1);
-        const pts = [-26, 0, -26, -22, -13, -8, 0, -28, 13, -8, 26, -22, 26, 0].map((v, i) => (i % 2 ? v - r + 4 : v));
+        const pts = [-26, 0, -26, -22, -13, -8, 0, -28, 13, -8, 26, -22, 26, 0].map((v, i) => (i % 2 ? v * 0.7 - r + 10 : v * 0.8));
         cr.beginPath();
         cr.moveTo(pts[0], pts[1]);
         for (let i = 2; i < pts.length; i += 2) cr.lineTo(pts[i], pts[i + 1]);
@@ -196,7 +196,7 @@ export class MahjongScene extends Phaser.Scene {
       [Math.max(80, sp / 2), 420],
       // 2026-11-09 企画者「ボスの スペース 狭い。子分は 左右で いい」→ 子分は 左右の あいた 所・ボスだけ 上の まん中
       [this.W - Math.max(90, sp / 2), 250],
-      [cx, 86],
+      [cx, 62],
       [Math.max(80, sp / 2), 210],
     ];
     this.actors.forEach((a, i) => a.setPosition(pos[i][0], pos[i][1]).setData('home', pos[i]));
@@ -337,7 +337,7 @@ export class MahjongScene extends Phaser.Scene {
     const { cx, cy, tw } = this.geo;
     // 卓(明るい 紫・金の ふち)
     const g = this.add.graphics();
-    const top = 142;
+    const top = 118;
     const bot = 602;
     g.fillStyle(0x0b0614, 0.45).fillRoundedRect(cx - tw / 2 + 6, top + 8, tw, bot - top, 34);
     g.fillGradientStyle(0x4a2290, 0x4a2290, 0x2c1260, 0x2c1260, 1).fillRoundedRect(cx - tw / 2, top, tw, bot - top, 34);
@@ -416,8 +416,9 @@ export class MahjongScene extends Phaser.Scene {
     if (seat === PLAYER_SEAT) return;
     // 伏せた 手(CPU)
     // 2026-11-08 企画者「ボスの 牌 今 出てないから 表示して ほしい」→ ボスも 伏せた 手を 出す(顔の すぐ 下)
-    const bw = seat === BOSS ? 22 : 24;
-    const dy = seat === BOSS ? 226 : 300;
+    // 2026-11-09 企画者「ボスの 机が 狭い」→ ボスの 前を 広く(卓を 上へ・牌を 子分と 同じ 大きさ)
+    const bw = 24;
+    const dy = seat === BOSS ? 238 : 300;
     const n = this.dealt ? Math.min(this.dealt[seat], 13) : p.hand.length;
     const full = this.dealt ? 13 : n;
     for (let i = 0; i < n; i++) c.add(this.tile(-((full - 1) * bw) / 2 + i * bw, dy, 'mj:back', bw - 1));

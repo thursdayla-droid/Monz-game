@@ -108,9 +108,9 @@ describe('ダメージ(仕様書 4)', () => {
     delta: [0, 0, 0, 0],
     wins: [{ seat, from, paid, score: { ron } as never }],
   });
-  it('ボスから ロンは 100%・子分から ロンは 50%', () => {
+  it('ボスから ロンも 子分から ロンも 100%(2026-11-09 企画者)', () => {
     expect(damageOf(win(0, 1, 8000, [0, 8000, 0, 0]), 1).toEnemy).toBe(8000);
-    expect(damageOf(win(0, 2, 8000, [0, 0, 8000, 0]), 1).toEnemy).toBe(4000);
+    expect(damageOf(win(0, 2, 8000, [0, 0, 8000, 0]), 1).toEnemy).toBe(8000);
   });
   it('プレイヤーの ツモは 3人の 支払いの 合計', () => {
     expect(damageOf(win(0, null, 0, [0, 4000, 2000, 2000]), 1).toEnemy).toBe(8000);

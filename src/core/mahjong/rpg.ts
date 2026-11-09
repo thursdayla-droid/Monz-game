@@ -18,6 +18,7 @@ export interface Damage {
 }
 
 export function damageOf(r: RoundResult, bossSeat: number): Damage {
+  void bossSeat; // ボスかどうかで ダメージは 変わらない(2026-11-09)。演出で 使う ため 引数は 残す
   const d: Damage = { toEnemy: 0, toPlayer: 0, hits: [] };
   if (r.kind !== 'win') {
     // 流し満貫【仮：ツモと 同じ ように ダメージに する】
@@ -37,7 +38,8 @@ export function damageOf(r: RoundResult, bossSeat: number): Damage {
     if (w.seat === PLAYER_SEAT) {
       let amount: number;
       if (w.from === null) amount = w.paid.reduce((a, b) => a + b, 0); // ツモ: 3人の 支払いの 合計(50%なし)
-      else amount = w.from === bossSeat ? w.score.ron : Math.floor(w.score.ron * 0.5); // 子分から ロンは 半分
+      // 2026-11-09 企画者「雑魚キャラに ロンしても 半分の ダメージじゃなくて いい」→ ボスからも 子分からも そのまま
+      else amount = w.score.ron;
       d.toEnemy += amount;
       d.hits.push({ winner: w.seat, from: w.from, amount, target: 'enemy' });
     } else if (w.from === null || w.from === PLAYER_SEAT) {
