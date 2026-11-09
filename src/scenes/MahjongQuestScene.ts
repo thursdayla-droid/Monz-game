@@ -304,7 +304,7 @@ export class MahjongQuestScene extends Phaser.Scene {
     this.text(W - 130, 36, st, 20, '#ffffff', 0).setBackgroundColor('#16101caa').setPadding(12, 6, 12, 6);
     this.backButton();
     // 【テスト用】確認用ページ・開発中だけ: ゴールドを 足して 道具屋へ(STAGE 2 から 遊べる 状態に)。2026-11-09 企画者「アイテム屋 見たい」
-    const testOnly = (window as { __MONZ_START?: string }).__MONZ_START === 'MahjongQuest' || (import.meta.env as Record<string, unknown>).DEV;
+    const testOnly = (import.meta.env as Record<string, unknown>).VITE_RELEASE !== '1' && ((window as { __MONZ_START?: string }).__MONZ_START === 'MahjongQuest' || (import.meta.env as Record<string, unknown>).DEV);
     if (testOnly) {
       const sb = this.text(W / 2, 162, 'テスト: 話と エンディングを 見る', 22, '#16101c', 0).setBackgroundColor('#ffb3e6').setPadding(14, 8, 14, 8).setInteractive({ useHandCursor: true });
       sb.on('pointerdown', () => {
