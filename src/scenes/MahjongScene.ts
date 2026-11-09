@@ -180,7 +180,7 @@ export class MahjongScene extends Phaser.Scene {
       const faceKey = `mjc:${art}_face`;
       const bodyKey = `mjc:${art}`;
       const big = seat === BOSS || seat === 0;
-      const r = seat === BOSS ? 46 : big ? 56 : 50;
+      const r = seat === BOSS ? 46 : big ? 56 : 40;
       const c = this.add.container(0, 0).setDepth(5);
       const frame = this.add.graphics();
       const col = seat === 0 ? 0x3ad070 : seat === BOSS ? 0xff4a6a : 0x9b5cff;
@@ -224,9 +224,10 @@ export class MahjongScene extends Phaser.Scene {
     const pos: [number, number][] = [
       [Math.max(80, sp / 2), 398],
       // 2026-11-09 企画者「ボスの スペース 狭い。子分は 左右で いい」→ 子分は 左右の あいた 所・ボスだけ 上の まん中
-      [this.W - Math.max(90, sp / 2), 220],
+      // 2026-11-09 企画者「子分の 顔は 机の 中に。机の まん中 左右に」
+      [this.geo.cx + this.geo.tw / 2 - 58, this.geo.cy],
       [cx, 62],
-      [Math.max(80, sp / 2), 220],
+      [this.geo.cx - this.geo.tw / 2 + 58, this.geo.cy],
     ];
     this.actors.forEach((a, i) => a.setPosition(pos[i][0], pos[i][1]).setData('home', pos[i]));
   }
@@ -585,7 +586,7 @@ export class MahjongScene extends Phaser.Scene {
       const a = this.actors[seat];
       if (!a) return;
       const [x, y] = a.getData('home') as [number, number];
-      const tag = this.text(x + (x > this.W / 2 ? -82 : 82), y - 20, 'リーチ', 20, '#16101c', 0).setBackgroundColor('#ff8a3a').setPadding(10, 3, 10, 3).setAngle(-8);
+      const tag = this.text(seat === 1 || seat === 3 ? x : x + (x > this.W / 2 ? -82 : 82), seat === 1 || seat === 3 ? y - 76 : y - 20, 'リーチ', 20, '#16101c', 0).setBackgroundColor('#ff8a3a').setPadding(10, 3, 10, 3).setAngle(-8);
       this.ui.add(tag);
     });
   }
