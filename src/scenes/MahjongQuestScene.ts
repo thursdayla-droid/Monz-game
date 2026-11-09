@@ -55,6 +55,8 @@ export class MahjongQuestScene extends Phaser.Scene {
   init(data: QuestParams): void {
     this.params = data ?? {};
     this.mode = data?.mode ?? 'title';
+    // Phaser は 次に 何も 渡さずに 開いた 時も 前の data を 使う → クリアの ごほうびが 2回 入らない ように 消す
+    this.sys.settings.data = {};
   }
 
   preload(): void {
