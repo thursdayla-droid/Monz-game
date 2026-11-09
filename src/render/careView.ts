@@ -12,7 +12,8 @@ export const CARE_SPECIES = ['zipp', 'puni', 'klak', 'riot', 'snek', 'grit', 'vy
 const SIZE = info as Record<string, { w: number; h: number }>;
 export const careKey = (sp: string) => `care:${sp}`;
 export const careFaceKey = (sp: string) => `care:${sp}:face`;
-export const hasCareImage = (sp: string): boolean => (CARE_SPECIES as readonly string[]).includes(sp);
+// 進化した 姿(<種族>_f2 / _f3。2026-11-09)も お世話用の 絵
+export const hasCareImage = (sp: string): boolean => (CARE_SPECIES as readonly string[]).includes(sp) || /_f[23]$/.test(sp);
 export const careFiles = (sp: string): { key: string; url: string }[] =>
   hasCareImage(sp) ? [{ key: careKey(sp), url: `assets/care/${sp}.webp` }, { key: careFaceKey(sp), url: `assets/care/${sp}_face.webp` }] : [];
 

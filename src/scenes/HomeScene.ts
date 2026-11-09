@@ -17,6 +17,7 @@ import { BUNK_MOTION, BunkView, cutoutKey, TEST_PERSONALITY } from '../render/bu
 import { FIRST_MONZ } from '../core/questions';
 import { MOFU_CUTOUT_KEY, MofuView } from '../render/mofuView';
 import { CareView, careFaceKey, careKey, hasCareImage, loadCare } from '../render/careView';
+import { careArtId, evoName, evolvedAt } from '../core/evolution';
 import { drawCoin, drawHeart, drawIcon, drawMeat, drawMeatImage, drawMenuButton, drawPanel } from '../ui/homeArt';
 import { canvasTexture, canvasTextureOnce, drawPaper, UI_FONT } from '../ui/paint';
 import { openSoundSettings } from '../ui/soundButton';
@@ -85,6 +86,8 @@ export class HomeScene extends Phaser.Scene {
   /** お世話しているMONZの姿(種族で変わる。2026-11-03 MOFU) */
   private view?: BunkView | MofuView | CareView;
   private species = 'bunk';
+  /** お世話用の 絵の 名前(進化すると <種族>_f2 / _f3) */
+  private art = 'bunk';
   private life?: MonzLife;
   private shadow?: Phaser.GameObjects.Ellipse;
   private zText?: Phaser.GameObjects.Text;
@@ -127,10 +130,13 @@ export class HomeScene extends Phaser.Scene {
   preload(): void {
     // MOFU のときは MOFU の絵も読む(2026-11-03)。BUNK の絵は ほかの画面でも使うので いつも読む
     const life0 = loadLife();
-    const sp = (life0.monz.find((m) => m.uid === life0.activeMonz) ?? life0.monz[0])?.species;
+    const m0 = life0.monz.find((m) => m.uid === life0.activeMonz) ?? life0.monz[0];
+    const sp = m0?.species;
     preloadPacks(this, sp === 'mofu' ? ['bunk', 'mofu', 'home'] : ['bunk', 'home']);
     // ほかの 種族は 企画者の お世話用の 絵(2026-11-08)
     if (sp) loadCare(this.load, sp);
+    // 進化した 姿(2026-11-09 企画者 Lv.30・Lv.60)
+    if (sp && m0 && careArtId(sp, m0.level) !== sp) loadCare(this.load, careArtId(sp, m0.level));
     preloadFurniture(this, loadLife().inventory.owned);
   }
 
@@ -138,6 +144,7 @@ export class HomeScene extends Phaser.Scene {
     this.t = 0;
     this.busy = false;
     this.resetting = false;
+    this.evolving = false;
     this.view = undefined;
     // 前に開いたときの手のカーソル・吹き出しは、画面を閉じたときに消えているので作り直す(残っていると手が出なくなる)
     this.strokeHand = undefined;
@@ -174,8 +181,12 @@ export class HomeScene extends Phaser.Scene {
     this.life = life;
     this.shadow = this.add.ellipse(life.x, life.y, 300, 46, 0x000000, 0.28);
     this.species = record.monz.species;
+    // 進化して いれば 進化した 姿の 絵(お世話用の 絵の 名前 <種族>_f2 / _f3)
+    this.art = careArtId(this.species, record.level);
     const view =
-      this.species === 'mofu'
+      this.art !== this.species && this.textures.exists(careKey(this.art))
+        ? new CareView(this, life.x, life.y, this.scaleRange[0], this.art)
+        : this.species === 'mofu'
         ? new MofuView(this, life.x, life.y, this.scaleRange[0])
         : hasCareImage(this.species) && this.textures.exists(careKey(this.species))
           ? new CareView(this, life.x, life.y, this.scaleRange[0], this.species)
@@ -222,7 +233,7 @@ export class HomeScene extends Phaser.Scene {
       this.moveOutOfFurniture();
     };
 
-    this.buildTop(record.monz.name ?? speciesName(monz));
+    this.buildTop(record.monz.name ?? evoName(monz, record.level) ?? speciesName(monz));
     this.buildMenu();
     // 公開ページ(main)では 開発用ボタンを 出さない(2026-11-08 企画者「開発用ボタンは 外す」)
     if ((import.meta.env as Record<string, string | undefined>).VITE_RELEASE !== '1') this.buildTestButtons();
@@ -231,6 +242,17 @@ export class HomeScene extends Phaser.Scene {
     if (this.pendingPlace) this.startEdit(this.pendingPlace);
     // 2026-11-08 全画面: 画面が のびた ぶん、上の 表示は いちばん 上・下の ボタンは いちばん 下へ(fillTall の あと)
     this.events.once(Phaser.Scenes.Events.CREATE, () => this.anchorUi());
+    // 進化した あと: 新しい 姿と「○○ に 進化した！」
+    if (HomeScene.evolvedMsg) {
+      const msg = HomeScene.evolvedMsg;
+      HomeScene.evolvedMsg = '';
+      this.cameras.main.flash(700, 255, 255, 255);
+      audio.se('cheer');
+      const t = this.text(W / 2, 470, msg, 52, '#ffd23a').setDepth(DEPTH.popup).setScale(0.3);
+      this.tweens.add({ targets: t, scale: 1, duration: 500, ease: 'Back.easeOut' });
+      this.tweens.add({ targets: t, alpha: 0, y: t.y - 60, delay: 3000, duration: 600, onComplete: () => t.destroy() });
+      this.hearts(5);
+    }
 
     this.cameras.main.fadeIn(400, 0, 0, 0);
     audio.playBgm('home');
@@ -294,9 +316,10 @@ export class HomeScene extends Phaser.Scene {
     card.add(this.add.image(0, 0, 'home:card').setOrigin(0, 0));
     // 顔(正式なBUNKの絵から切り抜く)
     canvasTexture(this, 'home:portrait', 116, 116, (ctx) => {
-      const care = hasCareImage(this.species) && this.textures.exists(careFaceKey(this.species));
+      const faceSp = this.textures.exists(careFaceKey(this.art)) ? this.art : this.species;
+      const care = hasCareImage(faceSp) && this.textures.exists(careFaceKey(faceSp));
       const mofu = care || (this.species === 'mofu' && this.textures.exists(MOFU_CUTOUT_KEY));
-      const src = this.textures.get(care ? careFaceKey(this.species) : mofu ? MOFU_CUTOUT_KEY : cutoutKey('guard')).getSourceImage() as HTMLImageElement;
+      const src = this.textures.get(care ? careFaceKey(faceSp) : mofu ? MOFU_CUTOUT_KEY : cutoutKey('guard')).getSourceImage() as HTMLImageElement;
       const r = 54;
       ctx.save();
       ctx.beginPath();
@@ -415,6 +438,9 @@ export class HomeScene extends Phaser.Scene {
       lv.setText(`Lv. ${record.level}`);
       if (e.type === 'levelUp') {
         this.levelUp(e.level, e.gain, e.learned);
+        // 進化(2026-11-09 企画者「光って 変身」)
+        const f = evolvedAt(e.level - 1, e.level);
+        if (f) this.time.delayedCall(2600, () => this.evolve(e.level));
         return;
       }
       // 経験値が増えただけのとき: ゲージは上で描き直した(なでる・ごはんと同時に動く。企画者 2026-10-28)
@@ -443,7 +469,7 @@ export class HomeScene extends Phaser.Scene {
   /** 今の行動に合う姿の絵(なければ null = ふつうのBUNKを動かす) */
   private poseFor(): BunkPoseImage | null {
     // 姿の絵(座る・眠るなど)は BUNK だけ(MOFU の絵は まだない)
-    if (this.species !== 'bunk') return null;
+    if (this.species !== 'bunk' || this.art !== this.species) return null;
     const life = this.life!;
     // 眠っているときは、なでられていても眠った姿のまま
     if (life.act === 'sleep' && this.textures.exists(bunkPoseKey('sleep'))) return 'sleep';
@@ -534,6 +560,29 @@ export class HomeScene extends Phaser.Scene {
   }
 
   /** レベルアップの演出 */
+  /** 進化: まぶしく 光って 白く なり、新しい 姿で 画面を 作りなおす(2026-11-09 企画者) */
+  private evolve(level: number): void {
+    if (this.resetting || this.evolving) return;
+    this.evolving = true;
+    // 何レベルも 一度に 上がった 時も 今の 姿の 名前
+    const name = evoName(this.species, Math.max(level, this.record?.level ?? level));
+    const view = this.view;
+    audio.se('mcSpecial');
+    if (view) {
+      this.tweens.add({ targets: view, alpha: { from: 1, to: 0.2 }, duration: 120, yoyo: true, repeat: 6 });
+    }
+    const glow = this.add.circle(this.life?.x ?? W / 2, (this.life?.y ?? 900) - 200, 40, 0xfff6c8, 0.9).setDepth(DEPTH.popup);
+    this.tweens.add({ targets: glow, scale: 30, alpha: 1, duration: 1500, ease: 'Quad.easeIn' });
+    this.time.delayedCall(1500, () => {
+      this.cameras.main.flash(500, 255, 255, 255);
+      HomeScene.evolvedMsg = `${name} に 進化した！`;
+      this.scene.restart();
+    });
+  }
+  private evolving = false;
+  /** 進化した あとに 出す 文字(画面を 作りなおした あと) */
+  static evolvedMsg = '';
+
   private levelUp(level: number, gain: StatBlock, learned: string[] = []): void {
     audio.se('sting');
     const gains = STAT_KEYS.filter((k) => gain[k] > 0)
