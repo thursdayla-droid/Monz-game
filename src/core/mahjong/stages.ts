@@ -65,6 +65,8 @@ export const STAGES: readonly StageInfo[] = [
     art: WOLVES,
     // 2026-11-09 企画者の 背景(地下水路)
     bg: 'stage3',
+    // 2026-11-09 企画者の 話の 1枚絵(たいまつの 勇者と 水の 中の ワニ団)
+    storyArt: 'stage3',
     tint: 0x9cff8a,
   },
   {
