@@ -68,6 +68,8 @@ export const STAGES: readonly StageInfo[] = [
     levels: [3, 4, 3],
     gold: 350,
     art: WOLVES,
+    // 2026-11-09 企画者の 背景(夕やけの 城の 門)
+    bg: 'stage4',
     tint: 0xffb36a,
   },
   {
