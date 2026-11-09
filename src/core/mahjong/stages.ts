@@ -49,7 +49,8 @@ export const STAGES: readonly StageInfo[] = [
     enemyHp: 50000,
     levels: [2, 3, 2],
     gold: 250,
-    art: WOLVES,
+    // 2026-11-09 企画者の ノラネコ団(ボス＝王冠の 太った ネコ・子分A＝フードの ネコ・子分B＝ニット帽の ネコ)
+    art: { boss: 's2_boss', minionA: 's2_minion_a', minionB: 's2_minion_b' },
     // 2026-11-09 企画者の 背景(月夜の 屋上)
     bg: 'stage2',
     // 2026-11-09 企画者の 話の 1枚絵(屋根の 上の ノラネコ団)
