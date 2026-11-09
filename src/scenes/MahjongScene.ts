@@ -29,7 +29,9 @@ const LEVELS: (1 | 2 | 3 | 4 | 5)[] = [1, 2, 3, 2];
  * 勇者は 自分の MONZ(お世話用の 絵が ある 種族。ない 時は ZIPP)。敵は【仮】ボス RIOT・子分 SNEK／GRIT。
  * 絵は あとで 企画者の 絵に 入れかえ【仮】
  */
-const ENEMY_SPECIES: Record<number, string> = { 1: 'snek', 2: 'riot', 3: 'grit' };
+/** 敵の 絵(2026-11-08 企画者が ChatGPT で 作った オオカミ。左を 向いている)。1 = 子分A(黄色)・2 = ボス・3 = 子分B(青紫) */
+const ENEMY_ART: Record<number, string> = { 1: 'minion_a', 2: 'boss', 3: 'minion_b' };
+const CHAR_FILES = ['boss', 'minion_a', 'minion_b', 'shop'].flatMap((n) => [n, `${n}_face`]);
 const heroSpecies = (): string => {
   try {
     const sp = loadLife().monz[0]?.species;
@@ -80,7 +82,8 @@ export class MahjongScene extends Phaser.Scene {
   preload(): void {
     for (const f of TILE_FILES) if (!this.textures.exists(`mj:${f}`)) this.load.image(`mj:${f}`, assetUrl(`assets/mahjong/${f}.webp`));
     this.heroSp = heroSpecies();
-    for (const sp of new Set([this.heroSp, ...Object.values(ENEMY_SPECIES)])) for (const f of careFiles(sp)) if (!this.textures.exists(f.key)) this.load.image(f.key, assetUrl(f.url));
+    for (const f of careFiles(this.heroSp)) if (!this.textures.exists(f.key)) this.load.image(f.key, assetUrl(f.url));
+    for (const n of CHAR_FILES) if (!this.textures.exists(`mjc:${n}`)) this.load.image(`mjc:${n}`, assetUrl(`assets/mahjong/chars/${n}.webp`));
   }
 
   create(): void {
@@ -137,25 +140,26 @@ export class MahjongScene extends Phaser.Scene {
   private buildActors(): void {
     this.actors.forEach((a) => a.destroy());
     this.actors = [0, 1, 2, 3].map((seat) => {
-      const sp = seat === 0 ? this.heroSp : ENEMY_SPECIES[seat];
+      const sp = this.heroSp;
+      const faceKey = seat === 0 ? (this.textures.exists(careFaceKey(sp)) ? careFaceKey(sp) : careKey(sp)) : `mjc:${ENEMY_ART[seat]}_face`;
+      const bodyKey = seat === 0 ? careKey(sp) : `mjc:${ENEMY_ART[seat]}`;
       const big = seat === BOSS || seat === 0;
-      const r = big ? 56 : 46;
+      const r = seat === BOSS ? 46 : big ? 56 : 44;
       const c = this.add.container(0, 0).setDepth(5);
       const frame = this.add.graphics();
       const col = seat === 0 ? 0x3ad070 : seat === BOSS ? 0xff4a6a : 0x9b5cff;
       frame.fillStyle(0x16101c, 0.92).fillRoundedRect(-r, -r, r * 2, r * 2, 18);
       frame.lineStyle(5, col, 1).strokeRoundedRect(-r, -r, r * 2, r * 2, 18);
       c.add(frame);
-      const key = this.textures.exists(careFaceKey(sp)) ? careFaceKey(sp) : careKey(sp);
-      if (this.textures.exists(key)) {
-        const img = this.add.image(0, 2, key);
+      if (this.textures.exists(faceKey)) {
+        const img = this.add.image(0, 2, faceKey);
         img.setScale((r * 1.85) / Math.max(img.width, img.height));
-        if (seat !== 0) img.setFlipX(true);
         c.add(img);
       } else c.add(this.add.rectangle(0, 0, 1, 1, 0, 0));
       // 名前の 札
       const name = seat === 0 ? 'プレイヤー' : seat === BOSS ? 'ボス' : '子分';
-      const tag = this.text(0, r + 14, name, big ? 18 : 15, '#ffffff', 0);
+      // ボスは 下に 伏せた 牌が あるので 名前は 顔の 中の 下に
+      const tag = this.text(0, seat === BOSS ? r - 8 : r + 14, name, big ? 18 : 15, '#ffffff', 0);
       tag.setBackgroundColor(seat === 0 ? '#1f8a4a' : seat === BOSS ? '#d0304a' : '#5a34b0').setPadding(10, 3, 10, 3);
       c.add(tag);
       // ボスに 王冠
@@ -171,7 +175,7 @@ export class MahjongScene extends Phaser.Scene {
         cr.strokePath();
         c.add(cr);
       }
-      c.setData('sp', sp);
+      c.setData('face', faceKey).setData('body', bodyKey).setData('left', seat !== 0);
       this.tweens.add({ targets: c, scale: { from: 1, to: 1.04 }, duration: 900 + seat * 130, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
       return c;
     });
@@ -184,7 +188,7 @@ export class MahjongScene extends Phaser.Scene {
     const pos: [number, number][] = [
       [Math.max(80, sp / 2), 420],
       [cx + 330, 96],
-      [cx, 92],
+      [cx, 86],
       [cx - 330, 96],
     ];
     this.actors.forEach((a, i) => a.setPosition(pos[i][0], pos[i][1]).setData('home', pos[i]));
@@ -293,8 +297,8 @@ export class MahjongScene extends Phaser.Scene {
     g.fillGradientStyle(0x4a2290, 0x4a2290, 0x2c1260, 0x2c1260, 1).fillRoundedRect(cx - tw / 2, top, tw, bot - top, 34);
     g.lineStyle(7, 0xffb03a, 1).strokeRoundedRect(cx - tw / 2, top, tw, bot - top, 34);
     g.lineStyle(2, 0xffd23a, 0.5).strokeRoundedRect(cx - tw / 2 + 12, top + 12, tw - 24, bot - top - 24, 26);
-    g.fillStyle(0x16101c, 0.95).fillRoundedRect(cx - 98, cy - 88, 196, 176, 18);
-    g.lineStyle(4, 0xff8a3a, 1).strokeRoundedRect(cx - 98, cy - 88, 196, 176, 18);
+    g.fillStyle(0x16101c, 0.95).fillRoundedRect(cx - 98, cy - 76, 196, 152, 18);
+    g.lineStyle(4, 0xff8a3a, 1).strokeRoundedRect(cx - 98, cy - 76, 196, 152, 18);
     this.layer.add(g);
     this.drawCenter(cx, cy);
     // 河・鳴き・ほかの 人の 手
@@ -320,17 +324,17 @@ export class MahjongScene extends Phaser.Scene {
     const s = this.round;
     const g = this.mj;
     const wind = '東南西北'[g.roundWind - EAST] ?? '東';
-    this.layer.add(this.text(cx, cy - 66, `${wind}${g.kyoku + 1}局  ${g.honba}本場`, 21, '#ffd23a'));
-    this.layer.add(this.text(cx, cy - 42, `のこり ${s.live.length}  リーチ棒 ${s.cfg.sticks}`, 14, '#e8dcf4'));
+    this.layer.add(this.text(cx, cy - 56, `${wind}${g.kyoku + 1}局  ${g.honba}本場`, 21, '#ffd23a'));
+    this.layer.add(this.text(cx, cy - 34, `のこり ${s.live.length}  リーチ棒 ${s.cfg.sticks}`, 14, '#e8dcf4'));
     const ind = doraIndicators(s);
-    this.layer.add(this.text(cx - 70, cy - 10, 'ドラ', 14, '#ffb03a'));
-    ind.forEach((k, i) => this.layer.add(this.tile(cx - 40 + i * 27, cy - 10, kindTex(k), 25)));
+    this.layer.add(this.text(cx - 70, cy - 8, 'ドラ', 14, '#ffb03a'));
+    ind.forEach((k, i) => this.layer.add(this.tile(cx - 40 + i * 27, cy - 8, kindTex(k), 23)));
     // 4人の 点数(それぞれの 席の 向きに 置く。手番の 人は 黄色)
     const pos = [
-      [cx, cy + 70],
-      [cx + 52, cy + 46],
-      [cx, cy + 22],
-      [cx - 52, cy + 46],
+      [cx, cy + 62],
+      [cx + 52, cy + 41],
+      [cx, cy + 20],
+      [cx - 52, cy + 41],
     ];
     for (let i = 0; i < 4; i++) {
       const w = '東南西北'[seatWind(s, i) - EAST];
@@ -353,7 +357,7 @@ export class MahjongScene extends Phaser.Scene {
       const row = Math.min(3, Math.floor(i / 6));
       const col = i - row * 6 + (row === 3 ? 6 * 0 : 0);
       const x = -3 * rw + rw / 2 + (row === 3 ? i - 18 : col) * rw;
-      const y = 94 + row * rh + rh / 2;
+      const y = (seat % 2 === 0 ? 80 : 104) + row * rh + rh / 2;
       const img = this.tile(x, y, texOf(d.tile), rw, d.riichi ? Math.PI / 2 : 0);
       if (d.called) img.setAlpha(0.35);
       c.add(img);
@@ -365,16 +369,16 @@ export class MahjongScene extends Phaser.Scene {
     });
     if (seat === PLAYER_SEAT) return;
     // 伏せた 手(CPU)
-    const bw = 24;
+    // 2026-11-08 企画者「ボスの 牌 今 出てないから 表示して ほしい」→ ボスも 伏せた 手を 出す(顔の すぐ 下)
+    const bw = seat === BOSS ? 22 : 24;
+    const dy = seat === BOSS ? 226 : 300;
     const n = p.hand.length;
-    for (let i = 0; i < n; i++) if (seat !== BOSS) c.add(this.tile(-((n - 1) * bw) / 2 + i * bw, 300, 'mj:back', bw - 1));
-    // 鳴いた 牌
-    // ボスは 顔が 卓の 上に あるので 伏せた 手は 出さず、鳴いた 牌は 卓の 右上に
-    if (seat === BOSS) this.drawMelds(c, p.melds, -300, 218, 26);
-    else this.drawMelds(c, p.melds, ((n - 1) * bw) / 2 + 16, 300, 26);
+    for (let i = 0; i < n; i++) c.add(this.tile(-((n - 1) * bw) / 2 + i * bw, dy, 'mj:back', bw - 1));
+    // 鳴いた 牌(伏せた 手の 横)
+    this.drawMelds(c, p.melds, ((n - 1) * bw) / 2 + 16, dy, seat === BOSS ? 24 : 26);
     // 名前・リーチ
     if (p.riichi) {
-      const nameT = seat === BOSS ? this.text(170, 218, 'リーチ', 18, '#ffd23a', 5) : this.text(-((n - 1) * bw) / 2 - 50, 300, 'リーチ', 18, '#ffd23a', 5);
+      const nameT = this.text(-((n - 1) * bw) / 2 - 50, dy, 'リーチ', 18, '#ffd23a', 5);
       nameT.setRotation(-rot);
       c.add(nameT);
     }
@@ -545,16 +549,18 @@ export class MahjongScene extends Phaser.Scene {
 
   /** アガった 人の 顔が 横から 大きく 出る(約1.2秒) */
   private cutIn(seat: number, word: string, done: () => void): void {
-    const sp = this.actors[seat]?.getData('sp') as string;
+    const faceKey = this.actors[seat]?.getData('face') as string;
+    const left = this.actors[seat]?.getData('left') as boolean;
     const mine = seat === PLAYER_SEAT;
     const c = this.add.container(this.W / 2, H / 2).setDepth(85);
     const band = this.add.rectangle(0, 0, this.W + 40, 260, mine ? 0xffd23a : 0xff4a6a, 0.95).setAngle(-6);
     const band2 = this.add.rectangle(0, 0, this.W + 40, 230, 0x16101c, 0.92).setAngle(-6);
     c.add([band, band2]);
-    const face = this.textures.exists(careFaceKey(sp)) ? this.add.image(mine ? -this.W * 0.18 : this.W * 0.18, 0, careFaceKey(sp)) : null;
+    const face = this.textures.exists(faceKey) ? this.add.image(mine ? -this.W * 0.18 : this.W * 0.18, 0, faceKey) : null;
     if (face) {
       face.setScale(250 / face.height);
-      if (!mine) face.setFlipX(true);
+      // 右がわの 顔は 左を 向く(オオカミの 絵は もとから 左向き)
+      if (!mine && !left) face.setFlipX(true);
       c.add(face);
     }
     const t = this.text(mine ? this.W * 0.12 : -this.W * 0.12, 0, word, 110, mine ? '#ffd23a' : '#ff6a8a', 12);
@@ -642,18 +648,18 @@ export class MahjongScene extends Phaser.Scene {
 
   /** 結果の 右がわ: アガった 人が 相手に 飛びかかる 絵(自分なら 勇者 → 敵、敵なら 敵 → 勇者) */
   private attackScene(panel: Phaser.GameObjects.Container, winner: number, toEnemy: boolean): void {
-    const atkSp = this.actors[winner]?.getData('sp') as string;
-    const defSp = toEnemy ? (this.actors[BOSS]?.getData('sp') as string) : (this.actors[0]?.getData('sp') as string);
-    const mk = (sp: string, x: number, flip: boolean) => {
-      if (!this.textures.exists(careKey(sp))) return null;
-      const img = this.add.image(x, 60, careKey(sp)).setOrigin(0.5, 0.5);
-      img.setScale(200 / img.height).setFlipX(flip);
+    const who = (seat: number) => ({ key: this.actors[seat]?.getData('body') as string, left: this.actors[seat]?.getData('left') as boolean });
+    const mk = (a: { key: string; left: boolean }, x: number, faceRight: boolean) => {
+      if (!this.textures.exists(a.key)) return null;
+      const img = this.add.image(x, 60, a.key).setOrigin(0.5, 0.5);
+      // 左向きの 絵は 右を 向かせる 時に 反転・前向きの 絵は 右がわの 時だけ 反転
+      img.setScale(200 / img.height).setFlipX(faceRight ? a.left : !a.left);
       panel.add(img);
       return img;
     };
-    // 攻撃する 側は 左、受ける 側は 右(向かい合う)
-    const def = mk(defSp, 300, true);
-    const atk = mk(atkSp, 110, false);
+    // 攻撃する 側は 左(右を 向く)、受ける 側は 右(左を 向く)
+    const def = mk(who(toEnemy ? BOSS : 0), 300, false);
+    const atk = mk(who(winner), 110, true);
     if (!atk || !def) return;
     this.tweens.add({ targets: atk, x: 230, y: 40, angle: 12, duration: 180, delay: 80, yoyo: true, hold: 120, ease: 'Quad.easeIn' });
     this.time.delayedCall(260, () => {
