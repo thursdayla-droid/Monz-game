@@ -78,7 +78,8 @@ export const STAGES: readonly StageInfo[] = [
     enemyHp: 100000,
     levels: [4, 5, 4],
     gold: 500,
-    art: WOLVES,
+    // 2026-11-09 企画者の ボス(人間・ピンクの Tシャツと エナジードリンク)。子分2人は まだ【仮：オオカミ】
+    art: { boss: 's5_boss', minionA: 'minion_a', minionB: 'minion_b' },
     // 2026-11-09 企画者の 背景(城の 最上階)
     bg: 'stage5',
     tint: 0xff6a8a,

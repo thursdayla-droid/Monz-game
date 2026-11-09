@@ -28,8 +28,7 @@ const LEVELS: (1 | 2 | 3 | 4 | 5)[] = [1, 2, 3, 2];
  * 絵は すべて 企画者の 絵(主人公＝勇者・ボス・子分2匹。design/mahjong/chars/)。
  */
 /** 敵の 絵(2026-11-08 企画者が ChatGPT で 作った オオカミ。左を 向いている)。1 = 子分A(黄色)・2 = ボス・3 = 子分B(青紫) */
-const ENEMY_ART: Record<number, string> = { 1: 'minion_a', 2: 'boss', 3: 'minion_b' };
-const CHAR_FILES = ['hero', 'boss', 'minion_a', 'minion_b', 'shop'].flatMap((n) => [n, `${n}_face`]);
+const CHAR_FILES = ['hero', 'shop'].flatMap((n) => [n, `${n}_face`]);
 /** オートパス(鳴き・明槓を 聞かない。ロンは 聞く)。企画者 2026-11-08「オートパスが ほしい」 */
 let autoPass = false;
 /** CPU が 1手 打つ 間(ミリ秒) */
@@ -90,7 +89,8 @@ export class MahjongScene extends Phaser.Scene {
   preload(): void {
     for (const f of TILE_FILES) if (!this.textures.exists(`mj:${f}`)) this.load.image(`mj:${f}`, assetUrl(`assets/mahjong/${f}.webp`));
     if (this.st.bg && !this.textures.exists(`mj:bg:${this.st.bg}`)) this.load.image(`mj:bg:${this.st.bg}`, assetUrl(`assets/mahjong/bg/${this.st.bg}.webp`));
-    for (const n of CHAR_FILES) if (!this.textures.exists(`mjc:${n}`)) this.load.image(`mjc:${n}`, assetUrl(`assets/mahjong/chars/${n}.webp`));
+    const enemyFiles = [this.st.art.boss, this.st.art.minionA, this.st.art.minionB].flatMap((n) => [n, `${n}_face`]);
+    for (const n of [...CHAR_FILES, ...enemyFiles]) if (!this.textures.exists(`mjc:${n}`)) this.load.image(`mjc:${n}`, assetUrl(`assets/mahjong/chars/${n}.webp`));
   }
 
   create(): void {
@@ -154,7 +154,8 @@ export class MahjongScene extends Phaser.Scene {
     this.actors.forEach((a) => a.destroy());
     this.actors = [0, 1, 2, 3].map((seat) => {
       // 2026-11-09 企画者「主人公 これに しよう」→ 主人公は 企画者の 勇者の 絵(design/mahjong/chars/hero.png。正面向き)
-      const art = seat === 0 ? 'hero' : ENEMY_ART[seat];
+      // 敵の 絵は ステージごと(1 = 子分A・2 = ボス・3 = 子分B)
+      const art = seat === 0 ? 'hero' : seat === 2 ? this.st.art.boss : seat === 1 ? this.st.art.minionA : this.st.art.minionB;
       const faceKey = `mjc:${art}_face`;
       const bodyKey = `mjc:${art}`;
       const big = seat === BOSS || seat === 0;

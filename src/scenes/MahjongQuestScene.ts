@@ -60,7 +60,7 @@ export class MahjongQuestScene extends Phaser.Scene {
   }
 
   preload(): void {
-    for (const n of CHAR_FILES) if (!this.textures.exists(`mjc:${n}`)) this.load.image(`mjc:${n}`, assetUrl(`assets/mahjong/chars/${n}.webp`));
+    for (const n of [...CHAR_FILES, ...new Set(STAGES.flatMap((st) => [st.art.boss, st.art.minionA, st.art.minionB]))]) if (!this.textures.exists(`mjc:${n}`)) this.load.image(`mjc:${n}`, assetUrl(`assets/mahjong/chars/${n}.webp`));
     if (!this.textures.exists('mj:title')) this.load.image('mj:title', assetUrl('assets/mahjong/title.webp'));
     // 敵の 1枚絵の うしろに 使う ステージの 背景
     for (const st of STAGES) if (st.bg && !this.textures.exists(`mj:bg:${st.bg}`)) this.load.image(`mj:bg:${st.bg}`, assetUrl(`assets/mahjong/bg/${st.bg}.webp`));
@@ -186,9 +186,9 @@ export class MahjongQuestScene extends Phaser.Scene {
         const im = this.add.image(W / 2, H / 2, `mj:bg:${st.bg}`);
         im.setScale(Math.max(W / im.width, H / im.height)).setTint(0xb0a0c0);
       }
-      this.charImg('mjc:minion_b', W / 2 - 330, 470, 300, false);
-      this.charImg('mjc:minion_a', W / 2 + 330, 470, 300, false);
-      this.charImg('mjc:boss', W / 2, 500, 400, false);
+      this.charImg(`mjc:${st.art.minionB}`, W / 2 - 330, 470, 300, false);
+      this.charImg(`mjc:${st.art.minionA}`, W / 2 + 330, 470, 300, false);
+      this.charImg(`mjc:${st.art.boss}`, W / 2, 500, 400, false);
       const t1 = this.text(W / 2, 90, stageLabel, 40, '#ffd23a', 8);
       const t2 = this.text(W / 2, 160, `VS ${st.name}`, 64, '#ff6a8a', 10);
       this.tweens.add({ targets: [t1, t2], scale: { from: 2, to: 1 }, alpha: { from: 0, to: 1 }, duration: 380, ease: 'Back.easeOut' });
