@@ -63,6 +63,7 @@ export class MahjongQuestScene extends Phaser.Scene {
     for (const n of [...CHAR_FILES, ...new Set(STAGES.flatMap((st) => [st.art.boss, st.art.minionA, st.art.minionB]))]) if (!this.textures.exists(`mjc:${n}`)) this.load.image(`mjc:${n}`, assetUrl(`assets/mahjong/chars/${n}.webp`));
     if (!this.textures.exists('mj:title')) this.load.image('mj:title', assetUrl('assets/mahjong/title.webp'));
     // 敵の 1枚絵の うしろに 使う ステージの 背景
+    if (!this.textures.exists(`mj:story:${ENDING_ART}`)) this.load.image(`mj:story:${ENDING_ART}`, assetUrl(`assets/mahjong/story/${ENDING_ART}.webp`));
     for (const st of STAGES) if (st.storyArt && !this.textures.exists(`mj:story:${st.storyArt}`)) this.load.image(`mj:story:${st.storyArt}`, assetUrl(`assets/mahjong/story/${st.storyArt}.webp`));
     for (const st of STAGES) if (st.bg && !this.textures.exists(`mj:bg:${st.bg}`)) this.load.image(`mj:bg:${st.bg}`, assetUrl(`assets/mahjong/bg/${st.bg}.webp`));
   }
