@@ -49,22 +49,27 @@ describe('やめたら 最初から(企画者 2026-11-09)', () => {
   });
 });
 
-describe('アイテム(仕様書 6)', () => {
+describe('アイテム(企画者 2026-11-09)', () => {
   const win = (seat: number, from: number | null) => ({ kind: 'win' as const, delta: [0, 0, 0, 0], wins: [{ seat, from, paid: [0, 0, 0, 0], score: {} as never }] });
   const dmg = (toEnemy: number, toPlayer: number) => ({ toEnemy, toPlayer, hits: [{ winner: toEnemy ? 0 : 2, from: null, amount: toEnemy || toPlayer, target: (toEnemy ? 'enemy' : 'player') as 'enemy' | 'player' }] });
-  it('こんぼう 2倍・おまもり +3000・たま 最大HPの20%・やくそう 回復', async () => {
-    const { applyItem } = await import('./items');
-    expect(applyItem('konbou', dmg(8000, 0), win(0, 2), 30000).damage.toEnemy).toBe(16000);
-    expect(applyItem('omamori', dmg(8000, 0), win(0, 2), 30000).damage.toEnemy).toBe(11000);
-    expect(applyItem('tama', dmg(8000, 0), win(0, 2), 30000).damage.toEnemy).toBe(14000);
-    const y = applyItem('yakusou', dmg(8000, 0), win(0, 2), 30000);
-    expect([y.damage.toEnemy, y.heal, y.used]).toEqual([8000, 8000, true]);
+  it('値段: こんぼう・やくそう 200・たて 250・おまもり 300・つるぎ 500', async () => {
+    const { ITEMS } = await import('./items');
+    expect(ITEMS.map((i) => [i.id, i.price])).toEqual([['konbou', 200], ['yakusou', 200], ['tate', 250], ['omamori', 300], ['tsurugi', 500]]);
   });
-  it('攻撃系は 敵が アガった 時は 発動しない・てつのたては 半分', async () => {
+  it('こんぼう 1.5倍・おまもり 2倍・つるぎ 3倍＋同じだけ 回復(最大を こえる)・やくそう 回復', async () => {
+    const { applyItem } = await import('./items');
+    expect(applyItem('konbou', dmg(8000, 0), win(0, 2), 30000).damage.toEnemy).toBe(12000);
+    expect(applyItem('omamori', dmg(8000, 0), win(0, 2), 30000).damage.toEnemy).toBe(16000);
+    const t = applyItem('tsurugi', dmg(8000, 0), win(0, 2), 30000);
+    expect([t.damage.toEnemy, t.heal, t.overMax]).toEqual([24000, 24000, true]);
+    const y = applyItem('yakusou', dmg(8000, 0), win(0, 2), 30000);
+    expect([y.damage.toEnemy, y.heal, y.overMax]).toEqual([8000, 8000, false]);
+  });
+  it('攻撃系は 敵が アガった 時は 発動しない・てつのたては ダメージ 0', async () => {
     const { applyItem } = await import('./items');
     expect(applyItem('konbou', dmg(0, 8000), win(2, 0), 30000).used).toBe(false);
     const t = applyItem('tate', dmg(0, 8000), win(2, 0), 30000);
-    expect([t.damage.toPlayer, t.used]).toEqual([4000, true]);
+    expect([t.damage.toPlayer, t.used]).toEqual([0, true]);
     expect(applyItem('tate', dmg(8000, 0), win(0, 2), 30000).used).toBe(false);
   });
 });

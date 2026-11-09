@@ -96,11 +96,12 @@ export class MahjongScene extends Phaser.Scene {
   private hitWithItem(d: Damage, r: RoundResult | null): Damage {
     const e = applyItem(this.item, d, r, this.hp.enemyMax);
     this.hp = applyDamage(this.hp, e.damage);
-    if (e.heal) this.hp = { ...this.hp, player: Math.min(this.hp.playerMax, this.hp.player + e.heal) };
+    // ゆうしゃのつるぎは 最大を こえて よい(HP バーは いっぱいの まま・数字だけ 上がる)
+    if (e.heal) this.hp = { ...this.hp, player: e.overMax ? this.hp.player + e.heal : Math.max(this.hp.player, Math.min(this.hp.playerMax, this.hp.player + e.heal)) };
     if (e.used) {
       const name = itemInfo(this.item!)?.name ?? '';
       this.item = null;
-      this.itemFlash = `${name} 発動！${e.heal ? `  HP +${e.heal.toLocaleString()}` : ''}`;
+      this.itemFlash = `${name} 発動！${e.heal ? `  HP +${e.heal.toLocaleString()}` : ''}${e.damage.toPlayer === 0 && d.toPlayer > 0 ? '  ダメージを ふせいだ！' : ''}`;
     }
     return e.damage;
   }
@@ -549,7 +550,7 @@ export class MahjongScene extends Phaser.Scene {
       const g = this.add.graphics();
       g.fillStyle(0x16101c, 0.85).fillRoundedRect(x - 8, y - 32, w + 16, 62, 14);
       g.fillStyle(0x3a2a4a, 1).fillRoundedRect(x, y, w, 20, 10);
-      g.fillStyle(color, 1).fillRoundedRect(x, y, Math.max(0, (w * v) / max), 20, 10);
+      g.fillStyle(color, 1).fillRoundedRect(x, y, Math.max(0, Math.min(w, (w * v) / max)), 20, 10);
       g.lineStyle(2, 0xffffff, 0.8).strokeRoundedRect(x, y, w, 20, 10);
       this.ui.add(g);
       this.ui.add(this.text(x + w / 2, y - 15, `${label}  ${v.toLocaleString()}`, 16, '#ffffff'));
@@ -732,7 +733,7 @@ export class MahjongScene extends Phaser.Scene {
       }
       // 攻撃の 絵(右がわ)
       for (const h of d.hits) this.attackScene(panel, h.winner, h.target === 'enemy');
-      if (d.hits.length) this.time.delayedCall(450, () => this.damageText(panel, d));
+      if (d.hits.length || this.itemFlash) this.time.delayedCall(450, () => this.damageText(panel, d));
       this.redrawHudOnly();
       for (const h of d.hits) this.attackAnim(h.winner, h.target === 'enemy' ? [1, 2, 3] : [0]);
       this.time.delayedCall(d.hits.length ? 900 : 100, () => {
