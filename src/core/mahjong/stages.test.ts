@@ -38,3 +38,13 @@ describe('MAHJONG QUEST の ステージ(企画者 2026-11-09)', () => {
     expect(loadProgress(s)).toMatchObject({ stage: 4, lap: 1, gold: 0 });
   });
 });
+
+describe('やめたら 最初から(企画者 2026-11-09)', () => {
+  it('resetRun で ステージ・周・ゴールド・持ち物が もどる(クリア回数は 残る)', async () => {
+    const { resetRun } = await import('./progress');
+    const p = newProgress();
+    Object.assign(p, { stage: 3, lap: 2, gold: 900, items: { a: 1 }, clears: 8 });
+    resetRun(p);
+    expect(p).toEqual({ ...newProgress(), clears: 8 });
+  });
+});

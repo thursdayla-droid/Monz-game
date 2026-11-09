@@ -71,3 +71,11 @@ export function clearStage(p: MjProgress, gold: number): { lapUp: boolean } {
   p.stage++;
   return { lapUp: false };
 }
+
+/**
+ * はじめから(2026-11-09 企画者「やめなければ 続きから。一度 やめたら 最初の ステージから」)。
+ * ステージ・周・ゴールド・持ち物を もどす。クリアした 回数(記録)だけ 残す
+ */
+export function resetRun(p: MjProgress): void {
+  Object.assign(p, { ...newProgress(), clears: p.clears });
+}

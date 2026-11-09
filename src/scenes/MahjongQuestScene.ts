@@ -1,8 +1,8 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { assetUrl } from '../assetUrl';
-import { clearStage, loadProgress, saveProgress, type MjProgress } from '../core/mahjong/progress';
-import { ENDING_STORY, STAGE_COUNT, stageAt } from '../core/mahjong/stages';
+import { clearStage, loadProgress, resetRun, saveProgress, type MjProgress } from '../core/mahjong/progress';
+import { ENDING_STORY, STAGE_COUNT, STAGES, stageAt } from '../core/mahjong/stages';
 import { UI_FONT } from '../ui/paint';
 import { fillSize, viewRatio, watchViewport } from '../ui/viewport';
 
@@ -22,6 +22,24 @@ export interface QuestParams {
 const CHAR_FILES = ['hero', 'boss', 'minion_a', 'minion_b'];
 /** タイトルの 絵(2026-11-09 企画者。design/mahjong/title.png。たて長)。絵の 中の ボタンの 場所(元の 絵 934×1685 の 座標) */
 const TITLE_ART = { w: 934, h: 1685, start: [118, 1318, 816, 1482], howto: [226, 1500, 708, 1636] } as const;
+
+/** この 回の 遊びで 麻雀クエストを 遊んでいる 途中か(アプリを 閉じると 消える) */
+const SESSION_KEY = 'monz:mahjong:playing';
+const sessionFlag = (): boolean => {
+  try {
+    return globalThis.sessionStorage?.getItem(SESSION_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+const setSessionFlag = (on: boolean): void => {
+  try {
+    if (on) globalThis.sessionStorage?.setItem(SESSION_KEY, '1');
+    else globalThis.sessionStorage?.removeItem(SESSION_KEY);
+  } catch {
+    /* 使えなくても 続ける */
+  }
+};
 
 export class MahjongQuestScene extends Phaser.Scene {
   private W = 1280;
@@ -43,13 +61,18 @@ export class MahjongQuestScene extends Phaser.Scene {
     for (const n of CHAR_FILES) if (!this.textures.exists(`mjc:${n}`)) this.load.image(`mjc:${n}`, assetUrl(`assets/mahjong/chars/${n}.webp`));
     if (!this.textures.exists('mj:title')) this.load.image('mj:title', assetUrl('assets/mahjong/title.webp'));
     // 敵の 1枚絵の うしろに 使う ステージの 背景
-    const bg = stageAt(loadProgress().stage, 1).bg;
-    if (bg && !this.textures.exists(`mj:bg:${bg}`)) this.load.image(`mj:bg:${bg}`, assetUrl(`assets/mahjong/bg/${bg}.webp`));
+    for (const st of STAGES) if (st.bg && !this.textures.exists(`mj:bg:${st.bg}`)) this.load.image(`mj:bg:${st.bg}`, assetUrl(`assets/mahjong/bg/${st.bg}.webp`));
   }
 
   create(): void {
     this.busy = false;
     this.prog = loadProgress();
+    // アプリを 開きなおした 時は 最初の ステージから(この 回の 遊びの 間だけ 続きから。企画者 2026-11-09)
+    if (!sessionFlag()) {
+      resetRun(this.prog);
+      saveProgress(this.prog);
+      setSessionFlag(true);
+    }
     // クリアの ごほうびは ここで 1回だけ 足して 保存
     if (this.mode === 'clear') {
       const { lapUp } = clearStage(this.prog, this.params.gold ?? 0);
@@ -287,6 +310,10 @@ export class MahjongQuestScene extends Phaser.Scene {
     b.on('pointerup', () => {
       audio.se('back');
       if ((window as { __MONZ_START?: string }).__MONZ_START === 'MahjongQuest') return;
+      // 麻雀クエストを やめたら 次は 最初の ステージから
+      resetRun(this.prog);
+      saveProgress(this.prog);
+      setSessionFlag(false);
       this.scene.start('MinigameSelect');
     });
   }
