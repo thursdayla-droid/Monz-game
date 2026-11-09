@@ -15,7 +15,12 @@ describe('roster (all characters: 10 species x 3 forms)', () => {
     expect(formOf('bunk', 60)?.form).toBe(3);
   });
   it('only species with a 3D model use one (others are the placeholder monster)', () => {
-    expect(Object.keys(MODEL_FILES)).toHaveLength(31); // + CROWNOR(2026-11-06)
+    expect(Object.keys(MODEL_FILES)).toHaveLength(32); // + CROWNOR(2026-11-06)・CROWNIE(2026-11-09)
+    // CROWNIE は 企画者の モデル(2026-11-09)。CROWNIX は まだ ない → CROWNIE の モデル。CROWNOR は 自分の モデル
+    expect(modelFor('crownie', 1)?.file).toContain('crownie.glb');
+    expect(modelFor('crownie', 30)?.file).toContain('crownie.glb');
+    expect(modelFor('crownie', 60)?.file).toContain('crownor.glb');
+    expect(modelFor('crownie', 1)?.hue).toBeUndefined();
     expect(modelFor('bunk', 1)?.file).toContain('bunk.glb');
     expect(modelFor('bunk', 30)?.file).toContain('bunker.glb');
     expect(modelFor('bunk', 60)?.file).toContain('bunklord.glb');

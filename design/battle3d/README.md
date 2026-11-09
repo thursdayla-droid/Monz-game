@@ -64,3 +64,9 @@
 - 骨は BUNK と 同じ 名前の 78本。主な骨（腰・頭・腕・手・足）の 場所と、その骨で 動く 頂点の 場所を 比べた → 左右 そろっていて、BUNKLORD のような ずれは ない。
 - 前の腕の骨が マントの すそ（地面近く）まで 動かす。腕を 振ると マントも いっしょに 動く。
 - CROWNIE・CROWNIX の モデルは まだない（BUNK の 体を 紫っぽくして 代わり。`roster.ts` の `MODEL_STANDIN`）。
+
+## CROWNIE（第1形態・2026-11-09）
+- `crownie/crownie_tripo_original.glb`：企画者がくれた骨入りモデル（Tripo・元のまま・19MB）。ゲーム用：`public/assets/battle3d/crownie.glb`（軽くした・571KB。CROWNOR と 同じ 手順）。
+- 骨は BUNK と 同じ 名前の 78本。バトルで 歩く・パンチで 形が くずれないのを 見た。
+- BUNK の 体を 借りる 代わり（MODEL_STANDIN）は やめた。CROWNIX（第2形態）は モデルが 来るまで CROWNIE の モデル。
+- 確認用ページは 3Dバトル2（`--b3d2`）。15MB に 入れるため、このページだけ BUNKLORD を はずした。

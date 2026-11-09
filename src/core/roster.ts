@@ -63,6 +63,8 @@ export const MODEL_FILES: Record<string, string> = {
   'shellz:3': 'assets/battle3d/sheldozer.glb',
   // CROWNOR(CROWNIE の 最終進化。企画者の Tripo モデル・骨入り 2026-11-06。骨は BUNK と 同じ 78本・左右そろっている)。元は design/battle3d/crownie/
   'crownie:3': 'assets/battle3d/crownor.glb',
+  // CROWNIE(第1形態。企画者の Tripo モデル・骨入り 2026-11-09。骨は BUNK と 同じ 78本)。元は design/battle3d/crownie/crownie_tripo_original.glb
+  crownie: 'assets/battle3d/crownie.glb',
 };
 /**
  * 骨の動かし方(2026-11-04)。'quad:<歩き方>' = 四つ足の けもの(quadBones.ts の QUAD_STYLES)・'snake' = へび(snakeBones.ts)。
@@ -83,11 +85,12 @@ export const MODEL_HEIGHT = [1.55, 1.8, 2.0];
 
 /** そのレベルで使う3Dモデル(今の形態のモデルがなければ、1つ前の形態のモデル)。なければ null(仮のモンスター) */
 /** 3Dモデルが まだない 種族の 代わり(体を 借りる 種族・色の 回し方)【仮】。CROWNIE は 企画者が モデルを 作るまで BUNK の 体を 紫っぽく(2026-11-06) */
-export const MODEL_STANDIN: Record<string, { species: string; hue: number }> = { crownie: { species: 'bunk', hue: 1.4 } };
+// 2026-11-09 企画者が CROWNIE の モデルを くれた → 代わりは いらなく なった(CROWNIX は CROWNIE の モデルで 代わり)
+export const MODEL_STANDIN: Record<string, { species: string; hue: number }> = {};
 
 export function modelFor(species: string, level: number): { file: string; form: number; height: number; bones: boolean; amp: number; rig: ModelRig; hue?: number } | null {
   const sub = MODEL_STANDIN[species];
-  // その形態の モデルが ない時だけ 代わりの 体(CROWNIE・CROWNIX は まだ ない → BUNK の 体。CROWNOR は 企画者の モデル)
+  // その形態の モデルが ない時だけ 代わりの 体
   const own = MODEL_FILES[formAt(level) === 1 ? species : `${species}:${formAt(level)}`];
   if (sub && !own) {
     const m = modelFor(sub.species, level);
