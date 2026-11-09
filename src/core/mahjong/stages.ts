@@ -46,6 +46,8 @@ export const STAGES: readonly StageInfo[] = [
     levels: [2, 3, 2],
     gold: 250,
     art: WOLVES,
+    // 2026-11-09 企画者の 背景(月夜の 屋上)
+    bg: 'stage2',
     tint: 0x7fd4ff,
   },
   {
