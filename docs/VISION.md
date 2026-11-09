@@ -483,3 +483,4 @@
 - 2026-11-09：企画者の 話の 1枚絵（STAGE 1 の 前。勇者が 牌を にぎって 立ちあがる・うしろに オオカミ団。design/mahjong/story/stage1.png）。話の 場面は 絵を 画面いっぱいに（ゆっくり 少し 近づく）・文字は 下の 帯に。ほかの 話の 絵は 届いたら 入れる（stages.ts の storyArt・エンディングは story/ending.webp）
 - 2026-11-09：企画者の 話の 1枚絵（STAGE 2 の 前。月夜の 屋根の 上から ノラネコ団が 勇者を 見下ろす。design/mahjong/story/stage2.png）
 - 2026-11-09：企画者の 話の 1枚絵（STAGE 3 の 前。たいまつを 持つ 勇者・地下水路の 水から ワニの 目。design/mahjong/story/stage3.png）
+- 2026-11-09：企画者の 話の 1枚絵（STAGE 4 の 前。夕やけの 城の 門・腕を 組んだ ゴリラの 門番。design/mahjong/story/stage4.png）

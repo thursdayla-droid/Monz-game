@@ -78,6 +78,8 @@ export const STAGES: readonly StageInfo[] = [
     art: WOLVES,
     // 2026-11-09 企画者の 背景(夕やけの 城の 門)
     bg: 'stage4',
+    // 2026-11-09 企画者の 話の 1枚絵(夕やけの 城の 門と ゴリラの 門番)
+    storyArt: 'stage4',
     tint: 0xffb36a,
   },
   {
