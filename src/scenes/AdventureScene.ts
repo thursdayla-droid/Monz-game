@@ -71,6 +71,7 @@ const CSS = `
 .adv .rot{position:absolute;inset:0;z-index:40;display:none;align-items:center;justify-content:center;background:#0d0614f5}
 .adv .rot div{border:4px solid #ffd23a;border-radius:18px;background:#16101c;color:#ffd23a;font-weight:900;font-size:26px;padding:22px 30px;text-align:center}
 .adv .rot small{display:block;color:#fff;font-size:14px;margin-top:8px}
+.adv .rot .rback{position:absolute;left:calc(env(safe-area-inset-left) + 16px);top:calc(env(safe-area-inset-top) + 24px);background:#16101c;border:2px solid #ffd23a;color:#fff;font-weight:900;font-size:18px;padding:12px 18px;border-radius:12px;min-height:48px}
 @media (orientation:portrait){.adv .rot{display:flex}}
 `;
 
@@ -167,12 +168,14 @@ export class AdventureScene extends Phaser.Scene {
        <div class="bag"><div class="box"></div></div>
        <div class="msg"></div>
        <div class="result"><h1></h1><p class="prize"></p><div class="row"><button class="again">もう一度</button><button class="leave">もどる</button></div></div>
-       <div class="rot"><div>スマホを 横にしてね<small>冒険は 横画面で あそびます</small></div></div>`,
+       <div class="rot"><button class="rback">◀ もどる</button><div>スマホを 横にしてね<small>冒険は 横画面で あそびます</small></div></div>`,
     );
     document.body.appendChild(root);
     this.root = root;
     const $ = (s: string) => root.querySelector(s) as HTMLElement;
     $('.back').addEventListener('click', () => this.leave());
+    // 2026-11-09 企画者「横から 縦に すると 戻る 押せない」→「横にしてね」の 上にも もどる
+    $('.rback').addEventListener('click', () => this.leave());
     $('.leave').addEventListener('click', () => this.leave());
     $('.again').addEventListener('click', () => {
       audio.se('tap');

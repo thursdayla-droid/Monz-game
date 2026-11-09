@@ -82,6 +82,8 @@ const CSS = `
 .rmb .rot{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;background:#0d0614f5}
 .rmb .rot div{border:4px solid #ffd23a;border-radius:18px;background:#16101c;color:#ffd23a;font-weight:900;font-size:26px;padding:22px 30px;text-align:center}
 .rmb .rot small{display:block;color:#fff;font-size:14px;margin-top:8px}
+/* 2026-11-09 企画者「横から 縦に すると 左上の 戻る 押せない」→「横にしてね」の 上にも もどるを 出す(縦の メニューへ) */
+.rmb .rot .rback{position:absolute;left:calc(env(safe-area-inset-left) + 16px);top:calc(env(safe-area-inset-top) + 24px);background:#16101c;border:2px solid #ffd23a;color:#fff;font:900 18px ${UI_FONT};padding:12px 18px;border-radius:12px;min-height:48px}
 @media (orientation:portrait){.rmb .rot{display:flex}}
 .rmb .clear{background:#ffd23a;color:#16101c;border:3px solid #16101c;border-radius:12px;padding:6px 14px;font-weight:900}
 `;
@@ -101,8 +103,12 @@ function mount(scene: Phaser.Scene, html: string): HTMLDivElement {
   root.style.setProperty('--btn', `url('${assetUrl(BTN_FRAME)}')`);
   root.style.setProperty('--btncpu', `url('${assetUrl(BTN_CPU)}')`);
   // MONZ RUMBLE は スマホ横だけ(2026-11-05 企画者)。縦の あいだは「横にしてね」で おおう
-  root.innerHTML = `<div class="in">${html}</div><div class="rot"><div>スマホを 横にしてね<small>MONZ RUMBLE は 横画面で あそびます</small></div></div>`;
+  root.innerHTML = `<div class="in">${html}</div><div class="rot"><button class="rback">◀ もどる</button><div>スマホを 横にしてね<small>MONZ RUMBLE は 横画面で あそびます</small></div></div>`;
   document.body.appendChild(root);
+  (root.querySelector('.rback') as HTMLElement).addEventListener('click', () => {
+    audio.se('back');
+    scene.scene.start('BattleMenu');
+  });
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => root.remove());
   return root;
 }

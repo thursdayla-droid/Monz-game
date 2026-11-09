@@ -59,7 +59,7 @@ const game = new Phaser.Game({
 
 // 2026-11-08 企画者「全画面がいい」: たての 画面を スマホの 形まで のばす(背景を 広げる)
 /** 向きが 変わったら 作り直す 画面(作り直しても 遊んでいる 中身が 消えない メニュー・お世話画面) */
-const RELAYOUT_ON_ROTATE = new Set(['Title', 'Home', 'BattleMenu', 'MinigameSelect', 'CardTitle', 'RoomSelect']);
+const RELAYOUT_ON_ROTATE = new Set(['Title', 'Home', 'BattleMenu', 'MinigameSelect', 'CardTitle', 'RoomSelect', 'Shop', 'MythMode']);
 
 game.events.once(Phaser.Core.Events.READY, () => {
   for (const s of game.scene.scenes) {
@@ -109,8 +109,9 @@ document.addEventListener('touchend', (e) => {
 
 // もう 拡大されて しまった 時(前の 版で 拡大した・向きを 変えた など)は もとの 大きさに 戻す
 const vv = (globalThis as { visualViewport?: VisualViewport }).visualViewport;
-const resetZoom = () => {
-  if (!vv || vv.scale <= 1.01) {
+// 2026-11-09 企画者「横画面から 縦に すると サイズが 少し アップした 状態」→ 向きを 変えた 時は 拡大して いなくても 必ず 大きさを 決め直す
+const resetZoom = (force = false) => {
+  if (!force && (!vv || vv.scale <= 1.01)) {
     if (globalThis.scrollX || globalThis.scrollY) globalThis.scrollTo(0, 0);
     return;
   }
@@ -122,9 +123,12 @@ const resetZoom = () => {
   }
   globalThis.scrollTo(0, 0);
 };
-vv?.addEventListener('resize', resetZoom);
-globalThis.addEventListener('orientationchange', () => setTimeout(resetZoom, 300));
-setTimeout(resetZoom, 500);
+vv?.addEventListener('resize', () => resetZoom());
+globalThis.addEventListener('orientationchange', () => {
+  setTimeout(() => resetZoom(true), 300);
+  setTimeout(() => resetZoom(), 900);
+});
+setTimeout(() => resetZoom(), 500);
 
 // 開発中だけ、確認用にゲームを外から触れるようにする
 // 2026-11-08 企画者「やってる人のデータを消さないで」: iPhone などに「この ゲームの 保存データは 自動で 消さないで」と お願いする

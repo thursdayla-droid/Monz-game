@@ -173,6 +173,7 @@ const CSS = `
 .b3d .turn{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:#0d0614f2;z-index:30}
 .b3d .turn div{border:4px solid #ffd23a;border-radius:18px;background:#16101c;color:#ffd23a;font-weight:900;font-size:26px;padding:22px 30px;text-align:center}
 .b3d .turn small{display:block;color:#fff;font-size:14px;margin-top:8px}
+.b3d .turn .rback{position:absolute;left:calc(env(safe-area-inset-left) + 16px);top:calc(env(safe-area-inset-top) + 24px);background:#16101c;border:2px solid #ffd23a;color:#fff;font:900 18px ${UI_FONT};padding:12px 18px;border-radius:12px;min-height:48px}
 `;
 
 /**
@@ -335,8 +336,8 @@ export class Battle3DScene extends Phaser.Scene {
        <div class="pad"><div class="acts"><button class="jump" data-c="jump"><span class="lb">ジャンプ</span><span class="cd" style="height:0"></span></button><button class="dodge" data-c="dodge"><span class="lb">ガード</span><span class="cd" style="height:0"></span></button><button class="atk" data-c="punch"><span class="lb">こうげき</span><span class="cd" style="height:0"></span></button></div><div class="grid"></div></div>
        <div class="setup" style="background:linear-gradient(#0d0614a0,#0d0614c8),#0d0614 url('${assetUrl('assets/battle3d/sel_tech.webp')}') center/cover no-repeat"></div>
        ${isPreview() ? `<div class="dev"><button class="devOpen">確認用</button><div class="devPanel"><div>レベル ${[1, 10, 20, 25, 30, 60, 70].map((l) => `<button data-lv="${l}" class="${devPick?.level === l ? 'on' : ''}">${l}</button>`).join('')}</div><div>育て方 ${Object.keys(STYLE_LABEL).map((k) => `<button data-st="${k}" class="${devPick?.style === k ? 'on' : ''}">${STYLE_LABEL[k]}</button>`).join('')}</div><div>ステージ ${[['grassland', '草原'], ['street', 'ストリート'], ['champion', 'チャンピオン']].map(([k, n]) => `<button data-map="${k}" class="${(devPick?.map ?? DEFAULT_MAP) === k ? 'on' : ''}">${n}</button>`).join('')}</div><div>種族 ${(['bunk', 'mofu', 'zipp', 'puni', 'klak', 'riot', 'snek', 'grit', 'vybe', 'shellz', 'crownie'] as const).map((k) => `<button data-sp="${k}" class="${(devPick?.species ?? 'bunk') === k ? 'on' : ''}">${k.toUpperCase()}</button>`).join('')}</div><small>今の技: ${p.techs.map((n) => esc(getTech(n).name)).join("・")}</small></div></div>` : ''}
-       <div class="result"><h1></h1><div class="prize"></div><button class="again">もう一度</button><button class="leave">もどる</button></div>
-       <div class="turn"><div>スマホを 横にしてね<small>横にすると バトルが始まります</small></div></div>`,
+       <div class="result"><h1></h1><div class="prize"></div><button class="again">もう一度</button><button class="leave">もどる</button><button class="toTitle">タイトルへ</button></div>
+       <div class="turn"><button class="rback">◀ もどる</button><div>スマホを 横にしてね<small>横にすると バトルが始まります</small></div></div>`,
     );
     document.body.appendChild(root);
     this.root = root;
@@ -401,6 +402,16 @@ export class Battle3DScene extends Phaser.Scene {
       }
     }
     $('.leave').addEventListener('click', () => this.leave());
+    // 2026-11-09 企画者「敵 倒すと もう一度と 進む しかない → タイトルへ も」→ MONZ RUMBLE の はじめの 画面へ
+    $('.toTitle').addEventListener('click', () => {
+      audio.se('back');
+      this.scene.start('RumbleMode');
+    });
+    // 2026-11-09 企画者「横から 縦に すると 戻る 押せない」→「横にしてね」の 上にも もどる(縦の メニューへ)
+    $('.rback').addEventListener('click', () => {
+      audio.se('back');
+      this.scene.start('BattleMenu');
+    });
     $('.again').addEventListener('click', () => {
       audio.se('tap');
       this.scene.restart(this.params);
@@ -1305,6 +1316,9 @@ export class Battle3DScene extends Phaser.Scene {
     this.ui.resultPrize.style.display = prize ? 'block' : 'none';
     const leaveBtn = this.root?.querySelector('.leave') as HTMLElement | null;
     if (leaveBtn) leaveBtn.textContent = this.params.mode === 'story' ? (w === 0 ? 'すすむ' : 'ストーリーへ') : 'もどる';
+    // タイトルへ は ストーリーの 時だけ(バトルモードの もどるは もう タイトル)
+    const titleBtn = this.root?.querySelector('.toTitle') as HTMLElement | null;
+    if (titleBtn) titleBtn.style.display = this.params.mode === 'story' ? '' : 'none';
     this.ui.result.style.display = 'flex';
   }
 
