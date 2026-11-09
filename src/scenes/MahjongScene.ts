@@ -45,6 +45,13 @@ const kindTex = (k: Kind): string => (k < 27 ? `mj:${'mps'[Math.floor(k / 9)]}${
 
 type Wait = { kind: 'turn' } | { kind: 'react' } | { kind: 'result' } | { kind: 'none' };
 
+/** 色相(0〜1)から 色(虹色の 文字・光) */
+const hsvNum = (h: number, sat: number): number => {
+  const c = Phaser.Display.Color.HSVToRGB(h, sat, 1) as { r: number; g: number; b: number };
+  return (c.r << 16) | (c.g << 8) | c.b;
+};
+const hsvCss = (h: number, sat: number): string => `#${hsvNum(h, sat).toString(16).padStart(6, '0')}`;
+
 export class MahjongScene extends Phaser.Scene {
   private W = 1280;
   private mj!: GameState;
@@ -651,7 +658,10 @@ export class MahjongScene extends Phaser.Scene {
     // 2026-11-08 企画者「ロンされたら 敵の 顔・自分が アガったら 勇者の 顔が 一瞬」→ 顔の カットイン の あとで 結果
     if (r.kind === 'win') {
       const w = r.wins[0];
-      this.cutIn(w.seat, w.from === null ? 'ツモ！' : 'ロン！', () => this.resultPanel(r, d));
+      // 2026-11-09 企画者「満貫・役満の 演出を 少し 豪華に」→ 満貫 以上は 顔の あとに 大きな 文字
+      const LIMITS = ['満貫', '跳満', '倍満', '三倍満', '数え役満', '役満', 'ダブル役満', 'トリプル役満'];
+      const top = r.wins.map((x) => x.score.limit).filter((l) => l).sort((a, b) => LIMITS.indexOf(b) - LIMITS.indexOf(a))[0];
+      this.cutIn(w.seat, w.from === null ? 'ツモ！' : 'ロン！', () => (top ? this.bigWin(top, w.seat === PLAYER_SEAT, () => this.resultPanel(r, d)) : this.resultPanel(r, d)));
     } else this.resultPanel(r, d);
   }
 
@@ -681,6 +691,81 @@ export class MahjongScene extends Phaser.Scene {
       this.tweens.add({ targets: c, x: mine ? this.W * 2 : -this.W, duration: 200, ease: 'Quad.easeIn', onComplete: () => c.destroy() });
       done();
     });
+  }
+
+  /**
+   * 満貫 以上の 大きな アガリ(2026-11-09 企画者「少し 豪華に」)。
+   * 満貫: 金の 文字と キラキラ / 跳満・倍満: + 光の 線・画面が ゆれる / 三倍満・役満: + 虹色の 文字・白く 光る・長め
+   * 敵の アガリは 赤い 色(こわい 感じ)
+   */
+  private bigWin(limit: string, mine: boolean, done: () => void): void {
+    const tier = limit === '満貫' ? 1 : limit === '跳満' || limit === '倍満' ? 2 : 3;
+    const cx = this.W / 2;
+    const cy = H / 2;
+    const c = this.add.container(cx, cy).setDepth(86);
+    const main = mine ? 0xffd23a : 0xff4a6a;
+    const dim = this.add.rectangle(0, 0, this.W + 40, H + 40, 0x000000, 0).setInteractive();
+    c.add(dim);
+    this.tweens.add({ targets: dim, fillAlpha: 0.55, duration: 200 });
+    // 光の 線(まわる)
+    if (tier >= 2) {
+      const rays = this.add.graphics();
+      const n = tier === 3 ? 18 : 12;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2;
+        const a2 = a + Math.PI / n / 1.6;
+        rays.fillStyle(tier === 3 ? hsvNum(i / n, 0.6) : main, 0.28);
+        rays.fillTriangle(0, 0, Math.cos(a) * 1400, Math.sin(a) * 1400, Math.cos(a2) * 1400, Math.sin(a2) * 1400);
+      }
+      rays.setScale(0.2).setAlpha(0);
+      c.add(rays);
+      this.tweens.add({ targets: rays, scale: 1, alpha: 1, duration: 350, ease: 'Quad.easeOut' });
+      this.tweens.add({ targets: rays, angle: 360, duration: tier === 3 ? 5000 : 7000, repeat: -1 });
+    }
+    // 帯
+    const band = this.add.rectangle(0, 0, this.W + 60, tier === 3 ? 260 : 220, 0x16101c, 0.92).setStrokeStyle(6, main).setScale(1, 0);
+    c.add(band);
+    this.tweens.add({ targets: band, scaleY: 1, duration: 180, ease: 'Back.easeOut' });
+    // 文字
+    const size = tier === 3 ? 150 : tier === 2 ? 135 : 120;
+    const word = this.text(0, -6, `${limit}！`, size, mine ? '#ffd23a' : '#ff6a8a', 14).setScale(3).setAlpha(0);
+    word.setShadow(0, 8, '#000000', 0, true, true);
+    c.add(word);
+    this.tweens.add({ targets: word, scale: 1, alpha: 1, duration: 320, ease: 'Back.easeOut', delay: 80 });
+    // 虹色の 文字(三倍満・役満)
+    if (tier === 3) {
+      let hue = 0;
+      const ev = this.time.addEvent({ delay: 60, loop: true, callback: () => {
+        hue = (hue + 0.04) % 1;
+        word.setColor(hsvCss(hue, 0.55));
+      } });
+      c.once(Phaser.GameObjects.Events.DESTROY, () => ev.remove());
+    }
+    // キラキラ
+    const sparks = tier === 3 ? 46 : tier === 2 ? 30 : 18;
+    for (let i = 0; i < sparks; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const dist = 260 + Math.random() * (tier === 3 ? 520 : 380);
+      const st = this.text(0, 0, Math.random() < 0.5 ? '★' : '✦', 34 + Math.random() * 40, tier === 3 ? hsvCss(Math.random(), 0.5) : mine ? '#fff2a8' : '#ffb0c0').setAlpha(0);
+      c.add(st);
+      this.tweens.add({ targets: st, x: Math.cos(a) * dist, y: Math.sin(a) * dist * 0.6, alpha: { from: 1, to: 0 }, angle: Math.random() * 360, duration: 900 + Math.random() * 700, delay: 150 + Math.random() * 400, ease: 'Quad.easeOut' });
+    }
+    // 音・光・ゆれ
+    audio.se(tier === 3 ? 'koBlast' : 'mcSpecial');
+    this.time.delayedCall(200, () => audio.se(mine ? 'cheer' : 'mcDark'));
+    if (tier >= 2) this.cameras.main.shake(tier === 3 ? 500 : 280, tier === 3 ? 0.012 : 0.006);
+    if (tier === 3) this.cameras.main.flash(350, 255, 255, 255);
+    const ms = tier === 3 ? 2100 : tier === 2 ? 1600 : 1300;
+    let ended = false;
+    const end = () => {
+      if (ended) return;
+      ended = true;
+      this.tweens.add({ targets: c, alpha: 0, duration: 220, onComplete: () => c.destroy() });
+      done();
+    };
+    // さわると 先へ(早く 見たい 人)
+    this.time.delayedCall(500, () => dim.once('pointerdown', end));
+    this.time.delayedCall(ms, end);
   }
 
   /** 結果: 役を 1つずつ → さいごに 点数と いっしょに アガった 人が 相手を 攻撃 */

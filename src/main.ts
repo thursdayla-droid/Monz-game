@@ -35,6 +35,7 @@ import { MahjongScene } from './scenes/MahjongScene';
 import { MahjongQuestScene } from './scenes/MahjongQuestScene';
 import { applyCoinGifts } from './core/coinGift';
 import { fillTall, watchViewport } from './ui/viewport';
+import { installTextureBudget, trimTextures } from './render/texBudget';
 
 // 2026-11-09 企画者「公開してる ゲーム 友達たち やってるんだけど 100,000 コイン 追加できる？」→ 遊んでいる 人に 1回だけ
 applyCoinGifts();
@@ -62,8 +63,13 @@ const game = new Phaser.Game({
 const RELAYOUT_ON_ROTATE = new Set(['Title', 'Home', 'BattleMenu', 'MinigameSelect', 'CardTitle', 'RoomSelect', 'Shop', 'MythMode']);
 
 game.events.once(Phaser.Core.Events.READY, () => {
+  // 2026-11-09 企画者「長く 遊ぶと 重くなる のを 解決したい」: 画面が 変わったら 長く 使っていない 絵を メモリから 外す
+  installTextureBudget(game);
+  let trimT: ReturnType<typeof setTimeout> | undefined;
   for (const s of game.scene.scenes) {
     s.events.on(Phaser.Scenes.Events.CREATE, () => {
+      clearTimeout(trimT);
+      trimT = setTimeout(() => trimTextures(game), 1000);
       fillTall(s);
       // 2026-11-08 企画者「バトルセレクトで 横画面に してから 縦に したら 左上の 戻る 押せない」:
       // 画面の 大きさは 開いた 時の 向きで 決めるので、向きが 変わったら 作り直す(たての メニュー画面だけ)

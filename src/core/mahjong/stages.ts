@@ -97,7 +97,7 @@ export const STAGES: readonly StageInfo[] = [
     tint: 0xffb36a,
   },
   {
-    name: '城の あるじ',
+    name: '城の主',
     story: '城の いちばん 上で 待っていたのは、\n牌の 力で 街を 支配する 男と、その 手下の クマと カラスだった。\nさいごの 対局が はじまる！',
     enemyHp: 100000,
     levels: [4, 5, 4],
