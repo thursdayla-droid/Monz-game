@@ -484,3 +484,4 @@
 - 2026-11-09：企画者の 話の 1枚絵（STAGE 2 の 前。月夜の 屋根の 上から ノラネコ団が 勇者を 見下ろす。design/mahjong/story/stage2.png）
 - 2026-11-09：企画者の 話の 1枚絵（STAGE 3 の 前。たいまつを 持つ 勇者・地下水路の 水から ワニの 目。design/mahjong/story/stage3.png）
 - 2026-11-09：企画者の 話の 1枚絵（STAGE 4 の 前。夕やけの 城の 門・腕を 組んだ ゴリラの 門番。design/mahjong/story/stage4.png）
+- 2026-11-09：企画者の 話の 1枚絵（STAGE 5 の 前。城の 最上階へ 続く 階段・光る 金の 扉・ライオンの 像。design/mahjong/story/stage5.png）

@@ -92,6 +92,8 @@ export const STAGES: readonly StageInfo[] = [
     art: { boss: 's5_boss', minionA: 's5_minion_a', minionB: 's5_minion_b' },
     // 2026-11-09 企画者の 背景(城の 最上階)
     bg: 'stage5',
+    // 2026-11-09 企画者の 話の 1枚絵(城の 最上階へ 続く 階段と 金の 扉)
+    storyArt: 'stage5',
     tint: 0xff6a8a,
   },
 ];
