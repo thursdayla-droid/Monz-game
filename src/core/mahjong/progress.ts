@@ -1,5 +1,5 @@
 import type { KeyValueStore } from '../save';
-import { STAGE_COUNT } from './stages';
+import { MAX_LAP, STAGE_COUNT } from './stages';
 
 /**
  * MAHJONG QUEST の 進み具合(どの ステージ・何周目・ゴールド・持ち物)。
@@ -60,16 +60,21 @@ export function saveProgress(p: MjProgress, store = defaultStore()): void {
 }
 
 /** ステージ クリア: ゴールドを もらい、次の ステージへ(5つめなら 次の 周の 1つめ)。周が 変わったら true */
-export function clearStage(p: MjProgress, gold: number): { lapUp: boolean } {
+export function clearStage(p: MjProgress, gold: number): { lapUp: boolean; complete: boolean } {
   p.gold += gold;
   p.clears++;
   if (p.stage + 1 >= STAGE_COUNT) {
+    // 2周目の さいごで 完全クリア → 3周目は なし。はじめ(1周目の STAGE 1)から(企画者 2026-11-09)
+    if (p.lap >= MAX_LAP) {
+      Object.assign(p, { ...newProgress(), clears: p.clears });
+      return { lapUp: true, complete: true };
+    }
     p.stage = 0;
     p.lap++;
-    return { lapUp: true };
+    return { lapUp: true, complete: false };
   }
   p.stage++;
-  return { lapUp: false };
+  return { lapUp: false, complete: false };
 }
 
 /**

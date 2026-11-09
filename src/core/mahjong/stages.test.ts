@@ -73,3 +73,16 @@ describe('アイテム(企画者 2026-11-09)', () => {
     expect(applyItem('tate', dmg(8000, 0), win(0, 2), 30000).used).toBe(false);
   });
 });
+
+describe('2周目(企画者 2026-11-09)', () => {
+  it('2周目は 敵の HP が 倍', () => {
+    expect([0, 1, 2, 3, 4].map((i) => stageAt(i, 2).enemyHp)).toEqual([60000, 100000, 120000, 160000, 200000]);
+  });
+  it('2周目の さいごを クリアしたら 完全クリア・はじめから(3周目なし)', () => {
+    const p = newProgress();
+    Object.assign(p, { stage: 4, lap: 2, gold: 900, items: { konbou: 1 }, clears: 9 });
+    const r = clearStage(p, 750);
+    expect(r).toEqual({ lapUp: true, complete: true });
+    expect(p).toEqual({ ...newProgress(), clears: 10 });
+  });
+});

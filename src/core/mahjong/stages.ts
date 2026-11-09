@@ -119,6 +119,10 @@ export const STAGE_COUNT = STAGES.length;
 export const LOSE_MONZ_EXP = 3;
 /** エンディングの 1枚絵(まだ なら ファイルが ない) */
 export const ENDING_ART = 'ending';
+/** 何周まで あるか(企画者 2026-11-09「2周目 最後 終わったら 3周目は ナシ」) */
+export const MAX_LAP = 2;
+/** 2周目の さいごの エンディング【仮：文は Claude】 */
+export const FINAL_ENDING_STORY = '本当の 平和が 街に もどった！\n勇者の 名前は 伝説と なった。\nおめでとう！ 麻雀クエスト 完全 クリア！';
 export const ENDING_STORY = '街に 平和が もどった！\n…でも、どこかで まだ 牌の 音が する。\nもっと 強い 敵が 待つ 2周目へ！';
 
 /** その 周の その ステージ(2周目からは CPU が +1・ゴールド 1.5倍) */
@@ -126,5 +130,6 @@ export function stageAt(index: number, lap: number): StageInfo {
   const s = STAGES[index];
   const up = Math.max(0, lap - 1);
   const lv = (n: Level) => Math.min(5, n + up) as Level;
-  return { ...s, levels: [lv(s.levels[0]), lv(s.levels[1]), lv(s.levels[2])], gold: Math.round(s.gold * (lap >= 2 ? 1.5 : 1)), monzCoins: Math.round(s.monzCoins * (lap >= 2 ? 1.5 : 1)) };
+  // 2026-11-09 企画者「2周目は 敵の HP 1周目の 倍」
+  return { ...s, enemyHp: s.enemyHp * (lap >= 2 ? 2 : 1), levels: [lv(s.levels[0]), lv(s.levels[1]), lv(s.levels[2])], gold: Math.round(s.gold * (lap >= 2 ? 1.5 : 1)), monzCoins: Math.round(s.monzCoins * (lap >= 2 ? 1.5 : 1)) };
 }

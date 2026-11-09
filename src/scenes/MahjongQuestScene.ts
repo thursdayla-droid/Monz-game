@@ -2,7 +2,7 @@ import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { assetUrl } from '../assetUrl';
 import { clearStage, loadProgress, resetRun, saveProgress, type MjProgress } from '../core/mahjong/progress';
-import { ENDING_ART, ENDING_STORY, LOSE_MONZ_EXP, STAGE_COUNT, STAGES, stageAt } from '../core/mahjong/stages';
+import { ENDING_ART, ENDING_STORY, FINAL_ENDING_STORY, LOSE_MONZ_EXP, STAGE_COUNT, STAGES, stageAt } from '../core/mahjong/stages';
 import { LifeRecord, loadLife, LIFE_KEY } from '../core/lifeSave';
 import { UI_FONT } from '../ui/paint';
 import { fillSize, viewRatio, watchViewport } from '../ui/viewport';
@@ -83,6 +83,7 @@ export class MahjongQuestScene extends Phaser.Scene {
     // クリアの ごほうびは ここで 1回だけ 足して 保存
     // お世話の MONZ への ごほうび(コイン・経験値。企画者 2026-11-09)。クリア・負けの 時に 1回だけ
     this.monzReward = null;
+    this.complete = false;
     if (this.mode === 'clear' || this.mode === 'lose') {
       const st = stageAt(this.prog.stage, this.prog.lap);
       const r = this.mode === 'clear' ? { coins: st.monzCoins, exp: st.monzExp } : { coins: 0, exp: LOSE_MONZ_EXP };
@@ -96,7 +97,8 @@ export class MahjongQuestScene extends Phaser.Scene {
       }
     }
     if (this.mode === 'clear') {
-      const { lapUp } = clearStage(this.prog, this.params.gold ?? 0);
+      const { lapUp, complete } = clearStage(this.prog, this.params.gold ?? 0);
+      this.complete = complete;
       saveProgress(this.prog);
       this.params = { ...this.params, mode: lapUp ? 'ending' : 'clear' };
       if (lapUp) this.mode = 'ending';
@@ -184,11 +186,11 @@ export class MahjongQuestScene extends Phaser.Scene {
         im.setScale(Math.max(W / im.width, H / im.height));
         this.tweens.add({ targets: im, scale: im.scale * 1.04, duration: 6000, ease: 'Sine.easeOut' });
       } else this.charImg('mjc:hero', W / 2, 360, 360, false).setAlpha(0.35);
-      this.text(W / 2, 50, this.mode === 'ending' ? 'ENDING' : stageLabel, 36, '#ffd23a', 8);
+      this.text(W / 2, 50, this.mode === 'ending' ? (this.complete ? 'THE END' : 'ENDING') : stageLabel, 36, '#ffd23a', 8);
       // 文字は 下の 帯に(絵を かくさない ように)
       const box = this.add.graphics();
       box.fillStyle(0x16101c, 0.82).fillRoundedRect(W / 2 - 560, 520, 1120, 170, 20).lineStyle(4, 0xffd23a).strokeRoundedRect(W / 2 - 560, 520, 1120, 170, 20);
-      const msg = this.mode === 'ending' ? ENDING_STORY : st.story;
+      const msg = this.mode === 'ending' ? (this.complete ? FINAL_ENDING_STORY : ENDING_STORY) : st.story;
       const t = this.text(W / 2, 605, '', 28, '#ffffff');
       // 文字を 1文字ずつ
       let i = 0;
@@ -445,6 +447,8 @@ export class MahjongQuestScene extends Phaser.Scene {
 
   /** この 画面で MONZ に あげた ごほうび */
   private monzReward: { coins: number; exp: number } | null = null;
+  /** 2周目を おえて 完全クリアした(さいごの エンディング) */
+  private complete = false;
 
   private shopSay = 'いらっしゃい。\nいい モン あるぜ。';
 
