@@ -141,8 +141,17 @@ export class MahjongQuestScene extends Phaser.Scene {
     }
   }
 
+  /** 描きなおした 回数(前の 画面の タップ待ちが 残らない ように) */
+  private drawId = 0;
+  /** 話の 文字を 1文字ずつ 出す タイマー */
+  private typeEv?: Phaser.Time.TimerEvent;
+
   private draw(): void {
     this.children.removeAll(true);
+    this.typeEv?.remove();
+    this.typeEv = undefined;
+    this.input.off('pointerdown');
+    const myId = ++this.drawId;
     const W = this.W;
     const st = stageAt(this.prog.stage, this.prog.lap);
     const stageLabel = `${this.prog.lap >= 2 ? `${this.prog.lap}周目  ` : ''}STAGE ${this.prog.stage + 1}`;
@@ -168,10 +177,11 @@ export class MahjongQuestScene extends Phaser.Scene {
       const t = this.text(W / 2, 605, '', 28, '#ffffff');
       // 文字を 1文字ずつ
       let i = 0;
-      const ev = this.time.addEvent({ delay: 35, loop: true, callback: () => t.setText(msg.slice(0, ++i)) && i >= msg.length && ev.remove() });
+      const ev = (this.typeEv = this.time.addEvent({ delay: 35, loop: true, callback: () => t.setText(msg.slice(0, ++i)) && i >= msg.length && ev.remove() }));
       this.text(W / 2 + 470, 676, 'タップで つぎへ ▶', 18, '#e8dcf4', 4);
       // 押した 指で すぐ 次へ 進まない ように 少し 待ってから。文字の 途中で さわったら まず 全部 出す
       this.time.delayedCall(350, () => {
+        if (myId !== this.drawId) return;
         const onTap = () => {
           if (i < msg.length) {
             i = msg.length;
@@ -182,6 +192,19 @@ export class MahjongQuestScene extends Phaser.Scene {
           }
           audio.unlock();
           audio.se('next');
+          // テスト: 話だけ 見る(STAGE 1〜5 の 話 → エンディング → タイトル。進み具合は 変えない)
+          if (this.tour) {
+            if (this.mode === 'ending') {
+              this.prog.stage = this.tour.stage;
+              this.prog.lap = this.tour.lap;
+              this.tour = null;
+              this.go('title');
+            } else if (this.prog.stage + 1 < STAGE_COUNT) {
+              this.prog.stage++;
+              this.go('story');
+            } else this.go('ending');
+            return;
+          }
           if (this.mode === 'ending') this.go('title');
           else this.go('intro');
         };
@@ -283,6 +306,15 @@ export class MahjongQuestScene extends Phaser.Scene {
     // 【テスト用】確認用ページ・開発中だけ: ゴールドを 足して 道具屋へ(STAGE 2 から 遊べる 状態に)。2026-11-09 企画者「アイテム屋 見たい」
     const testOnly = (window as { __MONZ_START?: string }).__MONZ_START === 'MahjongQuest' || (import.meta.env as Record<string, unknown>).DEV;
     if (testOnly) {
+      const sb = this.text(W / 2, 162, 'テスト: 話と エンディングを 見る', 22, '#16101c', 0).setBackgroundColor('#ffb3e6').setPadding(14, 8, 14, 8).setInteractive({ useHandCursor: true });
+      sb.on('pointerdown', () => {
+        audio.unlock();
+        audio.se('select');
+        this.tour = { stage: this.prog.stage, lap: this.prog.lap };
+        this.prog.stage = 0;
+        this.prog.lap = 1;
+        this.go('story');
+      });
       const tb = this.text(W / 2, 110, 'テスト: +2000G で 道具屋へ', 22, '#16101c', 0).setBackgroundColor('#9fe0ff').setPadding(14, 8, 14, 8).setInteractive({ useHandCursor: true });
       tb.on('pointerdown', () => {
         audio.unlock();
@@ -391,6 +423,9 @@ export class MahjongQuestScene extends Phaser.Scene {
   }
 
   /** 道具屋(お店の ネコ・5つの アイテム・ゴールド) */
+  /** テスト: 話だけ 見ている 間(もとの ステージ・周を 覚えておく) */
+  private tour: { stage: number; lap: number } | null = null;
+
   private shopSay = 'いらっしゃい。\nいい モン あるぜ。';
 
   private drawShop(): void {
