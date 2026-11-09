@@ -162,7 +162,6 @@ export class MahjongScene extends Phaser.Scene {
       if (this.textures.exists(faceKey)) {
         const img = this.add.image(0, 2, faceKey);
         img.setScale((r * 1.85) / Math.max(img.width, img.height));
-        if (seat !== 0 && this.st.tint) img.setTint(this.st.tint);
         c.add(img);
       } else c.add(this.add.rectangle(0, 0, 1, 1, 0, 0));
       // 名前の 札

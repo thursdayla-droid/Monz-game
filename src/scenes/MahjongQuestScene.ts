@@ -154,9 +154,9 @@ export class MahjongQuestScene extends Phaser.Scene {
     if (this.mode === 'intro') {
       // 敵の 1枚絵【仮：絵が 届くまで 3匹を 並べる】
       this.bg(0x3a0a1a, 0x6a1a3a);
-      this.charImg('mjc:minion_b', W / 2 - 330, 470, 300, false, st.tint);
-      this.charImg('mjc:minion_a', W / 2 + 330, 470, 300, false, st.tint);
-      this.charImg('mjc:boss', W / 2, 500, 400, false, st.tint);
+      this.charImg('mjc:minion_b', W / 2 - 330, 470, 300, false);
+      this.charImg('mjc:minion_a', W / 2 + 330, 470, 300, false);
+      this.charImg('mjc:boss', W / 2, 500, 400, false);
       const t1 = this.text(W / 2, 90, stageLabel, 40, '#ffd23a', 8);
       const t2 = this.text(W / 2, 160, `VS ${st.name}`, 64, '#ff6a8a', 10);
       this.tweens.add({ targets: [t1, t2], scale: { from: 2, to: 1 }, alpha: { from: 0, to: 1 }, duration: 380, ease: 'Back.easeOut' });
