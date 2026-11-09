@@ -8,7 +8,7 @@ import info from './careImages.json';
  * 企画者の お世話用の 絵(design/species/<種族>/care_main_*.png)を 1枚の まま 出し、体ぜんたいで 動かす
  * (息・歩く 時の ぴょこぴょこ・寝る・うれしい/おこる)。パーツに 分けて 動かすのは あとで【仮】。絵は 描き直さない。
  */
-export const CARE_SPECIES = ['zipp', 'puni', 'klak', 'riot', 'snek', 'grit', 'vybe', 'shellz'] as const;
+export const CARE_SPECIES = ['zipp', 'puni', 'klak', 'riot', 'snek', 'grit', 'vybe', 'shellz', 'crownie'] as const;
 const SIZE = info as Record<string, { w: number; h: number }>;
 export const careKey = (sp: string) => `care:${sp}`;
 export const careFaceKey = (sp: string) => `care:${sp}:face`;

@@ -124,3 +124,11 @@ export function decideFirstMonz(answers: Answers, rnd: () => number = Math.rando
   for (const m of FIRST_MONZ) if ((r -= w[m]) < 0) return m;
   return FIRST_MONZ[FIRST_MONZ.length - 1];
 }
+
+/**
+ * かくしコマンド(2026-11-09 企画者): 「キミは どんな 性格？」で この 順に えらんでから「次へ」→ その あと 何を えらんでも 必ず CROWNIE。
+ * 元気でやんちゃ → のんびりマイペース → ちょっと変わり者 → クールでカッコいい → ちょっと変わり者 → のんびりマイペース → 元気でやんちゃ → クールでカッコいい
+ */
+export const CROWNIE_CODE = ['energetic', 'easygoing', 'quirky', 'cool', 'quirky', 'easygoing', 'energetic', 'cool'] as const;
+/** えらんだ 順番(さいごの 8回)が かくしコマンドか */
+export const isCrownieCode = (taps: readonly string[]): boolean => taps.length >= CROWNIE_CODE.length && CROWNIE_CODE.every((c, i) => taps[taps.length - CROWNIE_CODE.length + i] === c);

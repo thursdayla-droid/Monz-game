@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 import { fillSize } from '../ui/viewport';
 import { audio } from '../audio/engine';
-import { INTRO, QUESTIONS, decideFirstMonz, type Answers } from '../core/questions';
+import { INTRO, QUESTIONS, decideFirstMonz, isCrownieCode, type Answers } from '../core/questions';
 import { SAVE_VERSION, writeSave } from '../core/save';
 import { addSoundButton } from '../ui/soundButton';
 import { prefetchPacks } from '../render/packs';
@@ -37,6 +37,8 @@ export class QuestionScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.personalityTaps = [];
+    this.secretCrownie = false;
     // 全画面: スマホの 形の 高さで 描く(2026-11-08)
     const tallH = Math.max(1280, fillSize(this, { w: W, h: 1280 }, { minRatio: 0.4, maxRatio: W / 1280 }).h);
     canvasTexture(this, 'ui:street', W, tallH, (ctx) => drawStreet(ctx, W, tallH));
@@ -163,9 +165,16 @@ export class QuestionScene extends Phaser.Scene {
     }
   }
 
+  /** 性格の 質問で えらんだ 順(かくしコマンド) */
+  private personalityTaps: string[] = [];
+  /** かくしコマンドが 入った → CROWNIE */
+  private secretCrownie = false;
+
   private choose(questionId: string, choiceId: string): void {
     if (this.busy) return;
     this.answers[questionId] = choiceId;
+    // かくしコマンド用に 性格の えらんだ 順を 覚える(2026-11-09)
+    if (questionId === 'personality') this.personalityTaps.push(choiceId);
     audio.se('select');
     (this.content?.getData('refresh') as (() => void) | undefined)?.();
   }
@@ -178,6 +187,12 @@ export class QuestionScene extends Phaser.Scene {
       this.cameras.main.shake(160, 0.004);
       audio.se('tap', { pitch: 0.6 });
       return;
+    }
+    // 性格の 質問で かくしコマンドが 入っていたら(「次へ」を 押した 時に きまる)
+    if (q?.id === 'personality' && isCrownieCode(this.personalityTaps)) {
+      this.secretCrownie = true;
+      audio.se('mcMagic');
+      this.cameras.main.flash(250, 255, 215, 80);
     }
     if (this.step < QUESTIONS.length - 1) {
       this.step++;
@@ -199,7 +214,7 @@ export class QuestionScene extends Phaser.Scene {
   private finish(): void {
     this.busy = true;
     // 【未確定】判定ルールが決まるまで判定しない。いまはMONZがBUNKしかいないのでBUNKにする。
-    const firstMonz = decideFirstMonz(this.answers);
+    const firstMonz = this.secretCrownie ? 'crownie' : decideFirstMonz(this.answers);
     writeSave({ version: SAVE_VERSION, answers: { ...this.answers }, answeredAt: new Date().toISOString(), firstMonz });
     const flash = this.add.rectangle(0, 0, W, 1280, Phaser.Display.Color.HexStringToColor(CREAM).color).setOrigin(0, 0).setAlpha(0);
     this.tweens.add({

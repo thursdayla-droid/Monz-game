@@ -58,3 +58,17 @@ describe('save', () => {
     expect(loadSave(null)).toBeNull();
   });
 });
+
+import { isCrownieCode } from '../src/core/questions';
+describe('CROWNIE の かくしコマンド(2026-11-09)', () => {
+  const code = ['energetic', 'easygoing', 'quirky', 'cool', 'quirky', 'easygoing', 'energetic', 'cool'];
+  it('この 順なら 出る(前に よけいな タップが あっても よい)', () => {
+    expect(isCrownieCode(code)).toBe(true);
+    expect(isCrownieCode(['cool', 'cool', ...code])).toBe(true);
+  });
+  it('ちがう 順・足りない・あとに よけいな タップは 出ない', () => {
+    expect(isCrownieCode(code.slice(1))).toBe(false);
+    expect(isCrownieCode([...code, 'cool'])).toBe(false);
+    expect(isCrownieCode(['energetic', 'easygoing', 'cool', 'quirky', 'quirky', 'easygoing', 'energetic', 'cool'])).toBe(false);
+  });
+});
