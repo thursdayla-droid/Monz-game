@@ -33,7 +33,11 @@ import { SplashScene } from './scenes/SplashScene';
 import { TitleScene } from './scenes/TitleScene';
 import { MahjongScene } from './scenes/MahjongScene';
 import { MahjongQuestScene } from './scenes/MahjongQuestScene';
+import { applyCoinGifts } from './core/coinGift';
 import { fillTall, watchViewport } from './ui/viewport';
+
+// 2026-11-09 企画者「公開してる ゲーム 友達たち やってるんだけど 100,000 コイン 追加できる？」→ 遊んでいる 人に 1回だけ
+applyCoinGifts();
 
 const game = new Phaser.Game({
   // ?canvas を付けるとCanvas描画で動かす(表示がおかしいときの確認用)
