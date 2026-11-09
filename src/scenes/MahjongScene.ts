@@ -89,6 +89,7 @@ export class MahjongScene extends Phaser.Scene {
 
   preload(): void {
     for (const f of TILE_FILES) if (!this.textures.exists(`mj:${f}`)) this.load.image(`mj:${f}`, assetUrl(`assets/mahjong/${f}.webp`));
+    if (this.st.bg && !this.textures.exists(`mj:bg:${this.st.bg}`)) this.load.image(`mj:bg:${this.st.bg}`, assetUrl(`assets/mahjong/bg/${this.st.bg}.webp`));
     for (const n of CHAR_FILES) if (!this.textures.exists(`mjc:${n}`)) this.load.image(`mjc:${n}`, assetUrl(`assets/mahjong/chars/${n}.webp`));
   }
 
@@ -104,6 +105,7 @@ export class MahjongScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(720, 1280));
     this.cameras.main.setBackgroundColor('#5a2fb0');
     this.bg = this.add.graphics().setDepth(-10);
+    this.bgImg = this.st.bg && this.textures.exists(`mj:bg:${this.st.bg}`) ? this.add.image(0, 0, `mj:bg:${this.st.bg}`).setDepth(-9) : undefined;
     this.layout();
     this.layer = this.add.container(0, 0);
     this.buildActors();
@@ -120,6 +122,8 @@ export class MahjongScene extends Phaser.Scene {
 
   /** 画面の 大きさ(横画面。横は スマホの 形まで のばす) */
   private bg!: Phaser.GameObjects.Graphics;
+  /** ステージの 背景の 絵(企画者。画面いっぱいに) */
+  private bgImg?: Phaser.GameObjects.Image;
 
   private layout(): void {
     this.W = Math.max(1280, fillSize(this, { w: 1280, h: H }, { minRatio: 1280 / H, maxRatio: 2.2 }).w);
@@ -140,6 +144,8 @@ export class MahjongScene extends Phaser.Scene {
       g.fillTriangle(x, y, x + len, y - len * 0.45, x + len + 26, y - len * 0.45 + 10);
     }
     for (let i = 0; i < 50; i++) g.fillStyle(i % 3 ? 0xffd23a : 0xffffff, 0.15 + rnd(i + 7) * 0.25).fillCircle(rnd(i) * this.W, rnd(i + 99) * H, 1.5 + rnd(i + 3) * 4);
+    // 背景の 絵は 画面を おおう 大きさで まん中に
+    if (this.bgImg) this.bgImg.setPosition(this.W / 2, H / 2).setScale(Math.max(this.W / this.bgImg.width, H / this.bgImg.height));
   }
 
   // ---------------- キャラ(敵3人は 上に 横一列・自分は 左下。企画者の イメージの 絵) ----------------
@@ -354,7 +360,9 @@ export class MahjongScene extends Phaser.Scene {
     const top = 118;
     const bot = 602;
     g.fillStyle(0x0b0614, 0.45).fillRoundedRect(cx - tw / 2 + 6, top + 8, tw, bot - top, 34);
-    g.fillGradientStyle(0x4a2290, 0x4a2290, 0x2c1260, 0x2c1260, 1).fillRoundedRect(cx - tw / 2, top, tw, bot - top, 34);
+    // 背景の 絵が ある 時は 卓を 少し すかす
+    const ta = this.bgImg ? 0.82 : 1;
+    g.fillGradientStyle(0x4a2290, 0x4a2290, 0x2c1260, 0x2c1260, ta).fillRoundedRect(cx - tw / 2, top, tw, bot - top, 34);
     g.lineStyle(7, 0xffb03a, 1).strokeRoundedRect(cx - tw / 2, top, tw, bot - top, 34);
     g.lineStyle(2, 0xffd23a, 0.5).strokeRoundedRect(cx - tw / 2 + 12, top + 12, tw - 24, bot - top - 24, 26);
     g.fillStyle(0x16101c, 0.95).fillRoundedRect(cx - 98, cy - 76, 196, 152, 18);

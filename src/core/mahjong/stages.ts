@@ -20,6 +20,8 @@ export interface StageInfo {
   gold: number;
   /** 敵の 絵(public/assets/mahjong/chars/<名前>.webp)。boss, minionA, minionB */
   art: { boss: string; minionA: string; minionB: string };
+  /** 対局の 背景(public/assets/mahjong/bg/<名前>.webp。横長)。ない 時は 色の 背景 */
+  bg?: string;
   /** (使わない)絵が まだの 時の 色ちがい。企画者「敵の 色 へん」で やめた 2026-11-09 */
   tint?: number;
 }
@@ -34,6 +36,8 @@ export const STAGES: readonly StageInfo[] = [
     levels: [1, 2, 1],
     gold: 200,
     art: WOLVES,
+    // 2026-11-09 企画者の 背景(夜の 路地裏)
+    bg: 'stage1',
   },
   {
     name: 'ノラネコ団',
