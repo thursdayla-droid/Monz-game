@@ -169,3 +169,18 @@ describe('ウマ・次の 半荘(企画者 2026-11-08)', () => {
     expect([g.roundWind, g.kyoku, g.over]).toEqual([EAST, 0, false]);
   });
 });
+
+describe('流局の テンパイ料も ダメージ(企画者 2026-11-09)', () => {
+  const draw = (tenpai: boolean[], delta: number[]) => ({ kind: 'draw' as const, reason: 'exhaust' as const, tenpai, delta });
+  it('自分だけ テンパイ → 3000 を 敵へ', () => {
+    expect(damageOf(draw([true, false, false, false], [3000, -1000, -1000, -1000]), 2).toEnemy).toBe(3000);
+  });
+  it('自分だけ ノーテン → 3000 を 自分へ・自分と 1人 テンパイ → 1500 を 敵へ', () => {
+    expect(damageOf(draw([false, true, true, true], [-3000, 1000, 1000, 1000]), 2).toPlayer).toBe(3000);
+    expect(damageOf(draw([true, true, false, false], [1500, 1500, -1500, -1500]), 2).toEnemy).toBe(1500);
+  });
+  it('全員 テンパイ・全員 ノーテンは なし', () => {
+    const z = damageOf(draw([true, true, true, true], [0, 0, 0, 0]), 2);
+    expect([z.toEnemy, z.toPlayer]).toEqual([0, 0]);
+  });
+});

@@ -32,6 +32,19 @@ export function damageOf(r: RoundResult, bossSeat: number): Damage {
         d.hits.push({ winner: n.seat, from: null, amount: n.paid[PLAYER_SEAT], target: 'player' });
       }
     }
+    // 流局の テンパイ料(ノーテン罰符)も ダメージ(2026-11-09 企画者「流局 テンパイ とかでも ダメージ 発生しよう」)。
+    // プレイヤーが もらった 分は 敵へ・払った 分は プレイヤーへ。CPU どうしの やりとりは なし
+    if (r.reason === 'exhaust' && !r.nagashi?.length) {
+      const mine = r.delta[PLAYER_SEAT];
+      if (mine > 0) {
+        d.toEnemy += mine;
+        d.hits.push({ winner: PLAYER_SEAT, from: null, amount: mine, target: 'enemy' });
+      } else if (mine < 0) {
+        const by = [1, 2, 3].find((i) => r.tenpai[i]) ?? 1;
+        d.toPlayer += -mine;
+        d.hits.push({ winner: by, from: null, amount: -mine, target: 'player' });
+      }
+    }
     return d;
   }
   for (const w of r.wins) {
