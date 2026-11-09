@@ -4,7 +4,7 @@ import { assetUrl } from '../assetUrl';
 import { clearStage, loadProgress, saveProgress, type MjProgress } from '../core/mahjong/progress';
 import { ENDING_STORY, STAGE_COUNT, stageAt } from '../core/mahjong/stages';
 import { UI_FONT } from '../ui/paint';
-import { fillSize, watchViewport } from '../ui/viewport';
+import { fillSize, viewRatio, watchViewport } from '../ui/viewport';
 
 /**
  * MAHJONG QUEST の 対局の 外の 画面(2026-11-09 企画者「最初 1枚絵で 軽く ストーリーを 伝えて、敵の 1枚絵が 出て 対局開始」)。
@@ -20,6 +20,8 @@ export interface QuestParams {
 }
 
 const CHAR_FILES = ['hero', 'boss', 'minion_a', 'minion_b'];
+/** タイトルの 絵(2026-11-09 企画者。design/mahjong/title.png。たて長)。絵の 中の ボタンの 場所(元の 絵 934×1685 の 座標) */
+const TITLE_ART = { w: 934, h: 1685, start: [118, 1318, 816, 1482], howto: [226, 1500, 708, 1636] } as const;
 
 export class MahjongQuestScene extends Phaser.Scene {
   private W = 1280;
@@ -39,6 +41,7 @@ export class MahjongQuestScene extends Phaser.Scene {
 
   preload(): void {
     for (const n of CHAR_FILES) if (!this.textures.exists(`mjc:${n}`)) this.load.image(`mjc:${n}`, assetUrl(`assets/mahjong/chars/${n}.webp`));
+    if (!this.textures.exists('mj:title')) this.load.image('mj:title', assetUrl('assets/mahjong/title.webp'));
   }
 
   create(): void {
@@ -62,10 +65,20 @@ export class MahjongQuestScene extends Phaser.Scene {
     this.cameras.main.fadeIn(250, 0, 0, 0);
   }
 
+  /** 画面の 高さ(タイトルは たて・ほかは 横) */
+  private Ht = H;
+
   private layout(): void {
-    this.W = Math.max(1280, fillSize(this, { w: 1280, h: H }, { minRatio: 1280 / H, maxRatio: 2.2 }).w);
-    this.scale.setGameSize(this.W, H);
-    this.cameras.main.setSize(this.W, H);
+    if (this.mode === 'title') {
+      // タイトルは 企画者の たて長の 絵(スマホの 形まで のばす)
+      this.W = 720;
+      this.Ht = Math.max(1280, fillSize(this, { w: 720, h: 1280 }, { minRatio: 0.4, maxRatio: 720 / 1280 }).h);
+    } else {
+      this.W = Math.max(1280, fillSize(this, { w: 1280, h: H }, { minRatio: 1280 / H, maxRatio: 2.2 }).w);
+      this.Ht = H;
+    }
+    this.scale.setGameSize(this.W, this.Ht);
+    this.cameras.main.setSize(this.W, this.Ht);
   }
 
   private text(x: number, y: number, s: string, size: number, color = '#ffffff', stroke = 0): Phaser.GameObjects.Text {
@@ -102,16 +115,10 @@ export class MahjongQuestScene extends Phaser.Scene {
     const st = stageAt(this.prog.stage, this.prog.lap);
     const stageLabel = `${this.prog.lap >= 2 ? `${this.prog.lap}周目  ` : ''}STAGE ${this.prog.stage + 1}`;
     if (this.mode === 'title') {
-      this.bg(0x2a0f52, 0x6a2cc0);
-      const t = this.text(W / 2, 170, 'MAHJONG\nQUEST', 104, '#ffd23a', 14);
-      this.tweens.add({ targets: t, scale: { from: 1.15, to: 1 }, duration: 500, ease: 'Back.easeOut' });
-      this.charImg('mjc:hero', W / 2 - 330, 430, 300, false);
-      this.charImg('mjc:boss', W / 2 + 330, 430, 300, false);
-      this.text(W / 2, 400, `${stageLabel}  ／  ${this.prog.gold}G`, 26, '#ffffff', 6);
-      this.button(W / 2, 500, this.prog.clears || this.prog.stage ? 'つづきから' : 'はじめる', '#ffd23a', () => this.go('story'));
-      this.backButton();
+      this.drawTitle();
       return;
     }
+    if (viewRatio(this) < 1) this.turnHint();
     if (this.mode === 'story' || this.mode === 'ending') {
       // 話の 1枚絵【仮：絵が 届くまで 背景と 勇者】
       this.bg(0x16081f, 0x3a1670);
@@ -125,11 +132,22 @@ export class MahjongQuestScene extends Phaser.Scene {
       let i = 0;
       const ev = this.time.addEvent({ delay: 35, loop: true, callback: () => t.setText(msg.slice(0, ++i)) && i >= msg.length && ev.remove() });
       this.text(W - 120, H - 40, 'タップで つぎへ ▶', 20, '#e8dcf4', 4);
-      this.input.once('pointerdown', () => {
-        audio.unlock();
-        audio.se('next');
-        if (this.mode === 'ending') this.go('title');
-        else this.go('intro');
+      // 押した 指で すぐ 次へ 進まない ように 少し 待ってから。文字の 途中で さわったら まず 全部 出す
+      this.time.delayedCall(350, () => {
+        const onTap = () => {
+          if (i < msg.length) {
+            i = msg.length;
+            t.setText(msg);
+            ev.remove();
+            this.input.once('pointerdown', onTap);
+            return;
+          }
+          audio.unlock();
+          audio.se('next');
+          if (this.mode === 'ending') this.go('title');
+          else this.go('intro');
+        };
+        this.input.once('pointerdown', onTap);
       });
       return;
     }
@@ -169,6 +187,87 @@ export class MahjongQuestScene extends Phaser.Scene {
     }
   }
 
+  /** タイトル: 企画者の 絵を 横はばいっぱいに・上下の あまりは 絵の はしを のばす。絵の「スタート」「遊び方」が ボタン */
+  private drawTitle(): void {
+    const W = this.W;
+    const Ht = this.Ht;
+    const k = W / TITLE_ART.w;
+    const ih = TITLE_ART.h * k;
+    const y0 = Math.max(0, (Ht - ih) / 2);
+    this.cameras.main.setBackgroundColor('#4a9be0');
+    const src = this.textures.get('mj:title').getSourceImage() as HTMLImageElement;
+    const band = (key: string, sy: number, y: number, h: number) => {
+      if (h <= 0) return;
+      if (!this.textures.exists(key)) {
+        const c = this.textures.createCanvas(key, src.width, 4);
+        c?.getContext().drawImage(src, 0, sy, src.width, 4, 0, 0, src.width, 4);
+        c?.refresh();
+      }
+      this.add.image(0, y, key).setOrigin(0, 0).setDisplaySize(W, h + 2);
+    };
+    band('mj:title:top', 0, 0, y0);
+    band('mj:title:bot', src.height - 4, y0 + ih - 1, Ht - y0 - ih);
+    this.add.image(0, y0, 'mj:title').setOrigin(0, 0).setDisplaySize(W, ih);
+    const zone = ([x0, a0, x1, a1]: readonly number[], onTap: () => void) => {
+      const z = this.add.rectangle(x0 * k, y0 + a0 * k, (x1 - x0) * k, (a1 - a0) * k, 0xffffff, 0).setOrigin(0, 0).setInteractive({ useHandCursor: true });
+      z.on('pointerdown', () => {
+        if (this.busy) return;
+        audio.unlock();
+        audio.se('select');
+        z.setFillStyle(0xffffff, 0.3);
+        this.tweens.add({ targets: z, fillAlpha: 0, duration: 220 });
+        onTap();
+      });
+    };
+    zone(TITLE_ART.start, () => this.go('story'));
+    zone(TITLE_ART.howto, () => this.howTo());
+    // 今の ステージ・ゴールド(小さく)
+    const st = `${this.prog.lap >= 2 ? `${this.prog.lap}周目 ` : ''}STAGE ${this.prog.stage + 1}  ${this.prog.gold}G`;
+    this.text(W - 130, 36, st, 20, '#ffffff', 0).setBackgroundColor('#16101caa').setPadding(12, 6, 12, 6);
+    this.backButton();
+  }
+
+  /** 遊び方(報酬の 決まりは 書かない: CLAUDE.md) */
+  private howTo(): void {
+    const W = this.W;
+    const c = this.add.container(W / 2, this.Ht / 2).setDepth(50);
+    c.add(this.add.rectangle(0, 0, W, this.Ht, 0x000000, 0.6).setInteractive());
+    c.add(this.add.rectangle(0, 0, 660, 900, 0x16101c, 0.97).setStrokeStyle(5, 0xffd23a));
+    c.add(this.text(0, -390, '遊び方', 40, '#ffd23a', 6));
+    const lines = [
+      'ふつうの 4人麻雀で 戦うよ。',
+      'あいては 敵チーム 3人(ボスと 子分2人)。',
+      '3人で 1つの HP を 持っている。',
+      '',
+      'アガると、その 点数が 敵への ダメージ！',
+      'ボスから ロン … そのまま',
+      '子分から ロン … 半分',
+      'ツモ … 3人が 払う 点の 合計',
+      '',
+      '敵に アガられると、あなたが ダメージ。',
+      '敵の HP を 0 に したら ステージ クリア！',
+      'あなたの HP が 0 に なったら 負け。',
+      '',
+      '牌は 2回 タップで 捨てる。',
+      '「オートパス」で チー・ポン・カンを 聞かない。',
+    ];
+    c.add(this.text(0, 20, lines.join('\n'), 24, '#ffffff').setLineSpacing(12));
+    const b = this.text(0, 385, 'とじる', 28, '#16101c').setInteractive({ useHandCursor: true });
+    b.setBackgroundColor('#ffd23a').setPadding(30, 10, 30, 10);
+    b.on('pointerdown', () => {
+      audio.se('back');
+      c.destroy();
+    });
+    c.add(b);
+  }
+
+  /** スマホが たての 時(対局の 前の 画面は 横) */
+  private turnHint(): void {
+    const c = this.add.container(this.W / 2, H / 2).setDepth(60);
+    c.add(this.add.rectangle(0, 0, 680, 150, 0x16101c, 0.92).setStrokeStyle(4, 0xffd23a));
+    c.add(this.text(0, 0, 'スマホを 横にしてね', 46, '#ffd23a'));
+  }
+
   private charImg(key: string, x: number, y: number, h: number, flip: boolean, tint?: number): Phaser.GameObjects.Image {
     const img = this.add.image(x, y, this.textures.exists(key) ? key : '__DEFAULT');
     img.setScale(h / img.height).setFlipX(flip);
@@ -187,8 +286,11 @@ export class MahjongQuestScene extends Phaser.Scene {
   }
 
   private go(mode: Mode): void {
+    const wasTitle = this.mode === 'title';
     this.mode = mode;
     this.input.off('pointerdown');
+    if (wasTitle !== (mode === 'title')) this.layout();
+    this.cameras.main.setBackgroundColor('#000000');
     this.draw();
   }
 
