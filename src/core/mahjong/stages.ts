@@ -57,6 +57,8 @@ export const STAGES: readonly StageInfo[] = [
     levels: [3, 3, 3],
     gold: 300,
     art: WOLVES,
+    // 2026-11-09 企画者の 背景(地下水路)
+    bg: 'stage3',
     tint: 0x9cff8a,
   },
   {
