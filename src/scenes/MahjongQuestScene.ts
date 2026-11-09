@@ -62,6 +62,7 @@ export class MahjongQuestScene extends Phaser.Scene {
 
   preload(): void {
     for (const n of [...CHAR_FILES, ...new Set(STAGES.flatMap((st) => [st.art.boss, st.art.minionA, st.art.minionB]))]) if (!this.textures.exists(`mjc:${n}`)) this.load.image(`mjc:${n}`, assetUrl(`assets/mahjong/chars/${n}.webp`));
+    if (!this.textures.exists('mj:bg:shop')) this.load.image('mj:bg:shop', assetUrl('assets/mahjong/bg/shop.webp'));
     if (!this.textures.exists('mj:title')) this.load.image('mj:title', assetUrl('assets/mahjong/title.webp'));
     // 敵の 1枚絵の うしろに 使う ステージの 背景
     if (!this.textures.exists(`mj:story:${ENDING_ART}`)) this.load.image(`mj:story:${ENDING_ART}`, assetUrl(`assets/mahjong/story/${ENDING_ART}.webp`));
@@ -380,7 +381,12 @@ export class MahjongQuestScene extends Phaser.Scene {
   private drawShop(): void {
     const W = this.W;
     this.bg(0x2a0f52, 0x6a2cc0);
-    const cat = this.charImg('mjc:shop', W / 2 - 400, 400, 460, false);
+    // 2026-11-09 企画者の 道具屋の 背景(左に カウンター・右は 暗い かべ)
+    if (this.textures.exists('mj:bg:shop')) {
+      const im = this.add.image(W / 2, H / 2, 'mj:bg:shop');
+      im.setScale(Math.max(W / im.width, H / im.height));
+    }
+    const cat = this.charImg('mjc:shop', W / 2 - 400, 440, 460, false);
     cat.setFlipX(false);
     this.text(W / 2 - 400, 90, '道具屋', 48, '#ffd23a', 8);
     this.text(W / 2 - 400, 160, this.shopSay, 22, '#ffffff', 5);
