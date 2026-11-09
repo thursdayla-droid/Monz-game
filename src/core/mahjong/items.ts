@@ -26,7 +26,7 @@ export const ITEMS: readonly ItemInfo[] = [
   { id: 'yakusou', name: 'やくそう', price: 200, text: '次に アガった ダメージと 同じだけ HP 回復', kind: 'attack' },
   { id: 'tate', name: 'てつのたて', price: 250, text: '次に うける ダメージが 0', kind: 'defense' },
   { id: 'omamori', name: 'こううんのおまもり', price: 300, text: '次に アガった ダメージが 2倍', kind: 'attack' },
-  { id: 'tsurugi', name: 'ゆうしゃのつるぎ', price: 500, text: '次に アガった ダメージが 3倍・同じだけ HP 回復(最大を こえる)', kind: 'attack' },
+  { id: 'tsurugi', name: 'ゆうしゃのつるぎ', price: 500, text: '次に アガった ダメージ 3倍＋同じだけ HP 回復', kind: 'attack' },
 ];
 export const itemInfo = (id: string): ItemInfo | undefined => ITEMS.find((i) => i.id === id);
 

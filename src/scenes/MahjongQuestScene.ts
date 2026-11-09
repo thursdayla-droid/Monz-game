@@ -373,14 +373,15 @@ export class MahjongQuestScene extends Phaser.Scene {
   }
 
   /** アイテムの 札(名前・説明・右に ボタン) */
-  private itemRow(y: number, id: ItemId, right: string, color: string, enabled: boolean, onTap: () => void, sub: string): void {
+  private itemRow(y: number, id: ItemId, right: string, color: string, enabled: boolean, onTap: () => void, sub: string, left?: number): void {
     const W = this.W;
     const info = itemInfo(id)!;
-    const x0 = W / 2 - 140;
+    const x0 = left ?? W / 2 - 140;
     const g = this.add.graphics();
     g.fillStyle(0x16101c, 0.9).fillRoundedRect(x0, y - 40, 660, 80, 14).lineStyle(3, 0xffd23a, 0.8).strokeRoundedRect(x0, y - 40, 660, 80, 14);
     this.add.text(x0 + 20, y - 26, info.name, { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '900', color: '#ffd23a' });
-    this.add.text(x0 + 20, y + 8, `${info.text}  ${sub}`, { fontFamily: UI_FONT, fontSize: '17px', fontStyle: '700', color: '#ffffff' });
+    // 説明は ボタンに かからない はばで 切りかえす(2026-11-09 企画者「つるぎの 文が ボタンと 重なる」)
+    this.add.text(x0 + 20, y + 4, `${info.text}  ${sub}`, { fontFamily: UI_FONT, fontSize: '17px', fontStyle: '700', color: '#ffffff', wordWrap: { width: 500, useAdvancedWrap: true } });
     const b = this.text(x0 + 580, y, right, 22, enabled ? '#16101c' : '#777788').setBackgroundColor(enabled ? color : '#3a2a4a').setPadding(14, 8, 14, 8);
     if (enabled)
       b.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
@@ -433,8 +434,8 @@ export class MahjongQuestScene extends Phaser.Scene {
         saveProgress(this.prog);
         audio.se('mcMagic');
         this.startMatch(it.id);
-      }, `(${n}こ)`);
+      }, `(${n}こ)`, W / 2 - 330);
     });
-    this.button(W / 2 + 40, H - 50, '使わない', '#ffffff', () => this.startMatch(null));
+    this.button(W / 2, H - 50, '使わない', '#ffffff', () => this.startMatch(null));
   }
 }
