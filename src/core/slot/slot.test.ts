@@ -118,3 +118,16 @@ describe('払い戻し率', () => {
     expect(Math.abs(s.bonusRate - t.bonusRate)).toBeLessThan(0.001);
   });
 });
+
+describe('MONZ コインで 遊ぶ(LifeRecord.slotSpin)', () => {
+  it('BET を はらって 当たりを もらう・足りなければ 回せない', async () => {
+    const { LifeRecord, newLife } = await import('../lifeSave');
+    const r = new LifeRecord({ ...newLife(1), coins: 120 });
+    expect(r.slotSpin(100, 30)).toBe(true);
+    expect(r.coins).toBe(50);
+    expect(r.slotSpin(100, 0)).toBe(false);
+    expect(r.coins).toBe(50);
+    expect(r.slotSpin(50, 500)).toBe(true);
+    expect(r.coins).toBe(500);
+  });
+});

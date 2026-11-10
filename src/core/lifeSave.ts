@@ -447,6 +447,20 @@ export class LifeRecord {
   }
 
   /**
+   * MONZ SLOT の 1回転(2026-11-10 企画者「MONZ コインを 使いたい」)。BET を はらって 当たりを もらうのを 1回の 保存で する
+   * (回っている 間に アプリを 閉じても、結果が 引き直しに ならない・コインが 消えない)。コインが 足りなければ false。
+   * MONZ コインを お金で 買える ように する 時は、買った コインを ここで 使えない ように 分ける(docs/SLOT.md)
+   */
+  slotSpin(bet: number, win: number): boolean {
+    const b = Math.floor(bet);
+    const w = Math.max(0, Math.floor(win));
+    if (!(b > 0) || b > this.data.coins) return false;
+    this.update({ coins: this.data.coins - b + w });
+    this.emit({ type: 'coins', coins: this.data.coins, delta: w - b });
+    return true;
+  }
+
+  /**
    * ミニゲームなどの報酬を受け取る。同じ runId の報酬は2回もらえない(false を返す)。
    * 企画者決定(2026-10-20): ミニゲームのコイン・経験値に1日の上限はない(お世話の上限とは別)。
    */
