@@ -128,7 +128,7 @@ export class SlotScene extends Phaser.Scene {
     title.setShadow(0, 4, '#9b5cff', 0, true, true);
     // 確認用ページだけ: コインを 足す(確認用ページは コインが 0 から なので)
     if ((window as { __MONZ_START?: string }).__MONZ_START === 'Slot') {
-      const dev = this.text(W - 120, 104, '+10,000 コイン（確認用）', 18, '#16101c').setBackgroundColor('#7de8ff').setPadding(10, 6, 10, 8).setDepth(30).setInteractive({ useHandCursor: true });
+      const dev = this.text(W - 150, 104, '+10,000 コイン（確認用）', 18, '#16101c').setBackgroundColor('#7de8ff').setPadding(10, 6, 10, 8).setDepth(30).setInteractive({ useHandCursor: true });
       dev.on('pointerdown', () => {
         if (this.busy) return;
         this.record.add(10000);
@@ -136,7 +136,7 @@ export class SlotScene extends Phaser.Scene {
         this.credit.setText(this.shown.toLocaleString());
       });
       // 宝箱ボーナスを すぐ ためす(ふつうは 約 100回に 1回なので)
-      const bon = this.text(W - 120, 146, 'ボーナスを ためす（確認用）', 18, '#16101c').setBackgroundColor('#ffd23a').setPadding(10, 6, 10, 8).setDepth(30).setInteractive({ useHandCursor: true });
+      const bon = this.text(W - 150, 146, 'ボーナスを ためす（確認用）', 18, '#16101c').setBackgroundColor('#ffd23a').setPadding(10, 6, 10, 8).setDepth(30).setInteractive({ useHandCursor: true });
       bon.on('pointerdown', () => {
         if (this.busy || this.autoLeft > 0) return;
         this.busy = true;
