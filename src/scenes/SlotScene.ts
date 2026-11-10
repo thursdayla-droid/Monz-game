@@ -99,6 +99,16 @@ export class SlotScene extends Phaser.Scene {
     back.on('pointerdown', () => this.leave());
     const title = this.text(W / 2 + 70, 46, 'MONZ SLOT', 44, '#ffd23a', 8);
     title.setShadow(0, 4, '#9b5cff', 0, true, true);
+    // 確認用ページだけ: コインを 足す(確認用ページは コインが 0 から なので)
+    if ((window as { __MONZ_START?: string }).__MONZ_START === 'Slot') {
+      const dev = this.text(W - 120, 104, '+10,000 コイン（確認用）', 18, '#16101c').setBackgroundColor('#7de8ff').setPadding(10, 6, 10, 8).setDepth(30).setInteractive({ useHandCursor: true });
+      dev.on('pointerdown', () => {
+        if (this.busy) return;
+        this.record.add(10000);
+        this.shown = this.record.coins;
+        this.credit.setText(this.shown.toLocaleString());
+      });
+    }
 
     this.drawLcd();
     this.drawCabinet();
@@ -251,8 +261,6 @@ export class SlotScene extends Phaser.Scene {
   private doSpin(): void {
     if (this.busy) return;
     this.tweens.add({ targets: this.spinBtn, scale: 0.94, duration: 70, yoyo: true });
-    // ほかの 画面で コインが 変わって いても いい ように、毎回 読みなおす
-    this.record = new LifeRecord(loadLife());
     if (this.record.coins < this.bet) {
       audio.se('tap', { pitch: 0.7 });
       this.toast('コインが たりないよ');

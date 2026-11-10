@@ -16,6 +16,8 @@ out = sys.argv[1]
 MYTH = '--myth' in sys.argv[2:]
 # 2026-11-08: 麻雀RPG の 確認用ページ(--mahjong)。牌の 絵と 音だけ。TAP TO START → 対局
 MJ = '--mahjong' in sys.argv[2:]
+# 2026-11-10: MONZ SLOT の 確認用ページ(--slot)。絵は ない(図柄は プログラムの 仮の 絵)。曲は main と 効果音だけ
+SLOT = '--slot' in sys.argv[2:]
 # 3Dオートバトルの確認用ページ(2026-11-01)。絵は入れない(仮の人形なので)。曲はバトルの1曲だけ
 # 2026-11-05: STREET KING(ストーリー)の 確認用ページ(--story)。10種族の 第1形態の モデル + 一枚絵
 STORY = '--story' in sys.argv[2:]
@@ -24,7 +26,7 @@ B3D = '--b3d' in sys.argv[2:] or '--b3d2' in sys.argv[2:] or STORY
 B3D2 = '--b3d2' in sys.argv[2:]
 NEW5 = ('riot', 'rioter', 'riotrax', 'grit', 'gritter', 'gritbull', 'snek', 'sneker', 'snekxus', 'vybe', 'vyga', 'vygard', 'shellz', 'sheld', 'sheldozer')
 if not os.path.exists(out):
-    open(out, 'w').write('<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>' + ('STREET KING 確認用' if STORY else '3Dバトル 確認用2' if B3D2 else '3Dバトル 確認用' if B3D else 'MYTHCLASH 確認用' if MYTH else 'MONZ') + '</title>'
+    open(out, 'w').write('<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>' + ('STREET KING 確認用' if STORY else '3Dバトル 確認用2' if B3D2 else '3Dバトル 確認用' if B3D else 'MYTHCLASH 確認用' if MYTH else 'MONZ SLOT 確認用' if SLOT else 'MONZ') + '</title>'
                          '<style>html,body{margin:0;height:100%;background:#1b1024;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none}#game{width:100%;height:100%}</style></head>'
                          '<body><div id="boot" style="color:#fff;font:20px sans-serif;text-align:center;padding-top:40vh">よみこみ中…</div><div id="game"></div>\n<script type="module"></script></body></html>')
 js = open(glob.glob(root + '/dist/assets/index-*.js')[0]).read()
@@ -54,6 +56,8 @@ if B3D:
             paths = [p for p in paths if not p.endswith('bunklord.glb')]
 elif MYTH:
     paths = myth_paths + card_paths
+elif SLOT:
+    paths = []
 elif MJ:
     paths = sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/mahjong/*.webp'))
     # 左右の キャラ(勇者 ZIPP・ボス RIOT・子分 SNEK／GRIT【仮】)
@@ -146,6 +150,8 @@ for p in sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/bgm/*.m
     # MYTHCLASH の確認用ページには、MYTHCLASH の曲と効果音だけ
     if MJ and not (p.startswith('assets/se/') or p.endswith('mahjong.mp3')):
         continue
+    if SLOT and not (p.startswith('assets/se/') or p.endswith('/main.mp3')):
+        continue
     if p in BGM_NOT_YET or (MYTH and 'mythclash' not in p) or (B3D and 'battle' not in p and not (STORY and 'ending' in p) and not p.startswith('assets/se/')) or (B3D and not STORY and p.endswith(('battle2.mp3', 'battle3.mp3'))):
         continue
     # 確認用ページの大きさの上限(16MB)のため、曲は軽く(モノラル20kbps・2026-10-26 に28k→24k→20kと下げた。22kHzでは実際は16kbpsになる)して埋め込む。ゲーム本体は元の音質のまま
@@ -156,14 +162,14 @@ for p in sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/bgm/*.m
     # 効果音は短いので、確認用ページでも音質をあまり落とさない(48kbps)
     # 2026-11-09: 麻雀クエストの ページは 軽いので 曲も 64kbps(企画者の 対戦BGM)
     se = p.startswith('assets/se/')
-    subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-i', pub + p, '-c:a', 'libmp3lame', '-ac', '1', '-ar', '32000' if se or MJ else ('16000' if (STORY and 'ending' in p) else '22050' if (B3D or MYTH) else '16000'), '-b:a', '48k' if se else ('64k' if MJ else '12k' if (STORY and 'ending' in p) else '20k' if (B3D or MYTH) else '12k'), tmp], check=True)
+    subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-i', pub + p, '-c:a', 'libmp3lame', '-ac', '1', '-ar', '32000' if se or MJ or SLOT else ('16000' if (STORY and 'ending' in p) else '22050' if (B3D or MYTH) else '16000'), '-b:a', '48k' if se else ('64k' if (MJ or SLOT) else '12k' if (STORY and 'ending' in p) else '20k' if (B3D or MYTH) else '12k'), tmp], check=True)
     assets[p] = 'data:audio/mpeg;base64,' + base64.b64encode(open(tmp, 'rb').read()).decode()
     os.remove(tmp)
 jsons = {p: json.load(open(pub + p)) for p in ['assets/bunk/parts/parts.json', 'assets/bunk/down/parts.json', 'assets/bunk/faces/faces.json']}
 html = open(out).read()
 start = html.index('<script>window.__MONZ_ASSETS') if '__MONZ_ASSETS' in html else html.index('<script type="module">')
 # MYTHCLASH の確認用ページは MYTHCLASH のタイトルから。ゲームの確認用ページはカードの絵を読みにいかない(入れていないので)
-flags = "window.__MONZ_START = 'MahjongQuest'; window.__MONZ_NO_CARD_ART = true;" if MJ else "window.__MONZ_START = 'RumbleMode'; window.__MONZ_NO_CARD_ART = true;" if B3D else "window.__MONZ_START = 'MythTitle';" if MYTH else 'window.__MONZ_NO_CARD_ART = true;'
+flags = "window.__MONZ_START = 'Slot'; window.__MONZ_NO_CARD_ART = true;" if SLOT else "window.__MONZ_START = 'MahjongQuest'; window.__MONZ_NO_CARD_ART = true;" if MJ else "window.__MONZ_START = 'RumbleMode'; window.__MONZ_NO_CARD_ART = true;" if B3D else "window.__MONZ_START = 'MythTitle';" if MYTH else 'window.__MONZ_NO_CARD_ART = true;'
 html = html[:start] + '<script>window.__MONZ_ASSETS = ' + json.dumps(assets) + ';\nwindow.__MONZ_JSON = ' + json.dumps(jsons) + ';\n' + flags + '</script>\n' + \
     '<script type="module">\ndocument.getElementById(\'boot\')?.remove();\n' + js + '\n</script>\n'
 open(out, 'w').write(html)
