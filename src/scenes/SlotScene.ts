@@ -5,6 +5,7 @@ import { randomSeed, mulberry32, type Rng } from '../core/rng';
 import { BETS, CHEST_PAY, dealChests, newBonus, pickChest, REELS, ROWS, SYMBOL_NAME, SYMBOLS, spin, type BonusState, type ChestContent, type SpinResult, type SymbolId } from '../core/slot/slot';
 import { UI_FONT } from '../ui/paint';
 import { fillSize, safeInsets } from '../ui/viewport';
+import { planShow, type BigReachType, type NoticeLevel, type SpinShow } from '../core/slot/reach';
 
 /**
  * MONZ SLOT(ミニゲーム⑤)の 画面(2026-11-10 企画者の 仕様書。docs/SLOT.md)。2段目: スロット画面。
@@ -39,7 +40,13 @@ interface ReelView {
   imgs: Phaser.GameObjects.Image[];
   offset: number;
   spinning: boolean;
+  /** 回る 速さの 倍率(リーチの 時は ゆっくり) */
+  speed: number;
 }
+/** リーチの 時の 時間(ms)【仮】。オートの 時は 0.6倍 */
+const SMALL_REACH_MS = 1300;
+const BIG_REACH_MS = 2800;
+const LAST_REEL_MS = 1000;
 
 export class SlotScene extends Phaser.Scene {
   private H = BASE_H;
@@ -65,6 +72,8 @@ export class SlotScene extends Phaser.Scene {
   private autoNow = false;
   private picker?: Phaser.GameObjects.Container;
   private bonus?: BonusState;
+  private lastShow?: SpinShow;
+  private countTween?: Phaser.Tweens.Tween;
   private shown = 0;
 
   constructor() {
@@ -214,7 +223,7 @@ export class SlotScene extends Phaser.Scene {
         const p = this.cellPos(r, i);
         imgs.push(this.add.image(p.x, p.y, symKey(this.randSym())).setDisplaySize(CELL - 10, CELL - 10).setDepth(2));
       }
-      this.reels.push({ imgs, offset: 0, spinning: false });
+      this.reels.push({ imgs, offset: 0, spinning: false, speed: 1 });
     }
   }
 
@@ -226,7 +235,7 @@ export class SlotScene extends Phaser.Scene {
     for (let r = 0; r < this.reels.length; r++) {
       const v = this.reels[r];
       if (!v.spinning) continue;
-      v.offset += SPIN_SPEED * Math.min(dt, 50);
+      v.offset += SPIN_SPEED * v.speed * Math.min(dt, 50);
       const step = CELL + GAP;
       while (v.offset >= step) {
         v.offset -= step;
@@ -397,16 +406,148 @@ export class SlotScene extends Phaser.Scene {
     audio.se('whoosh');
     this.shown -= this.bet;
     this.credit.setText(this.shown.toLocaleString());
+    this.countTween?.stop();
     this.winText.setText('0').setColor('#ffffff');
     this.lcdIdle();
     this.autoNow = auto && this.autoLeft > 0;
     if (this.autoNow) this.autoLeft--;
     this.paintAuto();
     if (this.autoNow && this.autoLeft === 0) this.spinLabel.setText('SPIN').setFontSize(52);
+    // 見せ方(予告・リーチ)を 決める。結果は もう 決まって いる(払い戻し率は 変わらない)
+    const show = planShow(res, this.bet, this.rng);
+    this.lastShow = show;
     const first = this.autoNow ? AUTO_STOP_FIRST : STOP_FIRST;
+    for (const v of this.reels) {
+      v.spinning = true;
+      v.speed = 1;
+    }
+    if (show.notice) this.notice(show.notice);
+    this.time.delayedCall(first + (show.notice ? 500 : 0), () => this.stopNext(0, res, show));
+  }
+
+  /** リールを 1つずつ 止める。2リール目・3リール目の あとで リーチ */
+  private stopNext(r: number, res: SpinResult, show: SpinShow): void {
+    this.stopReel(r, res, r === REELS - 1);
+    if (r === REELS - 1) return;
+    const k = this.autoNow ? 0.6 : 1;
     const step = this.autoNow ? AUTO_STOP_STEP : STOP_STEP;
-    for (const v of this.reels) v.spinning = true;
-    for (let r = 0; r < REELS; r++) this.time.delayedCall(first + r * step, () => this.stopReel(r, res, r === REELS - 1));
+    const next = (ms: number) => this.time.delayedCall(ms, () => this.stopNext(r + 1, res, show));
+    if (r === 1 && show.small) {
+      // 小さい リーチ: 3リール目が ゆっくり
+      this.smallReach(res, show);
+      for (let i = 2; i < REELS; i++) this.reels[i].speed = 0.45;
+      return void next(SMALL_REACH_MS * k);
+    }
+    if (r === 2 && show.big) {
+      // 大きい リーチ: 企画者の リーチ演出が 入る ところ(今は 仮)。4・5リール目が ゆっくり
+      for (let i = 3; i < REELS; i++) this.reels[i].speed = 0.35;
+      this.markReach(res, show, 3);
+      this.bigReach(show.big, BIG_REACH_MS * k);
+      return void next(BIG_REACH_MS * k);
+    }
+    if (r === 2 && show.small && !show.big) {
+      // 小さい リーチ 失敗
+      this.lcdIdle();
+    }
+    if (r === 3 && show.big) return void next(LAST_REEL_MS * k);
+    next(step);
+  }
+
+  /** そろって いる リーチ図柄を 光らせる(reels: 何リール目まで) */
+  private markReach(res: SpinResult, show: SpinShow, reels: number): void {
+    if (!show.reach) return;
+    for (let r = 0; r < reels; r++)
+      res.grid[r].forEach((x, i) => {
+        if (x !== show.reach!.symbol) return;
+        const p = this.cellPos(r, i);
+        const f = this.add.rectangle(p.x, p.y, CELL - 2, CELL - 2).setStrokeStyle(6, 0xffd23a).setDepth(3);
+        this.tweens.add({ targets: f, alpha: 0.3, duration: 260, yoyo: true, repeat: -1 });
+        this.glow.push(f);
+      });
+  }
+
+  /** 予告(回しはじめ)【仮の 見た目】: 1 青・2 赤・3 虹 */
+  private notice(level: NoticeLevel): void {
+    const { w, h } = this.lcdBox;
+    const color = level === 3 ? 0xffffff : level === 2 ? 0xff3a5a : 0x3a9dff;
+    const flash = this.add.rectangle(0, 0, w - 20, h - 20, color, 0.6);
+    const word = level === 3 ? '！！！' : level === 2 ? '激アツ！？' : 'チャンス！？';
+    const t = this.text(0, 0, word, Math.min(90, h * 0.24), level === 2 ? '#ffd23a' : '#ffffff', 12);
+    this.lcdShow([flash, t]);
+    t.setScale(2.5);
+    this.tweens.add({ targets: t, scale: 1, duration: 260, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: flash, alpha: 0.12, duration: 500 });
+    if (level === 3) {
+      let hue = 0;
+      const ev = this.time.addEvent({ delay: 60, repeat: 20, callback: () => t.setColor(`hsl(${(hue += 40) % 360},90%,65%)`) });
+      t.once(Phaser.GameObjects.Events.DESTROY, () => ev.remove());
+      this.cameras.main.shake(250, 0.006);
+    }
+    audio.se(level >= 2 ? 'mcCutin' : 'mcSelect');
+  }
+
+  /** 大きい リーチの 成功・失敗【仮の 見た目】 */
+  private reachResult(ok: boolean): void {
+    const h = this.lcdBox.h;
+    if (ok) {
+      const t = this.text(0, 0, '成功!!', Math.min(110, h * 0.3), '#ffd23a', 12);
+      this.lcdShow([this.add.rectangle(0, 0, this.lcdBox.w - 20, h - 20, 0xffffff, 0.35), t]);
+      t.setScale(2.4);
+      this.tweens.add({ targets: t, scale: 1, duration: 300, ease: 'Back.easeOut' });
+      this.cameras.main.flash(260, 255, 255, 200);
+      audio.se('koBlast');
+    } else {
+      const t = this.text(0, 0, 'ざんねん…', Math.min(70, h * 0.19), '#9a8aa8', 8);
+      this.lcdShow([t]);
+      audio.se('back');
+    }
+  }
+
+  /** 小さい リーチ【仮の 見た目】 */
+  private smallReach(res: SpinResult, show: SpinShow): void {
+    const h = this.lcdBox.h;
+    this.markReach(res, show, 2);
+    const t = this.text(0, -h * 0.05, 'リーチ！', Math.min(96, h * 0.26), '#ffd23a', 12);
+    t.setShadow(0, 6, '#ff4ad8', 0, true, true);
+    const sub = this.text(0, h * 0.22, `${SYMBOL_NAME[show.reach!.symbol]} が そろうか…？`, Math.min(26, h * 0.07), '#ffffff', 5);
+    this.lcdShow([t, sub]);
+    this.tweens.add({ targets: t, scale: { from: 1.6, to: 1 }, duration: 260, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: t, scale: 1.06, duration: 300, yoyo: true, repeat: -1, delay: 260 });
+    audio.se('mcCutin');
+  }
+
+  /** 大きい リーチ【仮の 見た目】。企画者の リーチ演出(7種類くらい)が 入る ところ */
+  private bigReach(type: BigReachType, ms: number): void {
+    const { w, h } = this.lcdBox;
+    const col = type.id === 'strong' ? 0xb46aff : type.id === 'mid' ? 0x3a9dff : 0x3ec46a;
+    const items: Phaser.GameObjects.GameObject[] = [];
+    const bg = this.add.rectangle(0, 0, w - 20, h - 20, 0x000000, 0.5);
+    const rays = this.add.graphics();
+    for (let k = 0; k < 16; k++) {
+      const a = (k / 16) * Math.PI * 2;
+      rays.fillStyle(col, 0.28).fillTriangle(0, 0, Math.cos(a) * 700, Math.sin(a) * 700, Math.cos(a + 0.16) * 700, Math.sin(a + 0.16) * 700);
+    }
+    this.tweens.add({ targets: rays, angle: 360, duration: 4000, repeat: -1 });
+    // 仮の キャラ(シルエット)
+    const sil = this.add.graphics();
+    sil.fillStyle(0x16101c, 0.95).fillCircle(0, -40, 46).fillRoundedRect(-60, 4, 120, 110, 30);
+    sil.setPosition(-w * 0.6, h * 0.12);
+    this.tweens.add({ targets: sil, x: -w * 0.26, duration: 380, ease: 'Back.easeOut' });
+    const t = this.text(w * 0.1, -h * 0.2, 'リーチ!!', Math.min(100, h * 0.27), '#ffd23a', 12);
+    t.setShadow(0, 8, '#ff4ad8', 0, true, true);
+    const name = this.text(w * 0.1, h * 0.05, type.name, Math.min(30, h * 0.08), '#ffffff', 6);
+    const note = this.text(0, h * 0.4, '（企画者の リーチ演出が 入る ところ）', 16, '#c8bcd8');
+    // ドキドキの ゲージ
+    const barW = w * 0.7;
+    const bar = this.add.rectangle(-barW / 2, h * 0.28, 4, 16, 0xffd23a).setOrigin(0, 0.5);
+    const frame = this.add.rectangle(0, h * 0.28, barW + 8, 24).setStrokeStyle(3, 0xffffff, 0.8);
+    this.tweens.add({ targets: bar, width: barW, duration: ms - 200 });
+    items.push(bg, rays, sil, t, name, frame, bar, note);
+    this.lcdShow(items);
+    this.tweens.add({ targets: t, scale: { from: 2.2, to: 1 }, duration: 300, ease: 'Back.easeOut' });
+    this.cameras.main.shake(200, 0.005);
+    audio.se('mcSpecial');
+    this.time.delayedCall(ms * 0.6, () => audio.se('mcThunder'));
   }
 
   private stopReel(r: number, res: SpinResult, last: boolean): void {
@@ -423,6 +564,8 @@ export class SlotScene extends Phaser.Scene {
     });
     audio.se('knock', { pitch: 1 + r * 0.05 });
     if (last) this.time.delayedCall(260, () => this.reveal(res));
+    // 大きい リーチの 結果(4リール目が 止まった 時に わかる)
+    if (r === 3 && this.lastShow?.big) this.reachResult(this.lastShow.bigSuccess);
   }
 
   private reveal(res: SpinResult): void {
@@ -618,7 +761,8 @@ export class SlotScene extends Phaser.Scene {
   private countUp(win: number, big: boolean): void {
     const o = { v: 0 };
     this.winText.setColor(big ? '#ffd23a' : '#ffffff');
-    this.tweens.add({ targets: o, v: win, duration: big ? 700 : 250, onUpdate: () => this.winText.setText(Math.round(o.v).toLocaleString()) });
+    this.countTween?.stop();
+    this.countTween = this.tweens.add({ targets: o, v: win, duration: big ? 700 : 250, onUpdate: () => this.winText.setText(Math.round(o.v).toLocaleString()) });
   }
 
   private toast(msg: string): void {
