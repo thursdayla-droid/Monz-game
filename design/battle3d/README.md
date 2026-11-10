@@ -70,3 +70,8 @@
 - 骨は BUNK と 同じ 名前の 78本。バトルで 歩く・パンチで 形が くずれないのを 見た。
 - BUNK の 体を 借りる 代わり（MODEL_STANDIN）は やめた。CROWNIX（第2形態）は モデルが 来るまで CROWNIE の モデル。
 - 確認用ページは 3Dバトル2（`--b3d2`）。15MB に 入れるため、このページだけ BUNKLORD を はずした。
+
+## CROWNIX（第2形態・Lv.30・2026-11-10）
+- `crownie/crownix_tripo_original.glb`：企画者がくれた骨入りモデル（Tripo・元のまま・21MB）。ゲーム用：`public/assets/battle3d/crownix.glb`（軽くした・672KB。CROWNOR と 同じ 手順）。
+- 骨は BUNK と 同じ 名前の 78本。Lv.30 の バトルで 歩く・パンチで 形が くずれないのを 見た。これで CROWNIE の 3形態 そろった。
+- 確認用ページは 3Dバトル2（`--b3d2`）。15MB に 入れるため、このページだけ BUNKER・BUNKLORD を はずした（相手の BUNK の 第2・第3形態は 仮の 人形）。
