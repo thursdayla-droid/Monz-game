@@ -22,8 +22,12 @@ const GAP = 8;
 const REEL_W = REELS * CELL + (REELS - 1) * GAP;
 const SAVE_KEY = 'monz:slot';
 /** 止まる 時間(ms)【仮】: 1つめ・あとは 1つずつ */
-const STOP_FIRST = 750;
-const STOP_STEP = 260;
+// 2026-11-10 企画者「今の 速度は オートの 時で いい。(ふつうは)じゃっかん 遅く」
+const STOP_FIRST = 1000;
+const STOP_STEP = 340;
+/** オートスピンの 時の 止まる 時間(前の ふつうの 速さ)。オートスピンは まだ ない【未確定】 */
+export const AUTO_STOP_FIRST = 750;
+export const AUTO_STOP_STEP = 260;
 const SPIN_SPEED = 2.6; // 1ms に すすむ 点
 
 const symKey = (s: SymbolId) => `slot:sym:${s}`;
