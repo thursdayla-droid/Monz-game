@@ -107,6 +107,7 @@ export class SlotScene extends Phaser.Scene {
     if (!this.textures.exists(CAB_KEY)) this.load.image(CAB_KEY, assetUrl(CAB_FILE));
     if (!this.textures.exists(PUSH_KEY)) this.load.image(PUSH_KEY, assetUrl(PUSH_FILE));
     for (const [k, f] of LAMP_FILES) if (!this.textures.exists(k)) this.load.image(k, assetUrl(f));
+    for (const c of CHEST_COLORS) for (const o of [false, true]) if (!this.textures.exists(chestArtKey(c, o))) this.load.image(chestArtKey(c, o), assetUrl(`assets/slot/chest_${c}_${o ? 'o' : 'c'}.webp`));
     // 企画者の 液晶の 背景(ふだん・赤・金。2026-11-10)
     for (const n of LCD_BGS) if (!this.textures.exists(lcdBgKey(n))) this.load.image(lcdBgKey(n), assetUrl(`assets/slot/lcd_${n}.webp`));
   }
@@ -128,7 +129,7 @@ export class SlotScene extends Phaser.Scene {
     this.bet = loadBet();
     this.shown = this.record.coins;
     for (const s of SYMBOLS) if (!this.textures.exists(drawnKey(s))) drawSymbolTexture(this, s);
-    for (const c of ['purple', 'red', 'blue']) for (const o of [false, true]) if (!this.textures.exists(chestKey(c, o))) drawChestTexture(this, c, o);
+    for (const c of CHEST_COLORS) for (const o of [false, true]) if (!this.textures.exists(drawnChestKey(c, o))) drawChestTexture(this, c, o);
     this.layout();
     audio.playBgm('main');
     this.cameras.main.fadeIn(250, 0, 0, 0);
@@ -765,6 +766,7 @@ export class SlotScene extends Phaser.Scene {
   /** 1ラウンド: 宝箱 3つを 出す(resume: 閉じた あとの 続き) */
   private bonusRound(resume: boolean): void {
     this.setLcdBg('gold', 0.3);
+    this.lamp?.show(false);
     const b = this.bonus;
     if (!b) return;
     const { w, h } = this.lcdBox;
@@ -865,6 +867,7 @@ export class SlotScene extends Phaser.Scene {
     this.time.delayedCall(1800, () => {
       this.busy = false;
       this.lcdIdle();
+      this.lamp?.show(true);
     });
   }
 
@@ -959,12 +962,17 @@ function saveBonus(b: BonusState | undefined): void {
   writeSave({ ...loadSave(), bonus: b ? { bet: b.bet, round: b.round, total: b.total, history: b.history } : undefined });
 }
 
-const chestKey = (col: string, open: boolean) => `slot:chest:${col}:${open ? 'o' : 'c'}`;
+/** プログラムで 描いた 仮の 宝箱(企画者の 絵が 読めなかった 時) */
+const drawnChestKey = (col: string, open: boolean) => `slot:chest:${col}:${open ? 'o' : 'c'}`;
+/** 企画者の 宝箱の 絵(2026-11-10。元は design/slot/chest/。にせの とうめいの ます目は 消した → clean/) */
+const chestArtKey = (col: string, open: boolean) => `slot:chestart:${col}:${open ? 'o' : 'c'}`;
+const CHEST_COLORS = ['purple', 'red', 'blue'];
+const chestKey = (col: string, open: boolean) => (symScene?.textures.exists(chestArtKey(col, open)) ? chestArtKey(col, open) : drawnChestKey(col, open));
 
 /** 【仮】宝箱の 絵(紫・赤・青。企画者の 絵が 届くまで) */
 function drawChestTexture(scene: Phaser.Scene, col: string, open: boolean): void {
   const S = 200;
-  const t = scene.textures.createCanvas(chestKey(col, open), S, S);
+  const t = scene.textures.createCanvas(drawnChestKey(col, open), S, S);
   const ctx = t?.getContext();
   if (!t || !ctx) return;
   const body = col === 'purple' ? '#8a3ae0' : col === 'red' ? '#e0402a' : '#2a7ae0';

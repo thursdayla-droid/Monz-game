@@ -232,6 +232,11 @@ export class NoticeLamp {
     this.scene.cameras.main.flash(200, 255, 255, 255);
   }
 
+  /** 見せる・かくす(宝箱ボーナスの 間は かくす) */
+  show(v: boolean): void {
+    for (const o of [this.glow, this.g, this.offImg, this.onImg]) o?.setAlpha(v ? 1 : 0);
+  }
+
   off(): void {
     if (!this.lit) return;
     this.lit = false;
