@@ -1,4 +1,6 @@
-# MONZ SLOT（ミニゲーム⑤）
+# ROYAL JACKPOT（ミニゲーム⑤。仕様書の 仮の 名前は MONZ SLOT）
+
+- 2026-11-10 企画者「この ミニゲームの 名前は ROYAL JACKPOT に する」【確定】。画面・ミニゲーム選択の 名前を かえた（コードの 中の 名前 Slot・保存 `monz:slot`・ファイル名は そのまま）。
 
 2026-11-10 企画者の 仕様書（Claude Code 向け）と イメージ絵 `design/slot/spec_image_2026-11-10.png`。
 計算は `src/core/slot/slot.ts`（テスト `slot.test.ts`・100万回転しらべ `tests/slot.sim.test.ts`）。画面は `src/scenes/SlotScene.ts`（2段目まで）。

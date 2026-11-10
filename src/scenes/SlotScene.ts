@@ -191,7 +191,7 @@ export class SlotScene extends Phaser.Scene {
     const back = this.text(86, 46, '◀ もどる', 26).setBackgroundColor('#16101ccc').setPadding(16, 8, 16, 10).setDepth(8).setInteractive({ useHandCursor: true });
     back.on('pointerdown', () => this.leave());
     if (!this.cab) {
-      const title = this.text(W / 2 + 70, 46, 'MONZ SLOT', 44, '#ffd23a', 8).setDepth(8);
+      const title = this.text(W / 2 + 70, 46, 'ROYAL JACKPOT', 40, '#ffd23a', 8).setDepth(8);
       title.setShadow(0, 4, '#9b5cff', 0, true, true);
     }
     // 確認用ページだけ: コインを 足す(確認用ページは コインが 0 から なので)
@@ -290,7 +290,7 @@ export class SlotScene extends Phaser.Scene {
   private lcdIdle(): void {
     this.setLcdBg('normal');
     const h = this.lcdBox.h;
-    const logo = this.text(0, -h * 0.12, 'MONZ SLOT', Math.min(96, h * 0.26, this.lcdBox.w * 0.15), '#ffd23a', 10);
+    const logo = this.text(0, -h * 0.12, 'ROYAL JACKPOT', Math.min(90, h * 0.24, this.lcdBox.w * 0.115), '#ffd23a', 10);
     logo.setShadow(0, 6, '#ff4ad8', 0, true, true);
     const sub = this.text(0, h * 0.18, 'SPIN を 押してね', Math.min(30, h * 0.09), '#e8dcf4');
     this.tweens.add({ targets: logo, scale: 1.04, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });

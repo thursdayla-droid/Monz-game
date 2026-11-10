@@ -9,7 +9,7 @@
 4. カードゲーム：`docs/MYTHCLASH.md`（MYTHCLASH。バトルの計算は `src/core/mythclash/`、画面はまだ。`docs/CARD_BATTLE.md` は古い案）
 5. 冒険：`docs/ADVENTURE.md`（2026-11-07〜。作る順番どおりに）
 5.5 麻雀RPG（ミニゲーム④）：`docs/MAHJONG.md`（2026-11-08〜）
-5.6 MONZ SLOT（ミニゲーム⑤）：`docs/SLOT.md`（2026-11-10〜）
+5.6 ROYAL JACKPOT（ミニゲーム⑤。旧 仮名 MONZ SLOT）：`docs/SLOT.md`（2026-11-10〜）
 6. 進化：`docs/EVOLUTION.md`（2026-11-09〜 お世話画面の 姿だけ 作った）
 
 ## 守ること
