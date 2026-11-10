@@ -65,3 +65,50 @@ describe('MONZ SLOT リーチ', () => {
     console.log('slot reach', { small: (N / small).toFixed(1), big: (N / big).toFixed(1), weak: rate('weak').toFixed(2), mid: rate('mid').toFixed(2), strong: rate('strong').toFixed(2), notice: ((notice / N) * 100).toFixed(1) + '%' });
   });
 });
+
+describe('MONZ SLOT 演出(色・ステップアップ・告知ランプ・PUSH・連続・コイン)', () => {
+  it('告知ランプは 当たりの 時だけ・虹は 当たりの 時だけ・アツい 色ほど 当たる', () => {
+    const rng = mulberry32(2026);
+    const N = 200_000;
+    const tier: Record<string, { n: number; hit: number }> = {};
+    const step: Record<number, { n: number; hit: number }> = {};
+    let lamp = 0;
+    let push = 0;
+    let chain = 0;
+    for (let i = 0; i < N; i++) {
+      const r = spin(rng, 10);
+      const s = planShow(r, 10, rng);
+      const hot = r.bonus || r.win >= 100 || s.bigSuccess;
+      if (s.lamp !== 'none') {
+        lamp++;
+        expect(hot).toBe(true);
+      }
+      if (s.big) {
+        const t = (tier[s.bigTier] ??= { n: 0, hit: 0 });
+        t.n++;
+        if (s.bigSuccess) t.hit++;
+        if (s.bigTier === 'rainbow') expect(s.bigSuccess).toBe(true);
+        if (s.push) push++;
+        if (s.chain) chain++;
+      }
+      if (s.notice) {
+        const t = (step[s.notice] ??= { n: 0, hit: 0 });
+        t.n++;
+        if (hot) t.hit++;
+      }
+      if (s.fountain) expect(r.win).toBeGreaterThanOrEqual(50);
+    }
+    const rate = (o: { n: number; hit: number } | undefined) => (o && o.n ? o.hit / o.n : 0);
+    expect(rate(tier.red)).toBeGreaterThan(rate(tier.blue));
+    expect(rate(tier.gold)).toBeGreaterThan(rate(tier.red));
+    expect(rate(step[5])).toBeGreaterThan(rate(step[1]));
+    expect(lamp).toBeGreaterThan(0);
+    expect(push).toBeGreaterThan(0);
+    expect(chain).toBeGreaterThan(0);
+    console.log('slot show', {
+      tier: Object.fromEntries(Object.entries(tier).map(([k, v]) => [k, `${(rate(v) * 100).toFixed(0)}% (${v.n})`])),
+      step: Object.fromEntries(Object.entries(step).map(([k, v]) => [k, `${(rate(v) * 100).toFixed(0)}% (${v.n})`])),
+      lamp: `${(N / lamp).toFixed(0)}回に1回`,
+    });
+  });
+});

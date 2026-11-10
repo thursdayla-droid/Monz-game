@@ -5,7 +5,8 @@ import { randomSeed, mulberry32, type Rng } from '../core/rng';
 import { BETS, CHEST_PAY, dealChests, newBonus, pickChest, REELS, ROWS, SYMBOL_NAME, SYMBOLS, spin, type BonusState, type ChestContent, type SpinResult, type SymbolId } from '../core/slot/slot';
 import { UI_FONT } from '../ui/paint';
 import { fillSize, safeInsets } from '../ui/viewport';
-import { planShow, type BigReachType, type NoticeLevel, type SpinShow } from '../core/slot/reach';
+import { planShow, type SpinShow } from '../core/slot/reach';
+import { coinFountain, cutIn, idleAnim, lcdRays, NoticeLamp, pushButton, stepUp, tierText } from './slotFx';
 
 /**
  * MONZ SLOT(ミニゲーム⑤)の 画面(2026-11-10 企画者の 仕様書。docs/SLOT.md)。2段目: スロット画面。
@@ -74,6 +75,7 @@ export class SlotScene extends Phaser.Scene {
   private bonus?: BonusState;
   private lastShow?: SpinShow;
   private countTween?: Phaser.Tweens.Tween;
+  private lamp!: NoticeLamp;
   private shown = 0;
 
   constructor() {
@@ -131,9 +133,9 @@ export class SlotScene extends Phaser.Scene {
     this.lcdBox = { x: 24, y: top, w: W - 48, h: this.reelY - 40 - top };
 
     // もどる・題
-    const back = this.text(86, 46, '◀ もどる', 26).setBackgroundColor('#16101ccc').setPadding(16, 8, 16, 10).setInteractive({ useHandCursor: true });
+    const back = this.text(86, 46, '◀ もどる', 26).setBackgroundColor('#16101ccc').setPadding(16, 8, 16, 10).setDepth(8).setInteractive({ useHandCursor: true });
     back.on('pointerdown', () => this.leave());
-    const title = this.text(W / 2 + 70, 46, 'MONZ SLOT', 44, '#ffd23a', 8);
+    const title = this.text(W / 2 + 70, 46, 'MONZ SLOT', 44, '#ffd23a', 8).setDepth(8);
     title.setShadow(0, 4, '#9b5cff', 0, true, true);
     // 確認用ページだけ: コインを 足す(確認用ページは コインが 0 から なので)
     if ((window as { __MONZ_START?: string }).__MONZ_START === 'Slot') {
@@ -170,6 +172,16 @@ export class SlotScene extends Phaser.Scene {
     g.fillStyle(0x16101c, 1).fillRoundedRect(x, y, w, h, 20);
     g.fillGradientStyle(0x3a1466, 0x5a1a7a, 0x120818, 0x1a0a2a, 1).fillRect(x + 10, y + 10, w - 20, h - 20);
     this.lcd = this.add.container(x + w / 2, y + h / 2).setDepth(5);
+    // 液晶の まわりを 背景の 色で かくす(演出が 液晶の 外に はみ出さない ように)。金の ふちは その 上
+    const H = this.H;
+    const at = (yy: number) => Phaser.Display.Color.Interpolate.ColorWithColor(Phaser.Display.Color.ValueToColor(0x2a0f4a), Phaser.Display.Color.ValueToColor(0x0d0614), H, yy);
+    const col = (yy: number) => { const c = at(yy); return Phaser.Display.Color.GetColor(c.r, c.g, c.b); };
+    const cv = this.add.graphics().setDepth(5.5);
+    cv.fillGradientStyle(col(0), col(0), col(y - 8), col(y - 8), 1).fillRect(0, 0, W, y - 8);
+    cv.fillGradientStyle(col(y), col(y), col(y + h), col(y + h), 1).fillRect(0, y - 8, x - 8, h + 16).fillRect(x + w + 8, y - 8, W - x - w - 8, h + 16);
+    const rim = this.add.graphics().setDepth(5.6);
+    rim.lineStyle(8, 0xffd23a, 1).strokeRoundedRect(x - 4, y - 4, w + 8, h + 8, 22);
+    rim.lineStyle(10, 0x16101c, 1).strokeRoundedRect(x + 5, y + 5, w - 10, h - 10, 16);
     this.lcdIdle();
   }
 
@@ -185,21 +197,25 @@ export class SlotScene extends Phaser.Scene {
     logo.setShadow(0, 6, '#ff4ad8', 0, true, true);
     const sub = this.text(0, h * 0.18, 'SPIN を 押してね', Math.min(30, h * 0.09), '#e8dcf4');
     this.tweens.add({ targets: logo, scale: 1.04, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    this.lcdShow([logo, sub]);
+    // ⑥ 待っている 間も 液晶が 動く【仮】
+    this.lcdShow([...idleAnim(this, this.lcdBox), logo, sub]);
   }
 
   // ---------------- リール(まん中) ----------------
 
   private drawCabinet(): void {
-    const g = this.add.graphics().setDepth(5);
+    const g = this.add.graphics().setDepth(6.5);
     const x = this.reelX;
     const y = this.reelY;
     const h = ROWS * CELL + (ROWS - 1) * GAP;
     // 枠(金)
     g.lineStyle(10, 0xffd23a, 1).strokeRoundedRect(x - 14, y - 14, REEL_W + 28, h + 28, 18);
     g.lineStyle(4, 0x16101c, 1).strokeRoundedRect(x - 20, y - 20, REEL_W + 40, h + 40, 22);
+    // ⑧ 告知ランプ(王冠の 形。液晶の 左下)
+    this.lamp = new NoticeLamp(this, this.lcdBox.x + 46, this.lcdBox.y + this.lcdBox.h - 4);
     // リールの 上と 下を かくす 板(回っている 図柄が はみ出ない ように)。上の 板は 液晶の 下の はしまで
-    const cover = this.add.graphics().setDepth(4);
+    // 液晶の 演出(光の 線など)も はみ出さない ように、リールより 前・液晶より 前
+    const cover = this.add.graphics().setDepth(6);
     const lcdBottom = this.lcdBox.y + this.lcdBox.h + 8;
     cover.fillStyle(0x16101c, 1).fillRect(0, lcdBottom, W, y - 14 - lcdBottom);
     cover.fillStyle(0x16101c, 1).fillRect(0, y + h + 14, W, 40 + CELL);
@@ -421,8 +437,19 @@ export class SlotScene extends Phaser.Scene {
       v.spinning = true;
       v.speed = 1;
     }
-    if (show.notice) this.notice(show.notice);
-    this.time.delayedCall(first + (show.notice ? 500 : 0), () => this.stopNext(0, res, show));
+    this.lamp.off();
+    const fast = this.autoNow;
+    let t = 0;
+    // ⑧ 告知ランプ(回しはじめに 光る 時)
+    if (show.lamp === 'pre') this.time.delayedCall(250, () => this.lamp.light());
+    // ① ステップアップ予告(② 色)
+    if (show.notice) t += stepUp(this, this.lcd, this.lcdBox, show.notice, show.noticeTier, fast) + 150;
+    // ⑨ 連続演出の はじまり(⑦ カットイン)
+    if (show.chain) {
+      this.time.delayedCall(t, () => cutIn(this, this.lcd, this.lcdBox, '連続演出 1', show.bigTier));
+      t += 950;
+    }
+    this.time.delayedCall(Math.max(first, t + 300), () => this.stopNext(0, res, show));
   }
 
   /** リールを 1つずつ 止める。2リール目・3リール目の あとで リーチ */
@@ -442,7 +469,10 @@ export class SlotScene extends Phaser.Scene {
       // 大きい リーチ: 企画者の リーチ演出が 入る ところ(今は 仮)。4・5リール目が ゆっくり
       for (let i = 3; i < REELS; i++) this.reels[i].speed = 0.35;
       this.markReach(res, show, 3);
-      this.bigReach(show.big, BIG_REACH_MS * k);
+      this.bigReach(show, BIG_REACH_MS * k);
+      // ③ PUSH ボタン(押すと 4リール目が 止まる)
+      if (show.push)
+        return void this.time.delayedCall(BIG_REACH_MS * k, () => pushButton(this, this.lcd, this.lcdBox, show.bigTier, this.autoNow ? 700 : 4000, () => next(250)));
       return void next(BIG_REACH_MS * k);
     }
     if (r === 2 && show.small && !show.big) {
@@ -462,28 +492,14 @@ export class SlotScene extends Phaser.Scene {
         const p = this.cellPos(r, i);
         const f = this.add.rectangle(p.x, p.y, CELL - 2, CELL - 2).setStrokeStyle(6, 0xffd23a).setDepth(3);
         this.tweens.add({ targets: f, alpha: 0.3, duration: 260, yoyo: true, repeat: -1 });
+        // ④ そろいそうな 図柄が ふるえる
+        const img = this.reels[r].imgs[i + 1];
+        if (!this.glow.includes(img)) {
+          this.tweens.add({ targets: img, angle: { from: -7, to: 7 }, duration: 90, yoyo: true, repeat: -1 });
+          this.glow.push(img);
+        }
         this.glow.push(f);
       });
-  }
-
-  /** 予告(回しはじめ)【仮の 見た目】: 1 青・2 赤・3 虹 */
-  private notice(level: NoticeLevel): void {
-    const { w, h } = this.lcdBox;
-    const color = level === 3 ? 0xffffff : level === 2 ? 0xff3a5a : 0x3a9dff;
-    const flash = this.add.rectangle(0, 0, w - 20, h - 20, color, 0.6);
-    const word = level === 3 ? '！！！' : level === 2 ? '激アツ！？' : 'チャンス！？';
-    const t = this.text(0, 0, word, Math.min(90, h * 0.24), level === 2 ? '#ffd23a' : '#ffffff', 12);
-    this.lcdShow([flash, t]);
-    t.setScale(2.5);
-    this.tweens.add({ targets: t, scale: 1, duration: 260, ease: 'Back.easeOut' });
-    this.tweens.add({ targets: flash, alpha: 0.12, duration: 500 });
-    if (level === 3) {
-      let hue = 0;
-      const ev = this.time.addEvent({ delay: 60, repeat: 20, callback: () => t.setColor(`hsl(${(hue += 40) % 360},90%,65%)`) });
-      t.once(Phaser.GameObjects.Events.DESTROY, () => ev.remove());
-      this.cameras.main.shake(250, 0.006);
-    }
-    audio.se(level >= 2 ? 'mcCutin' : 'mcSelect');
   }
 
   /** 大きい リーチの 成功・失敗【仮の 見た目】 */
@@ -510,31 +526,28 @@ export class SlotScene extends Phaser.Scene {
     t.setShadow(0, 6, '#ff4ad8', 0, true, true);
     const sub = this.text(0, h * 0.22, `${SYMBOL_NAME[show.reach!.symbol]} が そろうか…？`, Math.min(26, h * 0.07), '#ffffff', 5);
     this.lcdShow([t, sub]);
+    if (show.chain) this.lcd.add(this.text(0, -h * 0.36, '連続演出 2', Math.min(26, h * 0.07), '#ff8a1f', 5));
     this.tweens.add({ targets: t, scale: { from: 1.6, to: 1 }, duration: 260, ease: 'Back.easeOut' });
     this.tweens.add({ targets: t, scale: 1.06, duration: 300, yoyo: true, repeat: -1, delay: 260 });
     audio.se('mcCutin');
   }
 
   /** 大きい リーチ【仮の 見た目】。企画者の リーチ演出(7種類くらい)が 入る ところ */
-  private bigReach(type: BigReachType, ms: number): void {
+  private bigReach(show: SpinShow, ms: number): void {
+    const type = show.big!;
     const { w, h } = this.lcdBox;
     const col = type.id === 'strong' ? 0xb46aff : type.id === 'mid' ? 0x3a9dff : 0x3ec46a;
     const items: Phaser.GameObjects.GameObject[] = [];
     const bg = this.add.rectangle(0, 0, w - 20, h - 20, 0x000000, 0.5);
-    const rays = this.add.graphics();
-    for (let k = 0; k < 16; k++) {
-      const a = (k / 16) * Math.PI * 2;
-      rays.fillStyle(col, 0.28).fillTriangle(0, 0, Math.cos(a) * 700, Math.sin(a) * 700, Math.cos(a + 0.16) * 700, Math.sin(a + 0.16) * 700);
-    }
-    this.tweens.add({ targets: rays, angle: 360, duration: 4000, repeat: -1 });
+    const rays = lcdRays(this, this.lcdBox, col, 0.28, 16);
     // 仮の キャラ(シルエット)
     const sil = this.add.graphics();
     sil.fillStyle(0x16101c, 0.95).fillCircle(0, -40, 46).fillRoundedRect(-60, 4, 120, 110, 30);
     sil.setPosition(-w * 0.6, h * 0.12);
     this.tweens.add({ targets: sil, x: -w * 0.26, duration: 380, ease: 'Back.easeOut' });
-    const t = this.text(w * 0.1, -h * 0.2, 'リーチ!!', Math.min(100, h * 0.27), '#ffd23a', 12);
-    t.setShadow(0, 8, '#ff4ad8', 0, true, true);
-    const name = this.text(w * 0.1, h * 0.05, type.name, Math.min(30, h * 0.08), '#ffffff', 6);
+    // ② 文字の 色で 期待度(青 → 緑 → 赤 → 金 → 虹)
+    const t = tierText(this, w * 0.1, -h * 0.2, 'リーチ!!', Math.min(100, h * 0.27), show.bigTier);
+    const name = this.text(w * 0.1, h * 0.05, show.chain ? `連続演出 フィナーレ\n${type.name}` : type.name, Math.min(28, h * 0.075), '#ffffff', 6);
     const note = this.text(0, h * 0.4, '（企画者の リーチ演出が 入る ところ）', 16, '#c8bcd8');
     // ドキドキの ゲージ
     const barW = w * 0.7;
@@ -547,6 +560,8 @@ export class SlotScene extends Phaser.Scene {
     this.cameras.main.shake(200, 0.005);
     audio.se('mcSpecial');
     this.time.delayedCall(ms * 0.6, () => audio.se('mcThunder'));
+    // ⑦ カットイン(とちゅうで キャラが 入る)
+    this.time.delayedCall(ms * 0.35, () => cutIn(this, this.lcd, this.lcdBox, type.name.replace('【仮】', ''), show.bigTier));
   }
 
   private stopReel(r: number, res: SpinResult, last: boolean): void {
@@ -569,6 +584,14 @@ export class SlotScene extends Phaser.Scene {
 
   private reveal(res: SpinResult): void {
     const big = res.win >= this.bet;
+    const show = this.lastShow;
+    // ⑧ 告知ランプ(止まった あとに 光る 時)
+    if (show?.lamp === 'post') this.lamp.light();
+    // ⑤ 大きい 当たり: リールが 光って コインが あふれる
+    if (show?.fountain) {
+      this.reelFlash();
+      coinFountain(this, W / 2, this.reelY + 200, Math.min(90, 20 + Math.round((res.win / this.bet) * 2)));
+    }
     this.shown += res.win;
     if (res.win > 0) {
       // 当たった マス(同じ マスが 2つの 当たりに 入る ことも ある)
@@ -694,16 +717,10 @@ export class SlotScene extends Phaser.Scene {
     this.time.delayedCall(120, () => audio.se('koBlast'));
     this.cameras.main.flash(260, 255, 230, 120);
     this.cameras.main.shake(320, 0.008);
-    const rays = this.add.graphics();
-    for (let k = 0; k < 14; k++) {
-      const a = (k / 14) * Math.PI * 2;
-      const a2 = a + 0.13;
-      rays.fillStyle(0xffd23a, 0.3).fillTriangle(0, 0, Math.cos(a) * 600, Math.sin(a) * 600, Math.cos(a2) * 600, Math.sin(a2) * 600);
-    }
-    rays.setPosition(x, y).setScale(0.2);
+    const rays = lcdRays(this, this.lcdBox, 0xffd23a, 0.3, 14, x, y, 6000);
+    rays.setAlpha(0);
     this.lcd.addAt(rays, 0);
-    this.tweens.add({ targets: rays, scale: 1, duration: 300 });
-    this.tweens.add({ targets: rays, angle: 120, duration: 2000 });
+    this.tweens.add({ targets: rays, alpha: 1, duration: 250 });
     for (let k = 0; k < 26; k++) {
       const st = this.text(x, y, '★', 22 + Math.random() * 26, '#fff2a8');
       this.lcd.add(st);
@@ -724,6 +741,7 @@ export class SlotScene extends Phaser.Scene {
     n.setScale(2);
     this.tweens.add({ targets: n, scale: 1, duration: 340, ease: 'Back.easeOut' });
     audio.se(b.total > 0 ? 'cheer' : 'back');
+    if (b.total >= b.bet * 5) coinFountain(this, W / 2, this.reelY + 200, Math.min(90, 20 + Math.round((b.total / b.bet) * 2)));
     this.winText.setText(b.total.toLocaleString()).setColor('#ffd23a');
     this.bonus = undefined;
     this.time.delayedCall(1800, () => {
@@ -750,10 +768,17 @@ export class SlotScene extends Phaser.Scene {
   private clearGlow(): void {
     for (const o of this.glow) {
       this.tweens.killTweensOf(o);
-      if (o instanceof Phaser.GameObjects.Image) o.setDisplaySize(CELL - 10, CELL - 10);
+      if (o instanceof Phaser.GameObjects.Image) o.setDisplaySize(CELL - 10, CELL - 10).setAngle(0);
       else o.destroy();
     }
     this.glow = [];
+  }
+
+  /** ⑤ リール全体が ピカピカ 光る */
+  private reelFlash(): void {
+    const h = ROWS * CELL + (ROWS - 1) * GAP;
+    const f = this.add.rectangle(W / 2, this.reelY + h / 2, REEL_W + 20, h + 20, 0xffffff, 0).setDepth(3);
+    this.tweens.add({ targets: f, fillAlpha: 0.5, duration: 110, yoyo: true, repeat: 4, onComplete: () => f.destroy() });
   }
 
   /** WIN の 数字を 数えあげる */
