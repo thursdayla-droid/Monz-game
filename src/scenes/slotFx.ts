@@ -10,6 +10,10 @@ import { UI_FONT } from '../ui/paint';
  * ⑥ 待っている 間の 液晶 ⑦ カットイン ⑧ 告知ランプ ⑨ 連続演出(SlotScene)
  */
 
+/** 企画者の PUSH ボタンの 絵(元は design/slot/push.png) */
+export const PUSH_KEY = 'slot:push';
+export const PUSH_FILE = 'assets/slot/push.webp';
+
 export interface LcdBox {
   x: number;
   y: number;
@@ -96,9 +100,20 @@ export function pushButton(scene: Phaser.Scene, lcd: Phaser.GameObjects.Containe
   const { h } = box;
   let done = false;
   const c = scene.add.container(0, h * 0.18);
-  const ring = scene.add.circle(0, 0, Math.min(110, h * 0.28), TIER_NUM[tier], 0.95).setStrokeStyle(10, 0x16101c);
-  const t = txt(scene, 0, 0, 'PUSH!', Math.min(64, h * 0.17), tier === 'gold' || tier === 'rainbow' ? '#16101c' : '#ffffff', 6);
-  c.add([ring, t]);
+  const r = Math.min(110, h * 0.28);
+  // 企画者の PUSH ボタンの 絵(2026-11-10)。まわりの 光の 色で 期待度(②)
+  const art = scene.textures.exists(PUSH_KEY);
+  const ring = scene.add.circle(0, 0, art ? r * 1.18 : r, TIER_NUM[tier], art ? 0.55 : 0.95);
+  if (!art) ring.setStrokeStyle(10, 0x16101c);
+  c.add(ring);
+  let hit: Phaser.GameObjects.GameObject = ring;
+  if (art) {
+    const img = scene.add.image(0, 0, PUSH_KEY);
+    img.setScale((r * 2) / img.width);
+    c.add(img);
+    hit = img;
+    scene.tweens.add({ targets: ring, scale: 1.15, alpha: 0.25, duration: 380, yoyo: true, repeat: -1 });
+  } else c.add(txt(scene, 0, 0, 'PUSH!', Math.min(64, h * 0.17), tier === 'gold' || tier === 'rainbow' ? '#16101c' : '#ffffff', 6));
   lcd.add(c);
   scene.tweens.add({ targets: c, scale: { from: 0.4, to: 1 }, duration: 220, ease: 'Back.easeOut' });
   scene.tweens.add({ targets: c, scale: 1.1, duration: 260, yoyo: true, repeat: -1, delay: 240 });
@@ -112,7 +127,7 @@ export function pushButton(scene: Phaser.Scene, lcd: Phaser.GameObjects.Containe
     scene.tweens.add({ targets: c, scale: 1.6, alpha: 0, duration: 220, onComplete: () => c.destroy() });
     onPress();
   };
-  ring.setInteractive({ useHandCursor: true }).once('pointerdown', press);
+  hit.setInteractive({ useHandCursor: true }).once('pointerdown', press);
   scene.time.delayedCall(autoMs, press);
 }
 
