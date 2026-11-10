@@ -167,26 +167,43 @@ export function idleAnim(scene: Phaser.Scene, box: LcdBox): Phaser.GameObjects.G
 }
 
 /** ⑧ 告知ランプ(MONZ の オリジナル: 王冠の 形)。当たりが 決まって いる 時だけ 光る */
+/** 企画者の 告知ランプの 絵(消えている・光っている。2026-11-10。元は design/slot/lamp_off.png・lamp_on.png) */
+export const LAMP_OFF_KEY = 'slot:lamp:off';
+export const LAMP_ON_KEY = 'slot:lamp:on';
+export const LAMP_FILES: [string, string][] = [
+  [LAMP_OFF_KEY, 'assets/slot/lamp_off.webp'],
+  [LAMP_ON_KEY, 'assets/slot/lamp_on.webp'],
+];
+
 export class NoticeLamp {
   private g: Phaser.GameObjects.Graphics;
   private glow: Phaser.GameObjects.Arc;
+  private offImg?: Phaser.GameObjects.Image;
+  private onImg?: Phaser.GameObjects.Image;
   private ev?: Phaser.Time.TimerEvent;
   lit = false;
 
-  constructor(private scene: Phaser.Scene, x: number, y: number) {
-    this.glow = scene.add.circle(x, y, 46, 0xffffff, 0).setDepth(7);
+  /** size: ランプの 横はば */
+  constructor(private scene: Phaser.Scene, x: number, y: number, size = 76) {
+    this.glow = scene.add.circle(x, y, size * 0.7, 0xffffff, 0).setDepth(7);
     this.g = scene.add.graphics().setDepth(7.5).setPosition(x, y);
-    this.paint(0x4a3a5a);
+    if (scene.textures.exists(LAMP_OFF_KEY) && scene.textures.exists(LAMP_ON_KEY)) {
+      this.offImg = scene.add.image(x, y, LAMP_OFF_KEY).setDepth(7.5);
+      this.offImg.setScale(size / this.offImg.width);
+      this.onImg = scene.add.image(x, y - size * 0.08, LAMP_ON_KEY).setDepth(7.6).setVisible(false);
+      this.onImg.setScale((size * 1.25) / this.onImg.width);
+    } else this.paint(0x4a3a5a);
   }
 
   private paint(color: number): void {
+    if (this.offImg) return;
     const g = this.g.clear();
     g.fillStyle(color, 1).lineStyle(5, 0x16101c, 1);
     const pts = [[-30, 18], [-30, -12], [-15, 2], [0, -22], [15, 2], [30, -12], [30, 18]].map(([x, y]) => new Phaser.Math.Vector2(x, y));
     g.fillPoints(pts, true).strokePoints(pts, true);
   }
 
-  /** 光る(キュイン!)。虹色に 回る */
+  /** 光る(キュイン!)。まわりが 虹色に 光る */
   light(): void {
     if (this.lit) return;
     this.lit = true;
@@ -202,6 +219,14 @@ export class NoticeLamp {
       },
     });
     this.scene.tweens.add({ targets: this.glow, scale: { from: 0.6, to: 1.4 }, duration: 380, yoyo: true, repeat: -1 });
+    if (this.onImg && this.offImg) {
+      this.offImg.setVisible(false);
+      const base = this.onImg.scale;
+      this.onImg.setVisible(true).setScale(base * 1.8);
+      this.scene.tweens.add({ targets: this.onImg, scale: base, duration: 260, ease: 'Back.easeOut' });
+      this.scene.tweens.add({ targets: this.onImg, scale: base * 1.08, duration: 300, yoyo: true, repeat: -1, delay: 280 });
+      this.onImg.setData('base', base);
+    }
     audio.se('mcMagic', { pitch: 1.6 });
     this.scene.time.delayedCall(140, () => audio.se('mcMagic', { pitch: 2 }));
     this.scene.cameras.main.flash(200, 255, 255, 255);
@@ -213,6 +238,11 @@ export class NoticeLamp {
     this.ev?.remove();
     this.scene.tweens.killTweensOf(this.glow);
     this.glow.setFillStyle(0xffffff, 0).setScale(1);
+    if (this.onImg && this.offImg) {
+      this.scene.tweens.killTweensOf(this.onImg);
+      this.onImg.setVisible(false).setScale(this.onImg.getData('base') ?? this.onImg.scale);
+      this.offImg.setVisible(true);
+    }
     this.paint(0x4a3a5a);
   }
 }

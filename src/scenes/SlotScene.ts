@@ -8,7 +8,7 @@ import { UI_FONT } from '../ui/paint';
 import { fillSize, safeInsets } from '../ui/viewport';
 import { planShow, type SpinShow } from '../core/slot/reach';
 import { CAB_FILE, CAB_KEY, cabinetLayout, cabinetTexture, type Rect } from './slotCabinet';
-import { coinFountain, cutIn, idleAnim, lcdRays, NoticeLamp, PUSH_FILE, PUSH_KEY, pushButton, stepUp, tierText } from './slotFx';
+import { coinFountain, cutIn, idleAnim, LAMP_FILES, lcdRays, NoticeLamp, PUSH_FILE, PUSH_KEY, pushButton, stepUp, tierText } from './slotFx';
 
 /**
  * MONZ SLOT(ミニゲーム⑤)の 画面(2026-11-10 企画者の 仕様書。docs/SLOT.md)。2段目: スロット画面。
@@ -106,6 +106,7 @@ export class SlotScene extends Phaser.Scene {
     // 企画者の 台の 背景(2026-11-10)
     if (!this.textures.exists(CAB_KEY)) this.load.image(CAB_KEY, assetUrl(CAB_FILE));
     if (!this.textures.exists(PUSH_KEY)) this.load.image(PUSH_KEY, assetUrl(PUSH_FILE));
+    for (const [k, f] of LAMP_FILES) if (!this.textures.exists(k)) this.load.image(k, assetUrl(f));
     // 企画者の 液晶の 背景(ふだん・赤・金。2026-11-10)
     for (const n of LCD_BGS) if (!this.textures.exists(lcdBgKey(n))) this.load.image(lcdBgKey(n), assetUrl(`assets/slot/lcd_${n}.webp`));
   }
@@ -303,7 +304,7 @@ export class SlotScene extends Phaser.Scene {
     const h = ROWS * this.cell + (ROWS - 1) * GAP;
     if (this.cab) {
       // ⑧ 告知ランプ(王冠の 形。液晶の 左下)。枠と 窓の 外を かくすのは 台の 絵
-      this.lamp = new NoticeLamp(this, this.lcdBox.x + 40, this.lcdBox.y + this.lcdBox.h - 30);
+      this.lamp = new NoticeLamp(this, this.lcdBox.x + 50, this.lcdBox.y + this.lcdBox.h - 30, 84);
       return;
     }
     // 枠(金)
