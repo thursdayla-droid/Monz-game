@@ -253,6 +253,9 @@ export class NoticeLamp {
 }
 
 const COIN_KEY = 'slot:coin';
+/** 企画者の コインの 絵(2026-11-10。元は design/slot/coin.png) */
+export const COIN_ART_KEY = 'slot:coinart';
+export const COIN_ART_FILE = 'assets/slot/coin.webp';
 
 /** ⑤ コインが あふれる(大きい 当たり)。ジャラジャラ */
 export function coinFountain(scene: Phaser.Scene, x: number, y: number, count: number): void {
@@ -276,7 +279,9 @@ export function coinFountain(scene: Phaser.Scene, x: number, y: number, count: n
   }
   const H = scene.scale.height;
   for (let i = 0; i < count; i++) {
-    const c = scene.add.image(x + (Math.random() - 0.5) * 80, y, COIN_KEY).setDepth(25).setScale(0.6 + Math.random() * 0.6);
+    const art = scene.textures.exists(COIN_ART_KEY);
+    const c = scene.add.image(x + (Math.random() - 0.5) * 80, y, art ? COIN_ART_KEY : COIN_KEY).setDepth(25);
+    c.setScale((48 / c.width) * (0.6 + Math.random() * 0.6));
     const vx = (Math.random() - 0.5) * 900;
     const up = 500 + Math.random() * 700;
     const t0 = i * 18;
