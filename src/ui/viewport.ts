@@ -2,6 +2,11 @@ import * as Phaser from 'phaser';
 
 /** ゲームを表示している所(ブラウザの画面)の 横÷縦 */
 export function viewRatio(scene: Phaser.Scene): number {
+  // 2026-11-10 企画者「横→縦→横に すると アップに なる」: Phaser が 覚えている 大きさは 向きを 変えた 直後は 古い ことが ある
+  // → ゲームを 入れている 所の 今の 大きさを 直接 はかる
+  const el = (scene.game?.canvas?.parentElement ?? globalThis.document?.getElementById?.('game')) as HTMLElement | null | undefined;
+  const r = el?.getBoundingClientRect?.();
+  if (r && r.width > 0 && r.height > 0) return r.width / r.height;
   const p = scene.scale.parentSize;
   const w = p?.width || globalThis.innerWidth || 720;
   const h = p?.height || globalThis.innerHeight || 1280;
@@ -23,20 +28,27 @@ export function fillSize(scene: Phaser.Scene, base: { w: number; h: number }, li
  */
 export function watchViewport(scene: Phaser.Scene, onChange: () => void): void {
   let last = viewRatio(scene);
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  let timers: ReturnType<typeof setTimeout>[] = [];
+  const check = () => {
+    if (!scene.sys.isActive()) return;
+    const r = viewRatio(scene);
+    if (Math.abs(r - last) < 0.01) return;
+    last = r;
+    // Phaser にも 今の 大きさを 読みなおさせる(古い 大きさの まま 拡大されない ように)
+    scene.scale.refresh();
+    onChange();
+  };
+  // iPhone は 向きを 変えた あと 大きさが 少し おくれて 決まる → 何回か たしかめる
   const handler = () => {
-    clearTimeout(timer);
-    timer = setTimeout(() => {
-      const r = viewRatio(scene);
-      if (Math.abs(r - last) < 0.01) return;
-      last = r;
-      onChange();
-    }, 200);
+    timers.forEach(clearTimeout);
+    timers = [200, 600, 1200].map((ms) => setTimeout(check, ms));
   };
   globalThis.addEventListener?.('resize', handler);
+  globalThis.addEventListener?.('orientationchange', handler);
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-    clearTimeout(timer);
+    timers.forEach(clearTimeout);
     globalThis.removeEventListener?.('resize', handler);
+    globalThis.removeEventListener?.('orientationchange', handler);
   });
 }
 
