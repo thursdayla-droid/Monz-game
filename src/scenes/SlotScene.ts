@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
+import { assetUrl } from '../assetUrl';
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { randomSeed, mulberry32, type Rng } from '../core/rng';
 import { BETS, CHEST_PAY, dealChests, newBonus, pickChest, REELS, ROWS, SYMBOL_NAME, SYMBOLS, spin, type BonusState, type ChestContent, type SpinResult, type SymbolId } from '../core/slot/slot';
@@ -14,7 +15,7 @@ import { coinFountain, cutIn, idleAnim, lcdRays, NoticeLamp, pushButton, stepUp,
  * - MONZ コインで 遊ぶ(企画者 2026-11-10)。回した 時に 結果を 決めて、BET と 当たりを 1回で 保存(LifeRecord.slotSpin)
  * - リールは 左から 順に 自動で 止まる【確定】。止まる 時間は【仮】
  * - 当たりの 見せ方(企画者 2026-11-10「A」): BET 以上 もどる 当たりは 大きく 光る・BET より 少ない 当たりは 細い 枠と WIN の 数字だけ
- * - 図柄の 絵は 企画者が 作る(届くまでは プログラムで 描いた【仮】の 絵)
+ * - 図柄の 絵は 企画者の 絵(2026-11-10。読めない 時は プログラムで 描いた 絵)
  * - オートスピン(企画者 2026-11-10): 回数を えらぶ(最大 100回)。ボーナス・コイン不足・もう一度 押すと 止まる。速さは 前の ふつうの 速さ
  * - 宝箱ボーナス【確定】: 液晶に 宝箱 3つ。えらぶ たびに コインを もらって 保存(とちゅうで 閉じても 続きから)
  */
@@ -35,7 +36,13 @@ export const AUTO_STOP_STEP = 260;
 export const AUTO_COUNTS = [10, 25, 50, 100] as const;
 const SPIN_SPEED = 2.6; // 1ms に すすむ 点
 
-const symKey = (s: SymbolId) => `slot:sym:${s}`;
+/** プログラムで 描いた 仮の 図柄(企画者の 絵が 読めなかった 時の 代わり) */
+const drawnKey = (s: SymbolId) => `slot:sym:${s}`;
+/** 企画者の 図柄の 絵(2026-11-10。元は design/slot/symbols/<名前>.png) */
+const artKey = (s: SymbolId) => `slot:symart:${s}`;
+const artFile = (s: SymbolId) => `assets/slot/sym_${s}.webp`;
+let symScene: Phaser.Scene | null = null;
+const symKey = (s: SymbolId) => (symScene?.textures.exists(artKey(s)) ? artKey(s) : drawnKey(s));
 
 interface ReelView {
   imgs: Phaser.GameObjects.Image[];
@@ -82,7 +89,13 @@ export class SlotScene extends Phaser.Scene {
     super('Slot');
   }
 
+  preload(): void {
+    // 企画者の 図柄の 絵(メモリから 外されて いたら 読みなおす)
+    for (const s of SYMBOLS) if (!this.textures.exists(artKey(s))) this.load.image(artKey(s), assetUrl(artFile(s)));
+  }
+
   create(): void {
+    symScene = this;
     this.reels = [];
     this.glow = [];
     this.betBtns = [];
@@ -97,7 +110,7 @@ export class SlotScene extends Phaser.Scene {
     this.record = new LifeRecord(loadLife());
     this.bet = loadBet();
     this.shown = this.record.coins;
-    for (const s of SYMBOLS) if (!this.textures.exists(symKey(s))) drawSymbolTexture(this, s);
+    for (const s of SYMBOLS) if (!this.textures.exists(drawnKey(s))) drawSymbolTexture(this, s);
     for (const c of ['purple', 'red', 'blue']) for (const o of [false, true]) if (!this.textures.exists(chestKey(c, o))) drawChestTexture(this, c, o);
     this.layout();
     audio.playBgm('main');
@@ -896,7 +909,7 @@ function drawChestTexture(scene: Phaser.Scene, col: string, open: boolean): void
 /** 【仮】図柄の 絵(企画者の 絵が 届くまで)。太い 黒い ふち・あざやかな 色 */
 function drawSymbolTexture(scene: Phaser.Scene, s: SymbolId): void {
   const S = 160;
-  const t = scene.textures.createCanvas(symKey(s), S, S);
+  const t = scene.textures.createCanvas(drawnKey(s), S, S);
   const ctx = t?.getContext();
   if (!t || !ctx) return;
   ctx.lineJoin = 'round';

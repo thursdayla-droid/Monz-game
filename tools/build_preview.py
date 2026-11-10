@@ -58,7 +58,8 @@ if B3D:
 elif MYTH:
     paths = myth_paths + card_paths
 elif SLOT:
-    paths = []
+    # 2026-11-10 企画者の 図柄の 絵
+    paths = sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/slot/*.webp'))
 elif MJ:
     paths = sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/mahjong/*.webp'))
     # 左右の キャラ(勇者 ZIPP・ボス RIOT・子分 SNEK／GRIT【仮】)
