@@ -43,6 +43,10 @@ const drawnKey = (s: SymbolId) => `slot:sym:${s}`;
 const artKey = (s: SymbolId) => `slot:symart:${s}`;
 const artFile = (s: SymbolId) => `assets/slot/sym_${s}.webp`;
 let symScene: Phaser.Scene | null = null;
+/** 液晶の 背景(企画者 2026-11-10。元は design/slot/lcd/)。normal ふだん・red 赤い 稲妻・gold 金の 光 */
+const LCD_BGS = ['normal', 'red', 'gold'] as const;
+type LcdBg = (typeof LCD_BGS)[number];
+const lcdBgKey = (n: LcdBg) => `slot:lcd:${n}`;
 const symKey = (s: SymbolId) => (symScene?.textures.exists(artKey(s)) ? artKey(s) : drawnKey(s));
 
 interface ReelView {
@@ -88,6 +92,8 @@ export class SlotScene extends Phaser.Scene {
   private lastShow?: SpinShow;
   private countTween?: Phaser.Tweens.Tween;
   private lamp!: NoticeLamp;
+  private lcdBgImg?: Phaser.GameObjects.Image;
+  private lcdDim?: Phaser.GameObjects.Rectangle;
   private shown = 0;
 
   constructor() {
@@ -99,6 +105,8 @@ export class SlotScene extends Phaser.Scene {
     for (const s of SYMBOLS) if (!this.textures.exists(artKey(s))) this.load.image(artKey(s), assetUrl(artFile(s)));
     // 企画者の 台の 背景(2026-11-10)
     if (!this.textures.exists(CAB_KEY)) this.load.image(CAB_KEY, assetUrl(CAB_FILE));
+    // 企画者の 液晶の 背景(ふだん・赤・金。2026-11-10)
+    for (const n of LCD_BGS) if (!this.textures.exists(lcdBgKey(n))) this.load.image(lcdBgKey(n), assetUrl(`assets/slot/lcd_${n}.webp`));
   }
 
   create(): void {
@@ -214,6 +222,7 @@ export class SlotScene extends Phaser.Scene {
       // 台の 絵の 液晶の 窓(ふちは 絵)。少し 色を のせる
       const g0 = this.add.graphics().setDepth(4);
       g0.fillGradientStyle(0x3a1466, 0x5a1a7a, 0x120818, 0x1a0a2a, 0.55).fillRect(x + 4, y + 4, w - 8, h - 8);
+      this.makeLcdBg();
       this.lcd = this.add.container(x + w / 2, y + h / 2).setDepth(5);
       this.lcdIdle();
       return;
@@ -223,6 +232,7 @@ export class SlotScene extends Phaser.Scene {
     g.fillStyle(0xffd23a, 1).fillRoundedRect(x - 8, y - 8, w + 16, h + 16, 26);
     g.fillStyle(0x16101c, 1).fillRoundedRect(x, y, w, h, 20);
     g.fillGradientStyle(0x3a1466, 0x5a1a7a, 0x120818, 0x1a0a2a, 1).fillRect(x + 10, y + 10, w - 20, h - 20);
+    this.makeLcdBg();
     this.lcd = this.add.container(x + w / 2, y + h / 2).setDepth(5);
     // 液晶の まわりを 背景の 色で かくす(演出が 液晶の 外に はみ出さない ように)。金の ふちは その 上
     const H = this.H;
@@ -237,6 +247,35 @@ export class SlotScene extends Phaser.Scene {
     this.lcdIdle();
   }
 
+  /** 液晶の 背景の 絵(液晶の 四角に ぴったり。はみ出す 所は 切る) */
+  private makeLcdBg(): void {
+    const { x, y, w, h } = this.lcdBox;
+    this.lcdBgImg = undefined;
+    if (!this.textures.exists(lcdBgKey('normal'))) return;
+    this.lcdBgImg = this.add.image(x + w / 2, y + h / 2, lcdBgKey('normal')).setDepth(4.2);
+    this.lcdDim = this.add.rectangle(x + w / 2, y + h / 2, w - 8, h - 8, 0x0d0614, 0.25).setDepth(4.3);
+    this.setLcdBg('normal');
+  }
+
+  /** 液晶の 背景を 入れかえる(dim: 上に のせる 暗さ。文字を 読みやすく) */
+  private setLcdBg(n: LcdBg, dim = 0.25): void {
+    const img = this.lcdBgImg;
+    if (!img || !this.textures.exists(lcdBgKey(n))) return;
+    const { w, h } = this.lcdBox;
+    img.setTexture(lcdBgKey(n));
+    const iw = img.frame.width;
+    const ih = img.frame.height;
+    const iw0 = w - 8;
+    const ih0 = h - 8;
+    const k = Math.max(iw0 / iw, ih0 / ih);
+    img.setScale(k);
+    // 見える 所だけ(まん中)
+    const cw = iw0 / k;
+    const ch = ih0 / k;
+    img.setCrop((iw - cw) / 2, (ih - ch) / 2, cw, ch);
+    this.lcdDim?.setFillStyle(0x0d0614, dim);
+  }
+
   /** 液晶を 入れかえる */
   private lcdShow(items: Phaser.GameObjects.GameObject[]): void {
     this.lcd.removeAll(true);
@@ -244,8 +283,9 @@ export class SlotScene extends Phaser.Scene {
   }
 
   private lcdIdle(): void {
+    this.setLcdBg('normal');
     const h = this.lcdBox.h;
-    const logo = this.text(0, -h * 0.12, 'MONZ SLOT', Math.min(96, h * 0.26), '#ffd23a', 10);
+    const logo = this.text(0, -h * 0.12, 'MONZ SLOT', Math.min(96, h * 0.26, this.lcdBox.w * 0.15), '#ffd23a', 10);
     logo.setShadow(0, 6, '#ff4ad8', 0, true, true);
     const sub = this.text(0, h * 0.18, 'SPIN を 押してね', Math.min(30, h * 0.09), '#e8dcf4');
     this.tweens.add({ targets: logo, scale: 1.04, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
@@ -573,6 +613,7 @@ export class SlotScene extends Phaser.Scene {
   private reachResult(ok: boolean): void {
     const h = this.lcdBox.h;
     if (ok) {
+      this.setLcdBg('gold', 0.1);
       const t = this.text(0, 0, '成功!!', Math.min(110, h * 0.3), '#ffd23a', 12);
       this.lcdShow([this.add.rectangle(0, 0, this.lcdBox.w - 20, h - 20, 0xffffff, 0.35), t]);
       t.setScale(2.4);
@@ -601,11 +642,15 @@ export class SlotScene extends Phaser.Scene {
 
   /** 大きい リーチ【仮の 見た目】。企画者の リーチ演出(7種類くらい)が 入る ところ */
   private bigReach(show: SpinShow, ms: number): void {
+    // 液晶の 背景: 赤は 赤い 稲妻・金と 虹は 金の 光・青と 緑は ふだんの 背景を 暗く
+    if (show.bigTier === 'red') this.setLcdBg('red', 0.15);
+    else if (show.bigTier === 'gold' || show.bigTier === 'rainbow') this.setLcdBg('gold', 0.1);
+    else this.setLcdBg('normal', 0.45);
     const type = show.big!;
     const { w, h } = this.lcdBox;
     const col = type.id === 'strong' ? 0xb46aff : type.id === 'mid' ? 0x3a9dff : 0x3ec46a;
     const items: Phaser.GameObjects.GameObject[] = [];
-    const bg = this.add.rectangle(0, 0, w - 20, h - 20, 0x000000, 0.5);
+    const bg = this.add.rectangle(0, 0, w - 20, h - 20, 0x000000, this.lcdBgImg ? 0.12 : 0.5);
     const rays = lcdRays(this, this.lcdBox, col, 0.28, 16);
     // 仮の キャラ(シルエット)
     const sil = this.add.graphics();
@@ -667,6 +712,7 @@ export class SlotScene extends Phaser.Scene {
       for (const [r, i] of cells.values()) this.cellGlow(r, i, big);
       this.countUp(res.win, big);
     }
+    if (res.win >= this.bet * 5) this.setLcdBg('gold', 0.2);
     if (big) {
       audio.se('cheer');
       const h = this.lcdBox.h;
@@ -716,6 +762,7 @@ export class SlotScene extends Phaser.Scene {
 
   /** 1ラウンド: 宝箱 3つを 出す(resume: 閉じた あとの 続き) */
   private bonusRound(resume: boolean): void {
+    this.setLcdBg('gold', 0.3);
     const b = this.bonus;
     if (!b) return;
     const { w, h } = this.lcdBox;
