@@ -497,9 +497,8 @@ export class SlotScene extends Phaser.Scene {
       this.cameras.main.flash(260, 255, 255, 200);
       audio.se('koBlast');
     } else {
-      const t = this.text(0, 0, 'ざんねん…', Math.min(70, h * 0.19), '#9a8aa8', 8);
-      this.lcdShow([t]);
-      audio.se('back');
+      // 2026-11-10 企画者「ざんねんは いらない」→ 失敗の 時は 何も 出さずに もとの 液晶へ
+      this.lcdIdle();
     }
   }
 
