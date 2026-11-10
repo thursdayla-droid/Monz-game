@@ -45,15 +45,16 @@ if B3D:
         paths = [p for p in paths if p.endswith('.webp') or os.path.basename(p)[:-4] in FORM1]
         paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/story/*.webp'))
     else:
-        paths = [p for p in paths if (is_new(p) or is_bunk(p) or p.endswith('crownie.glb'))] if B3D2 else [p for p in paths if not is_new(p)]
+        paths = [p for p in paths if (is_new(p) or is_bunk(p) or p.endswith(('crownie.glb', 'crownix.glb')))] if B3D2 else [p for p in paths if not is_new(p)]
         # 2026-11-06 CROWNOR は 15MB に 入らないので STREET KING の ページ(--story)だけ
         paths = [p for p in paths if not p.endswith('crownor.glb')]
         # 2026-11-09 CROWNIE(第1形態)の モデルは 2つめの ページ(--b3d2)だけ
         if not B3D2:
-            paths = [p for p in paths if not p.endswith('crownie.glb')]
+            paths = [p for p in paths if not p.endswith(('crownie.glb', 'crownix.glb'))]
         else:
             # 15MB に 入れるため、このページの BUNKLORD(相手の BUNK の 最終形態)は はずす(BUNKER で 代わり)
-            paths = [p for p in paths if not p.endswith('bunklord.glb')]
+            # 2026-11-10 CROWNIX も 入れるので BUNKER(相手の BUNK の 第2形態)も はずす(このページでは 相手の BUNK の 第2・第3形態は 仮の 人形)
+            paths = [p for p in paths if not p.endswith(('bunklord.glb', 'bunker.glb'))]
 elif MYTH:
     paths = myth_paths + card_paths
 elif SLOT:
