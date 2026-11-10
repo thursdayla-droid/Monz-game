@@ -135,6 +135,14 @@ export class SlotScene extends Phaser.Scene {
         this.shown = this.record.coins;
         this.credit.setText(this.shown.toLocaleString());
       });
+      // 宝箱ボーナスを すぐ ためす(ふつうは 約 100回に 1回なので)
+      const bon = this.text(W - 120, 146, 'ボーナスを ためす（確認用）', 18, '#16101c').setBackgroundColor('#ffd23a').setPadding(10, 6, 10, 8).setDepth(30).setInteractive({ useHandCursor: true });
+      bon.on('pointerdown', () => {
+        if (this.busy || this.autoLeft > 0) return;
+        this.busy = true;
+        audio.unlock();
+        this.startBonus();
+      });
     }
 
     this.drawLcd();
