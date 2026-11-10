@@ -14,6 +14,10 @@ import { UI_FONT } from '../ui/paint';
 export const PUSH_KEY = 'slot:push';
 export const PUSH_FILE = 'assets/slot/push.webp';
 
+/** 企画者の ステップアップ予告の 絵(2026-11-10。元は design/slot/step/step1〜5.png) */
+export const stepKey = (n: number) => `slot:step:${n}`;
+export const STEP_FILES: [string, string][] = [1, 2, 3, 4, 5].map((n) => [stepKey(n), `assets/slot/step${n}.webp`]);
+
 export interface LcdBox {
   x: number;
   y: number;
@@ -47,7 +51,8 @@ export function tierText(scene: Phaser.Scene, x: number, y: number, s: string, s
  * ① ステップアップ予告: 液晶に 1 → 2 → … と 段が 進む。段が 進むほど・色が アツいほど 当たりやすい。かかる 時間(ms)を 返す
  */
 export function stepUp(scene: Phaser.Scene, lcd: Phaser.GameObjects.Container, box: LcdBox, level: number, tier: ColorTier, fast: boolean): number {
-  const per = fast ? 220 : 330;
+  const art = scene.textures.exists(stepKey(1));
+  const per = art ? (fast ? 280 : 450) : fast ? 220 : 330;
   const { w, h } = box;
   const words = ['チャンス？', 'チャンス！', 'アツい！', '激アツ！！', 'MONZ 確定級！？'];
   for (let i = 0; i < level; i++) {
@@ -56,6 +61,28 @@ export function stepUp(scene: Phaser.Scene, lcd: Phaser.GameObjects.Container, b
       lcd.removeAll(true);
       // 段が 上がるほど 色が アツく(さいごの 段は 決まった 色)
       const t: ColorTier = i === level - 1 ? tier : (['blue', 'green', 'red', 'gold'] as const)[Math.min(3, i)];
+      if (art && scene.textures.exists(stepKey(i + 1))) {
+        // 企画者の STEP 1〜5 の 絵(1 青・2 緑・3 赤・4 金・5 虹)。うしろに 同じ 絵を 大きく うすく(液晶 いっぱい)、まん中に 絵 ぜんぶ
+        const key = stepKey(i + 1);
+        const back = scene.add.image(0, 0, key);
+        const kb = Math.max((w - 8) / back.width, (h - 8) / back.height);
+        back.setScale(kb).setAlpha(0.55);
+        const cw = (w - 8) / kb;
+        const ch = (h - 8) / kb;
+        back.setCrop((back.width - cw) / 2, (back.height - ch) / 2, cw, ch);
+        const img = scene.add.image(0, -h * 0.02, key);
+        const k = Math.min((h * 0.9) / img.height, (w * 0.9) / img.width);
+        img.setScale(k * 1.6).setAlpha(0);
+        const steps = scene.add.container(0, h * 0.43);
+        for (let n = 0; n < 5; n++) steps.add(scene.add.rectangle((n - 2) * 44, 0, 36, 12, n <= i ? 0xffd23a : 0x3a2a4a, 1).setStrokeStyle(2, 0x16101c));
+        const flash = scene.add.rectangle(0, 0, w - 8, h - 8, 0xffffff, 0.7);
+        lcd.add([back, img, steps, flash]);
+        scene.tweens.add({ targets: img, scale: k, alpha: 1, duration: 220, ease: 'Back.easeOut' });
+        scene.tweens.add({ targets: flash, alpha: 0, duration: 260 });
+        audio.se(i >= 3 ? 'mcCutin' : 'mcSelect', { pitch: 1 + i * 0.12 });
+        if (i >= 3) scene.cameras.main.shake(160, 0.004 + (i - 3) * 0.003);
+        return;
+      }
       const flash = scene.add.rectangle(0, 0, w - 20, h - 20, TIER_NUM[t], 0.5);
       const steps = scene.add.container(0, h * 0.3);
       for (let k = 0; k < 5; k++) {
