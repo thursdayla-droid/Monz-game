@@ -2,7 +2,7 @@ import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { randomSeed, mulberry32, type Rng } from '../core/rng';
-import { BETS, REELS, ROWS, SYMBOL_NAME, SYMBOLS, spin, type SpinResult, type SymbolId } from '../core/slot/slot';
+import { BETS, CHEST_PAY, dealChests, newBonus, pickChest, REELS, ROWS, SYMBOL_NAME, SYMBOLS, spin, type BonusState, type ChestContent, type SpinResult, type SymbolId } from '../core/slot/slot';
 import { UI_FONT } from '../ui/paint';
 import { fillSize, safeInsets } from '../ui/viewport';
 
@@ -13,7 +13,8 @@ import { fillSize, safeInsets } from '../ui/viewport';
  * - リールは 左から 順に 自動で 止まる【確定】。止まる 時間は【仮】
  * - 当たりの 見せ方(企画者 2026-11-10「A」): BET 以上 もどる 当たりは 大きく 光る・BET より 少ない 当たりは 細い 枠と WIN の 数字だけ
  * - 図柄の 絵は 企画者が 作る(届くまでは プログラムで 描いた【仮】の 絵)
- * - 宝箱ボーナスは 3段目(今は 液晶に 出すだけ)
+ * - オートスピン(企画者 2026-11-10): 回数を えらぶ(最大 100回)。ボーナス・コイン不足・もう一度 押すと 止まる。速さは 前の ふつうの 速さ
+ * - 宝箱ボーナス【確定】: 液晶に 宝箱 3つ。えらぶ たびに コインを もらって 保存(とちゅうで 閉じても 続きから)
  */
 const W = 720;
 const BASE_H = 1280;
@@ -25,9 +26,11 @@ const SAVE_KEY = 'monz:slot';
 // 2026-11-10 企画者「今の 速度は オートの 時で いい。(ふつうは)じゃっかん 遅く」
 const STOP_FIRST = 1000;
 const STOP_STEP = 340;
-/** オートスピンの 時の 止まる 時間(前の ふつうの 速さ)。オートスピンは まだ ない【未確定】 */
+/** オートスピンの 時の 止まる 時間(前の ふつうの 速さ。企画者 2026-11-10「今の 速度は オートの 時で いい」) */
 export const AUTO_STOP_FIRST = 750;
 export const AUTO_STOP_STEP = 260;
+/** オートの 回数(企画者 2026-11-10「回数を 決められる ように。最大 100回」)。えらべる 数は【仮】 */
+export const AUTO_COUNTS = [10, 25, 50, 100] as const;
 const SPIN_SPEED = 2.6; // 1ms に すすむ 点
 
 const symKey = (s: SymbolId) => `slot:sym:${s}`;
@@ -54,6 +57,14 @@ export class SlotScene extends Phaser.Scene {
   private glow: Phaser.GameObjects.GameObject[] = [];
   private betBtns: Phaser.GameObjects.Text[] = [];
   private spinBtn!: Phaser.GameObjects.Container;
+  private spinLabel!: Phaser.GameObjects.Text;
+  private autoBtn!: Phaser.GameObjects.Container;
+  private autoLabel!: Phaser.GameObjects.Text;
+  /** オートの 残り(0 なら オートでは ない) */
+  private autoLeft = 0;
+  private autoNow = false;
+  private picker?: Phaser.GameObjects.Container;
+  private bonus?: BonusState;
   private shown = 0;
 
   constructor() {
@@ -65,6 +76,10 @@ export class SlotScene extends Phaser.Scene {
     this.glow = [];
     this.betBtns = [];
     this.busy = false;
+    this.autoLeft = 0;
+    this.autoNow = false;
+    this.picker = undefined;
+    this.bonus = undefined;
     this.H = Math.max(BASE_H, fillSize(this, { w: W, h: BASE_H }, { minRatio: 0.4, maxRatio: W / BASE_H }).h);
     this.scale.setGameSize(W, this.H);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(W, BASE_H));
@@ -72,9 +87,17 @@ export class SlotScene extends Phaser.Scene {
     this.bet = loadBet();
     this.shown = this.record.coins;
     for (const s of SYMBOLS) if (!this.textures.exists(symKey(s))) drawSymbolTexture(this, s);
+    for (const c of ['purple', 'red', 'blue']) for (const o of [false, true]) if (!this.textures.exists(chestKey(c, o))) drawChestTexture(this, c, o);
     this.layout();
     audio.playBgm('main');
     this.cameras.main.fadeIn(250, 0, 0, 0);
+    // ボーナスの とちゅうで 閉じていたら 続きから
+    const saved = loadSave().bonus;
+    if (saved) {
+      this.busy = true;
+      this.bonus = { ...saved, chests: dealChests(this.rng), over: false };
+      this.time.delayedCall(400, () => this.bonusRound(true));
+    }
   }
 
   private text(x: number, y: number, s: string, size: number, color = '#ffffff', stroke = 0): Phaser.GameObjects.Text {
@@ -239,18 +262,103 @@ export class SlotScene extends Phaser.Scene {
     });
     this.paintBets();
 
+    // AUTO(回数を えらぶ・回っている 間は STOP)
+    const ac = this.add.container(352, by).setDepth(7);
+    const abg = this.add.graphics();
+    abg.fillStyle(0x16101c, 1).fillRoundedRect(-56, -54, 112, 108, 20);
+    abg.fillGradientStyle(0xffd23a, 0xffd23a, 0xff8a1f, 0xff8a1f, 1).fillRoundedRect(-50, -48, 100, 96, 16);
+    this.autoLabel = this.text(0, 0, 'AUTO', 26, '#16101c');
+    ac.add([abg, this.autoLabel]);
+    ac.setSize(112, 108).setInteractive({ useHandCursor: true });
+    ac.on('pointerdown', () => this.tapAuto());
+    this.autoBtn = ac;
+
     // SPIN(大きな 丸い ボタン)
-    const sx = W - 24 - 170;
+    const sx = W - 24 - 130;
     const c = this.add.container(sx, by).setDepth(7);
     const bgc = this.add.graphics();
-    bgc.fillStyle(0x16101c, 1).fillRoundedRect(-170, -62, 340, 124, 62);
-    bgc.fillGradientStyle(0xc070ff, 0xc070ff, 0x7a2ad0, 0x7a2ad0, 1).fillRoundedRect(-162, -54, 324, 108, 54);
-    bgc.lineStyle(6, 0xffd23a, 1).strokeRoundedRect(-162, -54, 324, 108, 54);
-    const label = this.text(0, 0, 'SPIN', 56, '#ffffff', 8);
-    c.add([bgc, label]);
-    c.setSize(340, 124).setInteractive({ useHandCursor: true });
-    c.on('pointerdown', () => this.doSpin());
+    bgc.fillStyle(0x16101c, 1).fillRoundedRect(-130, -62, 260, 124, 62);
+    bgc.fillGradientStyle(0xc070ff, 0xc070ff, 0x7a2ad0, 0x7a2ad0, 1).fillRoundedRect(-122, -54, 244, 108, 54);
+    bgc.lineStyle(6, 0xffd23a, 1).strokeRoundedRect(-122, -54, 244, 108, 54);
+    this.spinLabel = this.text(0, 0, 'SPIN', 52, '#ffffff', 8);
+    c.add([bgc, this.spinLabel]);
+    c.setSize(260, 124).setInteractive({ useHandCursor: true });
+    c.on('pointerdown', () => (this.autoLeft > 0 ? this.stopAuto() : this.doSpin()));
     this.spinBtn = c;
+  }
+
+  // ---------------- オート ----------------
+
+  private tapAuto(): void {
+    this.tweens.add({ targets: this.autoBtn, scale: 0.92, duration: 70, yoyo: true });
+    if (this.autoLeft > 0) return this.stopAuto();
+    if (this.busy || this.picker) return;
+    audio.se('tap');
+    // 回数を えらぶ
+    const c = this.add.container(W / 2, this.reelY + 190).setDepth(40);
+    const dim = this.add.rectangle(0, 0, W * 2, this.H * 3, 0x000000, 0.55).setInteractive();
+    const panel = this.add.rectangle(0, 0, 600, 330, 0x16101c, 0.97).setStrokeStyle(5, 0xffd23a);
+    c.add([dim, panel, this.text(0, -118, 'オート 何回 回す？', 32, '#ffd23a')]);
+    AUTO_COUNTS.forEach((n, i) => {
+      const b = this.text(-210 + i * 140, -10, `${n}回`, 32, '#16101c').setBackgroundColor('#ffd23a').setPadding(16, 14, 16, 16).setInteractive({ useHandCursor: true });
+      b.on('pointerdown', () => {
+        this.closePicker();
+        this.startAuto(n);
+      });
+      c.add(b);
+    });
+    const no = this.text(0, 108, 'やめる', 26, '#ffffff').setBackgroundColor('#3a2a4a').setPadding(22, 10, 22, 12).setInteractive({ useHandCursor: true });
+    no.on('pointerdown', () => {
+      audio.se('back');
+      this.closePicker();
+    });
+    dim.on('pointerdown', () => this.closePicker());
+    c.add(no);
+    this.picker = c;
+  }
+
+  private closePicker(): void {
+    this.picker?.destroy();
+    this.picker = undefined;
+  }
+
+  private startAuto(n: number): void {
+    if (this.record.coins < this.bet) {
+      audio.se('tap', { pitch: 0.7 });
+      this.toast('コインが たりないよ');
+      return;
+    }
+    audio.se('select');
+    this.autoLeft = n;
+    this.doSpin(true);
+  }
+
+  /** オートを 止める(今 回っている 1回は 最後まで) */
+  private stopAuto(): void {
+    if (this.autoLeft <= 0) return;
+    audio.se('back');
+    this.autoLeft = 0;
+    this.paintAuto();
+  }
+
+  private paintAuto(): void {
+    const on = this.autoLeft > 0;
+    this.spinLabel.setText(on ? `STOP\n残り ${this.autoLeft}` : 'SPIN').setFontSize(on ? 30 : 52);
+    this.autoLabel.setText(on ? 'STOP' : 'AUTO');
+  }
+
+  /** 1回 おわった 時: オートなら 次へ */
+  private afterSpin(): void {
+    if (this.autoLeft <= 0) return;
+    if (this.record.coins < this.bet) {
+      this.toast('コインが たりないよ');
+      this.autoLeft = 0;
+      this.paintAuto();
+      return;
+    }
+    this.time.delayedCall(350, () => {
+      if (this.autoLeft > 0 && !this.busy) this.doSpin(true);
+    });
   }
 
   private paintBets(): void {
@@ -262,12 +370,14 @@ export class SlotScene extends Phaser.Scene {
 
   // ---------------- 回す ----------------
 
-  private doSpin(): void {
-    if (this.busy) return;
-    this.tweens.add({ targets: this.spinBtn, scale: 0.94, duration: 70, yoyo: true });
+  private doSpin(auto = false): void {
+    if (this.busy || this.picker) return;
+    if (!auto) this.tweens.add({ targets: this.spinBtn, scale: 0.94, duration: 70, yoyo: true });
     if (this.record.coins < this.bet) {
       audio.se('tap', { pitch: 0.7 });
       this.toast('コインが たりないよ');
+      this.autoLeft = 0;
+      this.paintAuto();
       return;
     }
     // 結果は 先に 決める(リーチ演出は 4段目で これに 合わせて えらぶ)
@@ -281,8 +391,14 @@ export class SlotScene extends Phaser.Scene {
     this.credit.setText(this.shown.toLocaleString());
     this.winText.setText('0').setColor('#ffffff');
     this.lcdIdle();
+    this.autoNow = auto && this.autoLeft > 0;
+    if (this.autoNow) this.autoLeft--;
+    this.paintAuto();
+    if (this.autoNow && this.autoLeft === 0) this.spinLabel.setText('SPIN').setFontSize(52);
+    const first = this.autoNow ? AUTO_STOP_FIRST : STOP_FIRST;
+    const step = this.autoNow ? AUTO_STOP_STEP : STOP_STEP;
     for (const v of this.reels) v.spinning = true;
-    for (let r = 0; r < REELS; r++) this.time.delayedCall(STOP_FIRST + r * STOP_STEP, () => this.stopReel(r, res, r === REELS - 1));
+    for (let r = 0; r < REELS; r++) this.time.delayedCall(first + r * step, () => this.stopReel(r, res, r === REELS - 1));
   }
 
   private stopReel(r: number, res: SpinResult, last: boolean): void {
@@ -324,17 +440,146 @@ export class SlotScene extends Phaser.Scene {
       this.tweens.add({ targets: t, scale: 1, duration: 320, ease: 'Back.easeOut' });
       this.cameras.main.shake(180, 0.004);
     } else if (res.win > 0) audio.se('tap', { pitch: 1.3 });
+    this.credit.setText(this.shown.toLocaleString());
     if (res.bonus) {
-      // 【3段目で 作る】宝箱ボーナス。今は 王冠を 光らせて 液晶に 出すだけ
+      // 宝箱ボーナス(オートは 止まる。企画者 2026-11-10)
+      this.autoLeft = 0;
+      this.paintAuto();
       for (const [r, i] of res.crownCells) this.cellGlow(r, i, true, 0xffd23a);
       const h = this.lcdBox.h;
-      const t = this.text(0, -h * 0.1, 'BONUS!!', Math.min(110, h * 0.3), '#ffd23a', 12);
-      const s = this.text(0, h * 0.24, '宝箱ボーナス（3段目で 作ります）', 22, '#ffffff', 4);
+      const t = this.text(0, -h * 0.14, 'BONUS!!', Math.min(120, h * 0.32), '#ffd23a', 12);
+      t.setShadow(0, 8, '#ff4ad8', 0, true, true);
+      const s = this.text(0, h * 0.2, 'TREASURE CHALLENGE', Math.min(40, h * 0.11), '#ffffff', 8);
       this.lcdShow([t, s]);
+      t.setScale(2.6);
+      this.tweens.add({ targets: t, scale: 1, duration: 360, ease: 'Back.easeOut' });
+      this.cameras.main.flash(300, 255, 220, 80);
       audio.se('koBlast');
+      this.time.delayedCall(big ? 2200 : 1700, () => this.startBonus());
+      return;
     }
+    this.time.delayedCall(big ? 500 : 150, () => {
+      this.busy = false;
+      this.afterSpin();
+    });
+  }
+
+  // ---------------- 宝箱ボーナス ----------------
+
+  private startBonus(): void {
+    this.bonus = newBonus(this.rng, this.bet);
+    saveBonus(this.bonus);
+    this.clearGlow();
+    this.winText.setText('0').setColor('#ffd23a');
+    this.bonusRound(false);
+  }
+
+  /** 1ラウンド: 宝箱 3つを 出す(resume: 閉じた あとの 続き) */
+  private bonusRound(resume: boolean): void {
+    const b = this.bonus;
+    if (!b) return;
+    const { w, h } = this.lcdBox;
+    const items: Phaser.GameObjects.GameObject[] = [];
+    items.push(this.text(0, -h * 0.4, resume ? 'ボーナスの つづき！' : 'TREASURE CHALLENGE', Math.min(30, h * 0.08), '#ffd23a', 6));
+    items.push(this.text(0, -h * 0.29, `ROUND ${b.round}　合計 +${b.total.toLocaleString()}`, Math.min(28, h * 0.075), '#ffffff', 5));
+    items.push(this.text(0, h * 0.4, '宝箱を 1つ えらんでね', Math.min(24, h * 0.065), '#e8dcf4'));
+    const cw = Math.min(190, (w - 60) / 3);
+    const chests = ['purple', 'red', 'blue'].map((col, i) => {
+      const img = this.add.image((i - 1) * (cw + 16), h * 0.06, chestKey(col, false));
+      img.setScale((cw / img.width) * 0.95);
+      const base = img.scale;
+      img.setInteractive({ useHandCursor: true }).once('pointerdown', () => this.openChest(i, chests));
+      // ゆらゆら(えらんでね)
+      this.tweens.add({ targets: img, y: img.y - 8, duration: 500 + i * 90, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      img.setData('base', base).setData('col', col);
+      items.push(img);
+      return img;
+    });
+    this.lcdShow(items);
+    this.winText.setText(b.total.toLocaleString()).setColor('#ffd23a');
+    if (!resume) audio.se('select');
+  }
+
+  private openChest(i: number, chests: Phaser.GameObjects.Image[]): void {
+    const b = this.bonus;
+    if (!b || b.over) return;
+    for (const c of chests) c.disableInteractive();
+    const inside = [...b.chests] as ChestContent[];
+    const got = pickChest(b, i, this.rng);
+    const pay = b.bet * CHEST_PAY[got];
+    // すぐ 保存(開けた あとで 閉じても コインは もらえる・やり直せない)
+    if (pay) this.record.add(pay);
+    if (b.over) saveBonus(undefined);
+    else saveBonus(b);
+    this.shown = this.record.coins;
+    const h = this.lcdBox.h;
+    const img = chests[i];
+    this.tweens.killTweensOf(img);
+    this.tweens.add({ targets: img, scale: img.getData('base') * 1.18, duration: 160, yoyo: true });
+    img.setTexture(chestKey(img.getData('col'), true));
+    const label = (k: ChestContent) => (k === 'big' ? `大当たり！\n+${(b.bet * 5).toLocaleString()}` : k === 'normal' ? `+${b.bet.toLocaleString()}` : 'ボーナス\n終了');
+    const color = (k: ChestContent) => (k === 'big' ? '#ffd23a' : k === 'normal' ? '#ffffff' : '#9a8aa8');
+    const t = this.text(img.x, img.y - h * 0.2, label(got), Math.min(34, h * 0.09), color(got), 7);
+    this.lcd.add(t);
+    this.tweens.add({ targets: t, y: t.y - 16, scale: { from: 0.4, to: 1 }, duration: 260, ease: 'Back.easeOut' });
+    if (got === 'big') this.bigChest(img.x, img.y);
+    else audio.se(got === 'normal' ? 'happy' : 'back');
+    // ほかの 2つも 中身を 見せる(うすく)
+    this.time.delayedCall(550, () => {
+      chests.forEach((c, k) => {
+        if (k === i) return;
+        this.tweens.killTweensOf(c);
+        c.setTexture(chestKey(c.getData('col'), true)).setAlpha(0.55);
+        this.lcd.add(this.text(c.x, c.y - h * 0.2, label(inside[k]), Math.min(22, h * 0.06), color(inside[k]), 5).setAlpha(0.7));
+      });
+    });
     this.credit.setText(this.shown.toLocaleString());
-    this.time.delayedCall(big || res.bonus ? 500 : 150, () => (this.busy = false));
+    this.winText.setText(b.total.toLocaleString());
+    this.time.delayedCall(got === 'big' ? 2100 : 1500, () => (b.over ? this.endBonus() : this.bonusRound(false)));
+  }
+
+  /** 大当たりの 特別な 演出(光・ゆれ・キラキラ) */
+  private bigChest(x: number, y: number): void {
+    audio.se('cheer');
+    this.time.delayedCall(120, () => audio.se('koBlast'));
+    this.cameras.main.flash(260, 255, 230, 120);
+    this.cameras.main.shake(320, 0.008);
+    const rays = this.add.graphics();
+    for (let k = 0; k < 14; k++) {
+      const a = (k / 14) * Math.PI * 2;
+      const a2 = a + 0.13;
+      rays.fillStyle(0xffd23a, 0.3).fillTriangle(0, 0, Math.cos(a) * 600, Math.sin(a) * 600, Math.cos(a2) * 600, Math.sin(a2) * 600);
+    }
+    rays.setPosition(x, y).setScale(0.2);
+    this.lcd.addAt(rays, 0);
+    this.tweens.add({ targets: rays, scale: 1, duration: 300 });
+    this.tweens.add({ targets: rays, angle: 120, duration: 2000 });
+    for (let k = 0; k < 26; k++) {
+      const st = this.text(x, y, '★', 22 + Math.random() * 26, '#fff2a8');
+      this.lcd.add(st);
+      const a = Math.random() * Math.PI * 2;
+      const d = 120 + Math.random() * 260;
+      this.tweens.add({ targets: st, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d * 0.6, alpha: 0, angle: 200, duration: 900 + Math.random() * 500, ease: 'Quad.easeOut' });
+    }
+  }
+
+  private endBonus(): void {
+    const b = this.bonus;
+    if (!b) return;
+    const h = this.lcdBox.h;
+    const t = this.text(0, -h * 0.12, 'BONUS 終了', Math.min(64, h * 0.17), '#ffffff', 10);
+    const n = this.text(0, h * 0.14, `+${b.total.toLocaleString()} GET!`, Math.min(80, h * 0.21), '#ffd23a', 12);
+    n.setShadow(0, 6, '#ff4ad8', 0, true, true);
+    this.lcdShow([t, n]);
+    n.setScale(2);
+    this.tweens.add({ targets: n, scale: 1, duration: 340, ease: 'Back.easeOut' });
+    audio.se(b.total > 0 ? 'cheer' : 'back');
+    this.winText.setText(b.total.toLocaleString()).setColor('#ffd23a');
+    this.bonus = undefined;
+    this.time.delayedCall(1800, () => {
+      this.busy = false;
+      this.lcdIdle();
+    });
   }
 
   /** 当たりの マスを 光らせる(A: 大きい 当たりは 光って ゆれる・小さい 当たりは 細い 枠だけ) */
@@ -381,21 +626,95 @@ export class SlotScene extends Phaser.Scene {
   }
 }
 
-function loadBet(): number {
+/** スロットだけの 保存(えらんだ BET・ボーナスの とちゅう)。お世話の データとは 別 */
+interface SlotSave {
+  bet?: number;
+  bonus?: { bet: number; round: number; total: number; history: ChestContent[] };
+}
+
+function loadSave(): SlotSave {
   try {
-    const b = Number(JSON.parse(globalThis.localStorage?.getItem(SAVE_KEY) ?? '{}').bet);
-    return (BETS as readonly number[]).includes(b) ? b : BETS[0];
+    const d = JSON.parse(globalThis.localStorage?.getItem(SAVE_KEY) ?? '{}') as SlotSave;
+    const b = d.bonus;
+    const ok = b && (BETS as readonly number[]).includes(Number(b.bet)) && Number.isFinite(Number(b.round)) && Number.isFinite(Number(b.total));
+    const bet = Number(d.bet);
+    return { bet: (BETS as readonly number[]).includes(bet) ? bet : undefined, bonus: ok ? { bet: Number(b.bet), round: Math.max(1, Math.floor(Number(b.round))), total: Math.max(0, Math.floor(Number(b.total))), history: Array.isArray(b.history) ? b.history : [] } : undefined };
   } catch {
-    return BETS[0];
+    return {};
   }
 }
 
-function saveBet(bet: number): void {
+function writeSave(d: SlotSave): void {
   try {
-    globalThis.localStorage?.setItem(SAVE_KEY, JSON.stringify({ bet }));
+    globalThis.localStorage?.setItem(SAVE_KEY, JSON.stringify(d));
   } catch {
     /* 保存 できなくても 遊べる */
   }
+}
+
+function loadBet(): number {
+  const b = Number(loadSave().bet);
+  return (BETS as readonly number[]).includes(b) ? b : BETS[0];
+}
+
+function saveBet(bet: number): void {
+  writeSave({ ...loadSave(), bet });
+}
+
+function saveBonus(b: BonusState | undefined): void {
+  writeSave({ ...loadSave(), bonus: b ? { bet: b.bet, round: b.round, total: b.total, history: b.history } : undefined });
+}
+
+const chestKey = (col: string, open: boolean) => `slot:chest:${col}:${open ? 'o' : 'c'}`;
+
+/** 【仮】宝箱の 絵(紫・赤・青。企画者の 絵が 届くまで) */
+function drawChestTexture(scene: Phaser.Scene, col: string, open: boolean): void {
+  const S = 200;
+  const t = scene.textures.createCanvas(chestKey(col, open), S, S);
+  const ctx = t?.getContext();
+  if (!t || !ctx) return;
+  const body = col === 'purple' ? '#8a3ae0' : col === 'red' ? '#e0402a' : '#2a7ae0';
+  const dark = col === 'purple' ? '#5a1aa0' : col === 'red' ? '#a02010' : '#1a4aa0';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 8;
+  ctx.strokeStyle = '#16101c';
+  const rr = (x: number, y: number, w: number, h: number, r: number, fill: string) => {
+    // roundRect は 古い iPhone に ないので 自分で かく
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.stroke();
+  };
+  if (open) {
+    // 中が 光る
+    const g = ctx.createRadialGradient(100, 96, 4, 100, 96, 90);
+    g.addColorStop(0, '#fff8c0');
+    g.addColorStop(1, 'rgba(255,210,58,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, S, S);
+    rr(30, 30, 140, 54, 18, dark);
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(26, 100);
+    ctx.quadraticCurveTo(26, 46, 100, 46);
+    ctx.quadraticCurveTo(174, 46, 174, 100);
+    ctx.closePath();
+    ctx.fillStyle = dark;
+    ctx.fill();
+    ctx.stroke();
+  }
+  rr(26, 96, 148, 82, 12, body);
+  ctx.fillStyle = '#ffc21a';
+  ctx.fillRect(26, 120, 148, 14);
+  ctx.strokeRect(26, 120, 148, 14);
+  rr(84, 106, 32, 38, 8, '#ffd23a');
+  t.refresh();
 }
 
 /** 【仮】図柄の 絵(企画者の 絵が 届くまで)。太い 黒い ふち・あざやかな 色 */
