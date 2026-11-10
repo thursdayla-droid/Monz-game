@@ -38,7 +38,8 @@ export const SYMBOL_WEIGHT: Record<SymbolId, number> = {
   cherry: 20.01,
   clover: 20.01,
   star: 20.01,
-  crown: 3.1,
+  // 2026-11-10 企画者「同じ リールに 王冠 2個は やめよう」→ 1リール 1個まで。ボーナスが 約100回に 1回に なるよう 3.1 → 3.7【仮】
+  crown: 3.7,
 };
 
 /** 3連・4連・5連の 倍率(BET に かける)【仮：仕様書の 暫定調整値】 */
@@ -51,6 +52,11 @@ export const PAYTABLE: Record<Exclude<SymbolId, 'crown'>, readonly [number, numb
   clover: [0.34, 0.639, 1.708],
   star: [0.299, 0.639, 1.708],
 };
+/**
+ * 配当の 倍率に かける 数【仮】。王冠を 1リール 1個までに した(2026-11-10)ので 通常配当が 少し 下がった →
+ * 合計 95% に もどすため 仕様書の 倍率を 約2% 上げる
+ */
+export const PAY_SCALE = 1.0195;
 export const PAY_SYMBOLS = Object.keys(PAYTABLE) as Exclude<SymbolId, 'crown'>[];
 
 /** ボーナスに 入る 王冠の 数(画面の 15マスの どこでも)【確定】 */
@@ -75,7 +81,22 @@ export function spinGrid(rng: Rng, probs: Record<SymbolId, number> = symbolProbs
     for (const [s, c] of cum) if (r < c) return s;
     return cum[cum.length - 1][0];
   };
-  return Array.from({ length: REELS }, () => Array.from({ length: ROWS }, one));
+  // 王冠は 1リール 1個まで(企画者 2026-11-10)。2個 以上 出たら 1個だけ のこして、ほかは 王冠 以外を 引きなおす
+  const other = (): SymbolId => {
+    for (;;) {
+      const s = one();
+      if (s !== 'crown') return s;
+    }
+  };
+  return Array.from({ length: REELS }, () => {
+    const col = Array.from({ length: ROWS }, one);
+    const at = col.map((x, i) => (x === 'crown' ? i : -1)).filter((i) => i >= 0);
+    if (at.length > 1) {
+      const keep = at[Math.floor(rng() * at.length)];
+      for (const i of at) if (i !== keep) col[i] = other();
+    }
+    return col;
+  });
 }
 
 export interface WayWin {
@@ -123,7 +144,7 @@ export function evaluate(grid: Grid, bet: number): SpinResult {
     }
     if (len >= 3) {
       const length = len as 3 | 4 | 5;
-      wins.push({ symbol: s, length, ways, raw: bet * PAYTABLE[s][length - 3] * ways, cells });
+      wins.push({ symbol: s, length, ways, raw: bet * PAYTABLE[s][length - 3] * PAY_SCALE * ways, cells });
     }
   }
   const crownCells: [number, number][] = [];
@@ -195,19 +216,22 @@ const choose = (n: number, k: number): number => {
 export function theory(probs: Record<SymbolId, number> = symbolProbs()) {
   const perSymbol = {} as Record<Exclude<SymbolId, 'crown'>, number>;
   let normal = 0;
+  // 1リールの 王冠は 0個か 1個(2個 以上は 1個に して ほかを 王冠 以外に)。王冠 以外の マスで s の 確率 ps
+  const c = probs.crown;
+  const p0 = (1 - c) ** ROWS;
   for (const s of PAY_SYMBOLS) {
-    const p = probs[s];
-    const e = ROWS * p;
-    const none = (1 - p) ** ROWS;
-    const m = PAYTABLE[s];
+    const ps = probs[s] / (1 - c);
+    const e = p0 * ROWS * ps + (1 - p0) * (ROWS - 1) * ps;
+    const none = p0 * (1 - ps) ** ROWS + (1 - p0) * (1 - ps) ** (ROWS - 1);
+    const m = PAYTABLE[s].map((x) => x * PAY_SCALE);
     const v = m[0] * e ** 3 * none + m[1] * e ** 4 * none + m[2] * e ** 5;
     perSymbol[s] = v;
     normal += v;
   }
-  const c = probs.crown;
-  const cells = REELS * ROWS;
+  // 王冠が ある リールの 数が 3 以上
+  const q = 1 - p0;
   let bonusRate = 0;
-  for (let k = BONUS_CROWNS; k <= cells; k++) bonusRate += choose(cells, k) * c ** k * (1 - c) ** (cells - k);
+  for (let k = BONUS_CROWNS; k <= REELS; k++) bonusRate += choose(REELS, k) * q ** k * (1 - q) ** (REELS - k);
   // 宝箱: 1ラウンドの 期待 (5+1+0)/3 = 2・続く 確率 2/3 → 合計の 期待 2 ÷ (1 - 2/3) = 6
   const pCont = 2 / 3;
   const bonusAvg = ((CHEST_PAY.big + CHEST_PAY.normal + CHEST_PAY.end) / 3) / (1 - pCont);

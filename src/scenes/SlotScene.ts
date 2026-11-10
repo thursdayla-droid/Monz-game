@@ -305,7 +305,7 @@ export class SlotScene extends Phaser.Scene {
       logo = t;
     }
     const sub = this.text(0, this.textures.exists(LOGO_KEY) ? h * 0.38 : h * 0.18, 'SPIN を 押してね', Math.min(30, h * 0.09), '#e8dcf4');
-    this.tweens.add({ targets: logo, scale: 1.04, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.tweens.add({ targets: logo, scale: logo.scale * 1.04, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     // ⑥ 待っている 間も 液晶が 動く【仮】
     this.lcdShow([...idleAnim(this, this.lcdBox), logo, sub]);
   }
@@ -556,6 +556,7 @@ export class SlotScene extends Phaser.Scene {
     // 見せ方(予告・リーチ)を 決める。結果は もう 決まって いる(払い戻し率は 変わらない)
     const show = planShow(res, this.bet, this.rng);
     this.lastShow = show;
+    this.crownOn = false;
     const first = this.autoNow ? AUTO_STOP_FIRST : STOP_FIRST;
     for (const v of this.reels) {
       v.spinning = true;
@@ -583,6 +584,22 @@ export class SlotScene extends Phaser.Scene {
     const k = this.autoNow ? 0.6 : 1;
     const step = this.autoNow ? AUTO_STOP_STEP : STOP_STEP;
     const next = (ms: number) => this.time.delayedCall(ms, () => this.stopNext(r + 1, res, show));
+    // BONUS リーチ(企画者 2026-11-10「2つ 王冠 出たら リーチ 始まっても いい」)。図柄の リーチより 先
+    const crownAt = this.crownReachAt(res);
+    if (r === crownAt) {
+      this.crownOn = true;
+      for (let i = r + 1; i < REELS; i++) this.reels[i].speed = 0.32;
+      this.crownPanel(1, res);
+    }
+    if (this.crownOn) {
+      if (r + 1 === REELS - 1) {
+        // さいごの リール: 3つめの 王冠は…！？
+        const lead = r === crownAt ? 1000 : 0;
+        this.time.delayedCall(lead * k, () => this.crownPanel(2, res));
+        return void next((lead + 2000) * k);
+      }
+      return void next(1000 * k);
+    }
     if (r === 1 && show.small) {
       // 小さい リーチ: 3リール目が ゆっくり
       this.smallReach(res, show);
@@ -605,6 +622,61 @@ export class SlotScene extends Phaser.Scene {
     }
     if (r === 3 && show.big) return void next(LAST_REEL_MS * k);
     next(step);
+  }
+
+  private crownOn = false;
+
+  /** 2つめの 王冠が 出る リール(その あとに まだ リールが ある 時だけ)。なければ -1 */
+  private crownReachAt(res: SpinResult): number {
+    const reels = res.grid.map((col, r) => (col.includes('crown') ? r : -1)).filter((r) => r >= 0);
+    return reels.length >= 2 && reels[1] < REELS - 1 ? reels[1] : -1;
+  }
+
+  /**
+   * BONUS リーチの 1枚絵(企画者の 絵 3枚が 入る ところ【仮】)。
+   * 1: 王冠が 2つ そろった・2: 3つめの 王冠は…！？(さいごの リール)・3: 成功(BONUS の 時)
+   */
+  private crownPanel(n: 1 | 2 | 3, res: SpinResult): void {
+    const { w, h } = this.lcdBox;
+    const items: Phaser.GameObjects.GameObject[] = [];
+    const key = `slot:creach:${n}`;
+    if (this.textures.exists(key)) {
+      const img = this.add.image(0, 0, key);
+      const kk = Math.max((w - 8) / img.width, (h - 8) / img.height);
+      img.setScale(kk);
+      const cw = (w - 8) / kk;
+      const ch = (h - 8) / kk;
+      img.setCrop((img.width - cw) / 2, (img.height - ch) / 2, cw, ch);
+      items.push(img);
+    } else {
+      // 仮: 金の 光と 王冠
+      this.setLcdBg('gold', n === 2 ? 0.45 : 0.2);
+      items.push(lcdRays(this, this.lcdBox, n === 3 ? 0xffffff : 0xffd23a, n === 2 ? 0.18 : 0.3, 14, 0, 0, n === 2 ? 2500 : 5000));
+      const crowns = n === 1 ? 2 : 3;
+      for (let i = 0; i < crowns; i++) {
+        const c = this.add.image((i - (crowns - 1) / 2) * w * 0.22, -h * 0.12, symKey('crown'));
+        c.setDisplaySize(h * 0.3, h * 0.3);
+        if (n === 2 && i === 2) c.setTint(0x000000).setAlpha(0.6);
+        items.push(c);
+        this.tweens.add({ targets: c, y: c.y - 8, duration: 300 + i * 60, yoyo: true, repeat: -1 });
+      }
+    }
+    const word = n === 1 ? 'BONUS リーチ！' : n === 2 ? '3つめの 王冠は…！？' : 'BONUS 確定!!';
+    const t = this.text(0, h * 0.3, word, Math.min(n === 2 ? 44 : 52, h * 0.13, (w * 0.88) / Math.max(6, word.length)), '#ffd23a', 10);
+    t.setShadow(0, 5, '#ff4ad8', 0, true, true);
+    items.push(t);
+    this.lcdShow(items);
+    t.setScale(1.8);
+    this.tweens.add({ targets: t, scale: 1, duration: 260, ease: 'Back.easeOut' });
+    if (n === 2) this.tweens.add({ targets: t, scale: 1.06, duration: 220, yoyo: true, repeat: -1, delay: 260 });
+    // 王冠を 光らせる(止まって いる リールの)
+    if (n === 1)
+      res.crownCells.forEach(([r, i]) => {
+        if (this.reels[r].spinning) return;
+        this.cellGlow(r, i, true, 0xffd23a);
+      });
+    audio.se(n === 1 ? 'mcSpecial' : n === 2 ? 'mcThunder' : 'koBlast');
+    if (n !== 1) this.cameras.main.shake(n === 3 ? 400 : 220, n === 3 ? 0.01 : 0.005);
   }
 
   /** そろって いる リーチ図柄を 光らせる(reels: 何リール目まで) */
@@ -744,27 +816,47 @@ export class SlotScene extends Phaser.Scene {
       this.cameras.main.shake(180, 0.004);
     } else if (res.win > 0) audio.se('tap', { pitch: 1.3 });
     this.credit.setText(this.shown.toLocaleString());
-    if (res.bonus) {
-      // 宝箱ボーナス(オートは 止まる。企画者 2026-11-10)
+    if (res.bonus && this.crownOn) {
+      // BONUS リーチ 成功: 1枚絵の 3枚目 → BONUS!!
+      this.crownOn = false;
       this.autoLeft = 0;
       this.paintAuto();
-      for (const [r, i] of res.crownCells) this.cellGlow(r, i, true, 0xffd23a);
-      const h = this.lcdBox.h;
-      const t = this.text(0, -h * 0.14, 'BONUS!!', Math.min(120, h * 0.32), '#ffd23a', 12);
-      t.setShadow(0, 8, '#ff4ad8', 0, true, true);
-      const s = this.text(0, h * 0.2, 'TREASURE CHALLENGE', Math.min(40, h * 0.11), '#ffffff', 8);
-      this.lcdShow([t, s]);
-      t.setScale(2.6);
-      this.tweens.add({ targets: t, scale: 1, duration: 360, ease: 'Back.easeOut' });
-      this.cameras.main.flash(300, 255, 220, 80);
-      audio.se('koBlast');
-      this.time.delayedCall(big ? 2200 : 1700, () => this.startBonus());
+      this.crownPanel(3, res);
+      this.cameras.main.flash(300, 255, 230, 120);
+      this.time.delayedCall(1400, () => this.bonusIntro(res, big));
+      return;
+    }
+    if (!res.bonus && this.crownOn) {
+      // 失敗の 時は 何も 出さずに もとへ(企画者「ざんねんは いらない」)
+      this.crownOn = false;
+      if (!big) this.lcdIdle();
+    }
+    if (res.bonus) {
+      this.bonusIntro(res, big);
       return;
     }
     this.time.delayedCall(big ? 500 : 150, () => {
       this.busy = false;
       this.afterSpin();
     });
+  }
+
+  /** BONUS!! の 文字 → 宝箱ボーナスへ */
+  private bonusIntro(res: SpinResult, big: boolean): void {
+    // 宝箱ボーナス(オートは 止まる。企画者 2026-11-10)
+    this.autoLeft = 0;
+    this.paintAuto();
+    for (const [r, i] of res.crownCells) this.cellGlow(r, i, true, 0xffd23a);
+    const h = this.lcdBox.h;
+    const t = this.text(0, -h * 0.14, 'BONUS!!', Math.min(120, h * 0.32), '#ffd23a', 12);
+    t.setShadow(0, 8, '#ff4ad8', 0, true, true);
+    const s = this.text(0, h * 0.2, 'TREASURE CHALLENGE', Math.min(40, h * 0.11), '#ffffff', 8);
+    this.lcdShow([t, s]);
+    t.setScale(2.6);
+    this.tweens.add({ targets: t, scale: 1, duration: 360, ease: 'Back.easeOut' });
+    this.cameras.main.flash(300, 255, 220, 80);
+    audio.se('koBlast');
+    this.time.delayedCall(big ? 2200 : 1700, () => this.startBonus());
   }
 
   // ---------------- 宝箱ボーナス ----------------
@@ -824,25 +916,45 @@ export class SlotScene extends Phaser.Scene {
     this.tweens.killTweensOf(img);
     this.tweens.add({ targets: img, scale: img.getData('base') * 1.18, duration: 160, yoyo: true });
     img.setTexture(chestKey(img.getData('col'), true));
-    const label = (k: ChestContent) => (k === 'big' ? `大当たり！\n+${(b.bet * 5).toLocaleString()}` : k === 'normal' ? `+${b.bet.toLocaleString()}` : 'ボーナス\n終了');
-    const color = (k: ChestContent) => (k === 'big' ? '#ffd23a' : k === 'normal' ? '#ffffff' : '#9a8aa8');
-    const t = this.text(img.x, img.y + img.displayHeight * 0.95, label(got), Math.min(30, h * 0.08), color(got), 7);
-    this.lcd.add(t);
-    this.tweens.add({ targets: t, y: t.y - 16, scale: { from: 0.4, to: 1 }, duration: 260, ease: 'Back.easeOut' });
+    const label = (k: ChestContent) => (k === 'big' ? `大当たり\n+${(b.bet * 5).toLocaleString()}` : k === 'normal' ? `あたり\n+${b.bet.toLocaleString()}` : '終了');
+    const color = (k: ChestContent) => (k === 'big' ? '#ffd23a' : k === 'normal' ? '#ffffff' : '#b8a8c8');
     if (got === 'big') this.bigChest(img.x, img.y);
     else audio.se(got === 'normal' ? 'happy' : 'back');
-    // ほかの 2つも 中身を 見せる(うすく)
-    this.time.delayedCall(550, () => {
+    // 2026-11-10 企画者「何が 当たったか 分かりにくい」→ 開けた あと、液晶の まん中に 大きな 帯で 結果を 出す
+    const { w } = this.lcdBox;
+    const banner = this.add.container(0, 0).setAlpha(0);
+    const bandCol = got === 'big' ? 0xffd23a : got === 'normal' ? 0x9b5cff : 0x3a2a4a;
+    banner.add(this.add.rectangle(0, 0, w - 16, h * 0.5, 0x0d0614, 0.9).setStrokeStyle(6, bandCol));
+    const head = got === 'big' ? '大当たり！！' : got === 'normal' ? 'あたり！' : 'ボーナス 終了';
+    const t1 = this.text(0, got === 'end' ? 0 : -h * 0.08, head, Math.min(got === 'big' ? 70 : 58, h * 0.17), got === 'big' ? '#ffd23a' : got === 'normal' ? '#ffffff' : '#d8c8e8', 10);
+    banner.add(t1);
+    if (pay) {
+      const t2 = this.text(0, h * 0.12, `+${pay.toLocaleString()} コイン`, Math.min(44, h * 0.11), got === 'big' ? '#ffffff' : '#ffd23a', 8);
+      banner.add(t2);
+    }
+    if (got === 'big') t1.setShadow(0, 6, '#ff4ad8', 0, true, true);
+    this.time.delayedCall(450, () => {
+      this.lcd.add(banner);
+      banner.setScale(1.6);
+      this.tweens.add({ targets: banner, alpha: 1, scale: 1, duration: 240, ease: 'Back.easeOut' });
+    });
+    const showFor = got === 'big' ? 1700 : 1300;
+    // 帯を 消して、えらんだ 宝箱を 光らせ、ほかの 2つの 中身も 見せる
+    this.time.delayedCall(450 + showFor, () => {
+      this.tweens.add({ targets: banner, alpha: 0, duration: 200, onComplete: () => banner.destroy() });
+      const ring = this.add.rectangle(img.x, img.y, img.displayWidth * 1.06, img.displayHeight * 1.06).setStrokeStyle(5, bandCol);
+      this.lcd.add(ring);
+      this.lcd.add(this.text(img.x, img.y + img.displayHeight * 0.85, label(got), Math.min(24, h * 0.065), color(got), 6));
       chests.forEach((c, k) => {
         if (k === i) return;
         this.tweens.killTweensOf(c);
-        c.setTexture(chestKey(c.getData('col'), true)).setAlpha(0.55);
-        this.lcd.add(this.text(c.x, c.y + c.displayHeight * 0.9, label(inside[k]), Math.min(22, h * 0.06), color(inside[k]), 5).setAlpha(0.7));
+        c.setTexture(chestKey(c.getData('col'), true)).setAlpha(0.5);
+        this.lcd.add(this.text(c.x, c.y + c.displayHeight * 0.85, label(inside[k]), Math.min(20, h * 0.055), color(inside[k]), 5).setAlpha(0.75));
       });
     });
     this.credit.setText(this.shown.toLocaleString());
     this.winText.setText(b.total.toLocaleString());
-    this.time.delayedCall(got === 'big' ? 2100 : 1500, () => (b.over ? this.endBonus() : this.bonusRound(false)));
+    this.time.delayedCall(450 + showFor + 1000, () => (b.over ? this.endBonus() : this.bonusRound(false)));
   }
 
   /** 大当たりの 特別な 演出(光・ゆれ・キラキラ) */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../rng';
-import { dealChests, evaluate, newBonus, pickChest, simulate, symbolProbs, theory, type Grid, type SymbolId } from './slot';
+import { dealChests, evaluate, newBonus, pickChest, PAY_SCALE, simulate, spinGrid, symbolProbs, theory, type Grid, type SymbolId } from './slot';
 
 /** 縦の 3つずつ(リール)を 書いて 画面を 作る。足りない 所は 当たらない 図柄で うめる */
 const g = (...reels: SymbolId[][]): Grid => Array.from({ length: 5 }, (_, r) => [0, 1, 2].map((i) => reels[r]?.[i] ?? (['gold7', 'diamond', 'bell', 'star', 'clover'] as SymbolId[])[(r + i * 2) % 5]));
@@ -17,7 +17,7 @@ describe('MONZ SLOT 243WAYS', () => {
     const r = evaluate(grid, 100);
     const c = r.wins.find((w) => w.symbol === 'cherry')!;
     expect(c).toMatchObject({ length: 3, ways: 4 });
-    expect(c.raw).toBeCloseTo(100 * 0.34 * 4);
+    expect(c.raw).toBeCloseTo(100 * 0.34 * PAY_SCALE * 4);
   });
 
   it('いちばん 長い 連続だけ(3連と 5連を 二重に 数えない)', () => {
@@ -32,7 +32,7 @@ describe('MONZ SLOT 243WAYS', () => {
     const grid: Grid = Array.from({ length: 5 }, (_, r) => (r < 3 ? ['star', 'clover', 'cherry'] : ['gold7', 'diamond', 'bell']) as SymbolId[]);
     const r = evaluate(grid, 10);
     expect(r.wins.map((w) => w.symbol).sort()).toEqual(['cherry', 'clover', 'star']);
-    // 2.99 + 3.4 + 3.4 = 9.79 → 10(1つずつ 四捨五入すると 3+3+3 = 9 に なって しまう)
+    // (2.99 + 3.4 + 3.4) × 1.0195 = 9.98 → 10(1つずつ 四捨五入すると 3+3+3 = 9 に なって しまう)
     expect(r.win).toBe(10);
   });
 
@@ -129,5 +129,12 @@ describe('MONZ コインで 遊ぶ(LifeRecord.slotSpin)', () => {
     expect(r.coins).toBe(50);
     expect(r.slotSpin(50, 500)).toBe(true);
     expect(r.coins).toBe(500);
+  });
+});
+
+describe('王冠は 1リール 1個まで(企画者 2026-11-10)', () => {
+  it('どの リールにも 王冠は 2個 以上 出ない', () => {
+    const rng = mulberry32(42);
+    for (let i = 0; i < 50_000; i++) for (const col of spinGrid(rng)) expect(col.filter((x) => x === 'crown').length).toBeLessThanOrEqual(1);
   });
 });
