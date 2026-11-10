@@ -44,6 +44,11 @@ export const SELECT_CARD_ART: Record<string, { key: string; file: string; srcW: 
   mahjong: { key: 'mg:card:mahjong_v2', file: 'assets/minigame/select_mahjong_v2.webp', srcW: 2172, frame: [13, 15, 2157, 703] },
 };
 
+/** 看板の 絵が まだで、ロゴの 絵だけ ある ゲーム(？？？の 看板に ロゴを のせる)。2026-11-10 ROYAL JACKPOT */
+export const SELECT_LOGO_ART: Record<string, { key: string; file: string }> = {
+  slot: { key: 'mg:logo:slot', file: 'assets/minigame/logo_slot.webp' },
+};
+
 /** 絵に描いてある「0」を隠して、本当のコインの数を出す場所 */
 const ART_COIN_NUMBER = [650, 140, 772, 190];
 
@@ -131,6 +136,17 @@ export class MinigameSelectScene extends Phaser.Scene {
       const cover = ([x0, y0, x1, y1]: number[]) => this.add.rectangle((bx0 + x0) * sx, (by0 + y0) * sy, (x1 - x0) * sx, (y1 - y0) * sy, 0x0b0a12, 0.96).setOrigin(0, 0);
       cover(ART_SLOT_TEXT);
       if (g.ready) cover(ART_SLOT_SOON);
+      const logo = SELECT_LOGO_ART[g.id];
+      if (logo && this.textures.exists(logo.key)) {
+        // 企画者の ロゴ(看板の ？？？ と SOON の 所に 大きく)
+        // 下の「？？？・説明・SOON」を しっかり かくす
+        const [, , cx1] = ART_SLOT_SOON;
+        this.add.rectangle((bx0 + ART_SLOT_TEXT[0] - 6) * sx, (by0 + 12) * sy, (cx1 - ART_SLOT_TEXT[0] + 10) * sx, (ART_CARDS[i][3] - ART_CARDS[i][1] - 24) * sy, 0x0b0a12, 1).setOrigin(0, 0);
+        const img = this.add.image((bx0 + 535) * sx, (by0 + (ART_CARDS[i][3] - ART_CARDS[i][1]) / 2) * sy, logo.key);
+        const lh = (ART_CARDS[i][3] - ART_CARDS[i][1] - 14) * sy;
+        img.setScale(Math.min(lh / img.height, (470 * sx) / img.width));
+        return;
+      }
       const tx = (bx0 + ART_SLOT_TEXT[0] + 10) * sx;
       this.add.text(tx, (by0 + 92) * sy, g.title, { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '44px', color: '#ffffff', stroke: g.color, strokeThickness: 4 }).setOrigin(0, 0.5);
       this.add.text(tx, (by0 + 146) * sy, `スコア：${g.score}`, { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '800', color: '#d8d0e8' }).setOrigin(0, 0.5);

@@ -26,6 +26,8 @@ const BASE_H = 1280;
 const CELL_MAX = 124;
 const GAP = 8;
 const SAVE_KEY = 'monz:slot';
+/** 企画者の ROYAL JACKPOT の ロゴ */
+const LOGO_KEY = 'slot:logo';
 /** 止まる 時間(ms)【仮】: 1つめ・あとは 1つずつ */
 // 2026-11-10 企画者「今の 速度は オートの 時で いい。(ふつうは)じゃっかん 遅く」
 const STOP_FIRST = 1000;
@@ -108,6 +110,7 @@ export class SlotScene extends Phaser.Scene {
     if (!this.textures.exists(PUSH_KEY)) this.load.image(PUSH_KEY, assetUrl(PUSH_FILE));
     for (const [k, f] of LAMP_FILES) if (!this.textures.exists(k)) this.load.image(k, assetUrl(f));
     if (!this.textures.exists(COIN_ART_KEY)) this.load.image(COIN_ART_KEY, assetUrl(COIN_ART_FILE));
+    if (!this.textures.exists(LOGO_KEY)) this.load.image(LOGO_KEY, assetUrl('assets/slot/logo.webp'));
     for (const [k, f] of STEP_FILES) if (!this.textures.exists(k)) this.load.image(k, assetUrl(f));
     for (const c of CHEST_COLORS) for (const o of [false, true]) if (!this.textures.exists(chestArtKey(c, o))) this.load.image(chestArtKey(c, o), assetUrl(`assets/slot/chest_${c}_${o ? 'o' : 'c'}.webp`));
     // 企画者の 液晶の 背景(ふだん・赤・金。2026-11-10)
@@ -290,9 +293,18 @@ export class SlotScene extends Phaser.Scene {
   private lcdIdle(): void {
     this.setLcdBg('normal');
     const h = this.lcdBox.h;
-    const logo = this.text(0, -h * 0.12, 'ROYAL JACKPOT', Math.min(90, h * 0.24, this.lcdBox.w * 0.115), '#ffd23a', 10);
-    logo.setShadow(0, 6, '#ff4ad8', 0, true, true);
-    const sub = this.text(0, h * 0.18, 'SPIN を 押してね', Math.min(30, h * 0.09), '#e8dcf4');
+    // 企画者の ロゴ(2026-11-10。元は design/slot/logo.png)。ない 時は 文字
+    let logo: Phaser.GameObjects.Image | Phaser.GameObjects.Text;
+    if (this.textures.exists(LOGO_KEY)) {
+      const img = this.add.image(0, -h * 0.06, LOGO_KEY);
+      img.setScale(Math.min((h * 0.72) / img.height, (this.lcdBox.w * 0.82) / img.width));
+      logo = img;
+    } else {
+      const t = this.text(0, -h * 0.12, 'ROYAL JACKPOT', Math.min(90, h * 0.24, this.lcdBox.w * 0.115), '#ffd23a', 10);
+      t.setShadow(0, 6, '#ff4ad8', 0, true, true);
+      logo = t;
+    }
+    const sub = this.text(0, this.textures.exists(LOGO_KEY) ? h * 0.38 : h * 0.18, 'SPIN を 押してね', Math.min(30, h * 0.09), '#e8dcf4');
     this.tweens.add({ targets: logo, scale: 1.04, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     // ⑥ 待っている 間も 液晶が 動く【仮】
     this.lcdShow([...idleAnim(this, this.lcdBox), logo, sub]);

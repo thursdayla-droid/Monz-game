@@ -10,7 +10,7 @@ import { OPPONENT_ART, opponentArtFile, opponentArtKey } from '../ui/opponentFac
 import { MYTH_FLOOR_FILE, MYTH_FLOOR_IMAGE, MYTH_FLOOR_ORB, MYTH_FLOOR_ORB_FILE } from '../scenes/MythFloorScene';
 import { MYTH_TOWER_FILE, MYTH_TOWER_IMAGE, MYTH_TOWER_PARTS, MYTH_TOWER_PARTS_FILE } from '../scenes/MythTowerScene';
 import { MYTH_PACK_FILE, MYTH_PACK_IMAGE, MYTH_CARD_BACK, MYTH_CARD_BACK_FILE } from '../ui/packBuy';
-import { SELECT_CARD_ART, SELECT_IMAGE } from '../scenes/MinigameSelectScene';
+import { SELECT_CARD_ART, SELECT_IMAGE, SELECT_LOGO_ART } from '../scenes/MinigameSelectScene';
 import { CARD_IMAGES } from '../ui/cardArt';
 import { SLUG_BATTER_ART, slugBatterKey, SLUG_PITCHER_ART, slugPitcherKey, SLUGGER_BG_FILE, SLUGGER_BG_KEY, SLUGGER_LOGO_FILE, SLUGGER_LOGO_KEY } from '../scenes/SluggerScene';
 import { DASH_BG_FILE, DASH_BG_KEY, DASH_LOGO_FILE, DASH_LOGO_KEY, DASH_JUMP_FILE, DASH_JUMP_KEY, DASH_RUN_FILE, DASH_RUN_KEY, DASH_PLAT_FILE, DASH_PLAT_KEY, DASH_SPIKE_FILE, DASH_SPIKE_KEY } from '../scenes/DashScene';
@@ -86,7 +86,7 @@ function packFiles(name: Exclude<PackName, 'bunk'>): PackFile[] {
     case 'compare':
       return [{ key: REFERENCE_ORIGINAL, url: REFERENCE_FILES.original }];
     case 'minigame':
-      return [{ key: SELECT_IMAGE, url: 'assets/minigame/select_v2.webp' }, ...Object.values(SELECT_CARD_ART).map((a) => ({ key: a.key, url: a.file }))];
+      return [{ key: SELECT_IMAGE, url: 'assets/minigame/select_v2.webp' }, ...Object.values(SELECT_CARD_ART).map((a) => ({ key: a.key, url: a.file })), ...Object.values(SELECT_LOGO_ART).map((a) => ({ key: a.key, url: a.file }))];
     case 'card':
       return Object.entries(CARD_IMAGES).map(([key, file]) => ({ key, url: `assets/minigame/${file}` }));
     case 'dash':
