@@ -109,7 +109,7 @@ export function planShow(res: SpinResult, bet: number, rng: Rng): SpinShow {
   const bigOn = !!reach && reach.chain >= 3;
   const bigSuccess = !!reach && reach.chain >= 4;
   const big = bigOn ? pickW(rng, BIG_REACHES, (t) => (bigSuccess ? t.winWeight : t.loseWeight)) : null;
-  const hot = res.bonus || res.win >= bet * LAMP_X || bigSuccess;
+  const hot = res.bonus || res.free > 0 || res.win >= bet * LAMP_X || bigSuccess;
   const warm = bigOn || res.win >= bet * 3;
   const pNotice = hot ? 0.55 : warm ? 0.25 : small ? 0.1 : 0.03;
   let notice: NoticeLevel = 0;
@@ -128,7 +128,7 @@ export function planShow(res: SpinResult, bet: number, rng: Rng): SpinShow {
     bigTier: tierOf(rng, bigSuccess),
     push: !!big && rng() < (bigSuccess ? 0.7 : 0.35),
     lamp,
-    chain: (!!big && rng() < (bigSuccess ? 0.4 : 0.12)) || (res.bonus && rng() < 0.3),
+    chain: (!!big && rng() < (bigSuccess ? 0.4 : 0.12)) || ((res.bonus || res.free > 0) && rng() < 0.3),
     fountain: res.win >= bet * FOUNTAIN_X,
     reach,
     bigSuccess,

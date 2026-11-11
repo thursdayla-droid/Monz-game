@@ -3,7 +3,7 @@ import { audio } from '../audio/engine';
 import { assetUrl } from '../assetUrl';
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { randomSeed, mulberry32, type Rng } from '../core/rng';
-import { BETS, CHEST_PAY, dealChests, newBonus, pickChest, REELS, ROWS, SYMBOL_NAME, SYMBOLS, spin, type BonusState, type ChestContent, type SpinResult, type SymbolId } from '../core/slot/slot';
+import { BETS, CHEST_PAY, dealChests, FREE_ROWS, freeSpin, newBonus, newFree, pickChest, REELS, ROWS, SYMBOL_NAME, SYMBOLS, spin, type BonusState, type ChestContent, type FreeSpinResult, type FreeState, type SpinResult, type SymbolId } from '../core/slot/slot';
 import { UI_FONT } from '../ui/paint';
 import { fillSize, safeInsets } from '../ui/viewport';
 import { planShow, type SpinShow } from '../core/slot/reach';
@@ -67,6 +67,27 @@ const LAST_REEL_MS = 1700;
 export class SlotScene extends Phaser.Scene {
   private H = BASE_H;
   private cell = CELL_MAX;
+  /** 今の 段の 数(ふつう 3・特別フリーゲーム 5) */
+  private rows = ROWS;
+  /** ふつうの 時の 図柄の 大きさ */
+  private baseCell = CELL_MAX;
+  /** リールの 窓(この 中に リールを 入れる) */
+  private reelWin = { x: 0, y: 0, w: 0, h: 0 };
+  private reelBg?: Phaser.GameObjects.Graphics;
+  /** 特別フリーゲーム(2026-11-11 企画者) */
+  private free?: FreeState;
+  private lastFree?: FreeSpinResult;
+  /** のこって いる ワイルドの 絵 [リール][段] */
+  private stickyImgs: (Phaser.GameObjects.Image | undefined)[][] = [];
+  /** フリーゲームの 大きな パネル(液晶と リールの 窓を まとめて おおう)と 上の 帯 */
+  private freePanel?: Phaser.GameObjects.Graphics;
+  private freeTop?: Phaser.GameObjects.Container;
+  /** リールの 見える 範囲(上・下)。回る 図柄が はみ出ない ように */
+  private reelClip = { top: 0, bottom: 0 };
+  /** 絵の 重なりの 順(フリーゲームの 時は パネルより 前) */
+  private get zReel(): number {
+    return this.rows === FREE_ROWS ? 6.3 : 2;
+  }
   private get reelW(): number {
     return REELS * this.cell + (REELS - 1) * GAP;
   }
@@ -128,17 +149,35 @@ export class SlotScene extends Phaser.Scene {
     this.autoNow = false;
     this.picker = undefined;
     this.bonus = undefined;
+    this.free = undefined;
+    this.rows = ROWS;
+    this.stickyImgs = [];
     this.H = Math.max(BASE_H, fillSize(this, { w: W, h: BASE_H }, { minRatio: 0.4, maxRatio: W / BASE_H }).h);
     this.scale.setGameSize(W, this.H);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(W, BASE_H));
     this.record = new LifeRecord(loadLife());
     this.bet = loadBet();
     this.shown = this.record.coins;
-    for (const s of SYMBOLS) if (!this.textures.exists(drawnKey(s))) drawSymbolTexture(this, s);
+    for (const s of [...SYMBOLS, 'wild' as const]) if (!this.textures.exists(drawnKey(s))) drawSymbolTexture(this, s);
     for (const c of CHEST_COLORS) for (const o of [false, true]) if (!this.textures.exists(drawnChestKey(c, o))) drawChestTexture(this, c, o);
     this.layout();
     audio.playBgm('main');
     this.cameras.main.fadeIn(250, 0, 0, 0);
+    this.baseCell = this.cell;
+    // 特別フリーゲームの とちゅうで 閉じていたら 続きから
+    const savedFree = loadSave().free;
+    if (savedFree) {
+      this.busy = true;
+      this.free = savedFree;
+      this.time.delayedCall(400, () => {
+        this.setRows(FREE_ROWS);
+        this.drawSticky();
+        this.freeHud('つづきから！');
+        this.winText.setText(savedFree.total.toLocaleString()).setColor('#ffd23a');
+        this.freeLoop(900);
+      });
+      return;
+    }
     // ボーナスの とちゅうで 閉じていたら 続きから
     const saved = loadSave().bonus;
     if (saved) {
@@ -166,7 +205,8 @@ export class SlotScene extends Phaser.Scene {
       // 企画者の 台の 背景(窓に 液晶・リール・ボタンを 合わせる)
       this.add.image(0, 0, cabKey).setOrigin(0, 0).setDepth(-10);
       this.cell = L.cell;
-      const reelH = ROWS * this.cell + (ROWS - 1) * GAP;
+      this.reelWin = { ...L.reel };
+      const reelH = this.rows * this.cell + (this.rows - 1) * GAP;
       this.reelX = L.reel.x + (L.reel.w - this.reelW) / 2;
       this.reelY = L.reel.y + (L.reel.h - reelH) / 2;
       this.lcdBox = { x: L.lcd.x, y: L.lcd.y, w: L.lcd.w, h: L.lcd.h };
@@ -184,8 +224,9 @@ export class SlotScene extends Phaser.Scene {
       // 下: コイン・WIN(上の 段)と BET・SPIN(下の 段)
       const uiTop = bottom - 250;
       this.tray = { x: 24, y: uiTop, w: W - 48, h: 250 };
-      this.reelY = uiTop - 26 - (ROWS * this.cell + (ROWS - 1) * GAP);
+      this.reelY = uiTop - 26 - (this.rows * this.cell + (this.rows - 1) * GAP);
       this.reelX = (W - this.reelW) / 2;
+      this.reelWin = { x: this.reelX, y: this.reelY, w: this.reelW, h: this.rows * this.cell + (this.rows - 1) * GAP };
       // 上: 液晶
       const top = 96;
       this.lcdBox = { x: 24, y: top, w: W - 48, h: this.reelY - 40 - top };
@@ -214,6 +255,14 @@ export class SlotScene extends Phaser.Scene {
         this.busy = true;
         audio.unlock();
         this.startBonus();
+      });
+      // 特別フリーゲームを すぐ ためす(2026-11-11)
+      const fg = this.text(W - 150, 188, 'フリーゲームを ためす（確認用）', 18, '#16101c').setBackgroundColor('#ff8a1f').setPadding(10, 6, 10, 8).setDepth(30).setInteractive({ useHandCursor: true });
+      fg.on('pointerdown', () => {
+        if (this.busy || this.autoLeft > 0) return;
+        this.busy = true;
+        audio.unlock();
+        this.startFree(5);
       });
     }
 
@@ -317,7 +366,7 @@ export class SlotScene extends Phaser.Scene {
     const g = this.add.graphics().setDepth(6.5);
     const x = this.reelX;
     const y = this.reelY;
-    const h = ROWS * this.cell + (ROWS - 1) * GAP;
+    const h = this.rows * this.cell + (this.rows - 1) * GAP;
     if (this.cab) {
       // ⑧ 告知ランプ(王冠の 形。液晶の 左下)。枠と 窓の 外を かくすのは 台の 絵
       this.lamp = new NoticeLamp(this, this.lcdBox.x + 50, this.lcdBox.y + this.lcdBox.h - 30, 84);
@@ -341,8 +390,9 @@ export class SlotScene extends Phaser.Scene {
   }
 
   private drawReels(): void {
-    const h = ROWS * this.cell + (ROWS - 1) * GAP;
-    const g = this.add.graphics();
+    const h = this.rows * this.cell + (this.rows - 1) * GAP;
+    const g = this.add.graphics().setDepth(this.rows === FREE_ROWS ? 6.25 : 0);
+    this.reelBg = g;
     for (let r = 0; r < REELS; r++) {
       const x = this.reelX + r * (this.cell + GAP);
       g.fillGradientStyle(0xfdf6ff, 0xfdf6ff, 0xd8c8ec, 0xd8c8ec, 1).fillRoundedRect(x, this.reelY, this.cell, h, 12);
@@ -350,9 +400,9 @@ export class SlotScene extends Phaser.Scene {
     for (let r = 0; r < REELS; r++) {
       const imgs: Phaser.GameObjects.Image[] = [];
       // 見える 3つ + 上に 1つ(回る 時に 上から 入って くる)
-      for (let i = -1; i < ROWS; i++) {
+      for (let i = -1; i < this.rows; i++) {
         const p = this.cellPos(r, i);
-        imgs.push(this.add.image(p.x, p.y, symKey(this.randSym())).setDisplaySize(this.cell - 10, this.cell - 10).setDepth(2));
+        imgs.push(this.add.image(p.x, p.y, symKey(this.randSym())).setDisplaySize(this.cell - 10, this.cell - 10).setDepth(this.zReel));
       }
       this.reels.push({ imgs, offset: 0, spinning: false, speed: 1 });
     }
@@ -375,7 +425,11 @@ export class SlotScene extends Phaser.Scene {
         last.setTexture(symKey(this.randSym()));
         v.imgs.unshift(last);
       }
-      v.imgs.forEach((img, k) => img.setY(this.cellPos(r, k - 1).y + v.offset));
+      v.imgs.forEach((img, k) => {
+        img.setY(this.cellPos(r, k - 1).y + v.offset);
+        // フリーゲームの パネルの 外に はみ出す 図柄は 見せない
+        if (this.rows === FREE_ROWS) img.setVisible(img.y - this.cell / 2 >= this.reelClip.top - 4 && img.y + this.cell / 2 <= this.reelClip.bottom + 4);
+      });
     }
   }
 
@@ -773,13 +827,15 @@ export class SlotScene extends Phaser.Scene {
     // 上に 1つ 余分(見えない)+ 結果の 3つ。少し 上から 落として ぽんと 止める
     const col = [this.randSym(), ...res.grid[r]];
     v.imgs.forEach((img, k) => {
+      // 止まったら 見える 段は 全部 出す(いちばん 上の 予備は フリーゲームの 時 かくす)
+      img.setVisible(!(this.rows === FREE_ROWS && k === 0));
       img.setTexture(symKey(col[k]));
       const y = this.cellPos(r, k - 1).y;
       img.setY(y - 46);
       this.tweens.add({ targets: img, y, duration: 200, ease: 'Back.easeOut' });
     });
     audio.se('knock', { pitch: 1 + r * 0.05 });
-    if (last) this.time.delayedCall(260, () => this.reveal(res));
+    if (last) this.time.delayedCall(260, () => (this.free ? this.revealFree() : this.reveal(res)));
     // 大きい リーチの 結果(4リール目が 止まった 時に わかる)
     if (r === 3 && this.lastShow?.big) this.reachResult(this.lastShow.bigSuccess);
   }
@@ -817,20 +873,25 @@ export class SlotScene extends Phaser.Scene {
       this.cameras.main.shake(180, 0.004);
     } else if (res.win > 0) audio.se('tap', { pitch: 1.3 });
     this.credit.setText(this.shown.toLocaleString());
-    if (res.bonus && this.crownOn) {
+    const feature = res.bonus || res.free > 0;
+    if (feature && this.crownOn) {
       // BONUS リーチ 成功: 1枚絵の 3枚目 → BONUS!!
       this.crownOn = false;
       this.autoLeft = 0;
       this.paintAuto();
       this.crownPanel(3, res);
       this.cameras.main.flash(300, 255, 230, 120);
-      this.time.delayedCall(2000, () => this.bonusIntro(res, big));
+      this.time.delayedCall(2000, () => (res.free ? this.freeIntro(res) : this.bonusIntro(res, big)));
       return;
     }
-    if (!res.bonus && this.crownOn) {
+    if (!feature && this.crownOn) {
       // 失敗の 時は 何も 出さずに もとへ(企画者「ざんねんは いらない」)
       this.crownOn = false;
       if (!big) this.lcdIdle();
+    }
+    if (res.free) {
+      this.freeIntro(res);
+      return;
     }
     if (res.bonus) {
       this.bonusIntro(res, big);
@@ -858,6 +919,211 @@ export class SlotScene extends Phaser.Scene {
     this.cameras.main.flash(300, 255, 220, 80);
     audio.se('koBlast');
     this.time.delayedCall(big ? 2200 : 1700, () => this.startBonus());
+  }
+
+  // ---------------- 特別フリーゲーム(2026-11-11 企画者) ----------------
+
+  /** 段の 数を かえて リールを 作りなおす(ふつう 3段・特別フリーゲーム 5段)。窓の 中に おさまる 大きさに */
+  private setRows(n: number): void {
+    this.clearGlow();
+    for (const v of this.reels) v.imgs.forEach((i) => i.destroy());
+    this.reels = [];
+    this.reelBg?.destroy();
+    for (const col of this.stickyImgs)
+      for (const i of col) {
+        (i?.getData('frame') as Phaser.GameObjects.Rectangle | undefined)?.destroy();
+        i?.destroy();
+      }
+    this.stickyImgs = [];
+    this.rows = n;
+    this.freePanel?.destroy();
+    this.freePanel = undefined;
+    this.freeTop?.destroy();
+    this.freeTop = undefined;
+    const win = this.reelWin;
+    if (n === ROWS) {
+      this.cell = this.baseCell;
+      const h = n * this.cell + (n - 1) * GAP;
+      this.reelX = win.x + (win.w - this.reelW) / 2;
+      this.reelY = win.y + (win.h - h) / 2;
+    } else {
+      // 液晶の 上から リールの 窓の 下までを 大きな パネルに(5段でも 図柄を 大きく)
+      const top = this.lcdBox.y - 4;
+      const bottom = win.y + win.h + 4;
+      const x = Math.min(win.x, this.lcdBox.x) - 4;
+      const w = Math.max(win.x + win.w, this.lcdBox.x + this.lcdBox.w) + 4 - x;
+      const hud = 84;
+      this.cell = Math.min(this.baseCell, Math.floor((bottom - top - hud - 20 - (n - 1) * GAP) / n), Math.floor((w - 20 - (REELS - 1) * GAP) / REELS));
+      const h = n * this.cell + (n - 1) * GAP;
+      this.reelX = x + (w - this.reelW) / 2;
+      this.reelY = top + hud + (bottom - top - hud - h) / 2;
+      const g = this.add.graphics().setDepth(6.2);
+      g.fillStyle(0x16101c, 1).fillRoundedRect(x, top, w, bottom - top, 18);
+      g.fillGradientStyle(0x3a1466, 0x3a1466, 0x120818, 0x120818, 1).fillRoundedRect(x + 6, top + 6, w - 12, hud - 10, 12);
+      g.lineStyle(6, 0xffd23a, 1).strokeRoundedRect(x, top, w, bottom - top, 18);
+      this.freePanel = g;
+      this.freeTop = this.add.container(x + w / 2, top + hud / 2).setDepth(6.8);
+      this.reelClip = { top: this.reelY, bottom: this.reelY + h };
+    }
+    this.drawReels();
+  }
+
+  /** のこって いる ワイルドを 絵で 出す(リールが 回っても 動かない) */
+  private drawSticky(): void {
+    const f = this.free;
+    if (!f) return;
+    for (let r = 0; r < REELS; r++) {
+      this.stickyImgs[r] ??= [];
+      for (let i = 0; i < this.rows; i++) {
+        if (!f.sticky[r][i] || this.stickyImgs[r][i]) continue;
+        const p = this.cellPos(r, i);
+        const img = this.add.image(p.x, p.y, symKey('wild')).setDisplaySize(this.cell - 6, this.cell - 6).setDepth(this.zReel + 0.3);
+        const frame = this.add.rectangle(p.x, p.y, this.cell - 2, this.cell - 2).setStrokeStyle(4, 0xffd23a).setDepth(this.zReel + 0.4);
+        img.setData('frame', frame);
+        this.stickyImgs[r][i] = img;
+      }
+    }
+  }
+
+  /** フリーゲームの 上の 帯: のこりの 回数と 合計・ひとこと */
+  private freeHud(msg = ''): void {
+    const f = this.free;
+    const c = this.freeTop;
+    if (!f || !c) return;
+    c.removeAll(true);
+    const t = this.text(-this.reelW / 2 + 70, -14, 'FREE GAME', 24, '#ffd23a', 6);
+    t.setShadow(0, 3, '#ff4ad8', 0, true, true);
+    c.add(t);
+    c.add(this.text(-this.reelW / 2 + 70, 16, `のこり ${f.left}回`, 24, '#ffffff', 5));
+    c.add(this.text(this.reelW / 2 - 100, -14, '合計', 18, '#c8bcd8'));
+    c.add(this.text(this.reelW / 2 - 100, 14, `+${f.total.toLocaleString()}`, 30, '#ffd23a', 6));
+    if (msg) {
+      const m = this.text(10, 0, msg, 22, '#ff8a1f', 6);
+      c.add(m);
+      this.tweens.add({ targets: m, scale: { from: 1.6, to: 1 }, duration: 260, ease: 'Back.easeOut' });
+    }
+  }
+
+  /** 王冠 4個・5個 → FREE GAME!! */
+  private freeIntro(res: SpinResult): void {
+    this.autoLeft = 0;
+    this.paintAuto();
+    for (const [r, i] of res.crownCells) this.cellGlow(r, i, true, 0xffd23a);
+    const h = this.lcdBox.h;
+    this.setLcdBg('gold', 0.1);
+    const t = this.text(0, -h * 0.14, 'FREE GAME!!', Math.min(100, h * 0.26, this.lcdBox.w * 0.13), '#ffd23a', 12);
+    t.setShadow(0, 8, '#ff4ad8', 0, true, true);
+    const s = this.text(0, h * 0.2, `王冠 ${res.crowns}個！ ${res.free}回`, Math.min(44, h * 0.12), '#ffffff', 8);
+    this.lcdShow([lcdRays(this, this.lcdBox, 0xffd23a, 0.3, 16), t, s]);
+    t.setScale(2.6);
+    this.tweens.add({ targets: t, scale: 1, duration: 360, ease: 'Back.easeOut' });
+    this.cameras.main.flash(350, 255, 230, 120);
+    this.cameras.main.shake(400, 0.01);
+    audio.se('koBlast');
+    this.time.delayedCall(300, () => audio.se('cheer'));
+    this.time.delayedCall(2600, () => this.startFree(res.free));
+  }
+
+  private startFree(games: number): void {
+    this.free = newFree(this.bet, games);
+    saveFree(this.free);
+    this.winText.setText('0').setColor('#ffd23a');
+    this.setRows(FREE_ROWS);
+    this.freeHud(`${games}回 スタート！`);
+    this.freeLoop(1200);
+  }
+
+  /** 次の 1回(のこりが 0 なら おわり) */
+  private freeLoop(wait: number): void {
+    this.time.delayedCall(wait, () => {
+      const f = this.free;
+      if (!f) return;
+      if (f.left <= 0) return this.endFree();
+      this.freeOne();
+    });
+  }
+
+  private freeOne(): void {
+    const f = this.free!;
+    // 結果を 先に 決めて すぐ 保存(とちゅうで 閉じても コインは もらえる・やり直せない)
+    const fr = freeSpin(f, this.rng);
+    if (fr.res.win) this.record.add(fr.res.win);
+    saveFree(f.left > 0 ? f : undefined);
+    this.lastFree = fr;
+    this.lastShow = undefined;
+    this.clearGlow();
+    this.freeHud();
+    audio.se('whoosh');
+    for (let r = 0; r < REELS; r++) {
+      this.reels[r].spinning = true;
+      this.reels[r].speed = 1;
+    }
+    for (let r = 0; r < REELS; r++) this.time.delayedCall(AUTO_STOP_FIRST + r * AUTO_STOP_STEP, () => this.stopReel(r, fr.res, r === REELS - 1));
+  }
+
+  private revealFree(): void {
+    const fr = this.lastFree;
+    const f = this.free;
+    if (!fr || !f) return;
+    const res = fr.res;
+    const big = res.win >= this.bet;
+    this.shown = this.record.coins;
+    this.credit.setText(this.shown.toLocaleString());
+    if (res.win > 0) {
+      const cells = new Map<string, [number, number]>();
+      for (const w of res.wins) for (const c of w.cells) cells.set(c.join(), c);
+      for (const [r, i] of cells.values()) if (!f.sticky[r][i] || fr.newWilds.some(([a, b]) => a === r && b === i)) this.cellGlow(r, i, big);
+      if (big) audio.se('cheer');
+      else audio.se('tap', { pitch: 1.3 });
+    }
+    if (res.win >= this.bet * 5) {
+      this.reelFlash();
+      coinFountain(this, W / 2, this.reelY + 200, Math.min(70, 15 + Math.round((res.win / this.bet) * 2)));
+    }
+    this.winText.setText(f.total.toLocaleString()).setColor('#ffd23a');
+    // 新しい ワイルド: ぽんっと 出て のこる
+    this.drawSticky();
+    for (const [r, i] of fr.newWilds) {
+      const img = this.stickyImgs[r]?.[i];
+      if (!img) continue;
+      const base = img.scale;
+      img.setScale(base * 1.8);
+      this.tweens.add({ targets: img, scale: base, duration: 300, ease: 'Back.easeOut' });
+    }
+    if (fr.newWilds.length) {
+      audio.se('mcMagic', { pitch: 1.4 });
+      this.cameras.main.shake(160, 0.004);
+    }
+    const msg = [fr.newWilds.length ? 'WILD！ 回数 へらない' : '', fr.added ? `王冠！ +${fr.added}回` : ''].filter(Boolean).join('　');
+    if (fr.added) {
+      audio.se('koBlast');
+      for (const [r, i] of res.crownCells) this.cellGlow(r, i, true, 0xffd23a);
+    }
+    this.freeHud(msg || (res.win ? `+${res.win.toLocaleString()}` : ''));
+    this.freeLoop(big || fr.newWilds.length || fr.added ? 1400 : 700);
+  }
+
+  private endFree(): void {
+    const f = this.free;
+    if (!f) return;
+    saveFree(undefined);
+    // 3段に もどして から 液晶に 結果
+    this.setRows(ROWS);
+    const h = this.lcdBox.h;
+    this.setLcdBg('gold', 0.1);
+    const t = this.text(0, -h * 0.14, 'FREE GAME 終了', Math.min(56, h * 0.15), '#ffffff', 9);
+    const n = this.text(0, h * 0.14, `+${f.total.toLocaleString()} GET!`, Math.min(76, h * 0.2), '#ffd23a', 12);
+    n.setShadow(0, 6, '#ff4ad8', 0, true, true);
+    this.lcdShow([t, n]);
+    n.setScale(2);
+    this.tweens.add({ targets: n, scale: 1, duration: 340, ease: 'Back.easeOut' });
+    audio.se(f.total > 0 ? 'cheer' : 'back');
+    if (f.total >= f.bet * 5) coinFountain(this, W / 2, this.reelY + 200, Math.min(90, 20 + Math.round((f.total / f.bet) * 2)));
+    this.free = undefined;
+    this.time.delayedCall(2600, () => {
+      this.busy = false;
+      this.lcdIdle();
+    });
   }
 
   // ---------------- 宝箱ボーナス ----------------
@@ -1002,13 +1268,13 @@ export class SlotScene extends Phaser.Scene {
   private cellGlow(r: number, i: number, big: boolean, color = 0xff4ad8): void {
     const p = this.cellPos(r, i);
     if (big) {
-      const glow = this.add.rectangle(p.x, p.y, this.cell + 6, this.cell + 6, color, 0.35).setStrokeStyle(6, 0xffd23a).setDepth(3);
+      const glow = this.add.rectangle(p.x, p.y, this.cell + 6, this.cell + 6, color, 0.35).setStrokeStyle(6, 0xffd23a).setDepth(this.zReel + 1);
       this.tweens.add({ targets: glow, alpha: 0.35, duration: 380, yoyo: true, repeat: -1 });
       const img = this.reels[r].imgs[i + 1];
       this.tweens.add({ targets: img, scale: img.scale * 1.08, duration: 380, yoyo: true, repeat: -1 });
       this.glow.push(glow, img);
     } else {
-      const frame = this.add.rectangle(p.x, p.y, this.cell - 4, this.cell - 4).setStrokeStyle(5, 0xff4ad8, 0.9).setDepth(3);
+      const frame = this.add.rectangle(p.x, p.y, this.cell - 4, this.cell - 4).setStrokeStyle(5, 0xff4ad8, 0.9).setDepth(this.zReel + 1);
       this.glow.push(frame);
     }
   }
@@ -1024,8 +1290,8 @@ export class SlotScene extends Phaser.Scene {
 
   /** ⑤ リール全体が ピカピカ 光る */
   private reelFlash(): void {
-    const h = ROWS * this.cell + (ROWS - 1) * GAP;
-    const f = this.add.rectangle(W / 2, this.reelY + h / 2, this.reelW + 20, h + 20, 0xffffff, 0).setDepth(3);
+    const h = this.rows * this.cell + (this.rows - 1) * GAP;
+    const f = this.add.rectangle(W / 2, this.reelY + h / 2, this.reelW + 20, h + 20, 0xffffff, 0).setDepth(this.zReel + 1);
     this.tweens.add({ targets: f, fillAlpha: 0.5, duration: 110, yoyo: true, repeat: 4, onComplete: () => f.destroy() });
   }
 
@@ -1054,6 +1320,8 @@ export class SlotScene extends Phaser.Scene {
 interface SlotSave {
   bet?: number;
   bonus?: { bet: number; round: number; total: number; history: ChestContent[] };
+  /** 特別フリーゲームの とちゅう(2026-11-11) */
+  free?: FreeState;
 }
 
 function loadSave(): SlotSave {
@@ -1062,7 +1330,10 @@ function loadSave(): SlotSave {
     const b = d.bonus;
     const ok = b && (BETS as readonly number[]).includes(Number(b.bet)) && Number.isFinite(Number(b.round)) && Number.isFinite(Number(b.total));
     const bet = Number(d.bet);
-    return { bet: (BETS as readonly number[]).includes(bet) ? bet : undefined, bonus: ok ? { bet: Number(b.bet), round: Math.max(1, Math.floor(Number(b.round))), total: Math.max(0, Math.floor(Number(b.total))), history: Array.isArray(b.history) ? b.history : [] } : undefined };
+    const f = d.free;
+    const fok = f && (BETS as readonly number[]).includes(Number(f.bet)) && Number(f.left) > 0 && Array.isArray(f.sticky) && f.sticky.length === REELS && f.sticky.every((c) => Array.isArray(c) && c.length === FREE_ROWS);
+    const free: FreeState | undefined = fok ? { bet: Number(f.bet), left: Math.floor(Number(f.left)), games: Math.floor(Number(f.games) || 0), played: Math.floor(Number(f.played) || 0), total: Math.max(0, Math.floor(Number(f.total) || 0)), sticky: f.sticky.map((c) => c.map((x) => x === true)) } : undefined;
+    return { free, bet: (BETS as readonly number[]).includes(bet) ? bet : undefined, bonus: ok ? { bet: Number(b.bet), round: Math.max(1, Math.floor(Number(b.round))), total: Math.max(0, Math.floor(Number(b.total))), history: Array.isArray(b.history) ? b.history : [] } : undefined };
   } catch {
     return {};
   }
@@ -1083,6 +1354,10 @@ function loadBet(): number {
 
 function saveBet(bet: number): void {
   writeSave({ ...loadSave(), bet });
+}
+
+function saveFree(f: FreeState | undefined): void {
+  writeSave({ ...loadSave(), free: f ? { ...f, sticky: f.sticky.map((c) => [...c]) } : undefined });
 }
 
 function saveBonus(b: BonusState | undefined): void {
@@ -1241,6 +1516,26 @@ function drawSymbolTexture(scene: Phaser.Scene, s: SymbolId): void {
         pts.push([c + Math.cos(a) * rr, c + 6 + Math.sin(a) * rr]);
       }
       poly(pts, '#ffe23a');
+      break;
+    }
+    case 'wild': {
+      // 【仮】ワイルド(企画者が 絵を 作る。2026-11-11)。紫の 板に 金の WILD
+      ctx.fillStyle = '#7a2ad0';
+      ctx.beginPath();
+      ctx.moveTo(c, 10);
+      ctx.lineTo(150, c);
+      ctx.lineTo(c, 150);
+      ctx.lineTo(10, c);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.font = `900 46px ${UI_FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.lineWidth = 8;
+      ctx.strokeText('WILD', c, c + 2);
+      ctx.fillStyle = '#ffd23a';
+      ctx.fillText('WILD', c, c + 2);
       break;
     }
     case 'crown':

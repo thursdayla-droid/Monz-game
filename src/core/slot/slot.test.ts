@@ -102,9 +102,9 @@ describe('宝箱ボーナス', () => {
 });
 
 describe('払い戻し率', () => {
-  it('理論値: 仕様書の 仮の 値で 合計 95%・ボーナスは 約 100回転に 1回・平均 BET の 6倍', () => {
+  it('理論値: ふつうの ゲームと 宝箱で 約 95%・宝箱は 約 100回転に 1回・平均 BET の 6倍(特別フリーゲームは のぞく)', () => {
     const t = theory();
-    expect(t.total).toBeGreaterThan(0.945);
+    expect(t.total).toBeGreaterThan(0.94);
     expect(t.total).toBeLessThan(0.955);
     expect(1 / t.bonusRate).toBeGreaterThan(90);
     expect(1 / t.bonusRate).toBeLessThan(110);
@@ -114,7 +114,8 @@ describe('払い戻し率', () => {
   it('モンテカルロ(20万回転)が 理論値と だいたい 合う', () => {
     const t = theory();
     const s = simulate(100, 200_000, 11);
-    expect(Math.abs(s.totalRtp - t.total)).toBeLessThan(4 * s.stdErr + 0.002);
+    // 特別フリーゲームは 理論値に 入って いないので のぞいて くらべる(ぶれは 宝箱の 分だけ 見る)
+    expect(Math.abs(s.totalRtp - s.freeRtp - t.total)).toBeLessThan(0.02);
     expect(Math.abs(s.bonusRate - t.bonusRate)).toBeLessThan(0.001);
   });
 });
@@ -136,5 +137,41 @@ describe('王冠は 1リール 1個まで(企画者 2026-11-10)', () => {
   it('どの リールにも 王冠は 2個 以上 出ない', () => {
     const rng = mulberry32(42);
     for (let i = 0; i < 50_000; i++) for (const col of spinGrid(rng)) expect(col.filter((x) => x === 'crown').length).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('特別フリーゲーム(企画者 2026-11-11)', () => {
+  it('王冠 4個で 5回・5個で 10回・3個は 宝箱だけ', async () => {
+    const { evaluate } = await import('./slot');
+    const g = (n: number): Grid => Array.from({ length: 5 }, (_, r) => (r < n ? ['crown', 'star', 'bell'] : ['star', 'bell', 'clover']) as SymbolId[]);
+    expect(evaluate(g(3), 10)).toMatchObject({ bonus: true, free: 0 });
+    expect(evaluate(g(4), 10)).toMatchObject({ bonus: false, free: 5 });
+    expect(evaluate(g(5), 10)).toMatchObject({ bonus: false, free: 10 });
+  });
+
+  it('5×5・ワイルドは 代わりに なる・のこる・新しい ワイルドが 出たら 回数を 使わない', async () => {
+    const { freeSpin, newFree, evaluate } = await import('./slot');
+    // ワイルドは 代わり
+    const grid: Grid = [['star'], ['wild'], ['star'], ['bell'], ['bell']].map((c) => [...c, 'clover', 'cherry', 'diamond', 'gold7'] as SymbolId[]);
+    expect(evaluate(grid, 10).wins.find((w) => w.symbol === 'star')).toMatchObject({ length: 3, ways: 1 });
+    const rng = mulberry32(8);
+    const st = newFree(10, 5);
+    let sawNew = false;
+    for (let i = 0; i < 400 && st.left > 0; i++) {
+      const before = st.left;
+      const stickyBefore = st.sticky.flat().filter(Boolean).length;
+      const r = freeSpin(st, rng);
+      expect(r.res.grid).toHaveLength(5);
+      for (const col of r.res.grid) expect(col).toHaveLength(5);
+      // のこった ワイルドは ワイルドの まま・新しい ワイルドは 空いた 所だけ
+      expect(st.sticky.flat().filter(Boolean).length).toBe(stickyBefore + r.newWilds.length);
+      for (let c = 0; c < 5; c++) for (let k = 0; k < 5; k++) if (st.sticky[c][k]) expect(r.res.grid[c][k]).toBe('wild');
+      if (r.newWilds.length) {
+        sawNew = true;
+        expect(st.left).toBe(before + r.added);
+      } else expect(st.left).toBe(before - 1 + r.added);
+      for (const col of r.res.grid) expect(col.filter((x) => x === 'crown').length).toBeLessThanOrEqual(1);
+    }
+    expect(sawNew).toBe(true);
   });
 });

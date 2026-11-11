@@ -78,7 +78,7 @@ describe('MONZ SLOT 演出(色・ステップアップ・告知ランプ・PUSH�
     for (let i = 0; i < N; i++) {
       const r = spin(rng, 10);
       const s = planShow(r, 10, rng);
-      const hot = r.bonus || r.win >= 100 || s.bigSuccess;
+      const hot = r.bonus || r.free > 0 || r.win >= 100 || s.bigSuccess;
       if (s.lamp !== 'none') {
         lamp++;
         expect(hot).toBe(true);
