@@ -406,7 +406,8 @@ export class SlotScene extends Phaser.Scene {
       // 見える 3つ + 上に 1つ(回る 時に 上から 入って くる)
       for (let i = -1; i < this.rows; i++) {
         const p = this.cellPos(r, i);
-        imgs.push(this.add.image(p.x, p.y, symKey(this.randSym())).setDisplaySize(this.cell - 10, this.cell - 10).setDepth(this.zReel));
+        // いちばん 上の 予備(i = -1)は フリーゲームの 時 見せない(パネルの 上に はみ出す)
+        imgs.push(this.add.image(p.x, p.y, symKey(this.randSym())).setDisplaySize(this.cell - 10, this.cell - 10).setDepth(this.zReel).setVisible(!(this.rows === FREE_ROWS && i < 0)));
       }
       this.reels.push({ imgs, offset: 0, spinning: false, speed: 1 });
     }
@@ -945,6 +946,8 @@ export class SlotScene extends Phaser.Scene {
       }
     this.stickyImgs = [];
     this.rows = n;
+    // 2026-11-11 企画者「フリーゲームの 左上に 王冠 出っぱなし」→ 告知ランプ(王冠の 形)は フリーゲームの 間 かくす
+    this.lamp?.show(n === ROWS);
     this.freePanel?.destroy();
     this.freePanel = undefined;
     this.freeTop?.destroy();
