@@ -50,9 +50,9 @@ export const SYMBOL_WEIGHT: Record<BaseSymbol, number> = {
 
 /** 3連・4連・5連の 倍率(BET に かける)【仮：仕様書の 暫定調整値】 */
 export const PAYTABLE: Record<PaySymbol, readonly [number, number, number]> = {
-  // 2026-11-11 企画者「配当は もっと 上げる」【仮】(この 2つは PAY_SCALE を かけない。表の とおりの 倍率)
-  rainbow7: [10, 40, 200],
-  gold7: [5, 20, 100],
+  // 2026-11-11 企画者「3個 並んだ 時 ゴールド7 100倍・レインボー7 200倍」【確定】。4つ・5つは Claude の 案【仮】(この 2つは PAY_SCALE を かけない)
+  rainbow7: [200, 600, 2000],
+  gold7: [100, 300, 1000],
   diamond: [0.856, 2.134, 6.404],
   bell: [0.639, 1.282, 3.415],
   cherry: [0.34, 0.856, 2.134],
