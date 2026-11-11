@@ -152,6 +152,20 @@ const STORY_REACHES: StoryReach[] = [
     win: { text: 'カップイン！！ 当たり！', icon: '⛳🐤🎉' },
     lose: { text: 'カップの ふちで 止まった…', icon: '⛳💧', show: true },
   },
+  {
+    // 2026-11-11 企画者 リーチ⑥: 彼女に 質問されて 答える。彼女が 喜べば 当たり
+    id: 'kanojo',
+    chara: 'slot:chara:cheetahs',
+    charaFile: 'assets/slot/chara_cheetahs.webp',
+    color: '#ff8ab3',
+    panels: [
+      { title: '彼女の機嫌リーチ', line: '今日は\n彼女と デート…', chara: true },
+      { title: '彼女', line: '「ねぇ、私の\nどこが 好き？」', prop: '👩❓', bg: 0x2a0a1a },
+      { title: '答えは…！？', line: '「えっと… ぜんぶ！」', chara: true },
+    ],
+    win: { text: '彼女 ごきげん！！ 当たり！', icon: '👩💖🐆' },
+    lose: { text: '彼女 おこっちゃった…', icon: '👩💢', show: true },
+  },
 ];
 const symKey = (s: SymbolId) => (symScene?.textures.exists(artKey(s)) ? artKey(s) : drawnKey(s));
 
@@ -943,7 +957,7 @@ export class SlotScene extends Phaser.Scene {
       const tx = pd.chara ? w * 0.14 : 0;
       if (pd.title) items.push(this.text(tx, -h * 0.3, pd.title, Math.min(40, h * 0.11, (w * 0.62) / pd.title.length), color, 8));
       if (pd.line) {
-        const t = n === def.panels.length - 1 ? tierText(this, tx, h * 0.3, pd.line, Math.min(36, h * 0.095), show.bigTier) : this.text(tx, h * 0.24, pd.line, Math.min(28, h * 0.075), '#ffffff', 6);
+        const t = n === def.panels.length - 1 ? tierText(this, tx, h * 0.3, pd.line, Math.min(36, h * 0.095, ((pd.chara ? 0.62 : 0.9) * w) / Math.max(...pd.line.split('\n').map((l) => l.length))), show.bigTier) : this.text(tx, h * 0.24, pd.line, Math.min(28, h * 0.075), '#ffffff', 6);
         items.push(t);
       }
       this.lcdShow(items);

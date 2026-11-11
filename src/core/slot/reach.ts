@@ -76,6 +76,8 @@ export const BIG_REACHES: readonly BigReachType[] = [
       { name: 'ピカピカの 芝生【仮】', winWeight: 3, loseWeight: 0.6 },
     ],
   },
+  // 2026-11-11 企画者の リーチ⑥「チーターSの 彼女の機嫌リーチ」(彼女に 質問されて 答え、喜べば 当たり)。強さは【仮：中】
+  { id: 'kanojo', name: 'チーターSの 彼女の機嫌リーチ', winWeight: 2, loseWeight: 2 },
 ];
 
 /**
