@@ -532,3 +532,4 @@
 - 2026-11-10：企画者「この ミニゲームの 名前は ROYAL JACKPOT に する」→ ミニゲーム⑤の 名前を MONZ SLOT から ROYAL JACKPOT に
 - 2026-11-10：企画者の ROYAL JACKPOT の ロゴを 入れた（液晶の 待ち画面・ミニゲーム選択の 看板）
 - 2026-11-10：ROYAL JACKPOT：宝箱の 結果を 大きな 帯で 出す・王冠は 1リール 1個まで（割合と 倍率を 直して 95%）・王冠 2つで BONUS リーチ（1枚絵 3枚の 所。今は 仮）
+- 2026-11-11：企画者「麻雀の リーチの 音は これに して」→ 麻雀クエストの リーチ（顔の カットイン）の 音を 企画者の 音に（元 music/se/mahjong/riichi_original.mp3・ゲーム用 public/assets/se/mahjong/riichi.mp3。ほかの 効果音と 大きさを そろえた）

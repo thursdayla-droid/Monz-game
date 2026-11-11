@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
+import type { SeName } from '../audio/sfx';
 import { assetUrl } from '../assetUrl';
 import { cpuReact, cpuTurn, makeCpu, type Cpu } from '../core/mahjong/ai';
 import { newGame, nextHanchan, nextRound, type GameState } from '../core/mahjong/game';
@@ -281,7 +282,7 @@ export class MahjongScene extends Phaser.Scene {
       if (rc && s.phase !== 'end') {
         this.wait = { kind: 'none' };
         this.redraw();
-        this.cutIn(rc.seat, 'リーチ！', () => this.step(), 900);
+        this.cutIn(rc.seat, 'リーチ！', () => this.step(), 900, 'mjRiichi');
         return;
       }
     }
@@ -375,7 +376,8 @@ export class MahjongScene extends Phaser.Scene {
   private playerDiscard(t: Tile, riichi = false): void {
     if (this.wait.kind !== 'turn') return;
     doDiscard(this.round, t, riichi);
-    audio.se(riichi ? 'mcSpecial' : 'tap');
+    // リーチの 音は 顔の カットインで 鳴らす(2026-11-11 企画者の 音)
+    audio.se('tap');
     this.step();
   }
 
@@ -666,7 +668,7 @@ export class MahjongScene extends Phaser.Scene {
   }
 
   /** アガった 人の 顔が 横から 大きく 出る(約1.2秒) */
-  private cutIn(seat: number, word: string, done: () => void, ms = 1150): void {
+  private cutIn(seat: number, word: string, done: () => void, ms = 1150, se?: SeName): void {
     const faceKey = this.actors[seat]?.getData('face') as string;
     const left = this.actors[seat]?.getData('left') as boolean;
     const mine = seat === PLAYER_SEAT;
@@ -684,7 +686,7 @@ export class MahjongScene extends Phaser.Scene {
     const t = this.text(mine ? this.W * 0.12 : -this.W * 0.12, 0, word, 110, mine ? '#ffd23a' : '#ff6a8a', 12);
     c.add(t);
     c.setX(mine ? -this.W : this.W * 2);
-    audio.se(mine ? 'mcThunder' : 'mcSlash');
+    audio.se(se ?? (mine ? 'mcThunder' : 'mcSlash'));
     this.tweens.add({ targets: c, x: this.W / 2, duration: 220, ease: 'Back.easeOut' });
     this.tweens.add({ targets: t, scale: { from: 1.5, to: 1 }, duration: 300, delay: 120, ease: 'Back.easeOut' });
     this.time.delayedCall(ms, () => {
