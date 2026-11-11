@@ -2,8 +2,8 @@ import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { assetUrl } from '../assetUrl';
 import { LifeRecord, loadLife } from '../core/lifeSave';
-import { randomSeed, mulberry32, type Rng } from '../core/rng';
-import { BETS, CHEST_PAY, dealChests, FREE_ROWS, freeSpin, newBonus, newFree, pickChest, REELS, ROWS, SYMBOL_NAME, SYMBOLS, spin, type BonusState, type ChestContent, type FreeSpinResult, type FreeState, type SpinResult, type SymbolId } from '../core/slot/slot';
+import { pickWeighted, randomSeed, mulberry32, type Rng } from '../core/rng';
+import { BETS, CHEST_PAY, dealChests, FREE_ROWS, freeSpin, SYMBOL_WEIGHT, newBonus, newFree, pickChest, REELS, ROWS, SYMBOL_NAME, SYMBOLS, spin, type BonusState, type ChestContent, type FreeSpinResult, type FreeState, type SpinResult, type SymbolId } from '../core/slot/slot';
 import { UI_FONT } from '../ui/paint';
 import { fillSize, safeInsets } from '../ui/viewport';
 import { planShow, type SpinShow } from '../core/slot/reach';
@@ -64,8 +64,9 @@ const SMALL_REACH_MS = 2200;
 const BIG_REACH_MS = 4600;
 const LAST_REEL_MS = 1700;
 /** 特別フリーゲームの 止まる 時間(2026-11-11 企画者「もう少し ゆっくり」)【仮】 */
-const FREE_STOP_FIRST = 1100;
-const FREE_STOP_STEP = 380;
+// 2026-11-11 企画者「フリーゲーム もっと ゆっくりで いい」→ さらに ゆっくり【仮】
+const FREE_STOP_FIRST = 1500;
+const FREE_STOP_STEP = 550;
 
 export class SlotScene extends Phaser.Scene {
   private H = BASE_H;
@@ -411,8 +412,13 @@ export class SlotScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * 回って いる 間に 見える 図柄(見た目 だけ)。2026-11-11 企画者「リールに ずっと 王冠 出ちゃってる」→
+   * 前は 8つを 同じ 割合(王冠 1/8)で 出して いた。本当の 出やすさに 合わせ、王冠は 出さない(王冠は 止まった 時だけ)
+   */
   private randSym(): SymbolId {
-    return SYMBOLS[Math.floor(this.rng() * SYMBOLS.length)];
+    const items = SYMBOLS.filter((x) => x !== 'crown');
+    return pickWeighted(this.rng, items, items.map((x) => SYMBOL_WEIGHT[x]));
   }
 
   update(_t: number, dt: number): void {
@@ -1108,7 +1114,7 @@ export class SlotScene extends Phaser.Scene {
     if (fr.added) for (const [r, i] of res.crownCells) this.cellGlow(r, i, true, 0xffd23a);
     // まず 当たりを 見せる → つぎに 回数(へる・へらない・ふえる)を 大きく 出す
     this.freeHud(res.win ? `+${res.win.toLocaleString()}` : '');
-    const step2 = res.win || fr.newWilds.length ? 1100 : 500;
+    const step2 = res.win || fr.newWilds.length ? 1600 : 800;
     this.time.delayedCall(step2, () => {
       this.freeShownLeft = undefined;
       const msg = fr.newWilds.length ? `WILD ${fr.newWilds.length}こ！ 回数 へらない` : fr.added ? '' : 'のこり −1';
@@ -1116,13 +1122,13 @@ export class SlotScene extends Phaser.Scene {
       if (fr.newWilds.length) this.freeBanner(`WILD！\n回数 へらない`, '#ffd23a');
       if (fr.added) {
         audio.se('koBlast');
-        this.time.delayedCall(fr.newWilds.length ? 1300 : 0, () => {
+        this.time.delayedCall(fr.newWilds.length ? 1800 : 0, () => {
           this.freeHud(`王冠！ +${fr.added}回`);
           this.freeBanner(`王冠 3つ！\n+${fr.added}回`, '#ff8a1f');
         });
       }
-      const extra = (fr.newWilds.length ? 1500 : 0) + (fr.added ? 1500 : 0);
-      this.freeLoop(extra + (big ? 1300 : 900));
+      const extra = (fr.newWilds.length ? 1900 : 0) + (fr.added ? 1900 : 0);
+      this.freeLoop(extra + (big ? 2000 : 1400));
     });
   }
 
@@ -1134,7 +1140,7 @@ export class SlotScene extends Phaser.Scene {
     c.add(this.text(0, 0, msg, 46, color, 9));
     c.setScale(1.6).setAlpha(0);
     this.tweens.add({ targets: c, scale: 1, alpha: 1, duration: 240, ease: 'Back.easeOut' });
-    this.tweens.add({ targets: c, alpha: 0, duration: 260, delay: 1100, onComplete: () => c.destroy() });
+    this.tweens.add({ targets: c, alpha: 0, duration: 260, delay: 1500, onComplete: () => c.destroy() });
   }
 
   private endFree(): void {
