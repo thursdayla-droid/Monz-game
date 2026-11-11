@@ -51,11 +51,11 @@ export const BIG_REACHES: readonly BigReachType[] = [
   { id: 'mid', name: '中リーチ【仮】', winWeight: 2, loseWeight: 2 },
   { id: 'strong', name: '強リーチ【仮】', winWeight: 3, loseWeight: 0.6 },
   // 2026-11-11 企画者の リーチ①「キョンKの キャバ嬢リーチ」(夜の お店に 可愛い子が いるか。キョン子なら 当たり・ブタ子なら ハズレ)。企画者 2026-11-11: 当たる 確率 10%
-  { id: 'kyon', name: 'キョンKの キャバ嬢リーチ', winWeight: 2, loseWeight: 8.4 },
-  // 2026-11-11 企画者の リーチ②「パンダYの 風呂キャンセルリーチ」(風呂に 入ったら 当たり)。企画者 2026-11-11: 当たる 確率 80%
-  { id: 'panda', name: 'パンダYの 風呂キャンセルリーチ', winWeight: 2, loseWeight: 0.25 },
+  { id: 'kyon', name: 'キョンKの キャバ嬢リーチ', winWeight: 2, loseWeight: 11.2 },
+  // 2026-11-11 企画者の リーチ②「パンダYの 風呂キャンセルリーチ」(風呂に 入ったら 当たり)。企画者 2026-11-11: 当たる 確率 20%・キョンK と 同じくらい よく 出る
+  { id: 'panda', name: 'パンダYの 風呂キャンセルリーチ', winWeight: 4, loseWeight: 9.6 },
   // 2026-11-11 企画者の リーチ③「うさぎKの アイドルリーチ」(うさぎの アイドル達なら 当たり・カバなら ハズレ)。企画者 2026-11-11: 当たる 確率 30%
-  { id: 'usagi', name: 'うさぎKの アイドルリーチ', winWeight: 2, loseWeight: 2.15 },
+  { id: 'usagi', name: 'うさぎKの アイドルリーチ', winWeight: 2, loseWeight: 2.85 },
   // 2026-11-11 企画者の リーチ④「カンガルーHの ラーメンリーチ」(食べて 星5！なら 当たり)。ラーメンは 3種類で 当たりやすさが ちがう。名前と 割合は【仮】
   {
     id: 'ramen',
@@ -80,12 +80,12 @@ export const BIG_REACHES: readonly BigReachType[] = [
       { name: 'ピカピカの 芝生【仮】', winWeight: 3, loseWeight: 0.6 },
     ],
   },
-  // 2026-11-11 企画者の リーチ⑥「チーターSの 彼女の機嫌リーチ」(彼女に 質問されて 答え、喜べば 当たり)。強さは【仮：中】
+  // 2026-11-11 企画者の リーチ⑥「チーターSの 彼女の機嫌リーチ」(彼女に 質問されて 答え、喜べば 当たり)。企画者 2026-11-11: 当たる 確率 80%
   {
     id: 'kanojo',
     name: 'チーターSの 彼女の機嫌リーチ',
     winWeight: 2,
-    loseWeight: 2,
+    loseWeight: 0.32,
     // 2026-11-11 企画者「質問と 答えを 増やす」: 質問 6つ(どれでも 当たりやすさは 同じ)。中身は【仮】
     variants: [1, 2, 3, 4, 5, 6].map((i) => ({ name: `質問${i}【仮】`, winWeight: 1, loseWeight: 1 })),
   },

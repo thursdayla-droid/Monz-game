@@ -146,7 +146,7 @@ describe('種類が ある リーチ(企画者 2026-11-11: ラーメン 3種類�
 });
 
 describe('キャラの リーチの 当たる 確率(企画者 2026-11-11)', () => {
-  it('キョンK 10%・うさぎK 30%・パンダY 80%(±4%)', () => {
+  it('キョンK 10%・うさぎK 30%・パンダY 20%・チーターS 80%(±4%)・パンダY は キョンK と 同じくらい 出る', () => {
     const n: Record<string, number> = {};
     const w: Record<string, number> = {};
     for (let i = 1; i < 1_000_000; i++) {
@@ -159,6 +159,9 @@ describe('キャラの リーチの 当たる 確率(企画者 2026-11-11)', () 
     const rate = (id: string) => w[id] / n[id];
     expect(Math.abs(rate('kyon') - 0.1)).toBeLessThan(0.04);
     expect(Math.abs(rate('usagi') - 0.3)).toBeLessThan(0.04);
-    expect(Math.abs(rate('panda') - 0.8)).toBeLessThan(0.04);
+    expect(Math.abs(rate('panda') - 0.2)).toBeLessThan(0.04);
+    expect(Math.abs(rate('kanojo') - 0.8)).toBeLessThan(0.04);
+    expect(n.panda / n.kyon).toBeGreaterThan(0.85);
+    expect(n.panda / n.kyon).toBeLessThan(1.15);
   }, 60_000);
 });
