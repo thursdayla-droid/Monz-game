@@ -56,7 +56,7 @@ describe('MONZ SLOT リーチ', () => {
     const rate = (id: string) => byType[id].win / byType[id].n;
     expect(rate('strong')).toBeGreaterThan(rate('mid'));
     expect(rate('mid')).toBeGreaterThan(rate('weak'));
-    expect(BIG_REACHES).toHaveLength(3);
+    expect(BIG_REACHES.length).toBeGreaterThanOrEqual(3);
     // 予告は ときどき(ハズレでも 少し)
     expect(notice / N).toBeGreaterThan(0.02);
     expect(notice / N).toBeLessThan(0.15);

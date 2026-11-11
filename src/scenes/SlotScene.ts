@@ -49,6 +49,8 @@ let symScene: Phaser.Scene | null = null;
 const LCD_BGS = ['normal', 'red', 'gold'] as const;
 type LcdBg = (typeof LCD_BGS)[number];
 const lcdBgKey = (n: LcdBg) => `slot:lcd:${n}`;
+/** 企画者の キャラ キョンK(2026-11-11。元は design/slot/chara/kyonk_original.png・にせの ます目を 消した kyonk.png) */
+const KYON_KEY = 'slot:chara:kyonk';
 const symKey = (s: SymbolId) => (symScene?.textures.exists(artKey(s)) ? artKey(s) : drawnKey(s));
 
 interface ReelView {
@@ -138,6 +140,8 @@ export class SlotScene extends Phaser.Scene {
     if (!this.textures.exists(COIN_ART_KEY)) this.load.image(COIN_ART_KEY, assetUrl(COIN_ART_FILE));
     if (!this.textures.exists(LOGO_KEY)) this.load.image(LOGO_KEY, assetUrl('assets/slot/logo.webp'));
     for (const [k, f] of STEP_FILES) if (!this.textures.exists(k)) this.load.image(k, assetUrl(f));
+    // 企画者の キャラ(2026-11-11 キョンK)
+    if (!this.textures.exists(KYON_KEY)) this.load.image(KYON_KEY, assetUrl('assets/slot/chara_kyonk.webp'));
     for (const c of CHEST_COLORS) for (const o of [false, true]) if (!this.textures.exists(chestArtKey(c, o))) this.load.image(chestArtKey(c, o), assetUrl(`assets/slot/chest_${c}_${o ? 'o' : 'c'}.webp`));
     // 企画者の 液晶の 背景(ふだん・赤・金。2026-11-10)
     for (const n of LCD_BGS) if (!this.textures.exists(lcdBgKey(n))) this.load.image(lcdBgKey(n), assetUrl(`assets/slot/lcd_${n}.webp`));
@@ -766,6 +770,7 @@ export class SlotScene extends Phaser.Scene {
 
   /** 大きい リーチの 成功・失敗【仮の 見た目】 */
   private reachResult(ok: boolean): void {
+    if (this.lastShow?.big?.id === 'kyon') return this.kyonResult(ok);
     const h = this.lcdBox.h;
     if (ok) {
       this.setLcdBg('gold', 0.1);
@@ -796,7 +801,98 @@ export class SlotScene extends Phaser.Scene {
   }
 
   /** 大きい リーチ【仮の 見た目】。企画者の リーチ演出(7種類くらい)が 入る ところ */
+  /**
+   * リーチ①「キョンKの キャバ嬢リーチ」(2026-11-11 企画者)。夜の お店に 可愛い子が いるか。どっちの 子だろう…
+   * 1枚目: 夜の 街に キョンK「今夜は 可愛い子 いるかな〜？」/ 2枚目: お店の 前・2つの シルエット「どっちの 子だ…！？」/
+   * 3枚目: ドアが 光る「入るぞ…！」→ 結果(4リール目): キョン子 = 当たり・ブタ子 = ハズレ
+   * 1枚絵・キョン子・ブタ子の 絵は 企画者が 作る(今は 仮)
+   */
+  private kyonReach(show: SpinShow, ms: number): void {
+    const { w, h } = this.lcdBox;
+    this.setLcdBg('normal', 0.5);
+    const kyon = () => {
+      if (!this.textures.exists(KYON_KEY)) return null;
+      const img = this.add.image(-w * 0.28, h * 0.08, KYON_KEY);
+      img.setScale((h * 0.95) / img.height);
+      return img;
+    };
+    const panel = (n: number) => {
+      const items: Phaser.GameObjects.GameObject[] = [];
+      // 夜の 街(仮): 暗い 紫と ネオン
+      items.push(this.add.rectangle(0, 0, w - 8, h - 8, 0x120818, 0.6));
+      if (n === 1) {
+        const k = kyon();
+        if (k) {
+          items.push(k);
+          k.setX(-w * 0.7);
+          this.tweens.add({ targets: k, x: -w * 0.28, duration: 420, ease: 'Back.easeOut' });
+        }
+        items.push(this.text(w * 0.14, -h * 0.22, 'キャバ嬢リーチ', Math.min(42, h * 0.11, w * 0.07), '#ff6ad5', 8));
+        items.push(this.text(w * 0.14, h * 0.08, '今夜は\n可愛い子 いるかな〜？', Math.min(30, h * 0.08), '#ffffff', 6));
+        audio.se('mcCutin');
+      } else if (n === 2) {
+        // お店の 前・2つの シルエット
+        const sign = this.text(0, -h * 0.34, 'CLUB MONZ', Math.min(34, h * 0.09), '#ff6ad5', 6);
+        this.tweens.add({ targets: sign, alpha: 0.4, duration: 220, yoyo: true, repeat: -1 });
+        items.push(sign);
+        for (const [x, c] of [[-w * 0.2, 0xff6ad5], [w * 0.2, 0xffb0d8]] as const) {
+          const g = this.add.graphics();
+          g.fillStyle(0x000000, 0.85).fillCircle(0, -h * 0.08, h * 0.13).fillRoundedRect(-h * 0.13, h * 0.04, h * 0.26, h * 0.28, 24);
+          g.lineStyle(4, c, 0.9).strokeCircle(0, -h * 0.08, h * 0.13);
+          g.setPosition(x, h * 0.02);
+          items.push(g);
+          items.push(this.text(x, -h * 0.08, '？', Math.min(54, h * 0.14), '#ffffff', 6));
+        }
+        items.push(this.text(0, h * 0.38, 'どっちの 子だ…！？', Math.min(32, h * 0.085), '#ffd23a', 7));
+        audio.se('mcSelect');
+      } else {
+        // ドアが 光る
+        const door = this.add.rectangle(0, h * 0.04, w * 0.34, h * 0.7, 0x2a0a3a).setStrokeStyle(6, 0xffd23a);
+        const light = this.add.rectangle(0, h * 0.04, 8, h * 0.66, 0xfff2a8, 0.9);
+        this.tweens.add({ targets: light, width: w * 0.3, alpha: 0.5, duration: 700, yoyo: true, repeat: -1 });
+        items.push(door, light);
+        items.push(tierText(this, 0, -h * 0.36, '入るぞ…！', Math.min(46, h * 0.12), show.bigTier));
+        this.cameras.main.shake(220, 0.004);
+        audio.se('mcThunder');
+      }
+      this.lcdShow(items);
+    };
+    panel(1);
+    this.time.delayedCall(ms * 0.36, () => panel(2));
+    this.time.delayedCall(ms * 0.72, () => panel(3));
+  }
+
+  /** キャバ嬢リーチの 結果: キョン子(当たり)・ブタ子(ハズレ)【仮の 見た目】 */
+  private kyonResult(ok: boolean): void {
+    const { w, h } = this.lcdBox;
+    const items: Phaser.GameObjects.GameObject[] = [];
+    if (ok) this.setLcdBg('gold', 0.1);
+    items.push(this.add.rectangle(0, 0, w - 8, h - 8, ok ? 0xffd0ec : 0x3a2a2a, ok ? 0.35 : 0.6));
+    const g = this.add.graphics();
+    const face = ok ? 0xffc6e0 : 0xffa8a8;
+    g.fillStyle(face, 1).lineStyle(6, 0x16101c, 1).fillCircle(0, 0, h * 0.2).strokeCircle(0, 0, h * 0.2);
+    if (ok) g.fillStyle(0xc89060, 1).fillTriangle(-h * 0.18, -h * 0.12, -h * 0.26, -h * 0.34, -h * 0.08, -h * 0.18).fillTriangle(h * 0.18, -h * 0.12, h * 0.26, -h * 0.34, h * 0.08, -h * 0.18);
+    else g.fillStyle(0xff8a9a, 1).fillEllipse(0, h * 0.06, h * 0.16, h * 0.11).strokeEllipse(0, h * 0.06, h * 0.16, h * 0.11);
+    g.setPosition(0, -h * 0.02);
+    items.push(g);
+    const t = this.text(0, h * 0.33, ok ? 'キョン子だ！！ 当たり！' : 'ブタ子だった…', Math.min(ok ? 40 : 34, h * 0.1), ok ? '#ffd23a' : '#d8c8e8', 8);
+    items.push(t);
+    items.push(this.text(0, -h * 0.4, '（キョン子・ブタ子の 絵は 仮）', 14, '#c8bcd8'));
+    this.lcdShow(items);
+    g.setScale(0.3);
+    this.tweens.add({ targets: g, scale: 1, duration: 320, ease: 'Back.easeOut' });
+    if (ok) {
+      this.cameras.main.flash(260, 255, 220, 240);
+      audio.se('koBlast');
+    } else {
+      audio.se('back');
+      // ハズレの 絵は 少し 見せて から もとの 液晶へ
+      this.time.delayedCall(1400, () => this.lcdIdle());
+    }
+  }
+
   private bigReach(show: SpinShow, ms: number): void {
+    if (show.big?.id === 'kyon') return this.kyonReach(show, ms);
     // 液晶の 背景: 赤は 赤い 稲妻・金と 虹は 金の 光・青と 緑は ふだんの 背景を 暗く
     if (show.bigTier === 'red') this.setLcdBg('red', 0.15);
     else if (show.bigTier === 'gold' || show.bigTier === 'rainbow') this.setLcdBg('gold', 0.1);

@@ -44,6 +44,8 @@ export const BIG_REACHES: readonly BigReachType[] = [
   { id: 'weak', name: '弱リーチ【仮】', winWeight: 1, loseWeight: 4 },
   { id: 'mid', name: '中リーチ【仮】', winWeight: 2, loseWeight: 2 },
   { id: 'strong', name: '強リーチ【仮】', winWeight: 3, loseWeight: 0.6 },
+  // 2026-11-11 企画者の リーチ①「キョンKの キャバ嬢リーチ」(夜の お店に 可愛い子が いるか。キョン子なら 当たり・ブタ子なら ハズレ)。強さは【仮：中くらい】
+  { id: 'kyon', name: 'キョンKの キャバ嬢リーチ', winWeight: 2, loseWeight: 2 },
 ];
 
 /**
