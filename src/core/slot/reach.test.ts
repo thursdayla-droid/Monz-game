@@ -161,6 +161,9 @@ describe('キャラの リーチの 当たる 確率(企画者 2026-11-11)', () 
     expect(Math.abs(rate('usagi') - 0.3)).toBeLessThan(0.04);
     expect(Math.abs(rate('panda') - 0.2)).toBeLessThan(0.04);
     expect(Math.abs(rate('kanojo') - 0.8)).toBeLessThan(0.04);
+    // カンガルーH・ヒヨコJ は 今の 数字(約40%)で 決定
+    expect(Math.abs(rate('ramen') - 0.4)).toBeLessThan(0.05);
+    expect(Math.abs(rate('golf') - 0.4)).toBeLessThan(0.05);
     expect(n.panda / n.kyon).toBeGreaterThan(0.85);
     expect(n.panda / n.kyon).toBeLessThan(1.15);
   }, 60_000);

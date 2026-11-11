@@ -56,28 +56,28 @@ export const BIG_REACHES: readonly BigReachType[] = [
   { id: 'panda', name: 'パンダYの 風呂キャンセルリーチ', winWeight: 4, loseWeight: 9.6 },
   // 2026-11-11 企画者の リーチ③「うさぎKの アイドルリーチ」(うさぎの アイドル達なら 当たり・カバなら ハズレ)。企画者 2026-11-11: 当たる 確率 30%
   { id: 'usagi', name: 'うさぎKの アイドルリーチ', winWeight: 2, loseWeight: 2.85 },
-  // 2026-11-11 企画者の リーチ④「カンガルーHの ラーメンリーチ」(食べて 星5！なら 当たり)。ラーメンは 3種類で 当たりやすさが ちがう。名前と 割合は【仮】
+  // 2026-11-11 企画者の リーチ④「カンガルーHの ラーメンリーチ」(食べて 星5！なら 当たり)。ラーメンは 3種類で 当たりやすさが ちがう。企画者 2026-11-11 今の 割合で 決定(全体 約40%・17% / 43% / 78%)
   {
     id: 'ramen',
     name: 'カンガルーHの ラーメンリーチ',
     winWeight: 2,
     loseWeight: 2,
     variants: [
-      { name: 'しょうゆラーメン【仮】', winWeight: 1, loseWeight: 4 },
-      { name: 'みそラーメン【仮】', winWeight: 2, loseWeight: 2 },
-      { name: '特製とんこつラーメン【仮】', winWeight: 3, loseWeight: 0.6 },
+      { name: 'しょうゆラーメン', winWeight: 1, loseWeight: 4 },
+      { name: 'みそラーメン', winWeight: 2, loseWeight: 2 },
+      { name: '特製とんこつラーメン', winWeight: 3, loseWeight: 0.6 },
     ],
   },
-  // 2026-11-11 企画者の リーチ⑤「ヒヨコJの ゴルフリーチ」(パターが 入れば 当たり)。芝生で 当たりやすさが ちがう。芝生の 名前と 割合は【仮】
+  // 2026-11-11 企画者の リーチ⑤「ヒヨコJの ゴルフリーチ」(パターが 入れば 当たり)。芝生で 当たりやすさが ちがう。企画者 2026-11-11 今の 割合で 決定(全体 約40%・15% / 42% / 78%)
   {
     id: 'golf',
     name: 'ヒヨコJの ゴルフリーチ',
     winWeight: 2,
     loseWeight: 2,
     variants: [
-      { name: 'ボコボコの 芝生【仮】', winWeight: 1, loseWeight: 4 },
-      { name: 'ふつうの 芝生【仮】', winWeight: 2, loseWeight: 2 },
-      { name: 'ピカピカの 芝生【仮】', winWeight: 3, loseWeight: 0.6 },
+      { name: 'ボコボコの 芝生', winWeight: 1, loseWeight: 4 },
+      { name: 'ふつうの 芝生', winWeight: 2, loseWeight: 2 },
+      { name: 'ピカピカの 芝生', winWeight: 3, loseWeight: 0.6 },
     ],
   },
   // 2026-11-11 企画者の リーチ⑥「チーターSの 彼女の機嫌リーチ」(彼女に 質問されて 答え、喜べば 当たり)。企画者 2026-11-11: 当たる 確率 80%
