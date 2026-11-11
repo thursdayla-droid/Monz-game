@@ -55,7 +55,8 @@ export type SeName =
   | 'b3dPunchHit'
   | 'b3dStrikeHit'
   | 'b3dTechBtn'
-  | 'b3dGigant';
+  | 'b3dGigant'
+  | 'mjRiichi';
 
 let noise: AudioBuffer | null = null;
 function noiseBuf(ctx: BaseAudioContext): AudioBuffer {
@@ -271,6 +272,7 @@ export function playSe(ctx: AudioContext, out: AudioNode, name: SeName, pitch: n
       if (p > 1.05) for (const d of [0.07, 0.14]) tone(ctx, out, t + d, 'sine', [[0, 1720]], [[0, 0.1 / (d * 14)], [ring * 0.8, 0.0001]], ring);
       break;
     }
+    case 'mjRiichi': // ファイルが読めなかったときの代わり
     case 'b3dGigant': // ファイルが読めなかったときの代わり
     case 'b3dPunchHit':
     case 'b3dStrikeHit':
