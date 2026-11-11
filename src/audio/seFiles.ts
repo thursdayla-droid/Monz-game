@@ -13,11 +13,14 @@ import type { SeName } from './sfx';
  * - 2026-11-02 3Dバトル: 通常攻撃のパンチが当たった音(企画者「パンチ当たる音はこれ」)
  * - 2026-11-03 3Dバトル: ギガントバーストの音(企画者)
  * - 2026-11-11 麻雀クエスト: リーチの 音(企画者「麻雀の リーチの 音は これに して」。元は music/se/mahjong/riichi_original.mp3)
+ * - 2026-11-11 麻雀クエスト: 主人公の ロンの 音(企画者。元は music/se/mahjong/ron_hero_original.mp3)
  * - 2026-11-05 3Dバトル: 通常攻撃の 打撃(パンチ・頭突き・体当たり・甲羅・しっぽ)が当たった音(企画者「通常攻撃打撃系の音はこれにして」)
  */
 export const SE_FILES: Partial<Record<SeName, { file: string; gain?: number }>> = {
   mcSlash: { file: 'assets/se/mythclash/attack.mp3' },
-  mjRiichi: { file: 'assets/se/mahjong/riichi.mp3' },
+  // 2026-11-11 企画者「リーチの 音 でかい。もう少し 小さめで」→ 0.55
+  mjRiichi: { file: 'assets/se/mahjong/riichi.mp3', gain: 0.55 },
+  mjRonHero: { file: 'assets/se/mahjong/ron_hero.mp3' },
   mcSpecial: { file: 'assets/se/mythclash/special.mp3' },
   mcGuardOk: { file: 'assets/se/mythclash/guard_success.mp3' },
   mcPoison: { file: 'assets/se/mythclash/poison.mp3' },

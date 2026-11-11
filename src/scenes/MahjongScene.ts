@@ -663,7 +663,9 @@ export class MahjongScene extends Phaser.Scene {
       // 2026-11-09 企画者「満貫・役満の 演出を 少し 豪華に」→ 満貫 以上は 顔の あとに 大きな 文字
       const LIMITS = ['満貫', '跳満', '倍満', '三倍満', '数え役満', '役満', 'ダブル役満', 'トリプル役満'];
       const top = r.wins.map((x) => x.score.limit).filter((l) => l).sort((a, b) => LIMITS.indexOf(b) - LIMITS.indexOf(a))[0];
-      this.cutIn(w.seat, w.from === null ? 'ツモ！' : 'ロン！', () => (top ? this.bigWin(top, w.seat === PLAYER_SEAT, () => this.resultPanel(r, d)) : this.resultPanel(r, d)));
+      // 2026-11-11 企画者: 主人公の ロンは 企画者の 音
+      const se: SeName | undefined = w.seat === PLAYER_SEAT && w.from !== null ? 'mjRonHero' : undefined;
+      this.cutIn(w.seat, w.from === null ? 'ツモ！' : 'ロン！', () => (top ? this.bigWin(top, w.seat === PLAYER_SEAT, () => this.resultPanel(r, d)) : this.resultPanel(r, d)), 1150, se);
     } else this.resultPanel(r, d);
   }
 
