@@ -86,7 +86,7 @@ function packFiles(name: Exclude<PackName, 'bunk'>): PackFile[] {
     case 'compare':
       return [{ key: REFERENCE_ORIGINAL, url: REFERENCE_FILES.original }];
     case 'minigame':
-      return [{ key: SELECT_IMAGE, url: 'assets/minigame/select_v2.webp' }, ...Object.values(SELECT_CARD_ART).map((a) => ({ key: a.key, url: a.file })), ...Object.values(SELECT_LOGO_ART).map((a) => ({ key: a.key, url: a.file }))];
+      return [{ key: SELECT_IMAGE, url: 'assets/minigame/select_v3.webp' }, ...Object.values(SELECT_CARD_ART).map((a) => ({ key: a.key, url: a.file })), ...Object.values(SELECT_LOGO_ART).map((a) => ({ key: a.key, url: a.file }))];
     case 'card':
       return Object.entries(CARD_IMAGES).map(([key, file]) => ({ key, url: `assets/minigame/${file}` }));
     case 'dash':
