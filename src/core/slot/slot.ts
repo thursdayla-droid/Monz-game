@@ -241,12 +241,13 @@ export function pickChest(b: BonusState, index: number, rng: Rng): ChestContent 
  * 【確定】王冠 4個 → 5回・5個 → 10回。5リール × 5段(3,125通り)・配当表は 同じ。
  * ワイルドが 1つでも 新しく 出たら その 回は 回数を 使わない。ワイルドは 止まった 所に のこる(もう ワイルドが ある 所には 何も 止まらない)。
  * フリーゲーム中に 王冠 3個 以上で 回数 +5。
- * 【仮】フリーゲームの 中だけ 配当 1/10(企画者 2026-11-11「おすすめで」)・ワイルドの 出やすさ(1マス 約1%)
+ * 配当は ふつうと 同じ(2026-11-11 企画者「10分の1 しないで いい」)。【仮】ワイルドの 出やすさ(1マス 約1%)
  */
 export const FREE_BY_CROWNS: Record<4 | 5, number> = { 4: 5, 5: 10 };
 export const FREE_ROWS = 5;
 export const FREE_RETRIGGER = 5;
-export const FREE_PAY_SCALE = PAY_SCALE * 0.1;
+// 2026-11-11 企画者「フリーゲームは 10分の1 しないで いい」→ ふつうと 同じ 配当
+export const FREE_PAY_SCALE = PAY_SCALE;
 /** ワイルドの 重み(ほかの 図柄の 重みと 同じ 単位。合計 約104 なので 約1%) */
 export const FREE_WILD_WEIGHT = 1.0;
 

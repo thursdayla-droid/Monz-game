@@ -432,7 +432,8 @@ export class SlotScene extends Phaser.Scene {
         v.offset -= step;
         // いちばん 下の 絵を 上へ 回して、新しい 図柄に
         const last = v.imgs.pop()!;
-        last.setTexture(symKey(this.randSym()));
+        // 絵の 大きさが ちがう(企画者の 絵 256・仮の ワイルド 160)ので、毎回 大きさを 合わせる
+        last.setTexture(symKey(this.randSym())).setDisplaySize(this.cell - 10, this.cell - 10);
         v.imgs.unshift(last);
       }
       v.imgs.forEach((img, k) => {
@@ -839,7 +840,9 @@ export class SlotScene extends Phaser.Scene {
     v.imgs.forEach((img, k) => {
       // 止まったら 見える 段は 全部 出す(いちばん 上の 予備は フリーゲームの 時 かくす)
       img.setVisible(!(this.rows === FREE_ROWS && k === 0));
-      img.setTexture(symKey(col[k]));
+      // 2026-11-11 企画者「ワイルドの あと マークが デカく なる」→ 絵を かえたら 大きさも 合わせる
+      this.tweens.killTweensOf(img);
+      img.setTexture(symKey(col[k])).setDisplaySize(this.cell - 10, this.cell - 10).setAngle(0);
       const y = this.cellPos(r, k - 1).y;
       img.setY(y - 46);
       this.tweens.add({ targets: img, y, duration: 200, ease: 'Back.easeOut' });
