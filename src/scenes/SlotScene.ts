@@ -63,6 +63,9 @@ interface ReelView {
 const SMALL_REACH_MS = 2200;
 const BIG_REACH_MS = 4600;
 const LAST_REEL_MS = 1700;
+/** 特別フリーゲームの 止まる 時間(2026-11-11 企画者「もう少し ゆっくり」)【仮】 */
+const FREE_STOP_FIRST = 1100;
+const FREE_STOP_STEP = 380;
 
 export class SlotScene extends Phaser.Scene {
   private H = BASE_H;
@@ -986,15 +989,19 @@ export class SlotScene extends Phaser.Scene {
   }
 
   /** フリーゲームの 上の 帯: のこりの 回数と 合計・ひとこと */
+  /** 回して いる 間に 出す のこり回数(リールが 止まるまで 前の 数の まま) */
+  private freeShownLeft?: number;
+
   private freeHud(msg = ''): void {
     const f = this.free;
     const c = this.freeTop;
     if (!f || !c) return;
+    const left = this.freeShownLeft ?? f.left;
     c.removeAll(true);
     const t = this.text(-this.reelW / 2 + 70, -14, 'FREE GAME', 24, '#ffd23a', 6);
     t.setShadow(0, 3, '#ff4ad8', 0, true, true);
     c.add(t);
-    c.add(this.text(-this.reelW / 2 + 70, 16, `のこり ${f.left}回`, 24, '#ffffff', 5));
+    c.add(this.text(-this.reelW / 2 + 70, 16, `のこり ${left}回`, 24, '#ffffff', 5));
     c.add(this.text(this.reelW / 2 - 100, -14, '合計', 18, '#c8bcd8'));
     c.add(this.text(this.reelW / 2 - 100, 14, `+${f.total.toLocaleString()}`, 30, '#ffd23a', 6));
     if (msg) {
@@ -1021,7 +1028,7 @@ export class SlotScene extends Phaser.Scene {
     this.cameras.main.shake(400, 0.01);
     audio.se('koBlast');
     this.time.delayedCall(300, () => audio.se('cheer'));
-    this.time.delayedCall(2600, () => this.startFree(res.free));
+    this.time.delayedCall(3400, () => this.startFree(res.free));
   }
 
   private startFree(games: number): void {
@@ -1030,7 +1037,8 @@ export class SlotScene extends Phaser.Scene {
     this.winText.setText('0').setColor('#ffd23a');
     this.setRows(FREE_ROWS);
     this.freeHud(`${games}回 スタート！`);
-    this.freeLoop(1200);
+    this.freeBanner(`FREE GAME\n${games}回 スタート！`, '#ffd23a');
+    this.freeLoop(2200);
   }
 
   /** 次の 1回(のこりが 0 なら おわり) */
@@ -1045,6 +1053,8 @@ export class SlotScene extends Phaser.Scene {
 
   private freeOne(): void {
     const f = this.free!;
+    // 2026-11-11 企画者「早くて 何が 起きてるか わからない」→ 回して いる 間は 前の 回数の まま 出す(止まって から へる・へらない)
+    this.freeShownLeft = f.left;
     // 結果を 先に 決めて すぐ 保存(とちゅうで 閉じても コインは もらえる・やり直せない)
     const fr = freeSpin(f, this.rng);
     if (fr.res.win) this.record.add(fr.res.win);
@@ -1058,7 +1068,8 @@ export class SlotScene extends Phaser.Scene {
       this.reels[r].spinning = true;
       this.reels[r].speed = 1;
     }
-    for (let r = 0; r < REELS; r++) this.time.delayedCall(AUTO_STOP_FIRST + r * AUTO_STOP_STEP, () => this.stopReel(r, fr.res, r === REELS - 1));
+    // ふつうの 速さで 止める(フリーゲームは オートの 速さより ゆっくり)
+    for (let r = 0; r < REELS; r++) this.time.delayedCall(FREE_STOP_FIRST + r * FREE_STOP_STEP, () => this.stopReel(r, fr.res, r === REELS - 1));
   }
 
   private revealFree(): void {
@@ -1094,13 +1105,36 @@ export class SlotScene extends Phaser.Scene {
       audio.se('mcMagic', { pitch: 1.4 });
       this.cameras.main.shake(160, 0.004);
     }
-    const msg = [fr.newWilds.length ? 'WILD！ 回数 へらない' : '', fr.added ? `王冠！ +${fr.added}回` : ''].filter(Boolean).join('　');
-    if (fr.added) {
-      audio.se('koBlast');
-      for (const [r, i] of res.crownCells) this.cellGlow(r, i, true, 0xffd23a);
-    }
-    this.freeHud(msg || (res.win ? `+${res.win.toLocaleString()}` : ''));
-    this.freeLoop(big || fr.newWilds.length || fr.added ? 1400 : 700);
+    if (fr.added) for (const [r, i] of res.crownCells) this.cellGlow(r, i, true, 0xffd23a);
+    // まず 当たりを 見せる → つぎに 回数(へる・へらない・ふえる)を 大きく 出す
+    this.freeHud(res.win ? `+${res.win.toLocaleString()}` : '');
+    const step2 = res.win || fr.newWilds.length ? 1100 : 500;
+    this.time.delayedCall(step2, () => {
+      this.freeShownLeft = undefined;
+      const msg = fr.newWilds.length ? `WILD ${fr.newWilds.length}こ！ 回数 へらない` : fr.added ? '' : 'のこり −1';
+      this.freeHud(msg);
+      if (fr.newWilds.length) this.freeBanner(`WILD！\n回数 へらない`, '#ffd23a');
+      if (fr.added) {
+        audio.se('koBlast');
+        this.time.delayedCall(fr.newWilds.length ? 1300 : 0, () => {
+          this.freeHud(`王冠！ +${fr.added}回`);
+          this.freeBanner(`王冠 3つ！\n+${fr.added}回`, '#ff8a1f');
+        });
+      }
+      const extra = (fr.newWilds.length ? 1500 : 0) + (fr.added ? 1500 : 0);
+      this.freeLoop(extra + (big ? 1300 : 900));
+    });
+  }
+
+  /** フリーゲームの まん中に 大きな 文字(リールの 上) */
+  private freeBanner(msg: string, color: string): void {
+    const y = this.reelY + (this.rows * this.cell + (this.rows - 1) * GAP) / 2;
+    const c = this.add.container(W / 2, y).setDepth(9);
+    c.add(this.add.rectangle(0, 0, this.reelW + 10, 150, 0x0d0614, 0.85).setStrokeStyle(5, 0xffd23a));
+    c.add(this.text(0, 0, msg, 46, color, 9));
+    c.setScale(1.6).setAlpha(0);
+    this.tweens.add({ targets: c, scale: 1, alpha: 1, duration: 240, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: c, alpha: 0, duration: 260, delay: 1100, onComplete: () => c.destroy() });
   }
 
   private endFree(): void {
