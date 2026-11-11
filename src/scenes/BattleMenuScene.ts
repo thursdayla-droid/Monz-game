@@ -53,7 +53,9 @@ export class BattleMenuScene extends Phaser.Scene {
     if (this.textures.exists(BATTLE_MENU_IMAGE)) this.createArt();
     else this.createDrawn();
     const back = this.add
-      .text(24, 28, '◀ もどる', { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '900', color: '#ffffff', backgroundColor: '#16101ccc', padding: { x: 16, y: 8 } })
+      // 2026-11-11 企画者「縦に すると 左上の 戻る 押せない」→ 少し 下げて 大きく(画面の いちばん 上は iPhone が さわりを とることが ある)
+      .text(24, 44, '◀ もどる', { fontFamily: UI_FONT, fontSize: '32px', fontStyle: '900', color: '#ffffff', backgroundColor: '#16101ccc', padding: { x: 20, y: 14 } })
+      .setDepth(20)
       .setInteractive({ useHandCursor: true });
     back.on('pointerdown', () => this.go('Home', true));
     this.cameras.main.fadeIn(250, 0, 0, 0);
@@ -70,7 +72,7 @@ export class BattleMenuScene extends Phaser.Scene {
     const k = W / ART.w;
     this.add.image(0, 0, BATTLE_MENU_IMAGE).setOrigin(0, 0).setScale(k);
     canvasTextureOnce(this, 'bm:logo', 680, 200, (ctx) => drawGraffitiText(ctx, 680, 200, 'BATTLE', '#ffd23a', 150, -0.06));
-    const logo = this.add.image(W / 2, 150, 'bm:logo').setScale(0.3);
+    const logo = this.add.image(W / 2, 185, 'bm:logo').setScale(0.3);
     this.tweens.add({ targets: logo, scale: 0.85, duration: 420, ease: 'Back.easeOut' });
     // 上の ステージ・下の 魔法陣の 前の 空いた 所に 看板
     const ys: Record<(typeof ENTRIES)[number]['id'], number> = { action: 520, mythclash: 930 };
