@@ -62,6 +62,8 @@ interface StoryReach {
   /** 結果。icon: 仮の 絵文字・show: ハズレでも 見せるか */
   win: { text: string; icon: string; show?: boolean };
   lose: { text: string; icon: string; show: boolean };
+  /** 種類が ある リーチ(BIG_REACHES の variants と 同じ 順)。panel 番目の 1枚絵の 題と 絵を 種類で かえる */
+  variants?: { panel: number; list: { title: string; prop: string; color?: string }[] };
 }
 const STORY_REACHES: StoryReach[] = [
   {
@@ -105,6 +107,28 @@ const STORY_REACHES: StoryReach[] = [
     ],
     win: { text: 'うさぎの アイドル達だ！！ 当たり！', icon: '🐰🎤🐰' },
     lose: { text: 'カバの アイドル達だった…', icon: '🦛🎤🦛', show: true },
+  },
+  {
+    // 2026-11-11 企画者 リーチ④: ラーメンを 食べて 星5！なら 当たり。ラーメンは 3種類で 当たりやすさが ちがう(名前は【仮】)
+    id: 'ramen',
+    chara: 'slot:chara:kangarooh',
+    charaFile: 'assets/slot/chara_kangarooh.webp',
+    color: '#ffb347',
+    panels: [
+      { title: 'ラーメンリーチ', line: '腹へった〜\nラーメン 食うぞ！', chara: true },
+      { line: 'いただきます！', prop: '🍜', bg: 0x2a1408 },
+      { title: '評価は…！？', line: 'ズズッ…', prop: '⭐❓', bg: 0x2a1408 },
+    ],
+    variants: {
+      panel: 1,
+      list: [
+        { title: 'しょうゆラーメン', prop: '🍜', color: '#c8a070' },
+        { title: 'みそラーメン', prop: '🍜🔥', color: '#ff9a3a' },
+        { title: '特製とんこつラーメン', prop: '🍜✨', color: '#ffd23a' },
+      ],
+    },
+    win: { text: '星5！！ 当たり！', icon: '⭐⭐⭐⭐⭐' },
+    lose: { text: '星2… イマイチ…', icon: '⭐⭐', show: true },
   },
 ];
 const symKey = (s: SymbolId) => (symScene?.textures.exists(artKey(s)) ? artKey(s) : drawnKey(s));
@@ -866,7 +890,13 @@ export class SlotScene extends Phaser.Scene {
     const { w, h } = this.lcdBox;
     this.setLcdBg('normal', 0.5);
     const panel = (n: number) => {
-      const pd = def.panels[n];
+      let pd = def.panels[n];
+      let color = def.color;
+      const v = def.variants && def.variants.panel === n ? def.variants.list[show.bigVariant] : undefined;
+      if (v) {
+        pd = { ...pd, title: v.title, prop: v.prop };
+        color = v.color ?? color;
+      }
       const items: Phaser.GameObjects.GameObject[] = [];
       const artKey = `slot:reach:${def.id}:${n + 1}`;
       if (this.textures.exists(artKey)) {
@@ -889,7 +919,7 @@ export class SlotScene extends Phaser.Scene {
         if (pd.prop) items.push(this.text(pd.chara ? w * 0.14 : 0, -h * 0.02, pd.prop, Math.min(70, h * 0.2), '#ffffff', 0));
       }
       const tx = pd.chara ? w * 0.14 : 0;
-      if (pd.title) items.push(this.text(tx, -h * 0.3, pd.title, Math.min(40, h * 0.11, (w * 0.62) / pd.title.length), def.color, 8));
+      if (pd.title) items.push(this.text(tx, -h * 0.3, pd.title, Math.min(40, h * 0.11, (w * 0.62) / pd.title.length), color, 8));
       if (pd.line) {
         const t = n === def.panels.length - 1 ? tierText(this, tx, h * 0.3, pd.line, Math.min(36, h * 0.095), show.bigTier) : this.text(tx, h * 0.24, pd.line, Math.min(28, h * 0.075), '#ffffff', 6);
         items.push(t);

@@ -39,6 +39,8 @@ export interface BigReachType {
   /** 成功の 時・失敗の 時に えらばれる 重み(成功の 割合 = 期待度 を 作る) */
   winWeight: number;
   loseWeight: number;
+  /** リーチの 中の 種類(ラーメン 3種類 など)。種類ごとに 当たりやすさが ちがう */
+  variants?: readonly { name: string; winWeight: number; loseWeight: number }[];
 }
 export const BIG_REACHES: readonly BigReachType[] = [
   { id: 'weak', name: '弱リーチ【仮】', winWeight: 1, loseWeight: 4 },
@@ -50,6 +52,18 @@ export const BIG_REACHES: readonly BigReachType[] = [
   { id: 'panda', name: 'パンダYの 風呂キャンセルリーチ', winWeight: 2, loseWeight: 2 },
   // 2026-11-11 企画者の リーチ③「うさぎKの アイドルリーチ」(うさぎの アイドル達なら 当たり・カバなら ハズレ)。強さは【仮：中】
   { id: 'usagi', name: 'うさぎKの アイドルリーチ', winWeight: 2, loseWeight: 2 },
+  // 2026-11-11 企画者の リーチ④「カンガルーHの ラーメンリーチ」(食べて 星5！なら 当たり)。ラーメンは 3種類で 当たりやすさが ちがう。名前と 割合は【仮】
+  {
+    id: 'ramen',
+    name: 'カンガルーHの ラーメンリーチ',
+    winWeight: 2,
+    loseWeight: 2,
+    variants: [
+      { name: 'しょうゆラーメン【仮】', winWeight: 1, loseWeight: 4 },
+      { name: 'みそラーメン【仮】', winWeight: 2, loseWeight: 2 },
+      { name: '特製とんこつラーメン【仮】', winWeight: 3, loseWeight: 0.6 },
+    ],
+  },
 ];
 
 /**
@@ -74,6 +88,8 @@ export interface SpinShow {
   small: boolean;
   /** 大きい リーチ(3リール そろった)の 種類 */
   big: BigReachType | null;
+  /** 大きい リーチの 中の 種類(big.variants の 番号。種類が ない 時は -1) */
+  bigVariant: number;
   /** 大きい リーチの 文字の 色 */
   bigTier: ColorTier;
   /** 大きい リーチの さいごに PUSH ボタン */
@@ -139,5 +155,7 @@ export function planShow(res: SpinResult, bet: number, rng: Rng): SpinShow {
     reach,
     bigSuccess,
     smallSuccess: !!reach && reach.chain >= 3,
+    // 種類が ある リーチだけ さいごに えらぶ(ほかの 見せ方の 抽選の 順番は そのまま)
+    bigVariant: big?.variants ? big.variants.indexOf(pickW(rng, big.variants, (v) => (bigSuccess ? v.winWeight : v.loseWeight))) : -1,
   };
 }

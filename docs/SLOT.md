@@ -195,6 +195,18 @@
   4. 結果：当たり「うさぎの アイドル達だ！！ 当たり！」／ハズレ「カバの アイドル達だった…」
 - うさぎK の 絵：`design/slot/chara/usagik_original.png` → `public/assets/slot/chara_usagik.webp`。
 
+## リーチ④：カンガルーHの ラーメンリーチ（2026-11-11 企画者）
+- ラーメンを 食べて「星5！」と 言ったら 当たり。ラーメンは 3種類で 当たりやすさが ちがう。
+- `BIG_REACHES` の ramen（リーチ 全体の 強さは【仮：中】）。ラーメンの 名前と 当たりやすさは【仮】：
+  - しょうゆラーメン：約20%／みそラーメン：約50%／特製とんこつラーメン：約83%
+- 流れ（カンガルーH だけ 企画者の 絵・ほかは 仮）：
+  1. カンガルーH「ラーメンリーチ」「腹へった〜 ラーメン 食うぞ！」
+  2. ラーメンが 出る（3種類の どれか。名前の 色も ちがう）「いただきます！」
+  3. 「評価は…！？」「ズズッ…」（文字の 色で 期待度）
+  4. 結果：当たり「星5！！ 当たり！」／ハズレ「星2… イマイチ…」
+- 種類の しくみ：`BIG_REACHES` の `variants`（当たり/ハズレの 重み）と 画面の `STORY_REACHES` の `variants`（何枚目の 題と 絵を かえるか）。`SpinShow.bigVariant` に 種類の 番号。
+- カンガルーH の 絵：`design/slot/chara/kangarooh_original.png`（黒い 背景。AI の 背景消し isnet-anime で 消した kangarooh.png）→ `public/assets/slot/chara_kangarooh.webp`。
+
 ## キャラの リーチの 足し方（2026-11-11〜）
 - `src/scenes/SlotScene.ts` の `STORY_REACHES` に 1人 足す（絵・題・3枚の 文字・当たり/ハズレの 文字）＋ `src/core/slot/reach.ts` の `BIG_REACHES` に 強さを 足す。
 - 1枚絵が 届いたら `slot:reach:<id>:1〜3`・`slot:reach:<id>:win`・`slot:reach:<id>:lose` の 名前で 読みこめば 仮の 見た目の かわりに その 絵を 液晶 いっぱいに 出す。
