@@ -69,6 +69,12 @@ export const PAY_SYMBOLS = Object.keys(PAYTABLE) as PaySymbol[];
 const FIXED_PAY = new Set<PaySymbol>(['rainbow7', 'gold7']);
 /** その 図柄の 本当の 倍率(BET に かける)。scale は ふつう PAY_SCALE */
 export const payOf = (s: PaySymbol, length: 3 | 4 | 5, scale = PAY_SCALE): number => PAYTABLE[s][length - 3] * (FIXED_PAY.has(s) ? scale / PAY_SCALE : scale);
+/**
+ * 特別フリーゲームの 中の 7の 配当(2026-11-11 企画者「フリーゲームの 7の 配当は 下げよう」)。
+ * ふつうの ゲームの この 割合【仮】
+ */
+export let FREE_SEVEN_RATE = 0.1;
+export const setFreeSevenRate = (r: number) => (FREE_SEVEN_RATE = r);
 
 /** ボーナスに 入る 王冠の 数(画面の 15マスの どこでも)【確定】 */
 export const BONUS_CROWNS = 3;
@@ -170,7 +176,7 @@ export interface SpinResult {
  * - 図柄ごとに いちばん 長い 連続だけで 計算(3連と 4連を 二重に 数えない)
  * - ちがう 図柄の 当たりは 全部 足す。さいごに 四捨五入
  */
-export function evaluate(grid: Grid, bet: number, scale = PAY_SCALE): SpinResult {
+export function evaluate(grid: Grid, bet: number, scale = PAY_SCALE, free = false): SpinResult {
   const wins: WayWin[] = [];
   for (const s of PAY_SYMBOLS) {
     let ways = 1;
@@ -186,7 +192,7 @@ export function evaluate(grid: Grid, bet: number, scale = PAY_SCALE): SpinResult
     }
     if (len >= 3) {
       const length = len as 3 | 4 | 5;
-      wins.push({ symbol: s, length, ways, raw: bet * payOf(s, length, scale) * ways, cells });
+      wins.push({ symbol: s, length, ways, raw: bet * payOf(s, length, scale) * (free && FIXED_PAY.has(s) ? FREE_SEVEN_RATE : 1) * ways, cells });
     }
   }
   const crownCells: [number, number][] = [];
@@ -300,7 +306,7 @@ export function freeSpin(state: FreeState, rng: Rng, probs: Record<BaseSymbol, n
       return s;
     });
   });
-  const res = evaluate(grid, state.bet, FREE_PAY_SCALE);
+  const res = evaluate(grid, state.bet, FREE_PAY_SCALE, true);
   for (const [r, i] of newWilds) state.sticky[r][i] = true;
   const added = res.crowns >= BONUS_CROWNS ? FREE_RETRIGGER : 0;
   const used = newWilds.length === 0;
