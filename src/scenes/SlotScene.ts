@@ -1003,19 +1003,22 @@ export class SlotScene extends Phaser.Scene {
   /** フリーゲームの 上の 帯: のこりの 回数と 合計・ひとこと */
   /** 回して いる 間に 出す のこり回数(リールが 止まるまで 前の 数の まま) */
   private freeShownLeft?: number;
+  /** 回して いる 間に 出す 合計(2026-11-11 企画者「合計が 先に 出て 当たりが 分かる」→ 止まるまで 前の 合計)*/
+  private freeShownTotal?: number;
 
   private freeHud(msg = ''): void {
     const f = this.free;
     const c = this.freeTop;
     if (!f || !c) return;
     const left = this.freeShownLeft ?? f.left;
+    const total = this.freeShownTotal ?? f.total;
     c.removeAll(true);
     const t = this.text(-this.reelW / 2 + 70, -14, 'FREE GAME', 24, '#ffd23a', 6);
     t.setShadow(0, 3, '#ff4ad8', 0, true, true);
     c.add(t);
     c.add(this.text(-this.reelW / 2 + 70, 16, `のこり ${left}回`, 24, '#ffffff', 5));
     c.add(this.text(this.reelW / 2 - 100, -14, '合計', 18, '#c8bcd8'));
-    c.add(this.text(this.reelW / 2 - 100, 14, `+${f.total.toLocaleString()}`, 30, '#ffd23a', 6));
+    c.add(this.text(this.reelW / 2 - 100, 14, `+${total.toLocaleString()}`, 30, '#ffd23a', 6));
     if (msg) {
       const m = this.text(10, 0, msg, 22, '#ff8a1f', 6);
       c.add(m);
@@ -1067,6 +1070,7 @@ export class SlotScene extends Phaser.Scene {
     const f = this.free!;
     // 2026-11-11 企画者「早くて 何が 起きてるか わからない」→ 回して いる 間は 前の 回数の まま 出す(止まって から へる・へらない)
     this.freeShownLeft = f.left;
+    this.freeShownTotal = f.total;
     // 結果を 先に 決めて すぐ 保存(とちゅうで 閉じても コインは もらえる・やり直せない)
     const fr = freeSpin(f, this.rng);
     if (fr.res.win) this.record.add(fr.res.win);
@@ -1090,6 +1094,8 @@ export class SlotScene extends Phaser.Scene {
     if (!fr || !f) return;
     const res = fr.res;
     const big = res.win >= this.bet;
+    // 止まって から 合計と コインを ふやす
+    this.freeShownTotal = undefined;
     this.shown = this.record.coins;
     this.credit.setText(this.shown.toLocaleString());
     if (res.win > 0) {
