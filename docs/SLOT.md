@@ -176,3 +176,16 @@
   3. ドアが 光る「入るぞ…！」（文字の 色で 期待度）
   4. 結果（4リール目）：キョン子 → 「キョン子だ！！ 当たり！」／ブタ子 → 「ブタ子だった…」（このリーチだけ ハズレの 絵を 見せる）
 - キョンK の 絵：`design/slot/chara/kyonk_original.png`（にせの ます目を 消した kyonk.png）→ `public/assets/slot/chara_kyonk.webp`。
+
+## リーチ②：パンダYの 風呂キャンセルリーチ（2026-11-11 企画者）
+- 風呂に 入りたくない パンダY が 風呂に 入るか 入らないか。入ったら 当たり。
+- `BIG_REACHES` の panda（強さは【仮：中】成功 約50%）。流れ（パンダY だけ 企画者の 絵・ほかは 仮）：
+  1. パンダY「風呂キャンセルリーチ」「風呂… めんどくさいな〜」
+  2. お風呂「お風呂 わいたよ〜」「入る…？ 入らない…？」
+  3. 「入るか…！？」（文字の 色で 期待度）
+  4. 結果：当たり「風呂に 入った！！ 当たり！」／ハズレ「今日も 風呂キャンセル…」
+- パンダY の 絵：`design/slot/chara/panday_original.png` → `public/assets/slot/chara_panday.webp`。
+
+## キャラの リーチの 足し方（2026-11-11〜）
+- `src/scenes/SlotScene.ts` の `STORY_REACHES` に 1人 足す（絵・題・3枚の 文字・当たり/ハズレの 文字）＋ `src/core/slot/reach.ts` の `BIG_REACHES` に 強さを 足す。
+- 1枚絵が 届いたら `slot:reach:<id>:1〜3`・`slot:reach:<id>:win`・`slot:reach:<id>:lose` の 名前で 読みこめば 仮の 見た目の かわりに その 絵を 液晶 いっぱいに 出す。
