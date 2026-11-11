@@ -62,8 +62,11 @@ interface StoryReach {
   /** 結果。icon: 仮の 絵文字・show: ハズレでも 見せるか */
   win: { text: string; icon: string; show?: boolean };
   lose: { text: string; icon: string; show: boolean };
-  /** 種類が ある リーチ(BIG_REACHES の variants と 同じ 順)。panel 番目の 1枚絵の 題と 絵を 種類で かえる */
-  variants?: { panel: number; list: { title: string; prop: string; color?: string }[] };
+  /**
+   * 種類が ある リーチ(BIG_REACHES の variants と 同じ 順)。panel 番目の 1枚絵の 題・絵・セリフを 種類で かえる。
+   * next: その 次の 1枚絵の セリフ(質問 → 答え など)
+   */
+  variants?: { panel: number; list: { title?: string; prop?: string; color?: string; line?: string; next?: string }[] };
 }
 const STORY_REACHES: StoryReach[] = [
   {
@@ -163,6 +166,18 @@ const STORY_REACHES: StoryReach[] = [
       { title: '彼女', line: '「ねぇ、私の\nどこが 好き？」', prop: '👩❓', bg: 0x2a0a1a },
       { title: '答えは…！？', line: '「えっと… ぜんぶ！」', chara: true },
     ],
+    // 2026-11-11 企画者「質問と 答えを 増やす」。毎回 どれか 1つ(どれでも 当たりやすさは 同じ)。中身は【仮】
+    variants: {
+      panel: 1,
+      list: [
+        { line: '「ねぇ、私の\nどこが 好き？」', next: '「えっと… ぜんぶ！」' },
+        { line: '「仕事と 私、\nどっちが 大事？」', next: '「も、もちろん キミだよ！」' },
+        { line: '「ねぇ、私\n太った？」', next: '「ぜ、ぜんぜん！」' },
+        { line: '「今日 何の日か\n覚えてる？」', next: '「え… えーっと…」' },
+        { line: '「髪 切ったの\n気づいた？」', next: '「と、とっくに 気づいてたよ！」' },
+        { line: '「ねぇ、私の\n好きな 食べ物は？」', next: '「…い、いちご！」' },
+      ],
+    },
     win: { text: '彼女 ごきげん！！ 当たり！', icon: '👩💖🐆' },
     lose: { text: '彼女 おこっちゃった…', icon: '👩💢', show: true },
   },
@@ -928,11 +943,12 @@ export class SlotScene extends Phaser.Scene {
     const panel = (n: number) => {
       let pd = def.panels[n];
       let color = def.color;
-      const v = def.variants && def.variants.panel === n ? def.variants.list[show.bigVariant] : undefined;
-      if (v) {
-        pd = { ...pd, title: v.title, prop: v.prop };
+      const v = def.variants ? def.variants.list[show.bigVariant] : undefined;
+      if (v && def.variants!.panel === n) {
+        pd = { ...pd, title: v.title ?? pd.title, prop: v.prop ?? pd.prop, line: v.line ?? pd.line };
         color = v.color ?? color;
       }
+      if (v?.next && def.variants!.panel + 1 === n) pd = { ...pd, line: v.next };
       const items: Phaser.GameObjects.GameObject[] = [];
       const artKey = `slot:reach:${def.id}:${n + 1}`;
       if (this.textures.exists(artKey)) {

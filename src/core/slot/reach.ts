@@ -77,7 +77,14 @@ export const BIG_REACHES: readonly BigReachType[] = [
     ],
   },
   // 2026-11-11 企画者の リーチ⑥「チーターSの 彼女の機嫌リーチ」(彼女に 質問されて 答え、喜べば 当たり)。強さは【仮：中】
-  { id: 'kanojo', name: 'チーターSの 彼女の機嫌リーチ', winWeight: 2, loseWeight: 2 },
+  {
+    id: 'kanojo',
+    name: 'チーターSの 彼女の機嫌リーチ',
+    winWeight: 2,
+    loseWeight: 2,
+    // 2026-11-11 企画者「質問と 答えを 増やす」: 質問 6つ(どれでも 当たりやすさは 同じ)。中身は【仮】
+    variants: [1, 2, 3, 4, 5, 6].map((i) => ({ name: `質問${i}【仮】`, winWeight: 1, loseWeight: 1 })),
+  },
 ];
 
 /**

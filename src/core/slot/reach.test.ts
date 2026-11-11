@@ -115,10 +115,10 @@ describe('MONZ SLOT 演出(色・ステップアップ・告知ランプ・PUSH�
 
 describe('種類が ある リーチ(企画者 2026-11-11: ラーメン 3種類・ゴルフの 芝生 3種類で 当たりやすさが ちがう)', () => {
   it('種類は 種類が ある リーチの 時だけ・3番目 > 2番目 > 1番目 の 順に 当たりやすい', () => {
-    const ids = BIG_REACHES.filter((t) => t.variants).map((t) => t.id);
-    expect(ids).toEqual(['ramen', 'golf']);
-    const n: Record<string, number[]> = {};
-    const win: Record<string, number[]> = {};
+    expect(BIG_REACHES.filter((t) => t.variants).map((t) => t.id)).toEqual(['ramen', 'golf', 'kanojo']);
+    const ids = ['ramen', 'golf'];
+    const n: Record<string, number[]> = { kanojo: [0, 0, 0, 0, 0, 0] };
+    const win: Record<string, number[]> = { kanojo: [0, 0, 0, 0, 0, 0] };
     for (const id of ids) {
       n[id] = [0, 0, 0];
       win[id] = [0, 0, 0];
@@ -140,5 +140,7 @@ describe('種類が ある リーチ(企画者 2026-11-11: ラーメン 3種類�
       expect(rate[0]).toBeLessThan(rate[1]);
       expect(rate[1]).toBeLessThan(rate[2]);
     }
+    // 彼女の 質問は 6つ どれも 出る(当たりやすさは 同じ)
+    expect(n.kanojo.every((x) => x > 20)).toBe(true);
   });
 });
