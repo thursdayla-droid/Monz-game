@@ -59,9 +59,10 @@ interface ReelView {
   speed: number;
 }
 /** リーチの 時の 時間(ms)【仮】。オートの 時は 0.6倍 */
-const SMALL_REACH_MS = 1300;
-const BIG_REACH_MS = 2800;
-const LAST_REEL_MS = 1000;
+// 2026-11-11 企画者「タンタンと 進みすぎ。もっと リーチを 長く」→ 約 1.6〜1.7倍【仮。中身は 企画者が 考える】
+const SMALL_REACH_MS = 2200;
+const BIG_REACH_MS = 4600;
+const LAST_REEL_MS = 1700;
 
 export class SlotScene extends Phaser.Scene {
   private H = BASE_H;
@@ -594,11 +595,11 @@ export class SlotScene extends Phaser.Scene {
     if (this.crownOn) {
       if (r + 1 === REELS - 1) {
         // さいごの リール: 3つめの 王冠は…！？
-        const lead = r === crownAt ? 1000 : 0;
+        const lead = r === crownAt ? 1600 : 0;
         this.time.delayedCall(lead * k, () => this.crownPanel(2, res));
-        return void next((lead + 2000) * k);
+        return void next((lead + 3300) * k);
       }
-      return void next(1000 * k);
+      return void next(1600 * k);
     }
     if (r === 1 && show.small) {
       // 小さい リーチ: 3リール目が ゆっくり
@@ -823,7 +824,7 @@ export class SlotScene extends Phaser.Scene {
       this.paintAuto();
       this.crownPanel(3, res);
       this.cameras.main.flash(300, 255, 230, 120);
-      this.time.delayedCall(1400, () => this.bonusIntro(res, big));
+      this.time.delayedCall(2000, () => this.bonusIntro(res, big));
       return;
     }
     if (!res.bonus && this.crownOn) {

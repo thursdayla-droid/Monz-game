@@ -52,7 +52,8 @@ export function tierText(scene: Phaser.Scene, x: number, y: number, s: string, s
  */
 export function stepUp(scene: Phaser.Scene, lcd: Phaser.GameObjects.Container, box: LcdBox, level: number, tier: ColorTier, fast: boolean): number {
   const art = scene.textures.exists(stepKey(1));
-  const per = art ? (fast ? 280 : 450) : fast ? 220 : 330;
+  // 2026-11-11 企画者「ステップアップも もう少し 長く」→ 1段 0.45 → 0.75秒(オートは 0.45秒)
+  const per = art ? (fast ? 450 : 750) : fast ? 300 : 500;
   const { w, h } = box;
   const words = ['チャンス？', 'チャンス！', 'アツい！', '激アツ！！', 'MONZ 確定級！？'];
   for (let i = 0; i < level; i++) {
