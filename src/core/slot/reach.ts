@@ -64,6 +64,18 @@ export const BIG_REACHES: readonly BigReachType[] = [
       { name: '特製とんこつラーメン【仮】', winWeight: 3, loseWeight: 0.6 },
     ],
   },
+  // 2026-11-11 企画者の リーチ⑤「ヒヨコJの ゴルフリーチ」(パターが 入れば 当たり)。芝生で 当たりやすさが ちがう。芝生の 名前と 割合は【仮】
+  {
+    id: 'golf',
+    name: 'ヒヨコJの ゴルフリーチ',
+    winWeight: 2,
+    loseWeight: 2,
+    variants: [
+      { name: 'ボコボコの 芝生【仮】', winWeight: 1, loseWeight: 4 },
+      { name: 'ふつうの 芝生【仮】', winWeight: 2, loseWeight: 2 },
+      { name: 'ピカピカの 芝生【仮】', winWeight: 3, loseWeight: 0.6 },
+    ],
+  },
 ];
 
 /**

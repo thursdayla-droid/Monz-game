@@ -113,24 +113,32 @@ describe('MONZ SLOT 演出(色・ステップアップ・告知ランプ・PUSH�
   });
 });
 
-describe('ラーメンリーチ(企画者 2026-11-11: ラーメン 3種類で 当たりやすさが ちがう)', () => {
-  it('種類は ラーメンリーチの 時だけ・とんこつ > みそ > しょうゆ の 順に 当たりやすい', () => {
-    const n = [0, 0, 0];
-    const win = [0, 0, 0];
+describe('種類が ある リーチ(企画者 2026-11-11: ラーメン 3種類・ゴルフの 芝生 3種類で 当たりやすさが ちがう)', () => {
+  it('種類は 種類が ある リーチの 時だけ・3番目 > 2番目 > 1番目 の 順に 当たりやすい', () => {
+    const ids = BIG_REACHES.filter((t) => t.variants).map((t) => t.id);
+    expect(ids).toEqual(['ramen', 'golf']);
+    const n: Record<string, number[]> = {};
+    const win: Record<string, number[]> = {};
+    for (const id of ids) {
+      n[id] = [0, 0, 0];
+      win[id] = [0, 0, 0];
+    }
     for (let i = 1; i < 300_000; i++) {
       const rng = mulberry32(i);
       const s = planShow(spin(rng, 10), 10, rng);
-      if (s.big?.id !== 'ramen') {
+      if (!s.big?.variants) {
         expect(s.bigVariant).toBe(-1);
         continue;
       }
       expect(s.bigVariant).toBeGreaterThanOrEqual(0);
-      n[s.bigVariant]++;
-      if (s.bigSuccess) win[s.bigVariant]++;
+      n[s.big.id][s.bigVariant]++;
+      if (s.bigSuccess) win[s.big.id][s.bigVariant]++;
     }
-    const rate = n.map((x, i) => win[i] / x);
-    expect(n.every((x) => x > 50)).toBe(true);
-    expect(rate[0]).toBeLessThan(rate[1]);
-    expect(rate[1]).toBeLessThan(rate[2]);
+    for (const id of ids) {
+      const rate = n[id].map((x, i) => win[id][i] / x);
+      expect(n[id].every((x) => x > 50)).toBe(true);
+      expect(rate[0]).toBeLessThan(rate[1]);
+      expect(rate[1]).toBeLessThan(rate[2]);
+    }
   });
 });

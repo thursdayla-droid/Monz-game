@@ -207,6 +207,17 @@
 - 種類の しくみ：`BIG_REACHES` の `variants`（当たり/ハズレの 重み）と 画面の `STORY_REACHES` の `variants`（何枚目の 題と 絵を かえるか）。`SpinShow.bigVariant` に 種類の 番号。
 - カンガルーH の 絵：`design/slot/chara/kangarooh_original.png`（黒い 背景。AI の 背景消し isnet-anime で 消した kangarooh.png）→ `public/assets/slot/chara_kangarooh.webp`。
 
+## リーチ⑤：ヒヨコJの ゴルフリーチ（2026-11-11 企画者）
+- パターを 打って 入れば 当たり。芝生で 当たりやすさが ちがう。
+- `BIG_REACHES` の golf（リーチ 全体の 強さは【仮：中】）。芝生の 名前と 当たりやすさは【仮】：
+  - ボコボコの 芝生：約20%／ふつうの 芝生：約50%／ピカピカの 芝生：約83%
+- 流れ（ヒヨコJ だけ 企画者の 絵・ほかは 仮）：
+  1. ヒヨコJ「ゴルフリーチ」「この パター 決めてやる…！」
+  2. 芝生が 出る（3種類の どれか）「ラインを 読んで…」
+  3. 「入るか…！？」「コロコロ…」（文字の 色で 期待度）
+  4. 結果：当たり「カップイン！！ 当たり！」／ハズレ「カップの ふちで 止まった…」
+- ヒヨコJ の 絵：`design/slot/chara/hiyokoj_original.png` → `public/assets/slot/chara_hiyokoj.webp`。
+
 ## キャラの リーチの 足し方（2026-11-11〜）
 - `src/scenes/SlotScene.ts` の `STORY_REACHES` に 1人 足す（絵・題・3枚の 文字・当たり/ハズレの 文字）＋ `src/core/slot/reach.ts` の `BIG_REACHES` に 強さを 足す。
 - 1枚絵が 届いたら `slot:reach:<id>:1〜3`・`slot:reach:<id>:win`・`slot:reach:<id>:lose` の 名前で 読みこめば 仮の 見た目の かわりに その 絵を 液晶 いっぱいに 出す。

@@ -130,6 +130,28 @@ const STORY_REACHES: StoryReach[] = [
     win: { text: '星5！！ 当たり！', icon: '⭐⭐⭐⭐⭐' },
     lose: { text: '星2… イマイチ…', icon: '⭐⭐', show: true },
   },
+  {
+    // 2026-11-11 企画者 リーチ⑤: パターを 打って 入れば 当たり。芝生で 当たりやすさが ちがう(名前は【仮】)
+    id: 'golf',
+    chara: 'slot:chara:hiyokoj',
+    charaFile: 'assets/slot/chara_hiyokoj.webp',
+    color: '#9dff6a',
+    panels: [
+      { title: 'ゴルフリーチ', line: 'この パター\n決めてやる…！', chara: true },
+      { line: 'ラインを 読んで…', prop: '⛳', bg: 0x0a2a10 },
+      { title: '入るか…！？', line: 'コロコロ…', prop: '⚪ ➡ ⛳', bg: 0x0a2a10 },
+    ],
+    variants: {
+      panel: 1,
+      list: [
+        { title: 'ボコボコの 芝生', prop: '⛳🪨', color: '#b0a080' },
+        { title: 'ふつうの 芝生', prop: '⛳🌱', color: '#7ad85a' },
+        { title: 'ピカピカの 芝生', prop: '⛳✨', color: '#ffd23a' },
+      ],
+    },
+    win: { text: 'カップイン！！ 当たり！', icon: '⛳🐤🎉' },
+    lose: { text: 'カップの ふちで 止まった…', icon: '⛳💧', show: true },
+  },
 ];
 const symKey = (s: SymbolId) => (symScene?.textures.exists(artKey(s)) ? artKey(s) : drawnKey(s));
 
