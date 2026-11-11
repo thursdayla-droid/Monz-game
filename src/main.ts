@@ -134,7 +134,11 @@ vv?.addEventListener('resize', () => resetZoom());
 globalThis.addEventListener('orientationchange', () => {
   setTimeout(() => resetZoom(true), 300);
   setTimeout(() => resetZoom(), 900);
+  // 2026-11-11 企画者「モンズランブルの あと 縦に すると 左上の 戻る 押せない」:
+  // 向きを 変えた あと、さわる 場所の 計算に 使う 画面の 位置を 読みなおす(古い 位置の ままだと ボタンが ずれる)
+  for (const ms of [400, 1000, 1800]) setTimeout(() => game.scale.refresh(), ms);
 });
+vv?.addEventListener('scroll', () => game.scale.refresh());
 setTimeout(() => resetZoom(), 500);
 
 // 開発中だけ、確認用にゲームを外から触れるようにする
