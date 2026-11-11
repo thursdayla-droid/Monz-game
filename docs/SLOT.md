@@ -186,6 +186,15 @@
   4. 結果：当たり「風呂に 入った！！ 当たり！」／ハズレ「今日も 風呂キャンセル…」
 - パンダY の 絵：`design/slot/chara/panday_original.png` → `public/assets/slot/chara_panday.webp`。
 
+## リーチ③：うさぎKの アイドルリーチ（2026-11-11 企画者）
+- アイドルの ライブに 行き、歌って いるのが カバの アイドル達なら ハズレ・うさぎの アイドル達なら 当たり。
+- `BIG_REACHES` の usagi（強さは【仮：中】成功 約50%）。流れ（うさぎK だけ 企画者の 絵・ほかは 仮）：
+  1. うさぎK「アイドルリーチ」「今日は 推しの ライブだぜ！」
+  2. ステージ「LIVE STAGE」「だれが 出てくる…！？」
+  3. 「幕が 上がる…！」（文字の 色で 期待度）
+  4. 結果：当たり「うさぎの アイドル達だ！！ 当たり！」／ハズレ「カバの アイドル達だった…」
+- うさぎK の 絵：`design/slot/chara/usagik_original.png` → `public/assets/slot/chara_usagik.webp`。
+
 ## キャラの リーチの 足し方（2026-11-11〜）
 - `src/scenes/SlotScene.ts` の `STORY_REACHES` に 1人 足す（絵・題・3枚の 文字・当たり/ハズレの 文字）＋ `src/core/slot/reach.ts` の `BIG_REACHES` に 強さを 足す。
 - 1枚絵が 届いたら `slot:reach:<id>:1〜3`・`slot:reach:<id>:win`・`slot:reach:<id>:lose` の 名前で 読みこめば 仮の 見た目の かわりに その 絵を 液晶 いっぱいに 出す。

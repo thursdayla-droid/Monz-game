@@ -92,6 +92,20 @@ const STORY_REACHES: StoryReach[] = [
     win: { text: '風呂に 入った！！ 当たり！', icon: '🐼🛁✨' },
     lose: { text: '今日も 風呂キャンセル…', icon: '🐼💤', show: true },
   },
+  {
+    // 2026-11-11 企画者 リーチ③: アイドルの ライブ。歌って いるのが うさぎの アイドル達なら 当たり・カバの アイドル達なら ハズレ
+    id: 'usagi',
+    chara: 'slot:chara:usagik',
+    charaFile: 'assets/slot/chara_usagik.webp',
+    color: '#ffb3e6',
+    panels: [
+      { title: 'アイドルリーチ', line: '今日は 推しの\nライブだぜ！', chara: true },
+      { title: 'LIVE STAGE', line: 'だれが 出てくる…！？', prop: '🎤✨', bg: 0x2a0a30 },
+      { line: '幕が 上がる…！', prop: '🎭', bg: 0x2a0a30 },
+    ],
+    win: { text: 'うさぎの アイドル達だ！！ 当たり！', icon: '🐰🎤🐰' },
+    lose: { text: 'カバの アイドル達だった…', icon: '🦛🎤🦛', show: true },
+  },
 ];
 const symKey = (s: SymbolId) => (symScene?.textures.exists(artKey(s)) ? artKey(s) : drawnKey(s));
 

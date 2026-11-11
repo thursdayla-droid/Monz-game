@@ -48,6 +48,8 @@ export const BIG_REACHES: readonly BigReachType[] = [
   { id: 'kyon', name: 'キョンKの キャバ嬢リーチ', winWeight: 2, loseWeight: 2 },
   // 2026-11-11 企画者の リーチ②「パンダYの 風呂キャンセルリーチ」(風呂に 入ったら 当たり)。強さは【仮：中】
   { id: 'panda', name: 'パンダYの 風呂キャンセルリーチ', winWeight: 2, loseWeight: 2 },
+  // 2026-11-11 企画者の リーチ③「うさぎKの アイドルリーチ」(うさぎの アイドル達なら 当たり・カバなら ハズレ)。強さは【仮：中】
+  { id: 'usagi', name: 'うさぎKの アイドルリーチ', winWeight: 2, loseWeight: 2 },
 ];
 
 /**
