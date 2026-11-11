@@ -32,7 +32,11 @@ export function reachOf(grid: Grid): ReachInfo | null {
   return best;
 }
 
-/** 大きい リーチの 仮の 種類(企画者の 演出が 届いたら 入れかえる)【仮】 */
+/**
+ * 大きい リーチの 種類。
+ * 当たる 確率(その リーチが 出た 時に 当たる 割合)は 重みだけで なく 全部の リーチの 重みの 合計で 決まる。
+ * 重みを かえたら reach.test.ts の「当たる 確率」の テストで たしかめる
+ */
 export interface BigReachType {
   id: string;
   name: string;
@@ -46,12 +50,12 @@ export const BIG_REACHES: readonly BigReachType[] = [
   { id: 'weak', name: '弱リーチ【仮】', winWeight: 1, loseWeight: 4 },
   { id: 'mid', name: '中リーチ【仮】', winWeight: 2, loseWeight: 2 },
   { id: 'strong', name: '強リーチ【仮】', winWeight: 3, loseWeight: 0.6 },
-  // 2026-11-11 企画者の リーチ①「キョンKの キャバ嬢リーチ」(夜の お店に 可愛い子が いるか。キョン子なら 当たり・ブタ子なら ハズレ)。強さは【仮：中くらい】
-  { id: 'kyon', name: 'キョンKの キャバ嬢リーチ', winWeight: 2, loseWeight: 2 },
-  // 2026-11-11 企画者の リーチ②「パンダYの 風呂キャンセルリーチ」(風呂に 入ったら 当たり)。強さは【仮：中】
-  { id: 'panda', name: 'パンダYの 風呂キャンセルリーチ', winWeight: 2, loseWeight: 2 },
-  // 2026-11-11 企画者の リーチ③「うさぎKの アイドルリーチ」(うさぎの アイドル達なら 当たり・カバなら ハズレ)。強さは【仮：中】
-  { id: 'usagi', name: 'うさぎKの アイドルリーチ', winWeight: 2, loseWeight: 2 },
+  // 2026-11-11 企画者の リーチ①「キョンKの キャバ嬢リーチ」(夜の お店に 可愛い子が いるか。キョン子なら 当たり・ブタ子なら ハズレ)。企画者 2026-11-11: 当たる 確率 10%
+  { id: 'kyon', name: 'キョンKの キャバ嬢リーチ', winWeight: 2, loseWeight: 8.4 },
+  // 2026-11-11 企画者の リーチ②「パンダYの 風呂キャンセルリーチ」(風呂に 入ったら 当たり)。企画者 2026-11-11: 当たる 確率 80%
+  { id: 'panda', name: 'パンダYの 風呂キャンセルリーチ', winWeight: 2, loseWeight: 0.25 },
+  // 2026-11-11 企画者の リーチ③「うさぎKの アイドルリーチ」(うさぎの アイドル達なら 当たり・カバなら ハズレ)。企画者 2026-11-11: 当たる 確率 30%
+  { id: 'usagi', name: 'うさぎKの アイドルリーチ', winWeight: 2, loseWeight: 2.15 },
   // 2026-11-11 企画者の リーチ④「カンガルーHの ラーメンリーチ」(食べて 星5！なら 当たり)。ラーメンは 3種類で 当たりやすさが ちがう。名前と 割合は【仮】
   {
     id: 'ramen',

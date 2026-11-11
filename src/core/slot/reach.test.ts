@@ -144,3 +144,21 @@ describe('種類が ある リーチ(企画者 2026-11-11: ラーメン 3種類�
     expect(n.kanojo.every((x) => x > 20)).toBe(true);
   });
 });
+
+describe('キャラの リーチの 当たる 確率(企画者 2026-11-11)', () => {
+  it('キョンK 10%・うさぎK 30%・パンダY 80%(±4%)', () => {
+    const n: Record<string, number> = {};
+    const w: Record<string, number> = {};
+    for (let i = 1; i < 1_000_000; i++) {
+      const rng = mulberry32(i);
+      const s = planShow(spin(rng, 10), 10, rng);
+      if (!s.big) continue;
+      n[s.big.id] = (n[s.big.id] ?? 0) + 1;
+      if (s.bigSuccess) w[s.big.id] = (w[s.big.id] ?? 0) + 1;
+    }
+    const rate = (id: string) => w[id] / n[id];
+    expect(Math.abs(rate('kyon') - 0.1)).toBeLessThan(0.04);
+    expect(Math.abs(rate('usagi') - 0.3)).toBeLessThan(0.04);
+    expect(Math.abs(rate('panda') - 0.8)).toBeLessThan(0.04);
+  }, 60_000);
+});
