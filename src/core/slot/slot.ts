@@ -36,8 +36,9 @@ export const SYMBOL_NAME: Record<SymbolId, string> = {
 
 /** 1マスの 出る 割合(%)【仮：仕様書の 暫定案】。合計が ちょうど 100% に なるよう 下で ならす */
 export const SYMBOL_WEIGHT: Record<BaseSymbol, number> = {
-  rainbow7: 4.21,
-  gold7: 7.37,
+  // 2026-11-11 企画者「レインボー7・ゴールド7 は もっと 出にくく」(B): ゴールド7 3つ 以上 約300回に 1回・レインボー7 約1,000回に 1回【仮】
+  rainbow7: 3.35,
+  gold7: 5.1,
   diamond: 10.53,
   bell: 14.75,
   cherry: 20.01,
@@ -49,8 +50,9 @@ export const SYMBOL_WEIGHT: Record<BaseSymbol, number> = {
 
 /** 3連・4連・5連の 倍率(BET に かける)【仮：仕様書の 暫定調整値】 */
 export const PAYTABLE: Record<PaySymbol, readonly [number, number, number]> = {
-  rainbow7: [1.708, 5.123, 17.08],
-  gold7: [1.282, 3.415, 10.675],
+  // 2026-11-11 企画者「配当は もっと 上げる」【仮】(この 2つは PAY_SCALE を かけない。表の とおりの 倍率)
+  rainbow7: [10, 40, 200],
+  gold7: [5, 20, 100],
   diamond: [0.856, 2.134, 6.404],
   bell: [0.639, 1.282, 3.415],
   cherry: [0.34, 0.856, 2.134],
@@ -63,6 +65,10 @@ export const PAYTABLE: Record<PaySymbol, readonly [number, number, number]> = {
  */
 export const PAY_SCALE = 1.0195;
 export const PAY_SYMBOLS = Object.keys(PAYTABLE) as PaySymbol[];
+/** PAY_SCALE を かけない 図柄(企画者が 倍率を 決めた もの) */
+const FIXED_PAY = new Set<PaySymbol>(['rainbow7', 'gold7']);
+/** その 図柄の 本当の 倍率(BET に かける)。scale は ふつう PAY_SCALE */
+export const payOf = (s: PaySymbol, length: 3 | 4 | 5, scale = PAY_SCALE): number => PAYTABLE[s][length - 3] * (FIXED_PAY.has(s) ? scale / PAY_SCALE : scale);
 
 /** ボーナスに 入る 王冠の 数(画面の 15マスの どこでも)【確定】 */
 export const BONUS_CROWNS = 3;
@@ -180,7 +186,7 @@ export function evaluate(grid: Grid, bet: number, scale = PAY_SCALE): SpinResult
     }
     if (len >= 3) {
       const length = len as 3 | 4 | 5;
-      wins.push({ symbol: s, length, ways, raw: bet * PAYTABLE[s][length - 3] * scale * ways, cells });
+      wins.push({ symbol: s, length, ways, raw: bet * payOf(s, length, scale) * ways, cells });
     }
   }
   const crownCells: [number, number][] = [];
@@ -338,7 +344,7 @@ export function theory(probs: Record<BaseSymbol, number> = symbolProbs()) {
     const ps = probs[s] / (1 - c);
     const e = p0 * ROWS * ps + (1 - p0) * (ROWS - 1) * ps;
     const none = p0 * (1 - ps) ** ROWS + (1 - p0) * (1 - ps) ** (ROWS - 1);
-    const m = PAYTABLE[s].map((x) => x * PAY_SCALE);
+    const m = ([3, 4, 5] as const).map((l) => payOf(s, l));
     const v = m[0] * e ** 3 * none + m[1] * e ** 4 * none + m[2] * e ** 5;
     perSymbol[s] = v;
     normal += v;
