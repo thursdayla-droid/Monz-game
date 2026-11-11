@@ -755,8 +755,8 @@ export class MahjongScene extends Phaser.Scene {
       this.tweens.add({ targets: st, x: Math.cos(a) * dist, y: Math.sin(a) * dist * 0.6, alpha: { from: 1, to: 0 }, angle: Math.random() * 360, duration: 900 + Math.random() * 700, delay: 150 + Math.random() * 400, ease: 'Quad.easeOut' });
     }
     // 音・光・ゆれ
-    audio.se(tier === 3 ? 'koBlast' : 'mcSpecial');
-    this.time.delayedCall(200, () => audio.se(mine ? 'cheer' : 'mcDark'));
+    // 2026-11-11 企画者「満貫 以上の 当たりの 演出の 音 これに して」
+    audio.se('mjBigWin');
     if (tier >= 2) this.cameras.main.shake(tier === 3 ? 500 : 280, tier === 3 ? 0.012 : 0.006);
     if (tier === 3) this.cameras.main.flash(350, 255, 255, 255);
     const ms = tier === 3 ? 2100 : tier === 2 ? 1600 : 1300;
