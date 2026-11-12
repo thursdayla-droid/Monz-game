@@ -56,11 +56,12 @@ export const PAYTABLE: Record<PaySymbol, readonly [number, number, number]> = {
   rainbow7: [200, 300, 1000],
   gold7: [100, 150, 500],
   // 2026-11-12 企画者「普通の 子役 当たっても 少なすぎる」→ 3つ そろいを BET の 1〜2倍に(4つ・5つは そのまま)。そのぶん 当たる 回数を 減らす(LOW_DAMP)【仮】
-  diamond: [2, 2.134, 6.404],
-  bell: [1.5, 1.5, 3.415],
-  cherry: [1, 1, 2.134],
-  clover: [1, 1, 1.708],
-  star: [1, 1, 1.708],
+  // 2026-11-12 企画者「それで いい」→ 4つ・5つも 上げる(BET 10 で 3つ 10・4つ 20・5つ 50枚 など)
+  diamond: [2, 5, 15],
+  bell: [1.5, 3, 8],
+  cherry: [1, 2, 5],
+  clover: [1, 2, 5],
+  star: [1, 2, 5],
 };
 /**
  * 配当の 倍率に かける 数【仮】。王冠を 1リール 1個までに した(2026-11-10)ので 通常配当が 少し 下がった →
@@ -76,8 +77,8 @@ export const payOf = (s: PaySymbol, length: 3 | 4 | 5, scale = PAY_SCALE): numbe
  * 特別フリーゲームの 中の 7の 配当(2026-11-11 企画者「フリーゲームの 7の 配当は 下げよう」)。
  * ふつうの ゲームの この 割合【仮】
  */
-// 2026-11-12 ワイルドを もとに もどした ぶん 0.1 → 0.02【仮】
-export let FREE_SEVEN_RATE = 0.02;
+// 2026-11-12 ワイルドを もとに もどした ぶん 0.1 → 0.012【仮】
+export let FREE_SEVEN_RATE = 0.012;
 export const setFreeSevenRate = (r: number) => (FREE_SEVEN_RATE = r);
 
 /** ボーナスに 入る 王冠の 数(画面の 15マスの どこでも)【確定】 */
@@ -163,10 +164,10 @@ export function spinGrid(rng: Rng, probs: Record<BaseSymbol, number> = symbolPro
 /** 当たる 回数を 減らす 小さい 図柄(企画者 2026-11-12) */
 export const LOW_SYMBOLS: readonly PaySymbol[] = ['cherry', 'clover', 'star', 'bell'];
 /** 小さい 図柄の 当たりを 消す 割合【仮】(当たる 回数が 約 1 - LOW_DAMP 倍に なる) */
-// 2026-11-12 小さい 当たりの 配当を 上げた ぶん 0.45 → 0.7
-export const LOW_DAMP = 0.7;
+// 2026-11-12 小さい 当たりの 配当を 上げた ぶん 0.45 → 0.77
+export const LOW_DAMP = 0.77;
 /** 小さい 図柄の 4つ・5つ そろいを 3つ そろいに する 割合【仮】 */
-export const LONG_DAMP = 0.9;
+export const LONG_DAMP = 0.95;
 
 export interface WayWin {
   symbol: PaySymbol;
@@ -286,8 +287,8 @@ export const FREE_ROWS = 5;
 export const FREE_RETRIGGER = 5;
 // 2026-11-11 企画者「フリーゲームは 10分の1 しないで いい」→ ふつうと 同じ 配当
 // 2026-11-12 企画者「還元率を 下げたい」→「ワイルド 少なすぎ。報酬 下げて 良いから もう少し 出て ほしい」
-// → ワイルドは もとの 1マス 約1%・配当は ふつうの 12%・7 は ふつうの 2%(FREE_SEVEN_RATE)【仮】
-export let FREE_PAY_SCALE = PAY_SCALE * 0.12;
+// → ワイルドは もとの 1マス 約1%・配当は ふつうの 6%・7 は ふつうの 1.2%(FREE_SEVEN_RATE。子役の 4つ・5つを 上げた ぶん さらに 下げた)【仮】
+export let FREE_PAY_SCALE = PAY_SCALE * 0.06;
 /** ワイルドの 重み(ほかの 図柄の 重みと 同じ 単位。合計 約104 なので 約1%) */
 export let FREE_WILD_WEIGHT = 1.0;
 export const setFreeTune = (scale: number, wild: number) => ((FREE_PAY_SCALE = scale), (FREE_WILD_WEIGHT = wild));
