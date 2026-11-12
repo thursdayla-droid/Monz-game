@@ -173,7 +173,7 @@ const STORY_REACHES: StoryReach[] = [
     id: 'kanojo',
     chara: 'slot:chara:cheetahs',
     charaFile: 'assets/slot/chara_cheetahs.webp',
-    art: ['1', '2', '3'],
+    art: ['1', '2', '3', 'win'],
     color: '#ff8ab3',
     panels: [
       { line: '今日は\n彼女と デート…', chara: true },
