@@ -52,8 +52,9 @@ export const SYMBOL_WEIGHT: Record<BaseSymbol, number> = {
 /** 3連・4連・5連の 倍率(BET に かける)【仮：仕様書の 暫定調整値】 */
 export const PAYTABLE: Record<PaySymbol, readonly [number, number, number]> = {
   // 2026-11-11 企画者「3個 並んだ 時 ゴールド7 100倍・レインボー7 200倍」【確定】。4つ・5つは Claude の 案【仮】(この 2つは PAY_SCALE を かけない)
-  rainbow7: [200, 600, 2000],
-  gold7: [100, 300, 1000],
+  // 2026-11-12 企画者「還元率を 下げたい」(1) → 4つ・5つは 半分【仮】
+  rainbow7: [200, 300, 1000],
+  gold7: [100, 150, 500],
   diamond: [0.856, 2.134, 6.404],
   bell: [0.639, 1.282, 3.415],
   cherry: [0.34, 0.856, 2.134],
@@ -137,12 +138,32 @@ export function spinGrid(rng: Rng, probs: Record<BaseSymbol, number> = symbolPro
     [reels[i], reels[j]] = [reels[j], reels[i]];
   }
   const crownReels = new Set(reels.slice(0, k));
-  return Array.from({ length: REELS }, (_, ri) => {
+  const grid: Grid = Array.from({ length: REELS }, (_, ri) => {
     const col: SymbolId[] = Array.from({ length: ROWS }, other);
     if (crownReels.has(ri)) col[Math.floor(rng() * ROWS)] = 'crown';
     return col;
   });
+  // 2026-11-12 企画者「還元率を 下げたい。ふつうの 当たりが 多すぎる」(1・A: 当たる 回数を 減らす・配当は そのまま)
+  // → 小さい 図柄が 1・2リール目に そろった 時、LOW_DAMP の 割合で 3リール目の その 図柄を べつの 小さい 図柄に かえる(当たりに ならない)
+  //    さらに LONG_DAMP の 割合で 4リール目でも 同じ ことを する(4つ・5つ そろいが 3つ そろいに なる。大きすぎる 当たりを 減らす)
+  const cut = (reel: number) => {
+    const chain = LOW_SYMBOLS.filter((t) => grid.slice(0, reel).every((col) => col.includes(t)));
+    if (!chain.length) return;
+    const repl = LOW_SYMBOLS.filter((t) => !chain.includes(t));
+    const pick = repl.length ? drawer(rng, repl, (t) => probs[t]) : () => 'diamond' as PaySymbol;
+    grid[reel] = grid[reel].map((t) => (chain.includes(t as PaySymbol) ? pick() : t));
+  };
+  if (rng() < LOW_DAMP) cut(2);
+  if (rng() < LONG_DAMP) cut(3);
+  return grid;
 }
+
+/** 当たる 回数を 減らす 小さい 図柄(企画者 2026-11-12) */
+export const LOW_SYMBOLS: readonly PaySymbol[] = ['cherry', 'clover', 'star', 'bell'];
+/** 小さい 図柄の 当たりを 消す 割合【仮】(当たる 回数が 約 1 - LOW_DAMP 倍に なる) */
+export const LOW_DAMP = 0.45;
+/** 小さい 図柄の 4つ・5つ そろいを 3つ そろいに する 割合【仮】 */
+export const LONG_DAMP = 0.9;
 
 export interface WayWin {
   symbol: PaySymbol;
@@ -261,9 +282,11 @@ export const FREE_BY_CROWNS: Record<4 | 5, number> = { 4: 5, 5: 10 };
 export const FREE_ROWS = 5;
 export const FREE_RETRIGGER = 5;
 // 2026-11-11 企画者「フリーゲームは 10分の1 しないで いい」→ ふつうと 同じ 配当
-export const FREE_PAY_SCALE = PAY_SCALE;
+// 2026-11-12 企画者「還元率を 下げたい」(1) → 配当は ふつうと 同じ・ワイルドを 出にくく(1マス 約1% → 約0.4%)【仮】
+export let FREE_PAY_SCALE = PAY_SCALE;
 /** ワイルドの 重み(ほかの 図柄の 重みと 同じ 単位。合計 約104 なので 約1%) */
-export const FREE_WILD_WEIGHT = 1.0;
+export let FREE_WILD_WEIGHT = 0.4;
+export const setFreeTune = (scale: number, wild: number) => ((FREE_PAY_SCALE = scale), (FREE_WILD_WEIGHT = wild));
 
 export interface FreeState {
   bet: number;
@@ -359,8 +382,11 @@ export function theory(probs: Record<BaseSymbol, number> = symbolProbs()) {
     const none = p0 * (1 - ps) ** ROWS + (1 - p0) * (1 - ps) ** (ROWS - 1);
     const m = ([3, 4, 5] as const).map((l) => payOf(s, l));
     const v = m[0] * e ** 3 * none + m[1] * e ** 4 * none + m[2] * e ** 5;
-    perSymbol[s] = v;
-    normal += v;
+    // 小さい 図柄は 当たりの 一部を 消して いる(LOW_DAMP・LONG_DAMP。だいたいの 値)
+    const vLong = (1 - LONG_DAMP) * (m[1] * e ** 4 * none + m[2] * e ** 5) + LONG_DAMP * m[0] * e ** 3 * (1 - none);
+    const vv = LOW_SYMBOLS.includes(s) ? (1 - LOW_DAMP) * (m[0] * e ** 3 * none + vLong) : v;
+    perSymbol[s] = vv;
+    normal += vv;
   }
   // 宝箱は 王冠 ちょうど 3個
   const bonusRate = cp[3];

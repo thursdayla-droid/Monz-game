@@ -160,7 +160,8 @@ describe('キャラの リーチの 当たる 確率(企画者 2026-11-11)', () 
     expect(Math.abs(rate('kyon') - 0.1)).toBeLessThan(0.04);
     expect(Math.abs(rate('usagi') - 0.3)).toBeLessThan(0.04);
     expect(Math.abs(rate('panda') - 0.2)).toBeLessThan(0.04);
-    expect(Math.abs(rate('kanojo') - 0.8)).toBeLessThan(0.04);
+    // チーターS は めったに 出ない(100万回転で 約200回)ので ぶれが 大きい
+    expect(Math.abs(rate('kanojo') - 0.8)).toBeLessThan(0.07);
     // カンガルーH・ヒヨコJ は 今の 数字(約40%)で 決定
     expect(Math.abs(rate('ramen') - 0.4)).toBeLessThan(0.05);
     expect(Math.abs(rate('golf') - 0.4)).toBeLessThan(0.05);
