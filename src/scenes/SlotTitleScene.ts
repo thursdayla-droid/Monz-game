@@ -36,6 +36,8 @@ export class SlotTitleScene extends Phaser.Scene {
     if (!this.textures.exists(LOGO_KEY)) this.load.image(LOGO_KEY, assetUrl('assets/slot/logo.webp'));
     if (!this.textures.exists(BG_KEY)) this.load.image(BG_KEY, assetUrl('assets/slot/lcd_normal.webp'));
     if (!this.textures.exists(COIN_ART_KEY)) this.load.image(COIN_ART_KEY, assetUrl(COIN_ART_FILE));
+    // 2026-11-12 企画者の タイトル画面の 背景(元は design/slot/title_bg.png)
+    if (!this.textures.exists(TITLE_BG_KEY)) this.load.image(TITLE_BG_KEY, assetUrl('assets/slot/title_bg.webp'));
   }
 
   create(): void {
@@ -48,23 +50,32 @@ export class SlotTitleScene extends Phaser.Scene {
     const H = this.H;
     const top = safeInsets(this).top;
 
-    // 背景(企画者の タイトルの 絵が あれば それ。なければ 液晶の 背景を 画面 いっぱいに)【仮】
-    const bgKey = this.textures.exists(TITLE_BG_KEY) ? TITLE_BG_KEY : BG_KEY;
-    if (this.textures.exists(bgKey)) {
-      const bg = this.add.image(W / 2, H / 2, bgKey);
+    // 背景: 企画者の 絵(上に スロット台・下は 床)。横 いっぱい・上に そろえる。たりない 下は 床の 色
+    let floorTop = H * 0.37;
+    if (this.textures.exists(TITLE_BG_KEY)) {
+      this.add.rectangle(W / 2, H / 2, W, H, 0x290f3a);
+      const bg = this.add.image(W / 2, 0, TITLE_BG_KEY).setOrigin(0.5, 0);
+      bg.setScale(W / bg.width);
+      floorTop = bg.displayHeight * 0.37;
+    } else if (this.textures.exists(BG_KEY)) {
+      const bg = this.add.image(W / 2, H / 2, BG_KEY);
       bg.setScale(Math.max(W / bg.width, H / bg.height));
+      this.add.rectangle(W / 2, H / 2, W, H, 0x0d0614, 0.35);
     } else this.add.rectangle(W / 2, H / 2, W, H, 0x1a0628);
-    this.add.rectangle(W / 2, H / 2, W, H, 0x0d0614, 0.35);
 
-    // ロゴ
+    // ロゴ(スロット台の 下の 床の 上)
+    // 画面が 短い 時は つめる(ロゴ〜ボタンで 約 860 いる)
+    const room = H - safeInsets(this).bottom - 24 - floorTop;
+    const k = Math.min(1, room / 860);
+    const logoY = floorTop + 130 * k;
     if (this.textures.exists(LOGO_KEY)) {
-      const logo = this.add.image(W / 2, H * 0.24, LOGO_KEY);
-      logo.setScale(Math.min((W * 0.86) / logo.width, (H * 0.26) / logo.height));
+      const logo = this.add.image(W / 2, logoY, LOGO_KEY);
+      logo.setScale(Math.min((W * 0.8) / logo.width, (230 * k) / logo.height));
       this.tweens.add({ targets: logo, scale: logo.scale * 1.04, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    } else this.text(W / 2, H * 0.24, 'ROYAL JACKPOT', 64, '#ffd23a', 10);
+    } else this.text(W / 2, logoY, 'ROYAL JACKPOT', 64, '#ffd23a', 10);
 
     // もっている コイン
-    const cy = H * 0.43;
+    const cy = logoY + 200 * k;
     this.add.rectangle(W / 2, cy, W - 120, 120, 0x16101c, 0.85).setStrokeStyle(4, 0xffd23a);
     if (this.textures.exists(COIN_ART_KEY)) this.add.image(130, cy - 14, COIN_ART_KEY).setDisplaySize(64, 64);
     this.text(W / 2 + 30, cy - 34, SLOT_COIN_NAME, 26, '#ffd23a', 5);
@@ -72,11 +83,11 @@ export class SlotTitleScene extends Phaser.Scene {
     this.monzText = this.text(W / 2, cy + 46, '', 20, '#d8c8e8', 4);
     this.refresh();
 
-    // ボタン 3つ
-    const by = H * 0.56;
-    this.button(W / 2, by, 'あそぶ', 0xff4ad8, 60, () => this.play());
-    this.button(W / 2, by + 150, 'ショップ', 0x9b5cff, 44, () => this.openShop());
-    this.button(W / 2, by + 270, 'コイン交換', 0x2a9df4, 44, () => this.openExchange());
+    // ボタン 3つ(画面の 下に 入る ように)
+    const by = cy + 160 * k;
+    this.button(W / 2, by, 'あそぶ', 0xff4ad8, Math.round(60 * Math.max(0.8, k)), () => this.play());
+    this.button(W / 2, by + 150 * k, 'ショップ', 0x9b5cff, Math.round(44 * Math.max(0.8, k)), () => this.openShop());
+    this.button(W / 2, by + 270 * k, 'コイン交換', 0x2a9df4, Math.round(44 * Math.max(0.8, k)), () => this.openExchange());
 
     // もどる
     const back = this.text(86, top + 46, '◀ もどる', 26).setBackgroundColor('#16101ccc').setPadding(16, 8, 16, 10).setDepth(20).setInteractive({ useHandCursor: true });
