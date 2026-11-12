@@ -85,7 +85,7 @@ const STORY_REACHES: StoryReach[] = [
     art: ['1', '2', '3', 'win', 'lose'],
     color: '#ff6ad5',
     panels: [
-      { title: 'キャバ嬢リーチ', line: '今夜は\n可愛い子 いるかな〜？', chara: true },
+      { line: '今夜は\n可愛い子 いるかな〜？', chara: true },
       { title: 'CLUB MONZ', line: 'どっちの 子だ…！？', prop: '👤 ❓ 👤' },
       { line: '入るぞ…！', prop: '🚪' },
     ],
@@ -100,7 +100,7 @@ const STORY_REACHES: StoryReach[] = [
     art: ['1', '2', '3', 'win', 'lose'],
     color: '#7de8ff',
     panels: [
-      { title: '風呂キャンセルリーチ', line: '風呂…\nめんどくさいな〜', chara: true },
+      { line: '風呂…\nめんどくさいな〜', chara: true },
       { title: 'お風呂 わいたよ〜', line: '入る…？ 入らない…？', prop: '🛁', bg: 0x0a2a3a },
       { line: '入るか…！？', prop: '🛁❓', bg: 0x0a2a3a },
     ],
@@ -114,7 +114,7 @@ const STORY_REACHES: StoryReach[] = [
     charaFile: 'assets/slot/chara_usagik.webp',
     color: '#ffb3e6',
     panels: [
-      { title: 'アイドルリーチ', line: '今日は 推しの\nライブだぜ！', chara: true },
+      { line: '今日は 推しの\nライブだぜ！', chara: true },
       { title: 'LIVE STAGE', line: 'だれが 出てくる…！？', prop: '🎤✨', bg: 0x2a0a30 },
       { line: '幕が 上がる…！', prop: '🎭', bg: 0x2a0a30 },
     ],
@@ -128,7 +128,7 @@ const STORY_REACHES: StoryReach[] = [
     charaFile: 'assets/slot/chara_kangarooh.webp',
     color: '#ffb347',
     panels: [
-      { title: 'ラーメンリーチ', line: '腹へった〜\nラーメン 食うぞ！', chara: true },
+      { line: '腹へった〜\nラーメン 食うぞ！', chara: true },
       { line: 'いただきます！', prop: '🍜', bg: 0x2a1408 },
       { title: '評価は…！？', line: 'ズズッ…', prop: '⭐❓', bg: 0x2a1408 },
     ],
@@ -150,7 +150,7 @@ const STORY_REACHES: StoryReach[] = [
     charaFile: 'assets/slot/chara_hiyokoj.webp',
     color: '#9dff6a',
     panels: [
-      { title: 'ゴルフリーチ', line: 'この パター\n決めてやる…！', chara: true },
+      { line: 'この パター\n決めてやる…！', chara: true },
       { line: 'ラインを 読んで…', prop: '⛳', bg: 0x0a2a10 },
       { title: '入るか…！？', line: 'コロコロ…', prop: '⚪ ➡ ⛳', bg: 0x0a2a10 },
     ],
@@ -172,7 +172,7 @@ const STORY_REACHES: StoryReach[] = [
     charaFile: 'assets/slot/chara_cheetahs.webp',
     color: '#ff8ab3',
     panels: [
-      { title: '彼女の機嫌リーチ', line: '今日は\n彼女と デート…', chara: true },
+      { line: '今日は\n彼女と デート…', chara: true },
       { title: '彼女', line: '「ねぇ、私の\nどこが 好き？」', prop: '👩❓', bg: 0x2a0a1a },
       { title: '答えは…！？', line: '「えっと… ぜんぶ！」', chara: true },
     ],
@@ -205,6 +205,8 @@ interface ReelView {
 // 2026-11-11 企画者「タンタンと 進みすぎ。もっと リーチを 長く」→ 約 1.6〜1.7倍【仮。中身は 企画者が 考える】
 const SMALL_REACH_MS = 2200;
 const BIG_REACH_MS = 4600;
+/** 企画者の キャラの リーチは 長め(2026-11-12 企画者「リーチは 楽しみたいから 少し 長めで」) */
+const STORY_REACH_MS = 8400;
 const LAST_REEL_MS = 1700;
 /** 特別フリーゲームの 止まる 時間(2026-11-11 企画者「もう少し ゆっくり」)【仮】 */
 // 2026-11-11 企画者「フリーゲーム もっと ゆっくりで いい」→ さらに ゆっくり【仮】
@@ -824,11 +826,12 @@ export class SlotScene extends Phaser.Scene {
       // 大きい リーチ: 企画者の リーチ演出が 入る ところ(今は 仮)。4・5リール目が ゆっくり
       for (let i = 3; i < REELS; i++) this.reels[i].speed = 0.35;
       this.markReach(res, show, 3);
-      this.bigReach(show, BIG_REACH_MS * k);
+      const bigMs = (STORY_REACHES.some((d) => d.id === show.big?.id) ? STORY_REACH_MS : BIG_REACH_MS) * k;
+      this.bigReach(show, bigMs);
       // ③ PUSH ボタン(押すと 4リール目が 止まる)
       if (show.push)
-        return void this.time.delayedCall(BIG_REACH_MS * k, () => pushButton(this, this.lcd, this.lcdBox, show.bigTier, this.autoNow ? 700 : 4000, () => next(250)));
-      return void next(BIG_REACH_MS * k);
+        return void this.time.delayedCall(bigMs, () => pushButton(this, this.lcd, this.lcdBox, show.bigTier, this.autoNow ? 700 : 4000, () => next(250)));
+      return void next(bigMs);
     }
     if (r === 2 && show.small && !show.big) {
       // 小さい リーチ 失敗
@@ -1002,12 +1005,43 @@ export class SlotScene extends Phaser.Scene {
         const t = n === def.panels.length - 1 ? tierText(this, tx, h * 0.3, pd.line, Math.min(36, h * 0.095, ((pd.chara && !hasArt ? 0.62 : 0.9) * w) / Math.max(...pd.line.split('\n').map((l) => l.length))), show.bigTier) : this.text(tx, h * 0.24, pd.line, Math.min(28, h * 0.075), '#ffffff', 6);
         items.push(t);
       }
+      // 漫画の「ゴゴゴ」みたいな 文字(2026-11-12 企画者「漫画の ズズズ みたいな ワクワク感」)。2枚目 ゴゴゴ・3枚目 ドドド
+      if (n > 0) items.push(...this.mangaSfx(n === def.panels.length - 1 ? 'ドドドド' : 'ゴゴゴゴ', n === def.panels.length - 1));
       this.lcdShow(items);
       audio.se(n === 0 ? 'mcCutin' : n === def.panels.length - 1 ? 'mcThunder' : 'mcSelect');
       if (n === def.panels.length - 1) this.cameras.main.shake(220, 0.004);
     };
     const step = ms / def.panels.length;
     def.panels.forEach((_, i) => (i === 0 ? panel(0) : this.time.delayedCall(step * i, () => panel(i))));
+  }
+
+  /**
+   * 漫画の 書き文字(ゴゴゴ・ドドド)。液晶の 左右に たて書きで 1文字ずつ 出て、ずっと ふるえる。
+   * big: さいごの 1枚(左右 両方・大きく)
+   */
+  private mangaSfx(word: string, big: boolean): Phaser.GameObjects.GameObject[] {
+    const { w, h } = this.lcdBox;
+    const out: Phaser.GameObjects.GameObject[] = [];
+    const size = Math.round(h * (big ? 0.15 : 0.13));
+    const sides = big ? [-1, 1] : [1];
+    sides.forEach((side, si) => {
+      [...word].forEach((ch, i) => {
+        const x = side * (w / 2 - size * 0.75) + (i % 2 ? -side * size * 0.18 : 0);
+        const y = -h * 0.3 + i * size * 0.92 + (side < 0 ? size * 0.4 : 0);
+        const t = this.add
+          .text(x, y, ch, { fontFamily: UI_FONT, fontSize: `${size}px`, fontStyle: '900', color: big ? '#ffe14a' : '#f2e6ff', stroke: '#2a0638', strokeThickness: Math.max(5, size * 0.16) })
+          .setOrigin(0.5)
+          .setAngle(side * -12 + (i % 2 ? 6 : -4))
+          .setScale(0);
+        t.setShadow(3, 3, '#000000', 0, true, true);
+        const delay = (si * word.length + i) * 110;
+        this.tweens.add({ targets: t, scale: 1, duration: 180, delay, ease: 'Back.easeOut' });
+        // ふるえる
+        this.tweens.add({ targets: t, x: x + (big ? 3 : 2), y: y - (big ? 2 : 1), duration: 45, delay: delay + 180, yoyo: true, repeat: -1 });
+        out.push(t);
+      });
+    });
+    return out;
   }
 
   /** リーチの 1枚絵を 液晶 いっぱいに(はみ出す 所は 切る) */
