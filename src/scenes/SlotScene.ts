@@ -52,8 +52,8 @@ const lcdBgKey = (n: LcdBg) => `slot:lcd:${n}`;
 /** 届いた 説明の 絵(ボーナス・フリーゲームの 前。2026-11-12 企画者が 用意する) */
 const GUIDE_ART: readonly string[] = [];
 /** 1枚絵の 下の 帯の 文字: 左下の 王冠ランプに かぶらない よう 右へ ずらす 量(点)・使える はば(絵の はばに 対する 割合) */
-const BAND_SHIFT = 92;
-const BAND_ROOM = 0.62;
+const BAND_SHIFT = 56;
+const BAND_ROOM = 0.7;
 /** 企画者の キャラの リーチ(2026-11-11〜。1人 1つ) */
 interface StoryReach {
   id: string;
@@ -1018,7 +1018,7 @@ export class SlotScene extends Phaser.Scene {
       }
       if (hasArt) {
         // 絵が ある 時: 文字は 上と 下の 帯に 1行で(絵の キャラに かぶらない)
-        const bandH = Math.min(h * 0.17, 64);
+        const bandH = Math.min(h * 0.15, 52);
         const top = ab.cy - ab.h / 2;
         const bot = ab.cy + ab.h / 2;
         // titleSide: 題を 左か 右に 寄せる(絵の キャラに かぶる 時)
@@ -1064,7 +1064,7 @@ export class SlotScene extends Phaser.Scene {
     const ox = box?.cx ?? 0;
     const oy = box?.cy ?? 0;
     const out: Phaser.GameObjects.GameObject[] = [];
-    const size = Math.round(Math.min(h * (big ? 0.15 : 0.13), box ? 70 : 999));
+    const size = Math.round(h * (big ? 0.15 : 0.13));
     const sides = big ? [-1, 1] : [side1];
     sides.forEach((side, si) => {
       [...word].forEach((ch, i) => {
@@ -1121,22 +1121,18 @@ export class SlotScene extends Phaser.Scene {
     const kk = Math.max(box.w / img.width, box.h / img.height);
     img.setScale(kk);
     img.setCrop((img.width - box.w / kk) / 2, (img.height - box.h / kk) / 2, box.w / kk, box.h / kk);
-    const frame = this.add.rectangle(box.cx, box.cy, box.w + 6, box.h + 6).setStrokeStyle(6, 0xffd23a);
-    return [img, frame];
+    return [img];
   }
 
   /**
-   * リーチの 1枚絵を 出す 場所(液晶の まん中から 見た 位置)。2026-11-12 企画者「リーチの 画像が 小さい。もう少し 大きく」
-   * → 画面の 横 いっぱい・液晶の 下の はしに そろえて 上へ のばす(台の 王冠の 上まで)。4:3 の 絵が ほぼ 切れない
+   * リーチの 1枚絵を 出す 場所(液晶の まん中から 見た 位置)。
+   * 2026-11-12 企画者「もう少し 大きく」→ 画面 いっぱいに したが「液晶内には 収めて 欲しい」→ 液晶 いっぱい(ふちの 内がわ)
    */
   private artBox(): { cx: number; cy: number; w: number; h: number } {
-    const { x, y, w, h } = this.lcdBox;
-    const bw = W - 16;
-    const bottom = y + h - 4;
-    const top = Math.max(safeInsets(this).top + 70, bottom - bw * 0.75);
-    const bh = bottom - top;
-    return { cx: W / 2 - (x + w / 2), cy: top + bh / 2 - (y + h / 2), w: bw, h: bh };
+    const { w, h } = this.lcdBox;
+    return { cx: 0, cy: 0, w: w - 6, h: h - 6 };
   }
+
 
   /** 企画者の キャラの リーチの 結果(当たりの 絵・ハズレの 絵)【仮の 見た目】 */
   private storyResult(def: StoryReach, ok: boolean): void {
@@ -1155,7 +1151,7 @@ export class SlotScene extends Phaser.Scene {
       this.tweens.add({ targets: icon, scale: 1, duration: 320, ease: 'Back.easeOut' });
     }
     const art = this.textures.exists(artKey);
-    const bandH = Math.min(h * 0.17, 64);
+    const bandH = Math.min(h * 0.15, 52);
     const by = ab.cy + ab.h / 2 - bandH / 2;
     if (art) items.push(this.add.rectangle(ab.cx, by, ab.w, bandH, 0x000000, 0.55));
     items.push(this.text(art ? ab.cx + BAND_SHIFT : 0, art ? by : h * 0.33, r.text, Math.min(ok ? 42 : 36, art ? bandH * 0.62 : h * 0.1, ((art ? ab.w * BAND_ROOM : w * 0.9)) / r.text.length), ok ? '#ffd23a' : '#d8c8e8', 8));
