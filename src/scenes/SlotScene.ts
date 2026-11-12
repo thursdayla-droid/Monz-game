@@ -150,7 +150,7 @@ const STORY_REACHES: StoryReach[] = [
     id: 'golf',
     chara: 'slot:chara:hiyokoj',
     charaFile: 'assets/slot/chara_hiyokoj.webp',
-    art: ['1'],
+    art: ['1', '2-1'],
     color: '#9dff6a',
     panels: [
       { line: 'この パター\n決めてやる…！', chara: true },
