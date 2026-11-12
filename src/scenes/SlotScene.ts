@@ -203,7 +203,7 @@ const STORY_REACHES: StoryReach[] = [
     id: 'premium',
     chara: 'slot:chara:araigumar',
     charaFile: 'assets/slot/chara_araigumar.webp',
-    art: ['win', '1'],
+    art: ['win', '1', '2'],
     color: '#ffd23a',
     panels: [
       // 2026-11-12 企画者「みんな 集合 じゃなくて みんな どこに いるの？ で アライグマが いく 感じ」
