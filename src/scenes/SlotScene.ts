@@ -127,7 +127,7 @@ const STORY_REACHES: StoryReach[] = [
     id: 'ramen',
     chara: 'slot:chara:kangarooh',
     charaFile: 'assets/slot/chara_kangarooh.webp',
-    art: ['1', '2-1', '2-2', '2-3', '3', 'win'],
+    art: ['1', '2-1', '2-2', '2-3', '3', 'win', 'lose'],
     color: '#ffb347',
     panels: [
       { line: '腹へった〜\nラーメン 食うぞ！', chara: true },
