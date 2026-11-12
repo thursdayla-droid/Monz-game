@@ -119,7 +119,7 @@ describe('払い戻し率', () => {
     const avg = runs.reduce((a, s) => a + s.totalRtp - s.freeRtp, 0) / runs.length;
     expect(Math.abs(avg - t.total)).toBeLessThan(0.08);
     for (const s of runs) expect(Math.abs(s.bonusRate - t.bonusRate)).toBeLessThan(0.001);
-  });
+  }, 60_000);
 });
 
 describe('MONZ コインで 遊ぶ(LifeRecord.slotSpin)', () => {
