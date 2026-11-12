@@ -49,6 +49,9 @@ let symScene: Phaser.Scene | null = null;
 const LCD_BGS = ['normal', 'red', 'gold'] as const;
 type LcdBg = (typeof LCD_BGS)[number];
 const lcdBgKey = (n: LcdBg) => `slot:lcd:${n}`;
+/** 1枚絵の 下の 帯の 文字: 左下の 王冠ランプに かぶらない よう 右へ ずらす 量・使える はば(液晶の はばに 対する 割合) */
+const BAND_SHIFT = 0.07;
+const BAND_ROOM = 0.74;
 /** 企画者の キャラの リーチ(2026-11-11〜。1人 1つ) */
 interface StoryReach {
   id: string;
@@ -79,7 +82,7 @@ const STORY_REACHES: StoryReach[] = [
     id: 'kyon',
     chara: 'slot:chara:kyonk',
     charaFile: 'assets/slot/chara_kyonk.webp',
-    art: ['1', '2', '3'],
+    art: ['1', '2', '3', 'win'],
     color: '#ff6ad5',
     panels: [
       { title: 'キャバ嬢リーチ', line: '今夜は\n可愛い子 いるかな〜？', chara: true },
@@ -981,12 +984,14 @@ export class SlotScene extends Phaser.Scene {
         const bandH = h * 0.17;
         if (pd.title) items.push(this.add.rectangle(0, -h / 2 + 4 + bandH / 2, w - 8, bandH, 0x000000, 0.55));
         if (pd.line) items.push(this.add.rectangle(0, h / 2 - 4 - bandH / 2, w - 8, bandH, 0x000000, 0.55));
-        const fit = (t: string, max: number) => Math.min(max, bandH * 0.62, (w * 0.9) / t.length);
+        const fit = (t: string, max: number, room = 0.9) => Math.min(max, bandH * 0.62, (w * room) / t.length);
         if (pd.title) items.push(this.text(0, -h / 2 + 4 + bandH / 2, pd.title, fit(pd.title, 34), color, 6));
         if (pd.line) {
           const one = pd.line.replace(/\n/g, ' ');
           const y = h / 2 - 4 - bandH / 2;
-          items.push(n === def.panels.length - 1 ? tierText(this, 0, y, one, fit(one, 32), show.bigTier) : this.text(0, y, one, fit(one, 26), '#ffffff', 5));
+          // 下の 帯は 左下の 王冠ランプに かぶらない よう 少し 右へ
+          const bx = w * BAND_SHIFT;
+          items.push(n === def.panels.length - 1 ? tierText(this, bx, y, one, fit(one, 32, BAND_ROOM), show.bigTier) : this.text(bx, y, one, fit(one, 26, BAND_ROOM), '#ffffff', 5));
         }
         pd = { ...pd, title: undefined, line: undefined };
       }
@@ -1030,7 +1035,8 @@ export class SlotScene extends Phaser.Scene {
       this.tweens.add({ targets: icon, scale: 1, duration: 320, ease: 'Back.easeOut' });
     }
     if (this.textures.exists(artKey)) items.push(this.add.rectangle(0, h / 2 - 4 - h * 0.085, w - 8, h * 0.17, 0x000000, 0.55));
-    items.push(this.text(0, this.textures.exists(artKey) ? h / 2 - 4 - h * 0.085 : h * 0.33, r.text, Math.min(ok ? 40 : 34, h * 0.1, (w * 0.9) / r.text.length), ok ? '#ffd23a' : '#d8c8e8', 8));
+    const art = this.textures.exists(artKey);
+    items.push(this.text(art ? w * BAND_SHIFT : 0, art ? h / 2 - 4 - h * 0.085 : h * 0.33, r.text, Math.min(ok ? 40 : 34, art ? h * 0.1 : h * 0.1, (w * (art ? BAND_ROOM : 0.9)) / r.text.length), ok ? '#ffd23a' : '#d8c8e8', 8));
     this.lcdShow(items);
     if (ok) {
       this.cameras.main.flash(260, 255, 230, 200);
