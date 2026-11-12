@@ -344,3 +344,6 @@
 
 ## ミニゲームの 看板（2026-11-12 企画者）
 - 元の 絵 design/slot/select_sign_original.png（2172×724）→ public/assets/minigame/select_slot.webp。麻雀クエストと 同じ 入れ方（`SELECT_CARD_ART.slot`）。
+
+## BONUS リーチの 見た目（2026-11-12 企画者「今の ままで いい」）
+- 王冠 2つの 短い BONUS リーチは 今の プログラムの 見た目（金の 光と 王冠）で 決定。1枚絵（B1〜B3）は 作らない。
