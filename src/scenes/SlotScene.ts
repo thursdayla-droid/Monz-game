@@ -7,6 +7,7 @@ import { BETS, CHEST_PAY, dealChests, FREE_ROWS, freeSpin, SYMBOL_WEIGHT, newBon
 import { UI_FONT } from '../ui/paint';
 import { fillSize, safeInsets } from '../ui/viewport';
 import { planShow, STEP_ORDER, type SpinShow } from '../core/slot/reach';
+import { pinTextures } from '../render/texBudget';
 import { CAB_FILE, CAB_KEY, cabinetLayout, cabinetTexture, type Rect } from './slotCabinet';
 import { COIN_ART_FILE, COIN_ART_KEY, coinFountain, cutIn, STEP_FILES, idleAnim, LAMP_FILES, lcdRays, NoticeLamp, PUSH_FILE, PUSH_KEY, pushButton, stepUp, tierText } from './slotFx';
 
@@ -300,7 +301,17 @@ export class SlotScene extends Phaser.Scene {
     super('Slot');
   }
 
+  private unpin?: () => void;
+
   preload(): void {
+    // スロットの 絵は 先に 読んで あとで 使う(まだ 出ていない 図柄・リーチ・ステップアップ)ので、この 画面の 間は メモリから 外さない
+    // (2026-11-12 公開ページで 外されて、王冠・ダイヤが 仮の 絵・ステップアップが 白黒に ならなかった)
+    this.unpin?.();
+    this.unpin = pinTextures('slot:');
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.unpin?.();
+      this.unpin = undefined;
+    });
     // 企画者の 図柄の 絵(メモリから 外されて いたら 読みなおす)
     // 2026-11-12 企画者の ワイルドの 絵(元は design/slot/symbols/wild_original.png)も
     for (const s of [...SYMBOLS, 'wild' as const]) if (!this.textures.exists(artKey(s))) this.load.image(artKey(s), assetUrl(artFile(s)));

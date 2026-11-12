@@ -11,6 +11,25 @@ import * as Phaser from 'phaser';
 export const TEXTURE_BUDGET_BYTES = 150 * 1024 * 1024;
 
 const lastUse = new Map<string, number>();
+/** 今 外さない 絵の 名前の はじまり(画面が 開いている 間。数で 数える) */
+const pinned = new Map<string, number>();
+
+/**
+ * その 画面が 開いている 間、名前が prefix で はじまる 絵を 外さない。もどす 関数を 返す。
+ * 2026-11-12 企画者「公開してる ロイヤルジャックポット、リーチ・ステップアップ・マークが おかしい」:
+ * スロットは 先に 読んだ 絵(まだ 出ていない 図柄・リーチの 絵)を あとで 使うので、ここで 外されて 仮の 絵に なっていた
+ */
+export function pinTextures(prefix: string): () => void {
+  pinned.set(prefix, (pinned.get(prefix) ?? 0) + 1);
+  let done = false;
+  return () => {
+    if (done) return;
+    done = true;
+    const n = (pinned.get(prefix) ?? 1) - 1;
+    if (n > 0) pinned.set(prefix, n);
+    else pinned.delete(prefix);
+  };
+}
 let clock = 0;
 let installed = false;
 
@@ -24,6 +43,7 @@ function bytesOf(t: Phaser.Textures.Texture): number {
 /** 読みなおせる 絵(ファイルから 読んだ 絵)か */
 function reloadable(key: string, t: Phaser.Textures.Texture): boolean {
   if (key.startsWith('__') || key.startsWith('myth:cardart:')) return false;
+  for (const p of pinned.keys()) if (key.startsWith(p)) return false;
   const img = t.source[0]?.image;
   return typeof HTMLImageElement !== 'undefined' && img instanceof HTMLImageElement;
 }
