@@ -321,7 +321,8 @@ export class SlotScene extends Phaser.Scene {
     for (const s of [...SYMBOLS, 'wild' as const]) if (!this.textures.exists(drawnKey(s))) drawSymbolTexture(this, s);
     for (const c of CHEST_COLORS) for (const o of [false, true]) if (!this.textures.exists(drawnChestKey(c, o))) drawChestTexture(this, c, o);
     this.layout();
-    audio.playBgm('main');
+    // 2026-11-12 企画者の スロットの 曲
+    audio.playBgm('slot');
     this.cameras.main.fadeIn(250, 0, 0, 0);
     this.baseCell = this.cell;
     // 特別フリーゲームの とちゅうで 閉じていたら 続きから

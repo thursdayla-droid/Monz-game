@@ -257,6 +257,9 @@
 - 王冠が 3つ 以上（宝箱・フリーゲーム）なら 当たりの 絵 → BONUS!!。ハズレの 絵も 見せる。
 - キャラは 7の 時と 同じ 重みで えらぶ（当たる 確率も ほぼ 同じ：キョンK 10%・パンダY 20% など）。`CROWN_STORY_RATE`（reach.ts）。
 
+## 曲（2026-11-12 企画者）
+- スロット画面の BGM は 企画者の 曲（music/slot.m4a → public/assets/bgm/slot.mp3・`slot`）。
+
 ## キャラの リーチの 足し方（2026-11-11〜）
 - `src/scenes/SlotScene.ts` の `STORY_REACHES` に 1人 足す（絵・題・3枚の 文字・当たり/ハズレの 文字）＋ `src/core/slot/reach.ts` の `BIG_REACHES` に 強さを 足す。
 - 1枚絵が 届いたら：元の 絵を `design/slot/reach/<id>_<名前>.png` に、横 900 に 小さく した webp(品質 80。確認用ページを 15MB より 小さく する ため) を `public/assets/slot/reach/<id>_<名前>.webp` に 置き、`STORY_REACHES` の `art` に 名前を 足す（名前: 1・2・3・2-1〜2-3（種類ごとの 2枚目）・win・lose）。
