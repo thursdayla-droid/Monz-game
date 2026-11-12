@@ -82,7 +82,7 @@ const STORY_REACHES: StoryReach[] = [
     id: 'kyon',
     chara: 'slot:chara:kyonk',
     charaFile: 'assets/slot/chara_kyonk.webp',
-    art: ['1', '2', '3', 'win'],
+    art: ['1', '2', '3', 'win', 'lose'],
     color: '#ff6ad5',
     panels: [
       { title: 'キャバ嬢リーチ', line: '今夜は\n可愛い子 いるかな〜？', chara: true },
