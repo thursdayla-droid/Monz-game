@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { assetUrl } from '../assetUrl';
-import { LifeRecord, loadLife } from '../core/lifeSave';
+import { SLOT_COIN_NAME, SlotWallet } from '../core/slot/wallet';
 import { pickWeighted, randomSeed, mulberry32, type Rng } from '../core/rng';
 import { BETS, CHEST_PAY, dealChests, FREE_ROWS, freeSpin, SYMBOL_WEIGHT, newBonus, newFree, pickChest, REELS, ROWS, SYMBOL_NAME, SYMBOLS, spin, type BonusState, type ChestContent, type FreeSpinResult, type FreeState, type SpinResult, type SymbolId } from '../core/slot/slot';
 import { UI_FONT } from '../ui/paint';
@@ -13,7 +13,7 @@ import { COIN_ART_FILE, COIN_ART_KEY, coinFountain, cutIn, STEP_FILES, idleAnim,
 /**
  * MONZ SLOT(ミニゲーム⑤)の 画面(2026-11-10 企画者の 仕様書。docs/SLOT.md)。2段目: スロット画面。
  * - たての 全画面。上: 大きな 液晶(リーチ演出は 4段目)・まん中: 5リール×3段・下: コイン・WIN・BET・SPIN
- * - MONZ コインで 遊ぶ(企画者 2026-11-10)。回した 時に 結果を 決めて、BET と 当たりを 1回で 保存(LifeRecord.slotSpin)
+ * - 2026-11-12〜 スロット 専用の コインで 遊ぶ(src/core/slot/wallet.ts。MONZ コインから 交換。もどせない)。回した 時に 結果を 決めて、BET と 当たりを 1回で 保存(SlotWallet.slotSpin)
  * - リールは 左から 順に 自動で 止まる【確定】。止まる 時間は【仮】
  * - 当たりの 見せ方(企画者 2026-11-10「A」): BET 以上 もどる 当たりは 大きく 光る・BET より 少ない 当たりは 細い 枠と WIN の 数字だけ
  * - 図柄の 絵は 企画者の 絵(2026-11-10。読めない 時は プログラムで 描いた 絵)
@@ -249,7 +249,8 @@ export class SlotScene extends Phaser.Scene {
   }
   private rng: Rng = mulberry32(randomSeed());
   private bet: number = BETS[0];
-  private record!: LifeRecord;
+  /** 2026-11-12〜 スロット 専用の コイン(MONZ コインでは ない) */
+  private record!: SlotWallet;
   private reels: ReelView[] = [];
   private reelX = 0;
   private reelY = 0;
@@ -317,7 +318,7 @@ export class SlotScene extends Phaser.Scene {
     this.H = Math.max(BASE_H, fillSize(this, { w: W, h: BASE_H }, { minRatio: 0.4, maxRatio: W / BASE_H }).h);
     this.scale.setGameSize(W, this.H);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(W, BASE_H));
-    this.record = new LifeRecord(loadLife());
+    this.record = new SlotWallet();
     this.bet = loadBet();
     this.shown = this.record.coins;
     for (const s of [...SYMBOLS, 'wild' as const]) if (!this.textures.exists(drawnKey(s))) drawSymbolTexture(this, s);
@@ -403,7 +404,7 @@ export class SlotScene extends Phaser.Scene {
       title.setShadow(0, 4, '#9b5cff', 0, true, true);
     }
     // 確認用ページだけ: コインを 足す(確認用ページは コインが 0 から なので)
-    if ((window as { __MONZ_START?: string }).__MONZ_START === 'Slot') {
+    if (['Slot', 'SlotTitle'].includes((window as { __MONZ_START?: string }).__MONZ_START ?? '')) {
       const dev = this.text(W - 150, 104, '+10,000 コイン（確認用）', 18, '#16101c').setBackgroundColor('#7de8ff').setPadding(10, 6, 10, 8).setDepth(30).setInteractive({ useHandCursor: true });
       dev.on('pointerdown', () => {
         if (this.busy) return;
@@ -620,7 +621,7 @@ export class SlotScene extends Phaser.Scene {
       g.lineStyle(4, color, 1).strokeRoundedRect(x, 0, w, 86, 16);
       ui.add(this.text(x + w / 2, 18, label, 18, '#c8bcd8'));
     };
-    box(0, 320, 'MONZ コイン', 0xffd23a);
+    box(0, 320, SLOT_COIN_NAME, 0xffd23a);
     box(UW - 320, 320, 'WIN', 0xff8a1f);
     this.credit = this.text(160, 56, this.shown.toLocaleString(), 36, '#ffd23a');
     this.winText = this.text(UW - 160, 56, '0', 36, '#ffffff');
@@ -1694,7 +1695,7 @@ export class SlotScene extends Phaser.Scene {
     if (this.busy) return;
     audio.se('back');
     this.cameras.main.fadeOut(200, 0, 0, 0);
-    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('MinigameSelect'));
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('SlotTitle'));
   }
 }
 

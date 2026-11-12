@@ -34,6 +34,7 @@ import { TitleScene } from './scenes/TitleScene';
 import { MahjongScene } from './scenes/MahjongScene';
 import { MahjongQuestScene } from './scenes/MahjongQuestScene';
 import { SlotScene } from './scenes/SlotScene';
+import { SlotTitleScene } from './scenes/SlotTitleScene';
 import { applyCoinGifts } from './core/coinGift';
 import { fillTall, watchViewport } from './ui/viewport';
 import { installTextureBudget, trimTextures } from './render/texBudget';
@@ -54,7 +55,7 @@ const game = new Phaser.Game({
   },
   // 1回の描画で使うテクスチャを1枚に限定する。複数枚にすると一部の環境でパーツが欠けて描かれたため。
   render: { antialias: true, maxTextures: 1 },
-  scene: [BootScene, SplashScene, TitleScene, QuestionScene, BirthScene, RoomSelectScene, HomeScene, ShopScene, MinigameSelectScene, CardTitleScene, CardPlayScene, DashScene, SluggerScene, MahjongQuestScene, MahjongScene, SlotScene, BattleMenuScene, AutoBattleScene, Battle3DScene, RumbleModeScene, RumbleStoryScene, AdventureScene, BattleScene, MythTitleScene, MythPackScene, BinderScene, MythBattleScene, MythDeckScene, MythModeScene, MythTowerScene, MythFloorScene, MythGuideScene, CompareScene, BunkPartsScene],
+  scene: [BootScene, SplashScene, TitleScene, QuestionScene, BirthScene, RoomSelectScene, HomeScene, ShopScene, MinigameSelectScene, CardTitleScene, CardPlayScene, DashScene, SluggerScene, MahjongQuestScene, MahjongScene, SlotTitleScene, SlotScene, BattleMenuScene, AutoBattleScene, Battle3DScene, RumbleModeScene, RumbleStoryScene, AdventureScene, BattleScene, MythTitleScene, MythPackScene, BinderScene, MythBattleScene, MythDeckScene, MythModeScene, MythTowerScene, MythFloorScene, MythGuideScene, CompareScene, BunkPartsScene],
 });
 
 // 2026-11-08: ホーム画面から 開いた 時の 大きさ合わせ(fitStandalone)は やめた。画面の 外に はみ出して 下の ボタンが 切れたため。かわりに 時計・電池の 帯を 黒に(index.html)

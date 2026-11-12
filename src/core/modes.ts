@@ -33,5 +33,5 @@ export const MINIGAMES: readonly MinigameInfo[] = [
   // ④ 麻雀クエスト(2026-11-08 企画者 仕様書 Ver.1.0。docs/MAHJONG.md。2026-11-09 企画者の タイトルの 絵の 名前)
   { id: 'mahjong', title: '麻雀クエスト', ready: true, scene: 'MahjongQuest', score: 'ステージ', color: '#9b5cff' },
   // ⑤ ROYAL JACKPOT(仕様書の 仮名 MONZ SLOT。名前は 2026-11-10 企画者。docs/SLOT.md)。看板の 絵は まだ(名前を 重ねて 出す)【仮】
-  { id: 'slot', title: 'ROYAL JACKPOT', ready: true, scene: 'Slot', score: 'コイン', color: '#ffb000' },
+  { id: 'slot', title: 'ROYAL JACKPOT', ready: true, scene: 'SlotTitle', score: 'コイン', color: '#ffb000' },
 ];
