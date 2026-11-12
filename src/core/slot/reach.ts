@@ -90,7 +90,8 @@ export const BIG_REACHES: readonly BigReachType[] = [
     name: 'チーターSの 彼女の機嫌リーチ',
     winWeight: 5,
     loseWeight: 1,
-    variants: [1, 2, 3, 4, 5, 6].map((i) => ({ name: `質問${i}【仮】`, winWeight: 1, loseWeight: 1 })),
+    // 2026-11-12 企画者「仕事と 私は やめよう」→ 質問 5つ(画面の STORY_REACHES と 同じ 数)
+    variants: [1, 2, 3, 4, 5].map((i) => ({ name: `質問${i}【仮】`, winWeight: 1, loseWeight: 1 })),
   },
 ];
 /** 7が 2個で ハズレの 時に キャラの リーチを 出さない(小さい リーチ だけ)重み */
