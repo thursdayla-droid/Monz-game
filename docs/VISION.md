@@ -522,3 +522,4 @@
 - 2026-11-11：企画者「相手の ツモも 一緒で」→ アガリの 音は ぜんぶ（主人公・相手の ロン・ツモ）ron_hero.mp3
 - 2026-11-11：企画者「モンズカード・ダッシュモンズの 右の 白い 次へ（＞）の マーク 消して」→ ミニゲーム選択の 絵の ＞ を 消した（MONZ CARD・ダッシュモンズ・5つめ）。消した 絵 design/minigame/select_noarrow.png → public/assets/minigame/select_v3.webp。前の 絵は unused/public/minigame_select_v2_with_arrows.webp
 - 2026-11-11：企画者「満貫 以上の 当たりの 演出の 音 これに して」→ 満貫・跳満・倍満・三倍満・役満の 演出の 音を 企画者の 音 1つに（public/assets/se/mahjong/bigwin.mp3）
+- 2026-11-12：お世話：寝ている 時に なでて、なでるの ゲージが MAX なら 嫌がる（起きない。怒った 顔で ブルッと）（企画者）。前は 寝ていると MAX でも ずっと なでられた
