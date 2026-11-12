@@ -801,7 +801,9 @@ export class SlotScene extends Phaser.Scene {
     // ⑧ 告知ランプ(回しはじめに 光る 時)
     if (show.lamp === 'pre') this.time.delayedCall(250, () => this.lamp.light());
     // ① ステップアップ予告(② 色)
-    if (show.notice) t += stepUp(this, this.lcd, this.lcdBox, show.notice, show.noticeTier, fast) + 150;
+    // 2026-11-12 企画者「ステップアップは 各リーチの 1枚目の 白黒で。発展するなら 始まる」
+    // → 段ごとに ちがう キャラの 白黒。この 回に キャラの リーチが ある 時は さいごの 段が その キャラ(リーチで 色が つく)
+    if (show.notice) t += stepUp(this, this.lcd, this.lcdBox, show.notice, show.noticeTier, fast, this.stepFaces(show)) + 150;
     // ⑨ 連続演出は なくした(2026-11-12 企画者「連続演出とか 文字の 説明系は いらない」)
     this.time.delayedCall(Math.max(first, t + 300), () => this.stopNext(0, res, show));
   }
@@ -1077,6 +1079,46 @@ export class SlotScene extends Phaser.Scene {
       });
     });
     return out;
+  }
+
+  /** ステップアップに 使う 白黒の 1枚目(段の 数だけ)。この 回の キャラの リーチが あれば さいごは その キャラ */
+  private stepFaces(show: SpinShow): string[] | undefined {
+    const ids = STORY_REACHES.filter((d) => this.grayFirst(d.id)).map((d) => d.id);
+    if (ids.length < 2) return undefined;
+    const target = [show.big?.id, show.crownBig?.id].find((id) => id && ids.includes(id));
+    const out: string[] = [];
+    let prev = '';
+    for (let i = 0; i < show.notice; i++) {
+      const last = i === show.notice - 1;
+      let id = last && target ? target : ids[Math.floor(Math.random() * ids.length)];
+      // となりと 同じ キャラに しない(さいごの キャラは 前の 段に 出さない)
+      for (let n = 0; n < 8 && (id === prev || (!last && id === target)); n++) id = ids[Math.floor(Math.random() * ids.length)];
+      out.push(this.grayFirst(id)!);
+      prev = id;
+    }
+    return out;
+  }
+
+  /** キャラの リーチの 1枚目を 白黒に した 絵(なければ 作る)。1枚目の 絵が なければ undefined */
+  private grayFirst(id: string): string | undefined {
+    const src = `slot:reach:${id}:1`;
+    const key = `${src}:gray`;
+    if (this.textures.exists(key)) return key;
+    if (!this.textures.exists(src)) return undefined;
+    const img = this.textures.get(src).getSourceImage() as HTMLImageElement;
+    const t = this.textures.createCanvas(key, img.width, img.height);
+    const ctx = t?.getContext();
+    if (!t || !ctx) return undefined;
+    ctx.drawImage(img, 0, 0);
+    const d = ctx.getImageData(0, 0, img.width, img.height);
+    const p = d.data;
+    for (let i = 0; i < p.length; i += 4) {
+      const g = Math.min(255, (p[i] * 0.3 + p[i + 1] * 0.59 + p[i + 2] * 0.11) * 1.05);
+      p[i] = p[i + 1] = p[i + 2] = g;
+    }
+    ctx.putImageData(d, 0, 0);
+    t.refresh();
+    return key;
   }
 
   /** リーチの 1枚絵を 液晶 いっぱいに(はみ出す 所は 切る) */

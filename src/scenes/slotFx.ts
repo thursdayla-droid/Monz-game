@@ -50,7 +50,9 @@ export function tierText(scene: Phaser.Scene, x: number, y: number, s: string, s
 /**
  * ① ステップアップ予告: 液晶に 1 → 2 → … と 段が 進む。段が 進むほど・色が アツいほど 当たりやすい。かかる 時間(ms)を 返す
  */
-export function stepUp(scene: Phaser.Scene, lcd: Phaser.GameObjects.Container, box: LcdBox, level: number, tier: ColorTier, fast: boolean): number {
+export function stepUp(scene: Phaser.Scene, lcd: Phaser.GameObjects.Container, box: LcdBox, level: number, tier: ColorTier, fast: boolean, faces?: string[]): number {
+  // 2026-11-12 企画者「ステップアップは 各リーチの 1枚目の 白黒で」→ faces(白黒の 1枚目)が あれば それを 1段ずつ
+  if (faces && faces.length >= level && faces.slice(0, level).every((k) => scene.textures.exists(k))) return faceSteps(scene, lcd, box, level, faces, fast);
   const art = scene.textures.exists(stepKey(1));
   // 2026-11-11 企画者「ステップアップも もう少し 長く」→ 1段 0.45 → 0.75秒(オートは 0.45秒)
   const per = art ? (fast ? 450 : 750) : fast ? 300 : 500;
@@ -98,6 +100,34 @@ export function stepUp(scene: Phaser.Scene, lcd: Phaser.GameObjects.Container, b
       scene.tweens.add({ targets: flash, alpha: 0.12, duration: per });
       audio.se(i >= 3 ? 'mcCutin' : 'mcSelect', { pitch: 1 + i * 0.12 });
       if (i >= 3) scene.cameras.main.shake(160, 0.004);
+    });
+  }
+  return level * per;
+}
+
+/** ステップアップ(白黒の 1枚絵): 段ごとに 液晶 いっぱいに 白黒の 1枚目が 出る。段が 上がるほど 大きく ゆれる */
+function faceSteps(scene: Phaser.Scene, lcd: Phaser.GameObjects.Container, box: LcdBox, level: number, faces: string[], fast: boolean): number {
+  const per = fast ? 500 : 850;
+  const { w, h } = box;
+  for (let i = 0; i < level; i++) {
+    scene.time.delayedCall(i * per, () => {
+      if (!lcd.active) return;
+      lcd.removeAll(true);
+      const img = scene.add.image(0, 0, faces[i]);
+      const kk = Math.max((w - 8) / img.width, (h - 8) / img.height);
+      img.setScale(kk * 1.15);
+      const cw = (w - 8) / kk;
+      const ch = (h - 8) / kk;
+      img.setCrop((img.width - cw) / 2, (img.height - ch) / 2, cw, ch);
+      const steps = scene.add.container(0, h * 0.42);
+      for (let n = 0; n < 5; n++) steps.add(scene.add.rectangle((n - 2) * 44, 0, 36, 12, n <= i ? 0xffd23a : 0x3a2a4a, 1).setStrokeStyle(2, 0x16101c));
+      const label = txt(scene, 0, -h * 0.38, `STEP ${i + 1}`, Math.min(30, h * 0.08), '#ffffff', 6);
+      const flash = scene.add.rectangle(0, 0, w - 8, h - 8, 0xffffff, 0.8);
+      lcd.add([img, steps, label, flash]);
+      scene.tweens.add({ targets: img, scale: kk, duration: 260, ease: 'Back.easeOut' });
+      scene.tweens.add({ targets: flash, alpha: 0, duration: 280 });
+      audio.se(i >= 3 ? 'mcCutin' : 'mcSelect', { pitch: 1 + i * 0.12 });
+      if (i >= 2) scene.cameras.main.shake(160, 0.003 + (i - 2) * 0.002);
     });
   }
   return level * per;
