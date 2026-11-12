@@ -60,13 +60,14 @@ export const BIG_REACHES: readonly BigReachType[] = [
   // リーチ②「パンダYの 風呂キャンセルリーチ」(風呂に 入ったら 当たり)
   { id: 'panda', name: 'パンダYの 風呂キャンセルリーチ', winWeight: 40, loseWeight: 160 },
   // リーチ③「うさぎKの アイドルリーチ」(うさぎの アイドル達なら 当たり・カバなら ハズレ)
-  { id: 'usagi', name: 'うさぎKの アイドルリーチ', winWeight: 15, loseWeight: 32 },
+  // 2026-11-12 企画者「カンガルー・ヒヨコ・うさぎの リーチは もう少し 出して いい」→ 3人とも 重みを 1.6倍(当たる 確率は そのまま)
+  { id: 'usagi', name: 'うさぎKの アイドルリーチ', winWeight: 24, loseWeight: 51.2 },
   // リーチ④「カンガルーHの ラーメンリーチ」(食べて 星5！なら 当たり)。ラーメン 3種類で 当たりやすさが ちがう
   {
     id: 'ramen',
     name: 'カンガルーHの ラーメンリーチ',
-    winWeight: 10,
-    loseWeight: 15,
+    winWeight: 16,
+    loseWeight: 24,
     variants: [
       { name: 'しょうゆラーメン', winWeight: 1, loseWeight: 4 },
       { name: 'みそラーメン', winWeight: 2, loseWeight: 2 },
@@ -77,8 +78,8 @@ export const BIG_REACHES: readonly BigReachType[] = [
   {
     id: 'golf',
     name: 'ヒヨコJの ゴルフリーチ',
-    winWeight: 10,
-    loseWeight: 15,
+    winWeight: 16,
+    loseWeight: 24,
     variants: [
       { name: 'ボコボコの 芝生', winWeight: 1, loseWeight: 4 },
       { name: 'ふつうの 芝生', winWeight: 2, loseWeight: 2 },
@@ -97,7 +98,8 @@ export const BIG_REACHES: readonly BigReachType[] = [
 ];
 /** 7が 2個で ハズレの 時に キャラの リーチを 出さない(小さい リーチ だけ)重み */
 // 2026-11-12 7の 出やすさを かえた ので 合わせ直した(キャラごとの 当たる 確率を そのままに)
-export const NO_STORY_LOSE = 231;
+// 2026-11-12 3人を 多く した ぶん 合わせ直し((のこりの 重み) ÷ (当たりの 重みの 合計) を 6.34 に)
+export const NO_STORY_LOSE = 327;
 /**
  * 王冠が 2つ 出た 時(さいごの リールより 前)の BONUS リーチで、キャラの リーチを 出す 割合(企画者 2026-11-12「2」)。
  * 当たり = 王冠が 3つ 以上(宝箱・フリーゲーム)。王冠の リーチは 約16回転に 1回 あるので 一部 だけ【仮：30%】。
