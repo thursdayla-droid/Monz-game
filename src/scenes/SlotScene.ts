@@ -320,6 +320,8 @@ export class SlotScene extends Phaser.Scene {
     this.free = undefined;
     this.rows = ROWS;
     this.stickyImgs = [];
+    this.freeFx = undefined;
+    this.freeFxTimers = [];
     this.H = Math.max(BASE_H, fillSize(this, { w: W, h: BASE_H }, { minRatio: 0.4, maxRatio: W / BASE_H }).h);
     this.scale.setGameSize(W, this.H);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.setGameSize(W, BASE_H));
@@ -343,6 +345,7 @@ export class SlotScene extends Phaser.Scene {
         this.drawSticky();
         this.freeHud('つづきから！');
         this.winText.setText(savedFree.total.toLocaleString()).setColor('#ffd23a');
+        this.startFreeFx();
         this.freeLoop(900);
       });
       return;
@@ -1433,6 +1436,7 @@ export class SlotScene extends Phaser.Scene {
     this.freeHud(`${games}回 スタート！`);
     // 2026-11-12 企画者「始まる 前に 説明」
     this.guide('free', () => {
+      this.startFreeFx();
       this.freeBanner(`FREE GAME\n${games}回 スタート！`, '#ffd23a');
       this.freeLoop(2200);
     });
@@ -1478,6 +1482,8 @@ export class SlotScene extends Phaser.Scene {
     const big = res.win >= this.bet;
     // 止まって から 合計と コインを ふやす
     this.freeShownTotal = undefined;
+    // 当たったら キャラが 下から とび出して よろこぶ(大きい ほど 多く)
+    if (res.win > 0) this.freeCheer(res.win >= this.bet * 5 ? 3 : 1);
     this.shown = this.record.coins;
     this.credit.setText(this.shown.toLocaleString());
     if (res.win > 0) {
@@ -1527,6 +1533,101 @@ export class SlotScene extends Phaser.Scene {
     });
   }
 
+  // ---------------- フリーゲーム中の 台の まわりの 演出(2026-11-12 企画者「台の まわり 演出・キャラが 出て 来たり」) ----------------
+  private freeFx?: Phaser.GameObjects.Container;
+  private freeFxTimers: Phaser.Time.TimerEvent[] = [];
+
+  private charaKeys(): string[] {
+    return STORY_REACHES.map((d) => d.chara).filter((k) => this.textures.exists(k));
+  }
+
+  /** 台の まわりの 光と、キャラが 左右から ときどき 顔を 出す(フリーゲームの 間 ずっと) */
+  private startFreeFx(): void {
+    this.stopFreeFx();
+    const H = this.H;
+    const c = this.add.container(0, 0).setDepth(7);
+    this.freeFx = c;
+    // 左右の はしの 虹色の 光の 柱(ゆっくり 色が かわる)
+    const cols = [0xff4ad8, 0xffd23a, 0x7de8ff, 0x9dff6a, 0xff8a1f];
+    for (const side of [0, 1]) {
+      const bar = this.add.rectangle(side ? W - 6 : 6, H / 2, 12, H, cols[0], 0.55).setBlendMode(Phaser.BlendModes.ADD);
+      c.add(bar);
+      let i = side;
+      this.freeFxTimers.push(this.time.addEvent({ delay: 260, loop: true, callback: () => bar.active && bar.setFillStyle(cols[++i % cols.length], 0.55) }));
+    }
+    // 上から ふる キラキラ
+    this.freeFxTimers.push(this.time.addEvent({
+      delay: 180,
+      loop: true,
+      callback: () => {
+        if (!c.active) return;
+        const st = this.text(Math.random() * W, -20, Math.random() < 0.5 ? '★' : '✦', 18 + Math.random() * 18, Phaser.Utils.Array.GetRandom(['#ffd23a', '#ff8ae0', '#7de8ff', '#ffffff']));
+        c.add(st);
+        this.tweens.add({ targets: st, y: H * (0.3 + Math.random() * 0.5), x: st.x + (Math.random() - 0.5) * 80, angle: 360, alpha: 0, duration: 1800 + Math.random() * 900, onComplete: () => st.destroy() });
+      },
+    }));
+    // キャラが 左右から 顔を 出す
+    this.freeFxTimers.push(this.time.addEvent({ delay: 2600, loop: true, callback: () => this.charaPeek() }));
+    this.charaPeek();
+  }
+
+  private stopFreeFx(): void {
+    for (const t of this.freeFxTimers) t.remove();
+    this.freeFxTimers = [];
+    this.freeFx?.destroy();
+    this.freeFx = undefined;
+  }
+
+  /** キャラ 1人が 台の 左か 右から ひょこっと 出て、ゆれて、もどる */
+  private charaPeek(): void {
+    const c = this.freeFx;
+    const keys = this.charaKeys();
+    if (!c?.active || !keys.length) return;
+    const H = this.H;
+    const side = Math.random() < 0.5 ? -1 : 1;
+    const img = this.add.image(0, 0, Phaser.Utils.Array.GetRandom(keys));
+    const hgt = H * (0.13 + Math.random() * 0.03);
+    img.setScale(hgt / img.height).setFlipX(side > 0);
+    // リールの 上には かぶらない: 台の 上の はし(液晶の 横)・下の はし(ボタンの 台の 横)から 顔を 出す
+    const y = Math.random() < 0.5 ? this.lcdBox.y + hgt * 0.4 : this.tray.y - hgt * 0.15;
+    const out = side < 0 ? -img.displayWidth / 2 : W + img.displayWidth / 2;
+    const inn = side < 0 ? img.displayWidth * 0.2 : W - img.displayWidth * 0.2;
+    img.setPosition(out, y).setAngle(side * -14);
+    c.add(img);
+    this.tweens.chain({
+      targets: img,
+      tweens: [
+        { x: inn, angle: side * 8, duration: 380, ease: 'Back.easeOut' },
+        { y: y - 18, duration: 180, yoyo: true, repeat: 3, ease: 'Sine.easeInOut' },
+        { x: out, angle: side * -14, duration: 320, ease: 'Quad.easeIn', onComplete: () => img.destroy() },
+      ],
+    });
+  }
+
+  /** 当たった 時: キャラが 下から とび出して ジャンプ */
+  private freeCheer(n: number): void {
+    const c = this.freeFx;
+    const keys = Phaser.Utils.Array.Shuffle([...this.charaKeys()]);
+    if (!c?.active || !keys.length) return;
+    const H = this.H;
+    for (let k = 0; k < Math.min(n, keys.length); k++) {
+      const img = this.add.image(0, 0, keys[k]);
+      img.setScale((H * 0.2) / img.height);
+      const x = n === 1 ? W * (Math.random() < 0.5 ? 0.18 : 0.82) : W * (0.18 + k * 0.32);
+      img.setPosition(x, H + img.displayHeight / 2);
+      c.add(img);
+      this.tweens.chain({
+        targets: img,
+        delay: k * 120,
+        tweens: [
+          { y: H - img.displayHeight * 0.45, duration: 300, ease: 'Back.easeOut' },
+          { y: H - img.displayHeight * 0.62, angle: { from: -8, to: 8 }, duration: 160, yoyo: true, repeat: 2 },
+          { y: H + img.displayHeight / 2, duration: 300, ease: 'Quad.easeIn', onComplete: () => img.destroy() },
+        ],
+      });
+    }
+  }
+
   /** フリーゲームの まん中に 大きな 文字(リールの 上) */
   private freeBanner(msg: string, color: string): void {
     const y = this.reelY + (this.rows * this.cell + (this.rows - 1) * GAP) / 2;
@@ -1542,6 +1643,7 @@ export class SlotScene extends Phaser.Scene {
     const f = this.free;
     if (!f) return;
     saveFree(undefined);
+    this.stopFreeFx();
     // 3段に もどして から 液晶に 結果
     this.setRows(ROWS);
     const h = this.lcdBox.h;
