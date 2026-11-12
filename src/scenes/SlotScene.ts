@@ -127,7 +127,7 @@ const STORY_REACHES: StoryReach[] = [
     id: 'ramen',
     chara: 'slot:chara:kangarooh',
     charaFile: 'assets/slot/chara_kangarooh.webp',
-    art: ['1', '2-1', '2-2', '2-3', '3'],
+    art: ['1', '2-1', '2-2', '2-3', '3', 'win'],
     color: '#ffb347',
     panels: [
       { line: '腹へった〜\nラーメン 食うぞ！', chara: true },
@@ -209,6 +209,8 @@ const SMALL_REACH_MS = 2200;
 const BIG_REACH_MS = 4600;
 /** 企画者の キャラの リーチは 長め(2026-11-12 企画者「リーチは 楽しみたいから 少し 長めで」) */
 const STORY_REACH_MS = 8400;
+/** キャラの リーチの 結果の 絵を 見せる 長さ(この あと さいごの リールが 止まる) */
+const STORY_RESULT_MS = 2400;
 const LAST_REEL_MS = 1700;
 /** 特別フリーゲームの 止まる 時間(2026-11-11 企画者「もう少し ゆっくり」)【仮】 */
 // 2026-11-11 企画者「フリーゲーム もっと ゆっくりで いい」→ さらに ゆっくり【仮】
@@ -839,7 +841,8 @@ export class SlotScene extends Phaser.Scene {
       // 小さい リーチ 失敗
       this.lcdIdle();
     }
-    if (r === 3 && show.big) return void next(LAST_REEL_MS * k);
+    // キャラの リーチは 結果の 絵を ゆっくり 見せてから さいごの リール(2026-11-12 企画者「リーチは 楽しみたい」)
+    if (r === 3 && show.big) return void next((STORY_REACHES.some((d) => d.id === show.big?.id) ? STORY_RESULT_MS : LAST_REEL_MS) * k);
     next(step);
   }
 
@@ -1080,7 +1083,7 @@ export class SlotScene extends Phaser.Scene {
       audio.se('koBlast');
     } else if (r.show) {
       audio.se('back');
-      this.time.delayedCall(1400, () => this.lcdIdle());
+      this.time.delayedCall(STORY_RESULT_MS - 200, () => this.lcdIdle());
     } else this.lcdIdle();
   }
 
