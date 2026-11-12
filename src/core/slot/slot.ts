@@ -55,11 +55,12 @@ export const PAYTABLE: Record<PaySymbol, readonly [number, number, number]> = {
   // 2026-11-12 企画者「還元率を 下げたい」(1) → 4つ・5つは 半分【仮】
   rainbow7: [200, 300, 1000],
   gold7: [100, 150, 500],
-  diamond: [0.856, 2.134, 6.404],
-  bell: [0.639, 1.282, 3.415],
-  cherry: [0.34, 0.856, 2.134],
-  clover: [0.34, 0.639, 1.708],
-  star: [0.299, 0.639, 1.708],
+  // 2026-11-12 企画者「普通の 子役 当たっても 少なすぎる」→ 3つ そろいを BET の 1〜2倍に(4つ・5つは そのまま)。そのぶん 当たる 回数を 減らす(LOW_DAMP)【仮】
+  diamond: [2, 2.134, 6.404],
+  bell: [1.5, 1.5, 3.415],
+  cherry: [1, 1, 2.134],
+  clover: [1, 1, 1.708],
+  star: [1, 1, 1.708],
 };
 /**
  * 配当の 倍率に かける 数【仮】。王冠を 1リール 1個までに した(2026-11-10)ので 通常配当が 少し 下がった →
@@ -162,7 +163,8 @@ export function spinGrid(rng: Rng, probs: Record<BaseSymbol, number> = symbolPro
 /** 当たる 回数を 減らす 小さい 図柄(企画者 2026-11-12) */
 export const LOW_SYMBOLS: readonly PaySymbol[] = ['cherry', 'clover', 'star', 'bell'];
 /** 小さい 図柄の 当たりを 消す 割合【仮】(当たる 回数が 約 1 - LOW_DAMP 倍に なる) */
-export const LOW_DAMP = 0.45;
+// 2026-11-12 小さい 当たりの 配当を 上げた ぶん 0.45 → 0.7
+export const LOW_DAMP = 0.7;
 /** 小さい 図柄の 4つ・5つ そろいを 3つ そろいに する 割合【仮】 */
 export const LONG_DAMP = 0.9;
 

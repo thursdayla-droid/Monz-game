@@ -17,7 +17,7 @@ describe('MONZ SLOT 243WAYS', () => {
     const r = evaluate(grid, 100);
     const c = r.wins.find((w) => w.symbol === 'cherry')!;
     expect(c).toMatchObject({ length: 3, ways: 4 });
-    expect(c.raw).toBeCloseTo(100 * 0.34 * PAY_SCALE * 4);
+    expect(c.raw).toBeCloseTo(100 * 1 * PAY_SCALE * 4);
   });
 
   it('いちばん 長い 連続だけ(3連と 5連を 二重に 数えない)', () => {
@@ -32,8 +32,8 @@ describe('MONZ SLOT 243WAYS', () => {
     const grid: Grid = Array.from({ length: 5 }, (_, r) => (r < 3 ? ['star', 'clover', 'cherry'] : ['gold7', 'diamond', 'bell']) as SymbolId[]);
     const r = evaluate(grid, 10);
     expect(r.wins.map((w) => w.symbol).sort()).toEqual(['cherry', 'clover', 'star']);
-    // (2.99 + 3.4 + 3.4) × 1.0195 = 9.98 → 10(1つずつ 四捨五入すると 3+3+3 = 9 に なって しまう)
-    expect(r.win).toBe(10);
+    // 2026-11-12 3つ そろい BET の 1倍: (10 + 10 + 10) × 1.0195 = 30.585 → 31(1つずつ 四捨五入すると 10+10+10 = 30)
+    expect(r.win).toBe(31);
   });
 
   it('左端から でないと 当たらない・2連では 当たらない', () => {
