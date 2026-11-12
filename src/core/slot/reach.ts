@@ -204,7 +204,7 @@ export function planShow(res: SpinResult, bet: number, rng: Rng): SpinShow {
   }
   const lampOn = hot && rng() < 0.6;
   const lamp = lampOn ? (rng() < 0.4 ? 'pre' : 'post') : 'none';
-  return {
+  const out: SpinShow = {
     notice,
     noticeTier: tierOf(rng, hot),
     small,
@@ -222,4 +222,17 @@ export function planShow(res: SpinResult, bet: number, rng: Rng): SpinShow {
     bigVariant: big?.variants ? big.variants.indexOf(pickW(rng, big.variants, (v) => (bigSuccess ? v.winWeight : v.loseWeight))) : -1,
     ...crownStory(res, rng),
   };
+  // 2026-11-12 企画者「ステップアップは キョン・パンダ・カンガルー・ヒヨコ・チーターの 順番で」「発展するなら 始まる」
+  // → キャラの リーチが ある 時は その キャラの 段まで 必ず 進んで、そこから リーチが 始まる
+  const story = out.big ?? out.crownBig;
+  const at = story ? STEP_ORDER.indexOf(story.id) : -1;
+  if (at >= 0) out.notice = (at + 1) as NoticeLevel;
+  // うさぎK(順番に いない)の リーチの 時は ステップアップを 出さない(ちがう キャラで 止まって まぎらわしい ので)【仮】
+  else if (story) out.notice = 0;
+  // キャラの リーチが ない 時に、さいごの 段まで(チーター)進む ことは ない
+  else if (out.notice === 5) out.notice = 4;
+  return out;
 }
+
+/** ステップアップの キャラの 順番(企画者 2026-11-12)。STEP 1 キョンK → 5 チーターS */
+export const STEP_ORDER: readonly string[] = ['kyon', 'panda', 'ramen', 'golf', 'kanojo'];

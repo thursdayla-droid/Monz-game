@@ -6,7 +6,7 @@ import { pickWeighted, randomSeed, mulberry32, type Rng } from '../core/rng';
 import { BETS, CHEST_PAY, dealChests, FREE_ROWS, freeSpin, SYMBOL_WEIGHT, newBonus, newFree, pickChest, REELS, ROWS, SYMBOL_NAME, SYMBOLS, spin, type BonusState, type ChestContent, type FreeSpinResult, type FreeState, type SpinResult, type SymbolId } from '../core/slot/slot';
 import { UI_FONT } from '../ui/paint';
 import { fillSize, safeInsets } from '../ui/viewport';
-import { planShow, type SpinShow } from '../core/slot/reach';
+import { planShow, STEP_ORDER, type SpinShow } from '../core/slot/reach';
 import { CAB_FILE, CAB_KEY, cabinetLayout, cabinetTexture, type Rect } from './slotCabinet';
 import { COIN_ART_FILE, COIN_ART_KEY, coinFountain, cutIn, STEP_FILES, idleAnim, LAMP_FILES, lcdRays, NoticeLamp, PUSH_FILE, PUSH_KEY, pushButton, stepUp, tierText } from './slotFx';
 
@@ -1081,22 +1081,10 @@ export class SlotScene extends Phaser.Scene {
     return out;
   }
 
-  /** ステップアップに 使う 白黒の 1枚目(段の 数だけ)。この 回の キャラの リーチが あれば さいごは その キャラ */
+  /** ステップアップに 使う 白黒の 1枚目(段の 数だけ)。順番は キョンK・パンダY・カンガルーH・ヒヨコJ・チーターS(企画者 2026-11-12) */
   private stepFaces(show: SpinShow): string[] | undefined {
-    const ids = STORY_REACHES.filter((d) => this.grayFirst(d.id)).map((d) => d.id);
-    if (ids.length < 2) return undefined;
-    const target = [show.big?.id, show.crownBig?.id].find((id) => id && ids.includes(id));
-    const out: string[] = [];
-    let prev = '';
-    for (let i = 0; i < show.notice; i++) {
-      const last = i === show.notice - 1;
-      let id = last && target ? target : ids[Math.floor(Math.random() * ids.length)];
-      // となりと 同じ キャラに しない(さいごの キャラは 前の 段に 出さない)
-      for (let n = 0; n < 8 && (id === prev || (!last && id === target)); n++) id = ids[Math.floor(Math.random() * ids.length)];
-      out.push(this.grayFirst(id)!);
-      prev = id;
-    }
-    return out;
+    const keys = STEP_ORDER.slice(0, show.notice).map((id) => this.grayFirst(id));
+    return keys.every((k): k is string => !!k) ? keys : undefined;
   }
 
   /** キャラの リーチの 1枚目を 白黒に した 絵(なければ 作る)。1枚目の 絵が なければ undefined */
