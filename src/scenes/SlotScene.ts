@@ -50,7 +50,7 @@ const LCD_BGS = ['normal', 'red', 'gold'] as const;
 type LcdBg = (typeof LCD_BGS)[number];
 const lcdBgKey = (n: LcdBg) => `slot:lcd:${n}`;
 /** 届いた 説明の 絵(ボーナス・フリーゲームの 前。2026-11-12 企画者が 用意する) */
-const GUIDE_ART: readonly string[] = ['bonus'];
+const GUIDE_ART: readonly string[] = ['bonus', 'free'];
 /** 1枚絵の 下の 帯の 文字: 左下の 王冠ランプに かぶらない よう 右へ ずらす 量(点)・使える はば(絵の はばに 対する 割合) */
 const BAND_SHIFT = 56;
 const BAND_ROOM = 0.7;
@@ -1698,21 +1698,29 @@ export class SlotScene extends Phaser.Scene {
         : ['5×5 の 大きな リールで 回るよ', '', 'WILD は ほかの 図柄の かわりに なる', 'WILD は おわりまで その場に のこる', 'WILD が 出たら +1 SPIN', '', '王冠 3つで 回数が ふえる'];
     let titleY = H * 0.28;
     let bodyY = H * 0.48;
-    if (this.textures.exists(key)) {
+    // 説明の 文字(大きさを 先に はかる)
+    const art = this.textures.exists(key);
+    const body = this.text(W / 2, 0, (art ? lines.filter((l) => l) : lines).join('\n'), 26, '#ffffff', 5).setLineSpacing(art ? 6 : 10);
+    const bh = body.height;
+    if (art) {
       // 企画者の 背景の 絵(2026-11-12〜)。横 いっぱい・上に そろえる。上の あいた 所に 題、下の 床に 説明
       c.add(this.add.rectangle(W / 2, H / 2, W, H, 0x290f3a));
       const img = this.add.image(W / 2, 0, key).setOrigin(0.5, 0);
-      img.setScale(W / img.width);
+      // 説明は 絵の 下の 床に(フリーゲームの 絵は 5×5 の マスが 下まで ある ので さらに 下)。
+      // 画面が 短い 時は 絵を 少し 小さく して、説明と「タップで スタート」が 画面に 入る ように
+      const ratio = kind === 'free' ? 0.84 : 0.75;
+      const below = bh + 100;
+      img.setScale(Math.min(W / img.width, (H - below - 10) / (ratio * img.height)));
       c.add(img);
       titleY = img.displayHeight * 0.13;
-      bodyY = Math.min(img.displayHeight * 0.76, H - 300);
-      c.add(this.add.rectangle(W / 2, bodyY, W - 60, 280, 0x0d0614, 0.55));
+      bodyY = img.displayHeight * ratio + bh / 2 + 6;
+      c.add(this.add.rectangle(W / 2, bodyY, W - 60, bh + 24, 0x0d0614, 0.6));
     }
+    body.setY(bodyY);
     const t = this.text(W / 2, titleY, title, 50, '#ffd23a', 10);
     t.setShadow(0, 6, '#ff4ad8', 0, true, true);
-    const body = this.text(W / 2, bodyY, lines.join('\n'), 28, '#ffffff', 5).setLineSpacing(10);
     c.add([t, body]);
-    const tap = this.text(W / 2, Math.min(H * 0.9, bodyY + 230), this.autoNow ? '' : 'タップで スタート', 34, '#ffd23a', 8);
+    const tap = this.text(W / 2, Math.min(H - 30, bodyY + bh / 2 + 44), this.autoNow ? '' : 'タップで スタート', 34, '#ffd23a', 8);
     c.add(tap);
     this.tweens.add({ targets: tap, alpha: 0.35, duration: 520, yoyo: true, repeat: -1 });
     c.setAlpha(0);
