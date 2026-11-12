@@ -7,10 +7,11 @@ const fill = ['bell', 'cherry', 'clover', 'star'] as const;
 const grid = (cols: string[][]): Grid => Array.from({ length: 5 }, (_, r) => [0, 1, 2].map((i) => (cols[r]?.[i] ?? fill[(r + i) % 4]) as never));
 
 describe('MONZ SLOT リーチ', () => {
-  it('リーチに なる 図柄は レインボー7・ゴールド7・ダイヤ だけ・2リール から', () => {
+  it('リーチに なる 図柄は レインボー7・ゴールド7 だけ・2リール から(2026-11-12 ダイヤを 外した)', () => {
     expect(reachOf(grid([['gold7'], ['bell', 'gold7']]))).toEqual({ symbol: 'gold7', chain: 2 });
     expect(reachOf(grid([['bell'], ['bell']]))).toBeNull();
     expect(reachOf(grid([['diamond'], ['star']]))).toBeNull();
+    expect(reachOf(grid([['diamond'], ['diamond'], ['diamond']]))).toBeNull();
     expect(reachOf(grid([['diamond', 'rainbow7'], ['rainbow7'], ['rainbow7'], ['diamond']]))?.chain).toBe(3);
   });
 
@@ -24,7 +25,7 @@ describe('MONZ SLOT リーチ', () => {
     }
   });
 
-  it('回数(20万回転): 小さい リーチ 約10回に1回・キャラの リーチ 約45回に1回(企画者 2026-11-12: 7が 2個で キャラの リーチ)', () => {
+  it('回数(20万回転): 小さい リーチ 約100回に1回・キャラの リーチ 約45回に1回(企画者 2026-11-12: 7が 2個で キャラの リーチ・ダイヤは リーチ なし)', () => {
     const rng = mulberry32(77);
     const N = 200_000;
     let small = 0;
@@ -49,8 +50,8 @@ describe('MONZ SLOT リーチ', () => {
         if (s.notice) noticeMiss++;
       }
     }
-    expect(N / small).toBeGreaterThan(8);
-    expect(N / small).toBeLessThan(13);
+    expect(N / small).toBeGreaterThan(80);
+    expect(N / small).toBeLessThan(120);
     expect(N / big).toBeGreaterThan(35);
     expect(N / big).toBeLessThan(55);
     const rate = (id: string) => byType[id].win / byType[id].n;
