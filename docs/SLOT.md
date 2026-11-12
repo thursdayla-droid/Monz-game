@@ -334,7 +334,7 @@
 - 流れ（アライグマR だけ 企画者の 絵・ほかは 仮）：1 電話「プルルルル…」「もしもし？ みんな 集合〜！」→ 2「みんな 来た！」全員が 集まる → 3「バーベキューだ！！」「カンパーイ！！」→ 当たり「プレミア 確定！！ 大当たり！」（コインが あふれる・大きく ゆれる）。
 - `BIG_REACHES` の premium（loseWeight 0）・王冠は `CROWN_PICK` premium。ほかの キャラの 当たる 確率は そのまま（`NO_STORY_LOSE` 365）。
 - アライグマR の 絵：design/slot/chara/araigumar_original.png → public/assets/slot/chara_araigumar.webp。1枚絵は reach/premium_1〜3・win。
-- 2026-11-12 企画者「最後の 絵に 大当たりと つけよう」→ 当たりの 絵(premium_win)には 絵の 中に「大当たり」の 文字。届いたら ゲームの 帯と 文字は 出さない。
+- 2026-11-12 企画者「最後の 絵に 大当たりと つけよう」→ 当たりの 絵(premium_win)には 絵の 中に「大当たり」の 文字。ゲームの 帯と 文字は 出さない。2026-11-12 当たりの 絵が 届いた（PR当たり）。
 
 ## キャラの リーチの 足し方（2026-11-11〜）
 - `src/scenes/SlotScene.ts` の `STORY_REACHES` に 1人 足す（絵・題・3枚の 文字・当たり/ハズレの 文字）＋ `src/core/slot/reach.ts` の `BIG_REACHES` に 強さを 足す。

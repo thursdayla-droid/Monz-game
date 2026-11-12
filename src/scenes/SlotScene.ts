@@ -203,6 +203,7 @@ const STORY_REACHES: StoryReach[] = [
     id: 'premium',
     chara: 'slot:chara:araigumar',
     charaFile: 'assets/slot/chara_araigumar.webp',
+    art: ['win'],
     color: '#ffd23a',
     panels: [
       { title: 'プルルルル…', line: '「もしもし？ みんな 集合〜！」', chara: true, prop: '📱', bg: 0x3a1a08 },
