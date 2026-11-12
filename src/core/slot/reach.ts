@@ -90,14 +90,14 @@ export const BIG_REACHES: readonly BigReachType[] = [
     id: 'kanojo',
     name: 'チーターSの 彼女の機嫌リーチ',
     winWeight: 5,
-    loseWeight: 1,
+    loseWeight: 1.25,
     // 2026-11-12 企画者「仕事と 私は やめよう」→ 質問 5つ(画面の STORY_REACHES と 同じ 数)
     variants: [1, 2, 3, 4, 5].map((i) => ({ name: `質問${i}【仮】`, winWeight: 1, loseWeight: 1 })),
   },
 ];
 /** 7が 2個で ハズレの 時に キャラの リーチを 出さない(小さい リーチ だけ)重み */
-// 2026-11-12 7の 出やすさを かえた ので 225 → 137(キャラごとの 当たる 確率を そのままに)
-export const NO_STORY_LOSE = 137;
+// 2026-11-12 7の 出やすさを かえた ので 合わせ直した(キャラごとの 当たる 確率を そのままに)
+export const NO_STORY_LOSE = 231;
 /**
  * 王冠が 2つ 出た 時(さいごの リールより 前)の BONUS リーチで、キャラの リーチを 出す 割合(企画者 2026-11-12「2」)。
  * 当たり = 王冠が 3つ 以上(宝箱・フリーゲーム)。王冠の リーチは 約16回転に 1回 あるので 一部 だけ【仮：30%】。
