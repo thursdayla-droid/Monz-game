@@ -346,6 +346,7 @@ export class SlotScene extends Phaser.Scene {
         this.freeHud('つづきから！');
         this.winText.setText(savedFree.total.toLocaleString()).setColor('#ffd23a');
         this.startFreeFx();
+        audio.playBgm('slotBonus');
         this.freeLoop(900);
       });
       return;
@@ -355,6 +356,7 @@ export class SlotScene extends Phaser.Scene {
     if (saved) {
       this.busy = true;
       this.bonus = { ...saved, chests: dealChests(this.rng), over: false };
+      audio.playBgm('slotBonus');
       this.time.delayedCall(400, () => this.bonusRound(true));
     }
   }
@@ -1434,6 +1436,7 @@ export class SlotScene extends Phaser.Scene {
     this.winText.setText('0').setColor('#ffd23a');
     this.setRows(FREE_ROWS);
     this.freeHud(`${games}回 スタート！`);
+    audio.playBgm('slotBonus');
     // 2026-11-12 企画者「始まる 前に 説明」
     this.guide('free', () => {
       this.startFreeFx();
@@ -1644,6 +1647,7 @@ export class SlotScene extends Phaser.Scene {
     if (!f) return;
     saveFree(undefined);
     this.stopFreeFx();
+    audio.playBgm('slot');
     // 3段に もどして から 液晶に 結果
     this.setRows(ROWS);
     const h = this.lcdBox.h;
@@ -1671,6 +1675,8 @@ export class SlotScene extends Phaser.Scene {
     saveBonus(this.bonus);
     this.clearGlow();
     this.winText.setText('0').setColor('#ffd23a');
+    // 2026-11-12 企画者「フリーゲームと 宝箱ボーナスの BGM は これ」
+    audio.playBgm('slotBonus');
     // 2026-11-12 企画者「ボーナスと フリーゲームが 始まる 前に 説明」
     this.guide('bonus', () => this.bonusRound(false));
   }
@@ -1864,6 +1870,7 @@ export class SlotScene extends Phaser.Scene {
     this.winText.setText(b.total.toLocaleString()).setColor('#ffd23a');
     this.bonus = undefined;
     this.time.delayedCall(1800, () => {
+      audio.playBgm('slot');
       this.busy = false;
       this.lcdIdle();
       this.lamp?.show(true);

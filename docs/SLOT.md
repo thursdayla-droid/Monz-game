@@ -323,6 +323,7 @@
 
 ## 曲（2026-11-12 企画者）
 - スロット画面の BGM は 企画者の 曲（music/slot.m4a → public/assets/bgm/slot.mp3・`slot`）。
+- フリーゲームと 宝箱ボーナスの 間は 企画者の 別の 曲（music/slot_bonus.m4a → slot_bonus.mp3・`slotBonus`）。おわったら もとの 曲に。
 
 ## キャラの リーチの 足し方（2026-11-11〜）
 - `src/scenes/SlotScene.ts` の `STORY_REACHES` に 1人 足す（絵・題・3枚の 文字・当たり/ハズレの 文字）＋ `src/core/slot/reach.ts` の `BIG_REACHES` に 強さを 足す。

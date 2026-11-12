@@ -13,9 +13,10 @@
  * - battle2: STREET KING 11〜20戦目の バトル(2026-11-07 企画者「11戦目から20戦目までバトルBGMはこれで」。元は music/battle2_ch3-4.m4a)
  * - mahjong: 麻雀クエストの 対戦(2026-11-09 企画者。元は music/mahjong_battle.m4a)
  * - slot: ROYAL JACKPOT(2026-11-12 企画者「スロットの BGM は これ」。元は music/slot.m4a)
+ * - slotBonus: ROYAL JACKPOT の フリーゲームと 宝箱ボーナス(2026-11-12 企画者。元は music/slot_bonus.m4a)
  * - battle: 「Combat Pulse」バトル(MONZ RUMBLE・オートバトルなど)(2026-11-04 企画者「これは戦闘BGMにしてください」。元は music/battle_Combat_Pulse.m4a)
  */
-export type BgmName = 'main' | 'home' | 'card' | 'dash' | 'slugger' | 'mythclash' | 'mythclashPack' | 'battle' | 'battle2' | 'battle3' | 'ending' | 'mahjong' | 'slot';
+export type BgmName = 'main' | 'home' | 'card' | 'dash' | 'slugger' | 'mythclash' | 'mythclashPack' | 'battle' | 'battle2' | 'battle3' | 'ending' | 'mahjong' | 'slot' | 'slotBonus';
 
 export interface BgmFile {
   file: string;
@@ -41,4 +42,5 @@ export const BGM_FILES: Record<BgmName, BgmFile> = {
   mahjong: { file: 'mahjong.mp3', loop: true, volume: 0.6 },
   // 元の 曲が 少し 大きいので 麻雀と 同じくらいに【仮】
   slot: { file: 'slot.mp3', loop: true, volume: 0.45 },
+  slotBonus: { file: 'slot_bonus.mp3', loop: true, volume: 0.45 },
 };

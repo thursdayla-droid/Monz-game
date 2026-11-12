@@ -152,7 +152,7 @@ for p in sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/bgm/*.m
     # MYTHCLASH の確認用ページには、MYTHCLASH の曲と効果音だけ
     if MJ and not (p.startswith('assets/se/') or p.endswith('mahjong.mp3')):
         continue
-    if SLOT and not (p.startswith('assets/se/') or p.endswith('/slot.mp3')):
+    if SLOT and not (p.startswith('assets/se/') or p.endswith(('/slot.mp3', '/slot_bonus.mp3'))):
         continue
     if p in BGM_NOT_YET or (MYTH and 'mythclash' not in p) or (B3D and 'battle' not in p and not (STORY and 'ending' in p) and not p.startswith('assets/se/')) or (B3D and not STORY and p.endswith(('battle2.mp3', 'battle3.mp3'))):
         continue
