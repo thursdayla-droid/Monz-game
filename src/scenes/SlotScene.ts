@@ -61,7 +61,7 @@ interface StoryReach {
   /** 題の 色 */
   color: string;
   /** 1枚絵(3枚)。title: 大きい 文字・line: セリフ・chara: キャラを 出す・prop: 仮の 絵の かわりの 絵文字・bg: 仮の 背景の 色 */
-  panels: { title?: string; line?: string; chara?: boolean; prop?: string; bg?: number }[];
+  panels: { title?: string; line?: string; chara?: boolean; prop?: string; bg?: number; titleSide?: 'left' | 'right' }[];
   /** 結果。icon: 仮の 絵文字・show: ハズレでも 見せるか */
   /**
    * 届いた 1枚絵(public/assets/slot/reach/<id>_<名前>.webp)。名前: 1・2・3(何枚目)・2-1(2枚目の 1番目の 種類)・win・lose
@@ -101,7 +101,8 @@ const STORY_REACHES: StoryReach[] = [
     color: '#7de8ff',
     panels: [
       { line: '風呂…\nめんどくさいな〜', chara: true },
-      { title: 'お風呂 わいたよ〜', line: '入る…？ 入らない…？', prop: '🛁', bg: 0x0a2a3a },
+      // 2026-11-12 企画者「お風呂 わいたよ〜 が かぶってる」→ 絵の 右(ドアの 上)に
+      { title: 'お風呂 わいたよ〜', line: '入る…？ 入らない…？', prop: '🛁', bg: 0x0a2a3a, titleSide: 'right' },
       { line: '入るか…！？', prop: '🛁❓', bg: 0x0a2a3a },
     ],
     win: { text: '風呂に 入った！！ 当たり！', icon: '🐼🛁✨' },
@@ -1012,10 +1013,14 @@ export class SlotScene extends Phaser.Scene {
       if (hasArt) {
         // 絵が ある 時: 文字は 上と 下の 帯に 1行で(絵の キャラに かぶらない)
         const bandH = h * 0.17;
-        if (pd.title) items.push(this.add.rectangle(0, -h / 2 + 4 + bandH / 2, w - 8, bandH, 0x000000, 0.55));
+        // titleSide: 題を 左か 右に 寄せる(絵の キャラに かぶる 時)
+        const side = pd.titleSide === 'right' ? 1 : pd.titleSide === 'left' ? -1 : 0;
+        const tw = side ? w * 0.48 : w - 8;
+        const tx0 = side * (w / 2 - 4 - tw / 2);
+        if (pd.title) items.push(this.add.rectangle(tx0, -h / 2 + 4 + bandH / 2, tw, bandH, 0x000000, 0.55));
         if (pd.line) items.push(this.add.rectangle(0, h / 2 - 4 - bandH / 2, w - 8, bandH, 0x000000, 0.55));
         const fit = (t: string, max: number, room = 0.9) => Math.min(max, bandH * 0.62, (w * room) / t.length);
-        if (pd.title) items.push(this.text(0, -h / 2 + 4 + bandH / 2, pd.title, fit(pd.title, 34), color, 6));
+        if (pd.title) items.push(this.text(tx0, -h / 2 + 4 + bandH / 2, pd.title, Math.min(fit(pd.title, 34), (tw * 0.9) / pd.title.length), color, 6));
         if (pd.line) {
           const one = pd.line.replace(/\n/g, ' ');
           const y = h / 2 - 4 - bandH / 2;
@@ -1032,7 +1037,8 @@ export class SlotScene extends Phaser.Scene {
         items.push(t);
       }
       // 漫画の「ゴゴゴ」みたいな 文字(2026-11-12 企画者「漫画の ズズズ みたいな ワクワク感」)。2枚目 ゴゴゴ・3枚目 ドドド
-      if (n > 0) items.push(...this.mangaSfx(n === def.panels.length - 1 ? 'ドドドド' : 'ゴゴゴゴ', n === def.panels.length - 1));
+      // 題を 右に 寄せた 1枚は ゴゴゴを 左に
+      if (n > 0) items.push(...this.mangaSfx(n === def.panels.length - 1 ? 'ドドドド' : 'ゴゴゴゴ', n === def.panels.length - 1, def.panels[n].titleSide === 'right' ? -1 : 1));
       this.lcdShow(items);
       audio.se(n === 0 ? 'mcCutin' : n === def.panels.length - 1 ? 'mcThunder' : 'mcSelect');
       if (n === def.panels.length - 1) this.cameras.main.shake(220, 0.004);
@@ -1045,11 +1051,11 @@ export class SlotScene extends Phaser.Scene {
    * 漫画の 書き文字(ゴゴゴ・ドドド)。液晶の 左右に たて書きで 1文字ずつ 出て、ずっと ふるえる。
    * big: さいごの 1枚(左右 両方・大きく)
    */
-  private mangaSfx(word: string, big: boolean): Phaser.GameObjects.GameObject[] {
+  private mangaSfx(word: string, big: boolean, side1 = 1): Phaser.GameObjects.GameObject[] {
     const { w, h } = this.lcdBox;
     const out: Phaser.GameObjects.GameObject[] = [];
     const size = Math.round(h * (big ? 0.15 : 0.13));
-    const sides = big ? [-1, 1] : [1];
+    const sides = big ? [-1, 1] : [side1];
     sides.forEach((side, si) => {
       [...word].forEach((ch, i) => {
         const x = side * (w / 2 - size * 0.75) + (i % 2 ? -side * size * 0.18 : 0);
