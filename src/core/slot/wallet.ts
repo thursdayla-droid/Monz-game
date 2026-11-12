@@ -103,19 +103,22 @@ export class SlotWallet {
   }
 }
 
-/** MONZ コインを はらう 側(LifeRecord) */
+/**
+ * MONZ コインを はらう 側(LifeRecord)。
+ * 2026-11-12 企画者「コインは 売る 予定」→ ロイヤルコインに できるのは ゲームで 増やした MONZ コインだけ(お金で 買った ぶんは 使えない)
+ */
 export interface MonzPurse {
-  readonly coins: number;
-  spend(n: number): boolean;
+  readonly earnedCoins: number;
+  spendEarned(n: number): boolean;
 }
 
 /**
  * コイン交換: MONZ コイン monz 枚 → スロットの コイン monz × EXCHANGE_RATE 枚。
- * MONZ コインが 足りなければ 何も しないで false。逆(スロット → MONZ)は ない
+ * ゲームで 増やした MONZ コインが 足りなければ 何も しないで false(お金で 買った ぶんは 使わない)。逆(スロット → MONZ)は ない
  */
 export function exchangeCoins(purse: MonzPurse, wallet: SlotWallet, monz: number): boolean {
   const m = Math.floor(monz);
-  if (!(m > 0) || !purse.spend(m)) return false;
+  if (!(m > 0) || !purse.spendEarned(m)) return false;
   wallet.add(m * EXCHANGE_RATE);
   return true;
 }

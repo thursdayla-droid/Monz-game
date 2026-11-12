@@ -22,7 +22,7 @@ describe('ROYAL JACKPOT 専用の コイン(企画者 2026-11-12)', () => {
   it('MONZ コイン → スロットの コインは 買える・足りなければ 何も しない', () => {
     const w = new SlotWallet(memStore());
     let monz = 1500;
-    const purse = { get coins() { return monz; }, spend: (n: number) => (n > monz ? false : ((monz -= n), true)) };
+    const purse = { get earnedCoins() { return monz; }, spendEarned: (n: number) => (n > monz ? false : ((monz -= n), true)) };
     expect(exchangeCoins(purse, w, 1000)).toBe(true);
     expect([monz, w.coins]).toEqual([500, 1000 * EXCHANGE_RATE]);
     expect(exchangeCoins(purse, w, 1000)).toBe(false);
@@ -51,5 +51,26 @@ describe('ROYAL JACKPOT 専用の コイン(企画者 2026-11-12)', () => {
     expect(new SlotWallet(s).coins).toBe(0);
     s.setItem(SLOT_WALLET_KEY, JSON.stringify({ coins: -5, items: { a: 'x' } }));
     expect(new SlotWallet(s).coins).toBe(0);
+  });
+});
+
+describe('お金で 買った MONZ コインは ロイヤルコインに できない(企画者 2026-11-12「コインは 売る 予定」)', () => {
+  it('買った ぶんは 交換に 使えない・ふつうの 買い物では 買った ぶんから 先に へる・古い データは 全部 ゲームの コイン', async () => {
+    const { LifeRecord, newLife, migrateLife } = await import('../lifeSave');
+    const r = new LifeRecord({ ...newLife(1), coins: 1000, paidCoins: 0 });
+    r.addPaid(500);
+    expect([r.coins, r.paidCoins, r.earnedCoins]).toEqual([1500, 500, 1000]);
+    const w = new SlotWallet(memStore());
+    expect(exchangeCoins(r, w, 10000)).toBe(false);
+    expect(exchangeCoins(r, w, 1000)).toBe(true);
+    expect([r.coins, r.paidCoins, r.earnedCoins, w.coins]).toEqual([500, 500, 0, 1000]);
+    expect(exchangeCoins(r, w, 100)).toBe(false);
+    // ふつうの 買い物は 買った ぶんから
+    r.add(300);
+    expect(r.spend(600)).toBe(true);
+    expect([r.coins, r.paidCoins, r.earnedCoins]).toEqual([200, 0, 200]);
+    // 古い データ(paidCoins が ない)
+    const old = migrateLife({ ...newLife(1), coins: 777, paidCoins: undefined });
+    expect([old?.coins, old?.paidCoins]).toEqual([777, 0]);
   });
 });

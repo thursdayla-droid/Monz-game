@@ -88,6 +88,12 @@ export interface PlacedItem {
 export interface LifeData {
   version: number;
   coins: number;
+  /**
+   * coins の うち お金で 買った ぶん(2026-11-12 企画者「コインは 売る 予定」)。0 〜 coins。
+   * 使う 時は 買った ぶんから 先に へる。ロイヤルコイン(スロット)に 交換 できるのは coins − paidCoins(ゲームで 増やした ぶん)だけ。
+   * 古い データには ない → 0(今 ある コインは 全部 ゲームで 増やした もの)
+   */
+  paidCoins: number;
   /** 今お世話画面にいるMONZ */
   activeMonz: string;
   monz: MonzData[];
@@ -151,6 +157,7 @@ export const START_COINS = 10000;
 export const newLife = (now = Date.now(), species: SpeciesId = 'bunk'): LifeData => ({
   version: LIFE_VERSION,
   coins: 0,
+  paidCoins: 0,
   activeMonz: 'm1',
   monz: [newMonz(species, 'm1', now)],
   inventory: { owned: [], placed: [] },
@@ -244,6 +251,7 @@ export function migrateLife(raw: unknown, now = Date.now()): LifeData | null {
   return {
     version: LIFE_VERSION,
     coins: Math.floor(num(d.coins, 0)),
+    paidCoins: Math.min(Math.floor(num(d.coins, 0)), Math.max(0, Math.floor(num(d.paidCoins, 0)))),
     activeMonz: monz.some((m) => m.uid === d.activeMonz) ? String(d.activeMonz) : monz[0].uid,
     monz,
     inventory: fixInventory(inv),
@@ -429,6 +437,11 @@ export class LifeRecord {
   /** データを変えて保存する(save=false なら保存はあとで) */
   private update(patch: Partial<LifeData>, monzPatch?: Partial<MonzData>, save = true): boolean {
     const uid = this.monz.uid;
+    // コインが へったら 買った ぶん(paidCoins)から 先に へらす。いつも 0 〜 coins に おさめる
+    if (patch.coins !== undefined && patch.paidCoins === undefined) {
+      const spent = Math.max(0, this.data.coins - patch.coins);
+      patch = { ...patch, paidCoins: Math.min(patch.coins, Math.max(0, (this.data.paidCoins ?? 0) - spent)) };
+    }
     this.data = { ...this.data, ...patch, monz: monzPatch ? this.data.monz.map((m) => (m.uid === uid ? { ...m, ...monzPatch } : m)) : (patch.monz ?? this.data.monz) };
     return save ? saveLife(this.data, this.store) : true;
   }
@@ -443,6 +456,35 @@ export class LifeRecord {
   spend(n: number): boolean {
     if (n > this.data.coins) return false;
     this.add(-n);
+    return true;
+  }
+
+  /** お金で 買った MONZ コイン(2026-11-12〜。お金で 売る 時に 使う) */
+  get paidCoins(): number {
+    return Math.min(this.data.coins, this.data.paidCoins ?? 0);
+  }
+
+  /** ゲームで 増やした MONZ コイン(ロイヤルコインに 交換 できる ぶん) */
+  get earnedCoins(): number {
+    return this.data.coins - this.paidCoins;
+  }
+
+  /** お金で 買った コインを 足す(ストアの 買い物が 終わった 時に よぶ) */
+  addPaid(n: number): void {
+    const v = Math.floor(n);
+    if (!(v > 0)) return;
+    this.update({ coins: this.data.coins + v, paidCoins: this.paidCoins + v });
+    this.emit({ type: 'coins', coins: this.data.coins, delta: v });
+  }
+
+  /**
+   * ゲームで 増やした コインだけ 使う(ロイヤルコインへの 交換)。買った ぶんは へらさない。足りなければ false
+   */
+  spendEarned(n: number): boolean {
+    const v = Math.floor(n);
+    if (!(v > 0) || v > this.earnedCoins) return false;
+    this.update({ coins: this.data.coins - v, paidCoins: this.paidCoins });
+    this.emit({ type: 'coins', coins: this.data.coins, delta: -v });
     return true;
   }
 

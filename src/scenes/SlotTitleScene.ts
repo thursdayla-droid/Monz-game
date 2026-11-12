@@ -128,7 +128,8 @@ export class SlotTitleScene extends Phaser.Scene {
 
   private refresh(): void {
     this.slotText.setText(this.wallet.coins.toLocaleString());
-    this.monzText.setText(`MONZ コイン ${this.life.coins.toLocaleString()}`);
+    // 交換 できるのは ゲームで 増やした MONZ コインだけ(お金で 買った ぶんは のぞく。2026-11-12)
+    this.monzText.setText(`交換できる MONZ コイン ${this.life.earnedCoins.toLocaleString()}`);
   }
 
   private play(): void {
@@ -207,10 +208,10 @@ export class SlotTitleScene extends Phaser.Scene {
     const H = this.H;
     const y0 = H / 2 + 40 - H * 0.36 + 140;
     const info = this.text(W / 2, y0, '', 24, '#ffffff', 4);
-    const show = () => info.setText(`MONZ コイン ${this.life.coins.toLocaleString()}\n${SLOT_COIN_NAME} ${this.wallet.coins.toLocaleString()}`);
+    const show = () => info.setText(`交換できる MONZ コイン ${this.life.earnedCoins.toLocaleString()}\n${SLOT_COIN_NAME} ${this.wallet.coins.toLocaleString()}`);
     show();
     c.add(info);
-    c.add(this.text(W / 2, y0 + 70, `MONZ コイン 1枚 → ${SLOT_COIN_NAME} ${EXCHANGE_RATE}枚\n${SLOT_COIN_NAME}は MONZ コインに もどせません`, 20, '#d8c8e8', 3));
+    c.add(this.text(W / 2, y0 + 70, `MONZ コイン 1枚 → ${SLOT_COIN_NAME} ${EXCHANGE_RATE}枚\n${SLOT_COIN_NAME}は MONZ コインに もどせません${this.life.paidCoins > 0 ? '\nお金で 買った MONZ コインは 交換 できません' : ''}`, 20, '#d8c8e8', 3));
     EXCHANGE_PACKS.forEach((m, i) => {
       const b = this.button(W / 2, y0 + 190 + i * 130, `${m.toLocaleString()} MONZ → ${(m * EXCHANGE_RATE).toLocaleString()}`, 0x2a9df4, 30, () => {
         if (exchangeCoins(this.life, this.wallet, m)) {
