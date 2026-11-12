@@ -1702,6 +1702,7 @@ export class SlotScene extends Phaser.Scene {
     const art = this.textures.exists(key);
     const body = this.text(W / 2, 0, (art ? lines.filter((l) => l) : lines).join('\n'), 26, '#ffffff', 5).setLineSpacing(art ? 6 : 10);
     const bh = body.height;
+    let box: Phaser.GameObjects.Rectangle | undefined;
     if (art) {
       // 企画者の 背景の 絵(2026-11-12〜)。横 いっぱい・上に そろえる。上の あいた 所に 題、下の 床に 説明
       c.add(this.add.rectangle(W / 2, H / 2, W, H, 0x290f3a));
@@ -1714,7 +1715,8 @@ export class SlotScene extends Phaser.Scene {
       c.add(img);
       titleY = img.displayHeight * 0.13;
       bodyY = img.displayHeight * ratio + bh / 2 + 6;
-      c.add(this.add.rectangle(W / 2, bodyY, W - 60, bh + 24, 0x0d0614, 0.6));
+      box = this.add.rectangle(W / 2, bodyY, W - 60, bh + 24, 0x0d0614, 0.6);
+      c.add(box);
     }
     body.setY(bodyY);
     const t = this.text(W / 2, titleY, title, 50, '#ffd23a', 10);
@@ -1722,6 +1724,17 @@ export class SlotScene extends Phaser.Scene {
     c.add([t, body]);
     const tap = this.text(W / 2, Math.min(H - 30, bodyY + bh / 2 + 44), this.autoNow ? '' : 'タップで スタート', 34, '#ffd23a', 8);
     c.add(tap);
+    // 2026-11-12 企画者「暗い 四角の 中に 説明が 入って ない」(iPhone)→ 文字の 形が あとから 変わっても 四角と「タップで スタート」を 合わせ直す
+    const fit = () => {
+      if (!body.active) return;
+      body.updateText();
+      const h2 = body.height;
+      box?.setScale(1, (h2 + 24) / (bh + 24));
+      tap.setY(Math.min(H - 30, bodyY + h2 / 2 + 44));
+    };
+    fit();
+    this.time.delayedCall(200, fit);
+    this.time.delayedCall(800, fit);
     this.tweens.add({ targets: tap, alpha: 0.35, duration: 520, yoyo: true, repeat: -1 });
     c.setAlpha(0);
     this.tweens.add({ targets: c, alpha: 1, duration: 220 });
