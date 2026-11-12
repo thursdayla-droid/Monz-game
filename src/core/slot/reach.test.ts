@@ -212,15 +212,15 @@ describe('王冠 2個の キャラの リーチ(企画者 2026-11-12「2」)', (
 });
 
 describe('ステップアップの 順番(企画者 2026-11-12)', () => {
-  it('キャラの リーチが ある 時は その キャラの 段まで・ない 時は 5段目(チーター)まで 進まない', async () => {
+  it('キャラの リーチが ある 時は その キャラの 段まで・ない 時は 6段目(チーター)まで 進まない', async () => {
     const { STEP_ORDER } = await import('./reach');
-    expect(STEP_ORDER).toEqual(['kyon', 'panda', 'ramen', 'golf', 'kanojo']);
+    expect(STEP_ORDER).toEqual(['kyon', 'panda', 'usagi', 'ramen', 'golf', 'kanojo']);
     for (let i = 1; i < 300_000; i++) {
       const rng = mulberry32(i);
       const s = planShow(spin(rng, 10), 10, rng);
       const story = s.big ?? s.crownBig;
       if (story) expect(s.notice).toBe(STEP_ORDER.indexOf(story.id) + 1);
-      else expect(s.notice).toBeLessThan(5);
+      else expect(s.notice).toBeLessThan(6);
     }
   }, 60_000);
 });

@@ -123,7 +123,7 @@ const TIER_WIN = [1, 2, 3, 2.5, 1];
 const TIER_LOSE = [6, 3, 1, 0.15, 0];
 
 /** 予告の 強さ(0 = なし)。1〜5 = ステップアップ予告の 段【仮：見た目と 割合は あとで 企画者と】 */
-export type NoticeLevel = 0 | 1 | 2 | 3 | 4 | 5;
+export type NoticeLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 export interface SpinShow {
   /** ステップアップ予告の 段(0 = 出ない) */
@@ -227,12 +227,10 @@ export function planShow(res: SpinResult, bet: number, rng: Rng): SpinShow {
   const story = out.big ?? out.crownBig;
   const at = story ? STEP_ORDER.indexOf(story.id) : -1;
   if (at >= 0) out.notice = (at + 1) as NoticeLevel;
-  // うさぎK(順番に いない)の リーチの 時は ステップアップを 出さない(ちがう キャラで 止まって まぎらわしい ので)【仮】
-  else if (story) out.notice = 0;
-  // キャラの リーチが ない 時に、さいごの 段まで(チーター)進む ことは ない
-  else if (out.notice === 5) out.notice = 4;
+  // キャラの リーチが ない 時は 5段目(ヒヨコJ)まで。6段目(チーターS)まで 進めば 必ず チーターの リーチ
   return out;
 }
 
-/** ステップアップの キャラの 順番(企画者 2026-11-12)。STEP 1 キョンK → 5 チーターS */
-export const STEP_ORDER: readonly string[] = ['kyon', 'panda', 'ramen', 'golf', 'kanojo'];
+/** ステップアップの キャラの 順番(企画者 2026-11-12)。STEP 1 キョンK → 6 チーターS */
+// 2026-11-12 企画者「2」→ うさぎK を パンダY と カンガルーH の 間に(6段)
+export const STEP_ORDER: readonly string[] = ['kyon', 'panda', 'usagi', 'ramen', 'golf', 'kanojo'];

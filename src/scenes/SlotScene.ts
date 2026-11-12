@@ -51,9 +51,9 @@ type LcdBg = (typeof LCD_BGS)[number];
 const lcdBgKey = (n: LcdBg) => `slot:lcd:${n}`;
 /** 届いた 説明の 絵(ボーナス・フリーゲームの 前。2026-11-12 企画者が 用意する) */
 const GUIDE_ART: readonly string[] = [];
-/** 1枚絵の 下の 帯の 文字: 左下の 王冠ランプに かぶらない よう 右へ ずらす 量・使える はば(液晶の はばに 対する 割合) */
-const BAND_SHIFT = 0.07;
-const BAND_ROOM = 0.74;
+/** 1枚絵の 下の 帯の 文字: 左下の 王冠ランプに かぶらない よう 右へ ずらす 量(点)・使える はば(絵の はばに 対する 割合) */
+const BAND_SHIFT = 92;
+const BAND_ROOM = 0.62;
 /** 企画者の キャラの リーチ(2026-11-11〜。1人 1つ) */
 interface StoryReach {
   id: string;
@@ -803,7 +803,7 @@ export class SlotScene extends Phaser.Scene {
     // ① ステップアップ予告(② 色)
     // 2026-11-12 企画者「ステップアップは 各リーチの 1枚目の 白黒で。発展するなら 始まる」
     // → 段ごとに ちがう キャラの 白黒。この 回に キャラの リーチが ある 時は さいごの 段が その キャラ(リーチで 色が つく)
-    if (show.notice) t += stepUp(this, this.lcd, this.lcdBox, show.notice, show.noticeTier, fast, this.stepFaces(show)) + 150;
+    if (show.notice) t += stepUp(this, this.lcd, this.lcdBox, show.notice, show.noticeTier, fast, this.stepFaces()) + 150;
     // ⑨ 連続演出は なくした(2026-11-12 企画者「連続演出とか 文字の 説明系は いらない」)
     this.time.delayedCall(Math.max(first, t + 300), () => this.stopNext(0, res, show));
   }
@@ -1001,7 +1001,8 @@ export class SlotScene extends Phaser.Scene {
       const vKey = v && def.variants!.panel === n ? `slot:reach:${def.id}:${n + 1}-${show.bigVariant + 1}` : '';
       const artKey = vKey && this.textures.exists(vKey) ? vKey : `slot:reach:${def.id}:${n + 1}`;
       const hasArt = this.textures.exists(artKey);
-      if (hasArt) items.push(this.reachArt(artKey));
+      const ab = this.artBox();
+      if (hasArt) items.push(...this.reachArt(artKey, ab));
       else {
         items.push(this.add.rectangle(0, 0, w - 8, h - 8, pd.bg ?? 0x120818, 0.6));
         if (pd.chara && this.textures.exists(def.chara)) {
@@ -1017,21 +1018,23 @@ export class SlotScene extends Phaser.Scene {
       }
       if (hasArt) {
         // 絵が ある 時: 文字は 上と 下の 帯に 1行で(絵の キャラに かぶらない)
-        const bandH = h * 0.17;
+        const bandH = Math.min(h * 0.17, 64);
+        const top = ab.cy - ab.h / 2;
+        const bot = ab.cy + ab.h / 2;
         // titleSide: 題を 左か 右に 寄せる(絵の キャラに かぶる 時)
         const side = pd.titleSide === 'right' ? 1 : pd.titleSide === 'left' ? -1 : 0;
-        const tw = side ? w * 0.48 : w - 8;
-        const tx0 = side * (w / 2 - 4 - tw / 2);
-        if (pd.title) items.push(this.add.rectangle(tx0, -h / 2 + 4 + bandH / 2, tw, bandH, 0x000000, 0.55));
-        if (pd.line) items.push(this.add.rectangle(0, h / 2 - 4 - bandH / 2, w - 8, bandH, 0x000000, 0.55));
-        const fit = (t: string, max: number, room = 0.9) => Math.min(max, bandH * 0.62, (w * room) / t.length);
-        if (pd.title) items.push(this.text(tx0, -h / 2 + 4 + bandH / 2, pd.title, Math.min(fit(pd.title, 34), (tw * 0.9) / pd.title.length), color, 6));
+        const tw = side ? ab.w * 0.48 : ab.w;
+        const tx0 = ab.cx + side * (ab.w / 2 - tw / 2);
+        if (pd.title) items.push(this.add.rectangle(tx0, top + bandH / 2, tw, bandH, 0x000000, 0.55));
+        if (pd.line) items.push(this.add.rectangle(ab.cx, bot - bandH / 2, ab.w, bandH, 0x000000, 0.55));
+        const fit = (t: string, max: number, room = 0.9) => Math.min(max, bandH * 0.62, (ab.w * room) / t.length);
+        if (pd.title) items.push(this.text(tx0, top + bandH / 2, pd.title, Math.min(fit(pd.title, 38), (tw * 0.9) / pd.title.length), color, 6));
         if (pd.line) {
           const one = pd.line.replace(/\n/g, ' ');
-          const y = h / 2 - 4 - bandH / 2;
+          const y = bot - bandH / 2;
           // 下の 帯は 左下の 王冠ランプに かぶらない よう 少し 右へ
-          const bx = w * BAND_SHIFT;
-          items.push(n === def.panels.length - 1 ? tierText(this, bx, y, one, fit(one, 32, BAND_ROOM), show.bigTier) : this.text(bx, y, one, fit(one, 26, BAND_ROOM), '#ffffff', 5));
+          const bx = ab.cx + BAND_SHIFT;
+          items.push(n === def.panels.length - 1 ? tierText(this, bx, y, one, fit(one, 36, BAND_ROOM), show.bigTier) : this.text(bx, y, one, fit(one, 30, BAND_ROOM), '#ffffff', 5));
         }
         pd = { ...pd, title: undefined, line: undefined };
       }
@@ -1043,7 +1046,7 @@ export class SlotScene extends Phaser.Scene {
       }
       // 漫画の「ゴゴゴ」みたいな 文字(2026-11-12 企画者「漫画の ズズズ みたいな ワクワク感」)。2枚目 ゴゴゴ・3枚目 ドドド
       // 題を 右に 寄せた 1枚は ゴゴゴを 左に
-      if (n > 0) items.push(...this.mangaSfx(n === def.panels.length - 1 ? 'ドドドド' : 'ゴゴゴゴ', n === def.panels.length - 1, def.panels[n].titleSide === 'right' ? -1 : 1));
+      if (n > 0) items.push(...this.mangaSfx(n === def.panels.length - 1 ? 'ドドドド' : 'ゴゴゴゴ', n === def.panels.length - 1, def.panels[n].titleSide === 'right' ? -1 : 1, hasArt ? ab : undefined));
       this.lcdShow(items);
       audio.se(n === 0 ? 'mcCutin' : n === def.panels.length - 1 ? 'mcThunder' : 'mcSelect');
       if (n === def.panels.length - 1) this.cameras.main.shake(220, 0.004);
@@ -1056,15 +1059,17 @@ export class SlotScene extends Phaser.Scene {
    * 漫画の 書き文字(ゴゴゴ・ドドド)。液晶の 左右に たて書きで 1文字ずつ 出て、ずっと ふるえる。
    * big: さいごの 1枚(左右 両方・大きく)
    */
-  private mangaSfx(word: string, big: boolean, side1 = 1): Phaser.GameObjects.GameObject[] {
-    const { w, h } = this.lcdBox;
+  private mangaSfx(word: string, big: boolean, side1 = 1, box?: { cx: number; cy: number; w: number; h: number }): Phaser.GameObjects.GameObject[] {
+    const { w, h } = box ?? this.lcdBox;
+    const ox = box?.cx ?? 0;
+    const oy = box?.cy ?? 0;
     const out: Phaser.GameObjects.GameObject[] = [];
-    const size = Math.round(h * (big ? 0.15 : 0.13));
+    const size = Math.round(Math.min(h * (big ? 0.15 : 0.13), box ? 70 : 999));
     const sides = big ? [-1, 1] : [side1];
     sides.forEach((side, si) => {
       [...word].forEach((ch, i) => {
-        const x = side * (w / 2 - size * 0.75) + (i % 2 ? -side * size * 0.18 : 0);
-        const y = -h * 0.3 + i * size * 0.92 + (side < 0 ? size * 0.4 : 0);
+        const x = ox + side * (w / 2 - size * 0.75) + (i % 2 ? -side * size * 0.18 : 0);
+        const y = oy - h * 0.3 + i * size * 0.92 + (side < 0 ? size * 0.4 : 0);
         const t = this.add
           .text(x, y, ch, { fontFamily: UI_FONT, fontSize: `${size}px`, fontStyle: '900', color: big ? '#ffe14a' : '#f2e6ff', stroke: '#2a0638', strokeThickness: Math.max(5, size * 0.16) })
           .setOrigin(0.5)
@@ -1082,9 +1087,10 @@ export class SlotScene extends Phaser.Scene {
   }
 
   /** ステップアップに 使う 白黒の 1枚目(段の 数だけ)。順番は キョンK・パンダY・カンガルーH・ヒヨコJ・チーターS(企画者 2026-11-12) */
-  private stepFaces(show: SpinShow): string[] | undefined {
-    const keys = STEP_ORDER.slice(0, show.notice).map((id) => this.grayFirst(id));
-    return keys.every((k): k is string => !!k) ? keys : undefined;
+  private stepFaces(): string[] | undefined {
+    const all = STEP_ORDER.map((id) => this.grayFirst(id));
+    // 段の 数の 目もりは 全部の キャラぶん(6つ)。出すのは 今の 段まで
+    return all.every((k): k is string => !!k) ? (all as string[]) : undefined;
   }
 
   /** キャラの リーチの 1枚目を 白黒に した 絵(なければ 作る)。1枚目の 絵が なければ undefined */
@@ -1110,13 +1116,26 @@ export class SlotScene extends Phaser.Scene {
   }
 
   /** リーチの 1枚絵を 液晶 いっぱいに(はみ出す 所は 切る) */
-  private reachArt(key: string): Phaser.GameObjects.Image {
-    const { w, h } = this.lcdBox;
-    const img = this.add.image(0, 0, key);
-    const kk = Math.max((w - 8) / img.width, (h - 8) / img.height);
+  private reachArt(key: string, box = this.artBox()): Phaser.GameObjects.GameObject[] {
+    const img = this.add.image(box.cx, box.cy, key);
+    const kk = Math.max(box.w / img.width, box.h / img.height);
     img.setScale(kk);
-    img.setCrop((img.width - (w - 8) / kk) / 2, (img.height - (h - 8) / kk) / 2, (w - 8) / kk, (h - 8) / kk);
-    return img;
+    img.setCrop((img.width - box.w / kk) / 2, (img.height - box.h / kk) / 2, box.w / kk, box.h / kk);
+    const frame = this.add.rectangle(box.cx, box.cy, box.w + 6, box.h + 6).setStrokeStyle(6, 0xffd23a);
+    return [img, frame];
+  }
+
+  /**
+   * リーチの 1枚絵を 出す 場所(液晶の まん中から 見た 位置)。2026-11-12 企画者「リーチの 画像が 小さい。もう少し 大きく」
+   * → 画面の 横 いっぱい・液晶の 下の はしに そろえて 上へ のばす(台の 王冠の 上まで)。4:3 の 絵が ほぼ 切れない
+   */
+  private artBox(): { cx: number; cy: number; w: number; h: number } {
+    const { x, y, w, h } = this.lcdBox;
+    const bw = W - 16;
+    const bottom = y + h - 4;
+    const top = Math.max(safeInsets(this).top + 70, bottom - bw * 0.75);
+    const bh = bottom - top;
+    return { cx: W / 2 - (x + w / 2), cy: top + bh / 2 - (y + h / 2), w: bw, h: bh };
   }
 
   /** 企画者の キャラの リーチの 結果(当たりの 絵・ハズレの 絵)【仮の 見た目】 */
@@ -1126,7 +1145,8 @@ export class SlotScene extends Phaser.Scene {
     const items: Phaser.GameObjects.GameObject[] = [];
     if (ok) this.setLcdBg('gold', 0.1);
     const artKey = `slot:reach:${def.id}:${ok ? 'win' : 'lose'}`;
-    if (this.textures.exists(artKey)) items.push(this.reachArt(artKey));
+    const ab = this.artBox();
+    if (this.textures.exists(artKey)) items.push(...this.reachArt(artKey, ab));
     else {
       items.push(this.add.rectangle(0, 0, w - 8, h - 8, ok ? 0xffd0ec : 0x3a2a2a, ok ? 0.35 : 0.6));
       const icon = this.text(0, -h * 0.06, r.icon, Math.min(110, h * 0.32), '#ffffff', 0);
@@ -1134,9 +1154,11 @@ export class SlotScene extends Phaser.Scene {
       icon.setScale(0.3);
       this.tweens.add({ targets: icon, scale: 1, duration: 320, ease: 'Back.easeOut' });
     }
-    if (this.textures.exists(artKey)) items.push(this.add.rectangle(0, h / 2 - 4 - h * 0.085, w - 8, h * 0.17, 0x000000, 0.55));
     const art = this.textures.exists(artKey);
-    items.push(this.text(art ? w * BAND_SHIFT : 0, art ? h / 2 - 4 - h * 0.085 : h * 0.33, r.text, Math.min(ok ? 40 : 34, art ? h * 0.1 : h * 0.1, (w * (art ? BAND_ROOM : 0.9)) / r.text.length), ok ? '#ffd23a' : '#d8c8e8', 8));
+    const bandH = Math.min(h * 0.17, 64);
+    const by = ab.cy + ab.h / 2 - bandH / 2;
+    if (art) items.push(this.add.rectangle(ab.cx, by, ab.w, bandH, 0x000000, 0.55));
+    items.push(this.text(art ? ab.cx + BAND_SHIFT : 0, art ? by : h * 0.33, r.text, Math.min(ok ? 42 : 36, art ? bandH * 0.62 : h * 0.1, ((art ? ab.w * BAND_ROOM : w * 0.9)) / r.text.length), ok ? '#ffd23a' : '#d8c8e8', 8));
     this.lcdShow(items);
     if (ok) {
       this.cameras.main.flash(260, 255, 230, 200);
