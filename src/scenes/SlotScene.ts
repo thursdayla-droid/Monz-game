@@ -50,7 +50,7 @@ const LCD_BGS = ['normal', 'red', 'gold'] as const;
 type LcdBg = (typeof LCD_BGS)[number];
 const lcdBgKey = (n: LcdBg) => `slot:lcd:${n}`;
 /** 届いた 説明の 絵(ボーナス・フリーゲームの 前。2026-11-12 企画者が 用意する) */
-const GUIDE_ART: readonly string[] = [];
+const GUIDE_ART: readonly string[] = ['bonus'];
 /** 1枚絵の 下の 帯の 文字: 左下の 王冠ランプに かぶらない よう 右へ ずらす 量(点)・使える はば(絵の はばに 対する 割合) */
 const BAND_SHIFT = 56;
 const BAND_ROOM = 0.7;
@@ -1691,22 +1691,28 @@ export class SlotScene extends Phaser.Scene {
     const dim = this.add.rectangle(W / 2, H / 2, W, H, 0x0d0614, 0.92).setInteractive();
     c.add(dim);
     const key = `slot:guide:${kind}`;
+    const title = kind === 'bonus' ? 'TREASURE CHALLENGE' : 'FREE GAME';
+    const lines =
+      kind === 'bonus'
+        ? ['宝箱を 1つ えらぼう', '', '大当たり・あたり → つぎの ラウンドへ', '終了の 宝箱が 出たら おしまい', '', 'どの 宝箱に 何が 入っているかは', '毎回 かわるよ']
+        : ['5×5 の 大きな リールで 回るよ', '', 'WILD は ほかの 図柄の かわりに なる', 'WILD は おわりまで その場に のこる', 'WILD が 出たら +1 SPIN', '', '王冠 3つで 回数が ふえる'];
+    let titleY = H * 0.28;
+    let bodyY = H * 0.48;
     if (this.textures.exists(key)) {
-      const img = this.add.image(W / 2, H / 2, key);
-      img.setScale(Math.min(W / img.width, H / img.height));
+      // 企画者の 背景の 絵(2026-11-12〜)。横 いっぱい・上に そろえる。上の あいた 所に 題、下の 床に 説明
+      c.add(this.add.rectangle(W / 2, H / 2, W, H, 0x290f3a));
+      const img = this.add.image(W / 2, 0, key).setOrigin(0.5, 0);
+      img.setScale(W / img.width);
       c.add(img);
-    } else {
-      const title = kind === 'bonus' ? 'TREASURE CHALLENGE' : 'FREE GAME';
-      const lines =
-        kind === 'bonus'
-          ? ['宝箱を 1つ えらぼう', '', '大当たり・あたり → つぎの ラウンドへ', '終了の 宝箱が 出たら おしまい', '', 'どの 宝箱に 何が 入っているかは', '毎回 かわるよ']
-          : ['5×5 の 大きな リールで 回るよ', '', 'WILD は ほかの 図柄の かわりに なる', 'WILD は おわりまで その場に のこる', 'WILD が 出たら +1 SPIN', '', '王冠 3つで 回数が ふえる'];
-      const t = this.text(W / 2, H * 0.28, title, 50, '#ffd23a', 10);
-      t.setShadow(0, 6, '#ff4ad8', 0, true, true);
-      const body = this.text(W / 2, H * 0.48, lines.join('\n'), 28, '#ffffff', 5).setLineSpacing(10);
-      c.add([t, body]);
+      titleY = img.displayHeight * 0.13;
+      bodyY = Math.min(img.displayHeight * 0.76, H - 300);
+      c.add(this.add.rectangle(W / 2, bodyY, W - 60, 280, 0x0d0614, 0.55));
     }
-    const tap = this.text(W / 2, H * 0.82, this.autoNow ? '' : 'タップで スタート', 34, '#ffd23a', 8);
+    const t = this.text(W / 2, titleY, title, 50, '#ffd23a', 10);
+    t.setShadow(0, 6, '#ff4ad8', 0, true, true);
+    const body = this.text(W / 2, bodyY, lines.join('\n'), 28, '#ffffff', 5).setLineSpacing(10);
+    c.add([t, body]);
+    const tap = this.text(W / 2, Math.min(H * 0.9, bodyY + 230), this.autoNow ? '' : 'タップで スタート', 34, '#ffd23a', 8);
     c.add(tap);
     this.tweens.add({ targets: tap, alpha: 0.35, duration: 520, yoyo: true, repeat: -1 });
     c.setAlpha(0);
