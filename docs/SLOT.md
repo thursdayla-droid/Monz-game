@@ -258,6 +258,9 @@
 
 - 2026-11-12 企画者「お風呂 わいたよ〜 が かぶってる」→ パンダY 2枚目の 題は 右（ドアの 上）・ゴゴゴは 左（`titleSide`）。
 
+## ワイルドの 絵（2026-11-12 企画者）
+- 元は design/slot/symbols/wild_original.png（紫の 背景を 消した wild.png）→ public/assets/slot/sym_wild.webp（256×256）。フリーゲームの ワイルド・残る ワイルドに 使う。
+
 ## 曲（2026-11-12 企画者）
 - スロット画面の BGM は 企画者の 曲（music/slot.m4a → public/assets/bgm/slot.mp3・`slot`）。
 

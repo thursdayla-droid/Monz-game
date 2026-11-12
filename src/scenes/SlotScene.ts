@@ -282,7 +282,8 @@ export class SlotScene extends Phaser.Scene {
 
   preload(): void {
     // 企画者の 図柄の 絵(メモリから 外されて いたら 読みなおす)
-    for (const s of SYMBOLS) if (!this.textures.exists(artKey(s))) this.load.image(artKey(s), assetUrl(artFile(s)));
+    // 2026-11-12 企画者の ワイルドの 絵(元は design/slot/symbols/wild_original.png)も
+    for (const s of [...SYMBOLS, 'wild' as const]) if (!this.textures.exists(artKey(s))) this.load.image(artKey(s), assetUrl(artFile(s)));
     // 企画者の 台の 背景(2026-11-10)
     if (!this.textures.exists(CAB_KEY)) this.load.image(CAB_KEY, assetUrl(CAB_FILE));
     if (!this.textures.exists(PUSH_KEY)) this.load.image(PUSH_KEY, assetUrl(PUSH_FILE));
