@@ -97,6 +97,7 @@ const STORY_REACHES: StoryReach[] = [
     id: 'panda',
     chara: 'slot:chara:panday',
     charaFile: 'assets/slot/chara_panday.webp',
+    art: ['1'],
     color: '#7de8ff',
     panels: [
       { title: '風呂キャンセルリーチ', line: '風呂…\nめんどくさいな〜', chara: true },
