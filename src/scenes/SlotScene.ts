@@ -1450,8 +1450,8 @@ export class SlotScene extends Phaser.Scene {
 
   private freeOne(): void {
     const f = this.free!;
-    // 2026-11-11 企画者「早くて 何が 起きてるか わからない」→ 回して いる 間は 前の 回数の まま 出す(止まって から へる・へらない)
-    this.freeShownLeft = f.left;
+    // 2026-11-12 企画者「回り 始める 時 残り 回数 減って 良い。ワイルド 出たら +1」→ 回り 始めに −1 を 見せる(ふえる 分は 止まって から)
+    this.freeShownLeft = f.left - 1;
     this.freeShownTotal = f.total;
     // 結果を 先に 決めて すぐ 保存(とちゅうで 閉じても コインは もらえる・やり直せない)
     const fr = freeSpin(f, this.rng);
@@ -1506,13 +1506,13 @@ export class SlotScene extends Phaser.Scene {
       this.cameras.main.shake(160, 0.004);
     }
     if (fr.added) for (const [r, i] of res.crownCells) this.cellGlow(r, i, true, 0xffd23a);
-    // まず 当たりを 見せる → つぎに 回数(へる・へらない・ふえる)を 大きく 出す
+    // まず 当たりを 見せる → つぎに ふえた 回数(ワイルド +1・王冠 +5)を 大きく 出す
     this.freeHud(res.win ? `+${res.win.toLocaleString()}` : '');
     const step2 = res.win || fr.newWilds.length ? 1600 : 800;
     this.time.delayedCall(step2, () => {
       this.freeShownLeft = undefined;
       // 2026-11-12 企画者「ワイルド へらない は やめよう。+1スピン」
-      const msg = fr.wildAdded ? `WILD ${fr.newWilds.length}こ！ +${fr.wildAdded} SPIN` : fr.added ? '' : 'のこり −1';
+      const msg = fr.wildAdded ? `WILD ${fr.newWilds.length}こ！ +${fr.wildAdded} SPIN` : '';
       this.freeHud(msg);
       if (fr.wildAdded) this.freeBanner(`WILD！\n+${fr.wildAdded} SPIN`, '#ffd23a');
       if (fr.added) {
