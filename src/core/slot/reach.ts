@@ -5,8 +5,8 @@ import { REELS, type Grid, type SpinResult, type SymbolId } from './slot';
  * MONZ SLOT の リーチと 予告(2026-11-10 企画者)。結果は 先に 決まって いて、ここでは 見せ方だけ を 決める
  * (払い戻し率は 変わらない)。
  * - リーチに なる 図柄【確定】: レインボー7・ゴールド7・ダイヤ
- * - 2段がまえ【確定】: 左から 2リール そろう → 小さい リーチ(3リール目が ゆっくり)・
- *   3リール そろう → 大きい リーチ(企画者の リーチ演出が 入る ところ。4・5リール目が ゆっくり)
+ * - 2026-11-12〜: 7が 左から 2リール そろう → キャラの リーチ(3リール目が ゆっくり・3リール目で 当たりか 決まる)。
+ *   ダイヤ・キャラの リーチが 出ない 時は 小さい リーチ(3リール目が ゆっくり)
  * - 予告【確定：入れる】: 回しはじめに「何か 来そう」。当たる 時に 出やすく、ハズレでも ときどき
  * - リーチ演出の 中身(7種類くらい)は 企画者が 考える【未確定】。今は 仮の 3段階(弱・中・強)
  */
@@ -46,50 +46,57 @@ export interface BigReachType {
   /** リーチの 中の 種類(ラーメン 3種類 など)。種類ごとに 当たりやすさが ちがう */
   variants?: readonly { name: string; winWeight: number; loseWeight: number }[];
 }
+/**
+ * 2026-11-12 企画者「7が 2個 出て リーチの 方が いい。3個 そろってから ハズレは 微妙」
+ * → 7(レインボー・ゴールド)が 左から 2リール そろったら キャラの リーチ。3リール目に 7が 来たら 当たり。
+ * 重み: winWeight = 当たる 時の 出やすさ・loseWeight = ハズレの 時の 出やすさ(100回 当たる あいだに 何回 ハズレで 出るか)。
+ * 当たる 確率(企画者 2026-11-11): キョンK 10%・パンダY 20%(キョンK と 同じくらい よく 出る)・うさぎK 30%・カンガルーH 約40%・ヒヨコJ 約40%・チーターS 80%。
+ * 7が 2個で ハズレの 時、キャラの リーチが 出ない 分(NO_STORY_LOSE)は ふつうの 小さい リーチ。重みを かえたら reach.test.ts で たしかめる
+ */
 export const BIG_REACHES: readonly BigReachType[] = [
-  { id: 'weak', name: '弱リーチ【仮】', winWeight: 1, loseWeight: 4 },
-  { id: 'mid', name: '中リーチ【仮】', winWeight: 2, loseWeight: 2 },
-  { id: 'strong', name: '強リーチ【仮】', winWeight: 3, loseWeight: 0.6 },
-  // 2026-11-11 企画者の リーチ①「キョンKの キャバ嬢リーチ」(夜の お店に 可愛い子が いるか。キョン子なら 当たり・ブタ子なら ハズレ)。企画者 2026-11-11: 当たる 確率 10%
-  { id: 'kyon', name: 'キョンKの キャバ嬢リーチ', winWeight: 2, loseWeight: 11.2 },
-  // 2026-11-11 企画者の リーチ②「パンダYの 風呂キャンセルリーチ」(風呂に 入ったら 当たり)。企画者 2026-11-11: 当たる 確率 20%・キョンK と 同じくらい よく 出る
-  { id: 'panda', name: 'パンダYの 風呂キャンセルリーチ', winWeight: 4, loseWeight: 9.6 },
-  // 2026-11-11 企画者の リーチ③「うさぎKの アイドルリーチ」(うさぎの アイドル達なら 当たり・カバなら ハズレ)。企画者 2026-11-11: 当たる 確率 30%
-  { id: 'usagi', name: 'うさぎKの アイドルリーチ', winWeight: 2, loseWeight: 2.85 },
-  // 2026-11-11 企画者の リーチ④「カンガルーHの ラーメンリーチ」(食べて 星5！なら 当たり)。ラーメンは 3種類で 当たりやすさが ちがう。企画者 2026-11-11 今の 割合で 決定(全体 約40%・17% / 43% / 78%)
+  // リーチ①「キョンKの キャバ嬢リーチ」(キョン子なら 当たり・ブタ子なら ハズレ)
+  { id: 'kyon', name: 'キョンKの キャバ嬢リーチ', winWeight: 20, loseWeight: 180 },
+  // リーチ②「パンダYの 風呂キャンセルリーチ」(風呂に 入ったら 当たり)
+  { id: 'panda', name: 'パンダYの 風呂キャンセルリーチ', winWeight: 40, loseWeight: 160 },
+  // リーチ③「うさぎKの アイドルリーチ」(うさぎの アイドル達なら 当たり・カバなら ハズレ)
+  { id: 'usagi', name: 'うさぎKの アイドルリーチ', winWeight: 15, loseWeight: 32 },
+  // リーチ④「カンガルーHの ラーメンリーチ」(食べて 星5！なら 当たり)。ラーメン 3種類で 当たりやすさが ちがう
   {
     id: 'ramen',
     name: 'カンガルーHの ラーメンリーチ',
-    winWeight: 2,
-    loseWeight: 2,
+    winWeight: 10,
+    loseWeight: 15,
     variants: [
       { name: 'しょうゆラーメン', winWeight: 1, loseWeight: 4 },
       { name: 'みそラーメン', winWeight: 2, loseWeight: 2 },
       { name: '特製とんこつラーメン', winWeight: 3, loseWeight: 0.6 },
     ],
   },
-  // 2026-11-11 企画者の リーチ⑤「ヒヨコJの ゴルフリーチ」(パターが 入れば 当たり)。芝生で 当たりやすさが ちがう。企画者 2026-11-11 今の 割合で 決定(全体 約40%・15% / 42% / 78%)
+  // リーチ⑤「ヒヨコJの ゴルフリーチ」(パターが 入れば 当たり)。芝生 3種類で 当たりやすさが ちがう
   {
     id: 'golf',
     name: 'ヒヨコJの ゴルフリーチ',
-    winWeight: 2,
-    loseWeight: 2,
+    winWeight: 10,
+    loseWeight: 15,
     variants: [
       { name: 'ボコボコの 芝生', winWeight: 1, loseWeight: 4 },
       { name: 'ふつうの 芝生', winWeight: 2, loseWeight: 2 },
       { name: 'ピカピカの 芝生', winWeight: 3, loseWeight: 0.6 },
     ],
   },
-  // 2026-11-11 企画者の リーチ⑥「チーターSの 彼女の機嫌リーチ」(彼女に 質問されて 答え、喜べば 当たり)。企画者 2026-11-11: 当たる 確率 80%
+  // リーチ⑥「チーターSの 彼女の機嫌リーチ」(彼女が 喜べば 当たり)。質問 6つ(どれでも 当たりやすさは 同じ)
   {
     id: 'kanojo',
     name: 'チーターSの 彼女の機嫌リーチ',
-    winWeight: 2,
-    loseWeight: 0.32,
-    // 2026-11-11 企画者「質問と 答えを 増やす」: 質問 6つ(どれでも 当たりやすさは 同じ)。中身は【仮】
+    winWeight: 5,
+    loseWeight: 1,
     variants: [1, 2, 3, 4, 5, 6].map((i) => ({ name: `質問${i}【仮】`, winWeight: 1, loseWeight: 1 })),
   },
 ];
+/** 7が 2個で ハズレの 時に キャラの リーチを 出さない(小さい リーチ だけ)重み */
+export const NO_STORY_LOSE = 225;
+/** キャラの リーチに なる 図柄(企画者 2026-11-12「7が 2個」) */
+export const SEVENS: readonly SymbolId[] = ['rainbow7', 'gold7'];
 
 /**
  * 色で 期待度(企画者 2026-11-10「パチンコ屋の スロットみたいに 楽しく。全部 入れたい」)。
@@ -109,9 +116,9 @@ export interface SpinShow {
   notice: NoticeLevel;
   /** 予告の 色 */
   noticeTier: ColorTier;
-  /** 小さい リーチ(2リール そろった) */
+  /** 小さい リーチ(2リール そろった・キャラの リーチが 出ない 時) */
   small: boolean;
-  /** 大きい リーチ(3リール そろった)の 種類 */
+  /** キャラの リーチ(7が 2リール そろった)の 種類 */
   big: BigReachType | null;
   /** 大きい リーチの 中の 種類(big.variants の 番号。種類が ない 時は -1) */
   bigVariant: number;
@@ -126,7 +133,7 @@ export interface SpinShow {
   /** コインが あふれる(大きい 当たり) */
   fountain: boolean;
   reach: ReachInfo | null;
-  /** 大きい リーチが 成功(4連 以上)・小さい リーチが 成功(3連 以上) */
+  /** キャラの リーチが 成功(7が 3連 以上)・小さい リーチが 成功(3連 以上) */
   bigSuccess: boolean;
   smallSuccess: boolean;
 }
@@ -152,10 +159,13 @@ export const LAMP_X = 10;
  */
 export function planShow(res: SpinResult, bet: number, rng: Rng): SpinShow {
   const reach = reachOf(res.grid);
-  const small = !!reach && reach.chain >= 2;
-  const bigOn = !!reach && reach.chain >= 3;
-  const bigSuccess = !!reach && reach.chain >= 4;
-  const big = bigOn ? pickW(rng, BIG_REACHES, (t) => (bigSuccess ? t.winWeight : t.loseWeight)) : null;
+  // 7が 左から 2リール → キャラの リーチ(3リール目で 決まる)。ダイヤ・キャラが 出ない 時は 小さい リーチ
+  const seven = !!reach && reach.chain >= 2 && SEVENS.includes(reach.symbol);
+  const bigSuccess = seven && reach!.chain >= 3;
+  const pickBig = seven ? pickW<BigReachType | null>(rng, [...BIG_REACHES, null], (t) => (t ? (bigSuccess ? t.winWeight : t.loseWeight) : bigSuccess ? 0 : NO_STORY_LOSE)) : null;
+  const big = pickBig;
+  const bigOn = !!big;
+  const small = !!reach && reach.chain >= 2 && !big;
   const hot = res.bonus || res.free > 0 || res.win >= bet * LAMP_X || bigSuccess;
   const warm = bigOn || res.win >= bet * 3;
   const pNotice = hot ? 0.55 : warm ? 0.25 : small ? 0.1 : 0.03;
@@ -178,7 +188,7 @@ export function planShow(res: SpinResult, bet: number, rng: Rng): SpinShow {
     chain: (!!big && rng() < (bigSuccess ? 0.4 : 0.12)) || ((res.bonus || res.free > 0) && rng() < 0.3),
     fountain: res.win >= bet * FOUNTAIN_X,
     reach,
-    bigSuccess,
+    bigSuccess: bigSuccess && bigOn,
     smallSuccess: !!reach && reach.chain >= 3,
     // 種類が ある リーチだけ さいごに えらぶ(ほかの 見せ方の 抽選の 順番は そのまま)
     bigVariant: big?.variants ? big.variants.indexOf(pickW(rng, big.variants, (v) => (bigSuccess ? v.winWeight : v.loseWeight))) : -1,

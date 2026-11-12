@@ -24,7 +24,7 @@ describe('MONZ SLOT リーチ', () => {
     }
   });
 
-  it('回数と 期待度(20万回転): 小さい リーチ 約7回に1回・大きい リーチ 約30回に1回・強 > 中 > 弱', () => {
+  it('回数(20万回転): 小さい リーチ 約10回に1回・キャラの リーチ 約45回に1回(企画者 2026-11-12: 7が 2個で キャラの リーチ)', () => {
     const rng = mulberry32(77);
     const N = 200_000;
     let small = 0;
@@ -49,20 +49,18 @@ describe('MONZ SLOT リーチ', () => {
         if (s.notice) noticeMiss++;
       }
     }
-    expect(N / small).toBeGreaterThan(6);
-    expect(N / small).toBeLessThan(9);
-    expect(N / big).toBeGreaterThan(25);
-    expect(N / big).toBeLessThan(36);
+    expect(N / small).toBeGreaterThan(8);
+    expect(N / small).toBeLessThan(13);
+    expect(N / big).toBeGreaterThan(35);
+    expect(N / big).toBeLessThan(55);
     const rate = (id: string) => byType[id].win / byType[id].n;
-    expect(rate('strong')).toBeGreaterThan(rate('mid'));
-    expect(rate('mid')).toBeGreaterThan(rate('weak'));
-    expect(BIG_REACHES.length).toBeGreaterThanOrEqual(3);
+    expect(BIG_REACHES.map((t) => t.id)).toEqual(['kyon', 'panda', 'usagi', 'ramen', 'golf', 'kanojo']);
     // 予告は ときどき(ハズレでも 少し)
     expect(notice / N).toBeGreaterThan(0.02);
     expect(notice / N).toBeLessThan(0.15);
     expect(noticeMiss / miss).toBeGreaterThan(0.01);
     // 結果を 出す(記録 用)
-    console.log('slot reach', { small: (N / small).toFixed(1), big: (N / big).toFixed(1), weak: rate('weak').toFixed(2), mid: rate('mid').toFixed(2), strong: rate('strong').toFixed(2), notice: ((notice / N) * 100).toFixed(1) + '%' });
+    console.log('slot reach', { small: (N / small).toFixed(1), big: (N / big).toFixed(1), kyon: rate('kyon').toFixed(2), notice: ((notice / N) * 100).toFixed(1) + '%' });
   });
 });
 
@@ -123,7 +121,7 @@ describe('種類が ある リーチ(企画者 2026-11-11: ラーメン 3種類�
       n[id] = [0, 0, 0];
       win[id] = [0, 0, 0];
     }
-    for (let i = 1; i < 300_000; i++) {
+    for (let i = 1; i < 1_000_000; i++) {
       const rng = mulberry32(i);
       const s = planShow(spin(rng, 10), 10, rng);
       if (!s.big?.variants) {
@@ -136,13 +134,13 @@ describe('種類が ある リーチ(企画者 2026-11-11: ラーメン 3種類�
     }
     for (const id of ids) {
       const rate = n[id].map((x, i) => win[id][i] / x);
-      expect(n[id].every((x) => x > 50)).toBe(true);
+      expect(n[id].every((x) => x > 30)).toBe(true);
       expect(rate[0]).toBeLessThan(rate[1]);
       expect(rate[1]).toBeLessThan(rate[2]);
     }
     // 彼女の 質問は 6つ どれも 出る(当たりやすさは 同じ)
-    expect(n.kanojo.every((x) => x > 20)).toBe(true);
-  });
+    expect(n.kanojo.every((x) => x > 15)).toBe(true);
+  }, 60_000);
 });
 
 describe('キャラの リーチの 当たる 確率(企画者 2026-11-11)', () => {
@@ -166,5 +164,20 @@ describe('キャラの リーチの 当たる 確率(企画者 2026-11-11)', () 
     expect(Math.abs(rate('golf') - 0.4)).toBeLessThan(0.05);
     expect(n.panda / n.kyon).toBeGreaterThan(0.85);
     expect(n.panda / n.kyon).toBeLessThan(1.15);
+  }, 60_000);
+});
+
+describe('キャラの リーチは 7が 2個から(企画者 2026-11-12「3個 そろってから ハズレは 微妙」)', () => {
+  it('キャラの リーチは 7が 左から 2リール 以上・当たり = 3リール目にも 7・ダイヤでは 出ない', () => {
+    for (let i = 1; i < 200_000; i++) {
+      const rng = mulberry32(i);
+      const r = spin(rng, 10);
+      const s = planShow(r, 10, rng);
+      if (!s.big) continue;
+      expect(['gold7', 'rainbow7']).toContain(s.reach!.symbol);
+      expect(s.reach!.chain).toBeGreaterThanOrEqual(2);
+      expect(s.bigSuccess).toBe(s.reach!.chain >= 3);
+      expect(s.small).toBe(false);
+    }
   }, 60_000);
 });
