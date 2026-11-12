@@ -60,6 +60,11 @@ interface StoryReach {
   /** 1枚絵(3枚)。title: 大きい 文字・line: セリフ・chara: キャラを 出す・prop: 仮の 絵の かわりの 絵文字・bg: 仮の 背景の 色 */
   panels: { title?: string; line?: string; chara?: boolean; prop?: string; bg?: number }[];
   /** 結果。icon: 仮の 絵文字・show: ハズレでも 見せるか */
+  /**
+   * 届いた 1枚絵(public/assets/slot/reach/<id>_<名前>.webp)。名前: 1・2・3(何枚目)・2-1(2枚目の 1番目の 種類)・win・lose
+   * 絵が ある 1枚は 仮の 見た目の かわりに その 絵を 液晶 いっぱいに 出す
+   */
+  art?: string[];
   win: { text: string; icon: string; show?: boolean };
   lose: { text: string; icon: string; show: boolean };
   /**
@@ -74,6 +79,7 @@ const STORY_REACHES: StoryReach[] = [
     id: 'kyon',
     chara: 'slot:chara:kyonk',
     charaFile: 'assets/slot/chara_kyonk.webp',
+    art: ['1'],
     color: '#ff6ad5',
     panels: [
       { title: 'キャバ嬢リーチ', line: '今夜は\n可愛い子 いるかな〜？', chara: true },
@@ -272,7 +278,10 @@ export class SlotScene extends Phaser.Scene {
     if (!this.textures.exists(LOGO_KEY)) this.load.image(LOGO_KEY, assetUrl('assets/slot/logo.webp'));
     for (const [k, f] of STEP_FILES) if (!this.textures.exists(k)) this.load.image(k, assetUrl(f));
     // 企画者の キャラ(2026-11-11)
-    for (const d of STORY_REACHES) if (!this.textures.exists(d.chara)) this.load.image(d.chara, assetUrl(d.charaFile));
+    for (const d of STORY_REACHES) {
+      if (!this.textures.exists(d.chara)) this.load.image(d.chara, assetUrl(d.charaFile));
+      for (const a of d.art ?? []) if (!this.textures.exists(`slot:reach:${d.id}:${a}`)) this.load.image(`slot:reach:${d.id}:${a}`, assetUrl(`assets/slot/reach/${d.id}_${a}.webp`));
+    }
     for (const c of CHEST_COLORS) for (const o of [false, true]) if (!this.textures.exists(chestArtKey(c, o))) this.load.image(chestArtKey(c, o), assetUrl(`assets/slot/chest_${c}_${o ? 'o' : 'c'}.webp`));
     // 企画者の 液晶の 背景(ふだん・赤・金。2026-11-10)
     for (const n of LCD_BGS) if (!this.textures.exists(lcdBgKey(n))) this.load.image(lcdBgKey(n), assetUrl(`assets/slot/lcd_${n}.webp`));
@@ -950,14 +959,11 @@ export class SlotScene extends Phaser.Scene {
       }
       if (v?.next && def.variants!.panel + 1 === n) pd = { ...pd, line: v.next };
       const items: Phaser.GameObjects.GameObject[] = [];
-      const artKey = `slot:reach:${def.id}:${n + 1}`;
-      if (this.textures.exists(artKey)) {
-        const img = this.add.image(0, 0, artKey);
-        const kk = Math.max((w - 8) / img.width, (h - 8) / img.height);
-        img.setScale(kk);
-        img.setCrop((img.width - (w - 8) / kk) / 2, (img.height - (h - 8) / kk) / 2, (w - 8) / kk, (h - 8) / kk);
-        items.push(img);
-      } else {
+      const vKey = v && def.variants!.panel === n ? `slot:reach:${def.id}:${n + 1}-${show.bigVariant + 1}` : '';
+      const artKey = vKey && this.textures.exists(vKey) ? vKey : `slot:reach:${def.id}:${n + 1}`;
+      const hasArt = this.textures.exists(artKey);
+      if (hasArt) items.push(this.reachArt(artKey));
+      else {
         items.push(this.add.rectangle(0, 0, w - 8, h - 8, pd.bg ?? 0x120818, 0.6));
         if (pd.chara && this.textures.exists(def.chara)) {
           const k = this.add.image(-w * 0.28, h * 0.08, def.chara);
@@ -970,10 +976,24 @@ export class SlotScene extends Phaser.Scene {
         }
         if (pd.prop) items.push(this.text(pd.chara ? w * 0.14 : 0, -h * 0.02, pd.prop, Math.min(70, h * 0.2), '#ffffff', 0));
       }
-      const tx = pd.chara ? w * 0.14 : 0;
+      if (hasArt) {
+        // 絵が ある 時: 文字は 上と 下の 帯に 1行で(絵の キャラに かぶらない)
+        const bandH = h * 0.17;
+        if (pd.title) items.push(this.add.rectangle(0, -h / 2 + 4 + bandH / 2, w - 8, bandH, 0x000000, 0.55));
+        if (pd.line) items.push(this.add.rectangle(0, h / 2 - 4 - bandH / 2, w - 8, bandH, 0x000000, 0.55));
+        const fit = (t: string, max: number) => Math.min(max, bandH * 0.62, (w * 0.9) / t.length);
+        if (pd.title) items.push(this.text(0, -h / 2 + 4 + bandH / 2, pd.title, fit(pd.title, 34), color, 6));
+        if (pd.line) {
+          const one = pd.line.replace(/\n/g, ' ');
+          const y = h / 2 - 4 - bandH / 2;
+          items.push(n === def.panels.length - 1 ? tierText(this, 0, y, one, fit(one, 32), show.bigTier) : this.text(0, y, one, fit(one, 26), '#ffffff', 5));
+        }
+        pd = { ...pd, title: undefined, line: undefined };
+      }
+      const tx = pd.chara && !hasArt ? w * 0.14 : 0;
       if (pd.title) items.push(this.text(tx, -h * 0.3, pd.title, Math.min(40, h * 0.11, (w * 0.62) / pd.title.length), color, 8));
       if (pd.line) {
-        const t = n === def.panels.length - 1 ? tierText(this, tx, h * 0.3, pd.line, Math.min(36, h * 0.095, ((pd.chara ? 0.62 : 0.9) * w) / Math.max(...pd.line.split('\n').map((l) => l.length))), show.bigTier) : this.text(tx, h * 0.24, pd.line, Math.min(28, h * 0.075), '#ffffff', 6);
+        const t = n === def.panels.length - 1 ? tierText(this, tx, h * 0.3, pd.line, Math.min(36, h * 0.095, ((pd.chara && !hasArt ? 0.62 : 0.9) * w) / Math.max(...pd.line.split('\n').map((l) => l.length))), show.bigTier) : this.text(tx, h * 0.24, pd.line, Math.min(28, h * 0.075), '#ffffff', 6);
         items.push(t);
       }
       this.lcdShow(items);
@@ -984,6 +1004,16 @@ export class SlotScene extends Phaser.Scene {
     def.panels.forEach((_, i) => (i === 0 ? panel(0) : this.time.delayedCall(step * i, () => panel(i))));
   }
 
+  /** リーチの 1枚絵を 液晶 いっぱいに(はみ出す 所は 切る) */
+  private reachArt(key: string): Phaser.GameObjects.Image {
+    const { w, h } = this.lcdBox;
+    const img = this.add.image(0, 0, key);
+    const kk = Math.max((w - 8) / img.width, (h - 8) / img.height);
+    img.setScale(kk);
+    img.setCrop((img.width - (w - 8) / kk) / 2, (img.height - (h - 8) / kk) / 2, (w - 8) / kk, (h - 8) / kk);
+    return img;
+  }
+
   /** 企画者の キャラの リーチの 結果(当たりの 絵・ハズレの 絵)【仮の 見た目】 */
   private storyResult(def: StoryReach, ok: boolean): void {
     const { w, h } = this.lcdBox;
@@ -991,20 +1021,16 @@ export class SlotScene extends Phaser.Scene {
     const items: Phaser.GameObjects.GameObject[] = [];
     if (ok) this.setLcdBg('gold', 0.1);
     const artKey = `slot:reach:${def.id}:${ok ? 'win' : 'lose'}`;
-    if (this.textures.exists(artKey)) {
-      const img = this.add.image(0, 0, artKey);
-      const kk = Math.max((w - 8) / img.width, (h - 8) / img.height);
-      img.setScale(kk);
-      img.setCrop((img.width - (w - 8) / kk) / 2, (img.height - (h - 8) / kk) / 2, (w - 8) / kk, (h - 8) / kk);
-      items.push(img);
-    } else {
+    if (this.textures.exists(artKey)) items.push(this.reachArt(artKey));
+    else {
       items.push(this.add.rectangle(0, 0, w - 8, h - 8, ok ? 0xffd0ec : 0x3a2a2a, ok ? 0.35 : 0.6));
       const icon = this.text(0, -h * 0.06, r.icon, Math.min(110, h * 0.32), '#ffffff', 0);
       items.push(icon);
       icon.setScale(0.3);
       this.tweens.add({ targets: icon, scale: 1, duration: 320, ease: 'Back.easeOut' });
     }
-    items.push(this.text(0, h * 0.33, r.text, Math.min(ok ? 40 : 34, h * 0.1, (w * 0.9) / r.text.length), ok ? '#ffd23a' : '#d8c8e8', 8));
+    if (this.textures.exists(artKey)) items.push(this.add.rectangle(0, h / 2 - 4 - h * 0.085, w - 8, h * 0.17, 0x000000, 0.55));
+    items.push(this.text(0, this.textures.exists(artKey) ? h / 2 - 4 - h * 0.085 : h * 0.33, r.text, Math.min(ok ? 40 : 34, h * 0.1, (w * 0.9) / r.text.length), ok ? '#ffd23a' : '#d8c8e8', 8));
     this.lcdShow(items);
     if (ok) {
       this.cameras.main.flash(260, 255, 230, 200);

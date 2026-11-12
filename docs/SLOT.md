@@ -242,4 +242,6 @@
 
 ## キャラの リーチの 足し方（2026-11-11〜）
 - `src/scenes/SlotScene.ts` の `STORY_REACHES` に 1人 足す（絵・題・3枚の 文字・当たり/ハズレの 文字）＋ `src/core/slot/reach.ts` の `BIG_REACHES` に 強さを 足す。
-- 1枚絵が 届いたら `slot:reach:<id>:1〜3`・`slot:reach:<id>:win`・`slot:reach:<id>:lose` の 名前で 読みこめば 仮の 見た目の かわりに その 絵を 液晶 いっぱいに 出す。
+- 1枚絵が 届いたら：元の 絵を `design/slot/reach/<id>_<名前>.png` に、横 1024 に 小さく した webp を `public/assets/slot/reach/<id>_<名前>.webp` に 置き、`STORY_REACHES` の `art` に 名前を 足す（名前: 1・2・3・2-1〜2-3（種類ごとの 2枚目）・win・lose）。
+- 絵が ある 1枚は 液晶 いっぱいに 出し、文字は 上と 下の 黒い 帯に 1行で 出す（キャラに かぶらない）。
+- 届いた 絵（企画者 2026-11-12〜）：キョンK 1枚目（K-1）。
