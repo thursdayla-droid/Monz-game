@@ -1184,8 +1184,10 @@ export class SlotScene extends Phaser.Scene {
     const art = this.textures.exists(artKey);
     const bandH = Math.min(h * 0.15, 52);
     const by = ab.cy + ab.h / 2 - bandH / 2;
-    if (art) items.push(this.add.rectangle(ab.cx, by, ab.w, bandH, 0x000000, 0.55));
-    items.push(this.text(BAND_SHIFT, art ? by : h * 0.33, r.text, Math.min(ok ? 42 : 36, art ? bandH * 0.62 : h * 0.1, ((art ? ab.w : w) * BAND_ROOM) / r.text.length), ok ? '#ffd23a' : '#d8c8e8', 8));
+    // プレミアの 当たりの 絵は 絵の 中に「大当たり」の 文字が ある(企画者 2026-11-12)ので 帯と 文字は 出さない
+    const artHasText = art && def.id === 'premium' && ok;
+    if (art && !artHasText) items.push(this.add.rectangle(ab.cx, by, ab.w, bandH, 0x000000, 0.55));
+    if (!artHasText) items.push(this.text(BAND_SHIFT, art ? by : h * 0.33, r.text, Math.min(ok ? 42 : 36, art ? bandH * 0.62 : h * 0.1, ((art ? ab.w : w) * BAND_ROOM) / r.text.length), ok ? '#ffd23a' : '#d8c8e8', 8));
     this.lcdShow(items);
     if (ok) {
       this.cameras.main.flash(260, 255, 230, 200);
