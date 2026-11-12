@@ -112,7 +112,7 @@ const STORY_REACHES: StoryReach[] = [
     id: 'usagi',
     chara: 'slot:chara:usagik',
     charaFile: 'assets/slot/chara_usagik.webp',
-    art: ['1', '2', '3', 'win'],
+    art: ['1', '2', '3', 'win', 'lose'],
     color: '#ffb3e6',
     panels: [
       { line: '今日は 推しの\nライブだぜ！', chara: true },
