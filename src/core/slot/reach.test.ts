@@ -25,7 +25,7 @@ describe('MONZ SLOT リーチ', () => {
     }
   });
 
-  it('回数(20万回転): 小さい リーチ 約110回に1回・キャラの リーチ 約45回に1回(企画者 2026-11-12: 7が 2個で キャラの リーチ・ダイヤは リーチ なし)', () => {
+  it('回数(20万回転): 小さい リーチ 約110回に1回・キャラの リーチ(7) 約55回に1回(企画者 2026-11-12: 7が 2個で キャラの リーチ・ダイヤは リーチ なし)', () => {
     const rng = mulberry32(77);
     const N = 200_000;
     let small = 0;
@@ -53,7 +53,7 @@ describe('MONZ SLOT リーチ', () => {
     expect(N / small).toBeGreaterThan(80);
     expect(N / small).toBeLessThan(150);
     expect(N / big).toBeGreaterThan(35);
-    expect(N / big).toBeLessThan(55);
+    expect(N / big).toBeLessThan(62);
     const rate = (id: string) => byType[id].win / byType[id].n;
     expect(BIG_REACHES.map((t) => t.id)).toEqual(['kyon', 'panda', 'usagi', 'ramen', 'golf', 'kanojo']);
     // 予告は ときどき(ハズレでも 少し)

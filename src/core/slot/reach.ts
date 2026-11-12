@@ -102,10 +102,10 @@ export const BIG_REACHES: readonly BigReachType[] = [
 export const NO_STORY_LOSE = 327;
 /**
  * 王冠が 2つ 出た 時(さいごの リールより 前)の BONUS リーチで、キャラの リーチを 出す 割合(企画者 2026-11-12「2」)。
- * 当たり = 王冠が 3つ 以上(宝箱・フリーゲーム)。王冠の リーチは 約16回転に 1回 あるので 一部 だけ【仮：30%】。
- * のこりは 今までの 短い BONUS リーチ。当たりも ハズレも 同じ 割合で えらぶので キャラごとの 当たる 確率は ほぼ 同じ
+ * 当たり = 王冠が 3つ 以上(宝箱・フリーゲーム)。王冠の リーチは 約16回転に 1回。キャラごとの 割合は CROWN_PICK(全体で 約46%)。
+ * のこりは 今までの 短い BONUS リーチ
  */
-export const CROWN_STORY_RATE = 0.3;
+export const CROWN_STORY_RATE = 0.46;
 /** 王冠の BONUS リーチが 始まる リール(2つめの 王冠が 出た リール・その あとに まだ リールが ある 時だけ)。なければ -1 */
 export function crownReachReel(grid: Grid): number {
   const reels = grid.map((col, r) => (col.includes('crown') ? r : -1)).filter((r) => r >= 0);
@@ -172,10 +172,33 @@ export const FOUNTAIN_X = 5;
 export const LAMP_X = 10;
 
 /** 王冠の BONUS リーチで キャラの リーチを 出すか(出す なら どの キャラ・種類・文字の 色) */
+/**
+ * 王冠の リーチで 出す キャラの 割合(2026-11-12 企画者「カンガルー・うさぎ・ひよこ もう少し リーチ 出やすく」)。
+ * win: 王冠が 3つ 以上 そろう 回の うち その キャラに する 割合・lose: そろわない 回の うち その キャラに する 割合。
+ * lose = win × (当たり ÷ ハズレ = 約0.25) × (1 − 当たる 確率) ÷ 当たる 確率 で、キャラごとの 当たる 確率を 7の リーチと そろえる。
+ * のこりは 短い BONUS リーチ
+ */
+const CROWN_WIN_LOSE = 0.2516;
+const CROWN_PICK: Record<string, { win: number; rate: number }> = {
+  kyon: { win: 0.03, rate: 0.1 },
+  panda: { win: 0.06, rate: 0.2 },
+  usagi: { win: 0.2, rate: 0.3 },
+  ramen: { win: 0.2, rate: 0.4 },
+  golf: { win: 0.2, rate: 0.4 },
+  kanojo: { win: 0.015, rate: 0.8 },
+};
+const crownWeight = (id: string, win: boolean): number => {
+  const c = CROWN_PICK[id];
+  if (!c) return 0;
+  return win ? c.win : (c.win * CROWN_WIN_LOSE * (1 - c.rate)) / c.rate;
+};
 function crownStory(res: SpinResult, rng: Rng): Pick<SpinShow, 'crownBig' | 'crownVariant' | 'crownTier'> {
-  if (crownReachReel(res.grid) < 0 || rng() >= CROWN_STORY_RATE) return { crownBig: null, crownVariant: -1, crownTier: 'blue' };
+  if (crownReachReel(res.grid) < 0) return { crownBig: null, crownVariant: -1, crownTier: 'blue' };
   const win = res.bonus || res.free > 0;
-  const big = pickW(rng, BIG_REACHES, (t) => (win ? t.winWeight : t.loseWeight));
+  const rest = 1 - BIG_REACHES.reduce((a, t) => a + crownWeight(t.id, win), 0);
+  const pick = pickW<BigReachType | null>(rng, [...BIG_REACHES, null], (t) => (t ? crownWeight(t.id, win) : rest));
+  if (!pick) return { crownBig: null, crownVariant: -1, crownTier: 'blue' };
+  const big = pick;
   const crownVariant = big.variants ? big.variants.indexOf(pickW(rng, big.variants, (v) => (win ? v.winWeight : v.loseWeight))) : -1;
   return { crownBig: big, crownVariant, crownTier: tierOf(rng, win) };
 }
