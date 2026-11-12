@@ -48,6 +48,30 @@ function reloadable(key: string, t: Phaser.Textures.Texture): boolean {
   return typeof HTMLImageElement !== 'undefined' && img instanceof HTMLImageElement;
 }
 
+/**
+ * 画面ごとの「その 画面が 使う 絵」: 準備(preload)・作る(create)の 間に「ある？」と 聞いた 絵と、その 画面で 読んだ 絵。
+ * 2026-11-12: スロットで 先に 読んで あとで 出す 絵(図柄・リーチ)が 外されて いた → 開いている 画面の 絵は 外さない(どの 画面も)
+ */
+const owned = new Map<Phaser.Scene, Set<string>>();
+let current: Phaser.Scene | null = null;
+
+function own(scene: Phaser.Scene, key: string): void {
+  let set = owned.get(scene);
+  if (!set) owned.set(scene, (set = new Set()));
+  set.add(key);
+}
+
+/** 開いている(止めて いる・ねている も)画面が 使う 絵 */
+function ownedByOpen(game: Phaser.Game): Set<string> {
+  const keys = new Set<string>();
+  for (const sc of game.scene.scenes) {
+    const sys = sc.sys;
+    if (!sys || !(sys.isActive() || sys.isPaused() || sys.isSleeping())) continue;
+    for (const k of owned.get(sc) ?? []) keys.add(k);
+  }
+  return keys;
+}
+
 /** 今 どこかの 画面に 出ている 絵 */
 function inUse(game: Phaser.Game): Set<string> {
   const used = new Set<string>();
@@ -71,9 +95,32 @@ export function installTextureBudget(game: Phaser.Game): void {
   const exists = tm.exists.bind(tm);
   tm.exists = (key: string) => {
     lastUse.set(key, ++clock);
+    if (current) own(current, key);
     return exists(key);
   };
   tm.on(Phaser.Textures.Events.ADD, (key: string) => lastUse.set(key, ++clock));
+  for (const sc of game.scene.scenes) {
+    const s = sc as Phaser.Scene & { preload?: () => void; create?: (data?: unknown) => void };
+    const wrap = (name: 'preload' | 'create', fresh: boolean) => {
+      const orig = s[name];
+      if (typeof orig !== 'function') return;
+      s[name] = function (this: Phaser.Scene, ...args: unknown[]) {
+        if (fresh) owned.delete(sc);
+        const prev = current;
+        current = sc;
+        try {
+          return (orig as (...a: unknown[]) => void).apply(this, args);
+        } finally {
+          current = prev;
+        }
+      } as never;
+    };
+    // preload が ない 画面は create で 新しく 数える
+    wrap('preload', true);
+    wrap('create', typeof s.preload !== 'function');
+    // その 画面で 読んだ 絵(あとから 読む ものも)
+    if (sc.load) sc.load.on(Phaser.Loader.Events.FILE_COMPLETE, (key: string) => own(sc, key));
+  }
   tm.on(Phaser.Textures.Events.REMOVE, (key: string) => lastUse.delete(key));
 }
 
@@ -82,6 +129,7 @@ export function trimTextures(game: Phaser.Game, budget = TEXTURE_BUDGET_BYTES): 
   const tm = game.textures;
   const used = inUse(game);
   for (const k of used) lastUse.set(k, ++clock);
+  for (const k of ownedByOpen(game)) used.add(k);
   let total = 0;
   const can: { key: string; bytes: number; at: number }[] = [];
   for (const key of tm.getTextureKeys()) {
