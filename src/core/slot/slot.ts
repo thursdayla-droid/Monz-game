@@ -75,7 +75,8 @@ export const payOf = (s: PaySymbol, length: 3 | 4 | 5, scale = PAY_SCALE): numbe
  * 特別フリーゲームの 中の 7の 配当(2026-11-11 企画者「フリーゲームの 7の 配当は 下げよう」)。
  * ふつうの ゲームの この 割合【仮】
  */
-export let FREE_SEVEN_RATE = 0.1;
+// 2026-11-12 ワイルドを もとに もどした ぶん 0.1 → 0.02【仮】
+export let FREE_SEVEN_RATE = 0.02;
 export const setFreeSevenRate = (r: number) => (FREE_SEVEN_RATE = r);
 
 /** ボーナスに 入る 王冠の 数(画面の 15マスの どこでも)【確定】 */
@@ -214,7 +215,7 @@ export function evaluate(grid: Grid, bet: number, scale = PAY_SCALE, free = fals
     }
     if (len >= 3) {
       const length = len as 3 | 4 | 5;
-      wins.push({ symbol: s, length, ways, raw: bet * payOf(s, length, scale) * (free && FIXED_PAY.has(s) ? FREE_SEVEN_RATE : 1) * ways, cells });
+      wins.push({ symbol: s, length, ways, raw: bet * (free && FIXED_PAY.has(s) ? payOf(s, length) * FREE_SEVEN_RATE : payOf(s, length, scale)) * ways, cells });
     }
   }
   const crownCells: [number, number][] = [];
@@ -282,10 +283,11 @@ export const FREE_BY_CROWNS: Record<4 | 5, number> = { 4: 5, 5: 10 };
 export const FREE_ROWS = 5;
 export const FREE_RETRIGGER = 5;
 // 2026-11-11 企画者「フリーゲームは 10分の1 しないで いい」→ ふつうと 同じ 配当
-// 2026-11-12 企画者「還元率を 下げたい」(1) → 配当は ふつうと 同じ・ワイルドを 出にくく(1マス 約1% → 約0.4%)【仮】
-export let FREE_PAY_SCALE = PAY_SCALE;
+// 2026-11-12 企画者「還元率を 下げたい」→「ワイルド 少なすぎ。報酬 下げて 良いから もう少し 出て ほしい」
+// → ワイルドは もとの 1マス 約1%・配当は ふつうの 12%・7 は ふつうの 2%(FREE_SEVEN_RATE)【仮】
+export let FREE_PAY_SCALE = PAY_SCALE * 0.12;
 /** ワイルドの 重み(ほかの 図柄の 重みと 同じ 単位。合計 約104 なので 約1%) */
-export let FREE_WILD_WEIGHT = 0.4;
+export let FREE_WILD_WEIGHT = 1.0;
 export const setFreeTune = (scale: number, wild: number) => ((FREE_PAY_SCALE = scale), (FREE_WILD_WEIGHT = wild));
 
 export interface FreeState {
