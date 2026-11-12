@@ -42,6 +42,8 @@ export const SELECT_CARD_ART: Record<string, { key: string; file: string; srcW: 
   slugger: { key: 'mg:card:slugger', file: 'assets/minigame/select_slugger.webp', srcW: 2172, frame: [29, 141, 2139, 672] },
   // 2026-11-09 企画者の 麻雀クエストの 看板(3ピンの 丸を 直した。元の 絵 design/mahjong/select_sign_original.png)
   mahjong: { key: 'mg:card:mahjong_v2', file: 'assets/minigame/select_mahjong_v2.webp', srcW: 2172, frame: [13, 15, 2157, 703] },
+  // 2026-11-12 企画者の ROYAL JACKPOT の 看板(元の 絵 design/slot/select_sign_original.png)
+  slot: { key: 'mg:card:slot', file: 'assets/minigame/select_slot.webp', srcW: 2172, frame: [13, 16, 2158, 704] },
 };
 
 /** 看板の 絵が まだで、ロゴの 絵だけ ある ゲーム(？？？の 看板に ロゴを のせる)。2026-11-10 ROYAL JACKPOT */
