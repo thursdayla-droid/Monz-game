@@ -141,6 +141,11 @@ export class MonzLife {
   stroked(full = false): 'happy' | 'angry' | 'asleep' {
     if (this.act === 'sleep') {
       this.pause(1.2, true);
+      // 2026-11-12 企画者「寝ている 時に なでて MAX なら 嫌がりましょう」→ 起きずに 寝たまま 嫌がる
+      if (full) {
+        this.body.reaction = { face: 'angry', kind: 'angry', left: 1.2, age: 0 };
+        return 'angry';
+      }
       return 'asleep';
     }
     this.pause(1.2, true);
