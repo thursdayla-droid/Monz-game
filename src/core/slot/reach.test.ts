@@ -103,7 +103,8 @@ describe('MONZ SLOT 演出(色・ステップアップ・告知ランプ・PUSH�
     expect(rate(step[5])).toBeGreaterThan(rate(step[1]));
     expect(lamp).toBeGreaterThan(0);
     expect(push).toBeGreaterThan(0);
-    expect(chain).toBeGreaterThan(0);
+    // 連続演出は なくした(企画者 2026-11-12)
+    expect(chain).toBe(0);
     console.log('slot show', {
       tier: Object.fromEntries(Object.entries(tier).map(([k, v]) => [k, `${(rate(v) * 100).toFixed(0)}% (${v.n})`])),
       step: Object.fromEntries(Object.entries(step).map(([k, v]) => [k, `${(rate(v) * 100).toFixed(0)}% (${v.n})`])),

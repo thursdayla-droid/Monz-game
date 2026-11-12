@@ -797,11 +797,7 @@ export class SlotScene extends Phaser.Scene {
     if (show.lamp === 'pre') this.time.delayedCall(250, () => this.lamp.light());
     // ① ステップアップ予告(② 色)
     if (show.notice) t += stepUp(this, this.lcd, this.lcdBox, show.notice, show.noticeTier, fast) + 150;
-    // ⑨ 連続演出の はじまり(⑦ カットイン)
-    if (show.chain) {
-      this.time.delayedCall(t, () => cutIn(this, this.lcd, this.lcdBox, '連続演出 1', show.bigTier));
-      t += 950;
-    }
+    // ⑨ 連続演出は なくした(2026-11-12 企画者「連続演出とか 文字の 説明系は いらない」)
     this.time.delayedCall(Math.max(first, t + 300), () => this.stopNext(0, res, show));
   }
 
@@ -907,8 +903,9 @@ export class SlotScene extends Phaser.Scene {
         this.tweens.add({ targets: c, y: c.y - 8, duration: 300 + i * 60, yoyo: true, repeat: -1 });
       }
     }
-    const word = n === 1 ? 'BONUS リーチ！' : n === 2 ? '3つめの 王冠は…！？' : 'BONUS 確定!!';
-    const t = this.text(0, h * 0.3, word, Math.min(n === 2 ? 44 : 52, h * 0.13, (w * 0.88) / Math.max(6, word.length)), '#ffd23a', 10);
+    // 2026-11-12 企画者「文字の 説明系は いらない」→ 2枚目の「3つめの 王冠は…！？」は 出さない
+    const word = n === 1 ? 'BONUS リーチ！' : n === 2 ? '' : 'BONUS 確定!!';
+    const t = this.text(0, h * 0.3, word, Math.min(52, h * 0.13, (w * 0.88) / Math.max(6, word.length)), '#ffd23a', 10);
     t.setShadow(0, 5, '#ff4ad8', 0, true, true);
     items.push(t);
     this.lcdShow(items);
@@ -969,9 +966,8 @@ export class SlotScene extends Phaser.Scene {
     this.markReach(res, show, 2);
     const t = this.text(0, -h * 0.05, 'リーチ！', Math.min(96, h * 0.26), '#ffd23a', 12);
     t.setShadow(0, 6, '#ff4ad8', 0, true, true);
-    const sub = this.text(0, h * 0.22, `${SYMBOL_NAME[show.reach!.symbol]} が そろうか…？`, Math.min(26, h * 0.07), '#ffffff', 5);
-    this.lcdShow([t, sub]);
-    if (show.chain) this.lcd.add(this.text(0, -h * 0.36, '連続演出 2', Math.min(26, h * 0.07), '#ff8a1f', 5));
+    // 2026-11-12 企画者「文字の 説明系は いらない」→「○○ が そろうか…？」・連続演出は 出さない
+    this.lcdShow([t]);
     this.tweens.add({ targets: t, scale: { from: 1.6, to: 1 }, duration: 260, ease: 'Back.easeOut' });
     this.tweens.add({ targets: t, scale: 1.06, duration: 300, yoyo: true, repeat: -1, delay: 260 });
     audio.se('mcCutin');
@@ -1136,7 +1132,7 @@ export class SlotScene extends Phaser.Scene {
     this.tweens.add({ targets: sil, x: -w * 0.26, duration: 380, ease: 'Back.easeOut' });
     // ② 文字の 色で 期待度(青 → 緑 → 赤 → 金 → 虹)
     const t = tierText(this, w * 0.1, -h * 0.2, 'リーチ!!', Math.min(100, h * 0.27), show.bigTier);
-    const name = this.text(w * 0.1, h * 0.05, show.chain ? `連続演出 フィナーレ\n${type.name}` : type.name, Math.min(28, h * 0.075), '#ffffff', 6);
+    const name = this.text(w * 0.1, h * 0.05, type.name, Math.min(28, h * 0.075), '#ffffff', 6);
     const note = this.text(0, h * 0.4, '（企画者の リーチ演出が 入る ところ）', 16, '#c8bcd8');
     // ドキドキの ゲージ
     const barW = w * 0.7;

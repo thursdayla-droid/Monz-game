@@ -211,7 +211,8 @@ export function planShow(res: SpinResult, bet: number, rng: Rng): SpinShow {
     bigTier: tierOf(rng, bigSuccess),
     push: !!big && rng() < (bigSuccess ? 0.7 : 0.35),
     lamp,
-    chain: (!!big && rng() < (bigSuccess ? 0.4 : 0.12)) || ((res.bonus || res.free > 0) && rng() < 0.3),
+    // 2026-11-12 企画者「連続演出とか 文字の 説明系は いらない」→ 連続演出は 出さない
+    chain: false,
     fountain: res.win >= bet * FOUNTAIN_X,
     reach,
     bigSuccess: bigSuccess && bigOn,
