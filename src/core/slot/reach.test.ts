@@ -181,3 +181,30 @@ describe('キャラの リーチは 7が 2個から(企画者 2026-11-12「3個 
     }
   }, 60_000);
 });
+
+describe('王冠 2個の キャラの リーチ(企画者 2026-11-12「2」)', () => {
+  it('王冠の リーチの 時だけ・約30%・キャラごとの 当たる 確率は 7の 時と ほぼ 同じ', async () => {
+    const { crownReachReel, CROWN_STORY_RATE } = await import('./reach');
+    let reachN = 0;
+    let storyN = 0;
+    const n: Record<string, number> = {};
+    const w: Record<string, number> = {};
+    for (let i = 1; i < 1_000_000; i++) {
+      const rng = mulberry32(i);
+      const r = spin(rng, 10);
+      const s = planShow(r, 10, rng);
+      const reach = crownReachReel(r.grid) >= 0;
+      if (reach) reachN++;
+      if (!s.crownBig) continue;
+      expect(reach).toBe(true);
+      storyN++;
+      n[s.crownBig.id] = (n[s.crownBig.id] ?? 0) + 1;
+      if (r.bonus || r.free > 0) w[s.crownBig.id] = (w[s.crownBig.id] ?? 0) + 1;
+    }
+    expect(Math.abs(storyN / reachN - CROWN_STORY_RATE)).toBeLessThan(0.02);
+    const rate = (id: string) => w[id] / n[id];
+    expect(Math.abs(rate('kyon') - 0.1)).toBeLessThan(0.04);
+    expect(Math.abs(rate('panda') - 0.2)).toBeLessThan(0.05);
+    expect(Math.abs(rate('usagi') - 0.3)).toBeLessThan(0.06);
+  }, 120_000);
+});

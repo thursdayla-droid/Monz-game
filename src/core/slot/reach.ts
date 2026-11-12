@@ -95,6 +95,17 @@ export const BIG_REACHES: readonly BigReachType[] = [
 ];
 /** 7が 2個で ハズレの 時に キャラの リーチを 出さない(小さい リーチ だけ)重み */
 export const NO_STORY_LOSE = 225;
+/**
+ * 王冠が 2つ 出た 時(さいごの リールより 前)の BONUS リーチで、キャラの リーチを 出す 割合(企画者 2026-11-12「2」)。
+ * 当たり = 王冠が 3つ 以上(宝箱・フリーゲーム)。王冠の リーチは 約16回転に 1回 あるので 一部 だけ【仮：30%】。
+ * のこりは 今までの 短い BONUS リーチ。当たりも ハズレも 同じ 割合で えらぶので キャラごとの 当たる 確率は ほぼ 同じ
+ */
+export const CROWN_STORY_RATE = 0.3;
+/** 王冠の BONUS リーチが 始まる リール(2つめの 王冠が 出た リール・その あとに まだ リールが ある 時だけ)。なければ -1 */
+export function crownReachReel(grid: Grid): number {
+  const reels = grid.map((col, r) => (col.includes('crown') ? r : -1)).filter((r) => r >= 0);
+  return reels.length >= 2 && reels[1] < REELS - 1 ? reels[1] : -1;
+}
 /** キャラの リーチに なる 図柄(企画者 2026-11-12「7が 2個」) */
 export const SEVENS: readonly SymbolId[] = ['rainbow7', 'gold7'];
 
@@ -136,6 +147,10 @@ export interface SpinShow {
   /** キャラの リーチが 成功(7が 3連 以上)・小さい リーチが 成功(3連 以上) */
   bigSuccess: boolean;
   smallSuccess: boolean;
+  /** 王冠の BONUS リーチで 出す キャラの リーチ(なし = 今までの 短い BONUS リーチ)。当たり = 王冠 3つ 以上 */
+  crownBig: BigReachType | null;
+  crownVariant: number;
+  crownTier: ColorTier;
 }
 
 const pickW = <T>(rng: Rng, items: readonly T[], w: (t: T, i: number) => number): T => {
@@ -150,6 +165,15 @@ const tierOf = (rng: Rng, good: boolean): ColorTier => pickW(rng, COLOR_TIERS, (
 export const FOUNTAIN_X = 5;
 /** 告知ランプが 光る 当たり: BET の 10倍 以上・ボーナス・大きい リーチ 成功【仮】 */
 export const LAMP_X = 10;
+
+/** 王冠の BONUS リーチで キャラの リーチを 出すか(出す なら どの キャラ・種類・文字の 色) */
+function crownStory(res: SpinResult, rng: Rng): Pick<SpinShow, 'crownBig' | 'crownVariant' | 'crownTier'> {
+  if (crownReachReel(res.grid) < 0 || rng() >= CROWN_STORY_RATE) return { crownBig: null, crownVariant: -1, crownTier: 'blue' };
+  const win = res.bonus || res.free > 0;
+  const big = pickW(rng, BIG_REACHES, (t) => (win ? t.winWeight : t.loseWeight));
+  const crownVariant = big.variants ? big.variants.indexOf(pickW(rng, big.variants, (v) => (win ? v.winWeight : v.loseWeight))) : -1;
+  return { crownBig: big, crownVariant, crownTier: tierOf(rng, win) };
+}
 
 /**
  * 1回転の 見せ方を 決める(結果 res は もう 決まって いる。rng は 見せ方 専用。払い戻し率は 変わらない)。
@@ -192,5 +216,6 @@ export function planShow(res: SpinResult, bet: number, rng: Rng): SpinShow {
     smallSuccess: !!reach && reach.chain >= 3,
     // 種類が ある リーチだけ さいごに えらぶ(ほかの 見せ方の 抽選の 順番は そのまま)
     bigVariant: big?.variants ? big.variants.indexOf(pickW(rng, big.variants, (v) => (bigSuccess ? v.winWeight : v.loseWeight))) : -1,
+    ...crownStory(res, rng),
   };
 }

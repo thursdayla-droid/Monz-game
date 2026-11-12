@@ -780,6 +780,7 @@ export class SlotScene extends Phaser.Scene {
     this.lastShow = show;
     this.crownOn = false;
     this.bigPlayed = false;
+    this.crownStory = null;
     const first = this.autoNow ? AUTO_STOP_FIRST : STOP_FIRST;
     for (const v of this.reels) {
       v.spinning = true;
@@ -812,8 +813,19 @@ export class SlotScene extends Phaser.Scene {
     if (r === crownAt) {
       this.crownOn = true;
       for (let i = r + 1; i < REELS; i++) this.reels[i].speed = 0.32;
+      const def = STORY_REACHES.find((d) => d.id === show.crownBig?.id);
+      if (def) {
+        // 2026-11-12 企画者「王冠 2個 そろって キャラの リーチも」: 王冠を 光らせて キャラの リーチ → のこりの リールを 止めて 結果
+        this.crownStory = def;
+        res.crownCells.forEach(([cr, ci]) => {
+          if (!this.reels[cr].spinning) this.cellGlow(cr, ci, true, 0xffd23a);
+        });
+        this.storyReach(def, { ...show, big: show.crownBig, bigVariant: show.crownVariant, bigTier: show.crownTier }, STORY_REACH_MS * k);
+        return void next(STORY_REACH_MS * k);
+      }
       this.crownPanel(1, res);
     }
+    if (this.crownStory) return void next(700 * k);
     if (this.crownOn) {
       if (r + 1 === REELS - 1) {
         // さいごの リール: 3つめの 王冠は…！？
@@ -851,6 +863,8 @@ export class SlotScene extends Phaser.Scene {
   }
 
   private crownOn = false;
+  /** 王冠の BONUS リーチで 見せて いる キャラの リーチ */
+  private crownStory: StoryReach | null = null;
   /** この 回転で キャラの リーチを 見せた(王冠の リーチが 先の 時は 見せない) */
   private bigPlayed = false;
 
@@ -1147,7 +1161,14 @@ export class SlotScene extends Phaser.Scene {
       this.tweens.add({ targets: img, y, duration: 200, ease: 'Back.easeOut' });
     });
     audio.se('knock', { pitch: 1 + r * 0.05 });
-    if (last) this.time.delayedCall(260, () => (this.free ? this.revealFree() : this.reveal(res)));
+    if (last && this.crownStory && !this.free) {
+      // 王冠の キャラの リーチの 結果(王冠 3つ 以上 = 当たり)を 見せてから
+      const def = this.crownStory;
+      this.time.delayedCall(260, () => {
+        this.storyResult(def, res.bonus || res.free > 0);
+        this.time.delayedCall(STORY_RESULT_MS * (this.autoNow ? 0.6 : 1), () => this.reveal(res));
+      });
+    } else if (last) this.time.delayedCall(260, () => (this.free ? this.revealFree() : this.reveal(res)));
     // 大きい リーチの 結果(4リール目が 止まった 時に わかる)
     if (r === 2 && this.bigPlayed && this.lastShow?.big) this.reachResult(this.lastShow.bigSuccess);
   }
@@ -1191,9 +1212,10 @@ export class SlotScene extends Phaser.Scene {
       this.crownOn = false;
       this.autoLeft = 0;
       this.paintAuto();
-      this.crownPanel(3, res);
+      const shown = !!this.crownStory;
+      if (!shown) this.crownPanel(3, res);
       this.cameras.main.flash(300, 255, 230, 120);
-      this.time.delayedCall(2000, () => (res.free ? this.freeIntro(res) : this.bonusIntro(res, big)));
+      this.time.delayedCall(shown ? 400 : 2000, () => (res.free ? this.freeIntro(res) : this.bonusIntro(res, big)));
       return;
     }
     if (!feature && this.crownOn) {
