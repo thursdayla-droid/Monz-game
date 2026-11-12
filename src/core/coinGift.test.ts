@@ -11,10 +11,18 @@ describe('コインの プレゼント(2026-11-09)', () => {
   it('遊んでいる データに 1回だけ 100,000 足す', () => {
     const s = mem();
     saveLife({ ...newLife(), coins: 500 }, s);
-    expect(applyCoinGifts(s)).toBe(100000);
-    expect(loadLife(s).coins).toBe(100500);
+    expect(applyCoinGifts(s)).toBe(110000);
+    expect(loadLife(s).coins).toBe(110500);
     expect(applyCoinGifts(s)).toBe(0);
-    expect(loadLife(s).coins).toBe(100500);
+    expect(loadLife(s).coins).toBe(110500);
+  });
+  it('前の 100,000 を もらった 人には 10,000 だけ(2026-11-12)', () => {
+    const s = mem();
+    saveLife({ ...newLife(), coins: 500 }, s);
+    s.setItem('monz:gift:2026-11-09-100k', '1');
+    expect(applyCoinGifts(s)).toBe(10000);
+    expect(loadLife(s).coins).toBe(10500);
+    expect(loadLife(s).paidCoins).toBe(0);
   });
   it('データが ない 人には 足さない', () => {
     const s = mem();

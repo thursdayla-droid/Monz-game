@@ -6,7 +6,11 @@ import type { KeyValueStore } from './save';
  * もう 遊んでいる データ(monz:life が ある)に 1回だけ 足す。もらったかは 別の 場所に 記録(「最初から」で 消えない)。
  * まだ 生まれていない 人には 足さない(はじめて 開いた 時は 記録だけ しない ので、生まれた 次に 開いた 時に もらえる)
  */
-export const GIFTS = [{ id: '2026-11-09-100k', coins: 100000 }] as const;
+export const GIFTS = [
+  { id: '2026-11-09-100k', coins: 100000 },
+  // 2026-11-12 企画者「今 公開してる 友達達に 10,000 コイン あげたい」
+  { id: '2026-11-12-10k', coins: 10000 },
+] as const;
 const giftKey = (id: string) => `monz:gift:${id}`;
 
 const defaultStore = (): KeyValueStore | null => {
