@@ -199,16 +199,17 @@ const STORY_REACHES: StoryReach[] = [
     lose: { text: '彼女 おこっちゃった…', icon: '👩💢', show: true },
   },
   {
-    // 2026-11-12 企画者「プレミア 演出・100% 当たる」: アライグマR が 電話 → みんなが 集まる → みんなで バーベキュー
+    // 2026-11-12 企画者「プレミア 演出・100% 当たる」: アライグマR が 電話「みんな どこ？」→ アライグマR が 行く → みんなが バーベキュー して いる
     id: 'premium',
     chara: 'slot:chara:araigumar',
     charaFile: 'assets/slot/chara_araigumar.webp',
     art: ['win'],
     color: '#ffd23a',
     panels: [
-      { title: 'プルルルル…', line: '「もしもし？ みんな 集合〜！」', chara: true, prop: '📱', bg: 0x3a1a08 },
-      { title: 'みんな 来た！', line: 'ぞくぞく 集まって きた…！', crowd: true, bg: 0x2a1408 },
-      { title: 'バーベキューだ！！', line: 'カンパーイ！！', prop: '🍖🔥🍻', bg: 0x4a2008 },
+      // 2026-11-12 企画者「みんな 集合 じゃなくて みんな どこに いるの？ で アライグマが いく 感じ」
+      { title: 'プルルルル…', line: '「もしもし？ みんな どこに いるの？」', chara: true, prop: '📱', bg: 0x3a1a08 },
+      { title: '屋上だって！', line: '「今 行く〜！」', chara: true, prop: '🏃💨', bg: 0x2a1408 },
+      { title: 'みんな いた！！', line: '「バーベキュー してる〜！」', crowd: true, bg: 0x4a2008 },
     ],
     win: { text: 'プレミア 確定！！ 大当たり！', icon: '🍖🎉👑' },
     lose: { text: '', icon: '', show: false },
