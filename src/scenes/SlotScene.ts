@@ -1458,9 +1458,10 @@ export class SlotScene extends Phaser.Scene {
     const step2 = res.win || fr.newWilds.length ? 1600 : 800;
     this.time.delayedCall(step2, () => {
       this.freeShownLeft = undefined;
-      const msg = fr.newWilds.length ? `WILD ${fr.newWilds.length}こ！ 回数 へらない` : fr.added ? '' : 'のこり −1';
+      // 2026-11-12 企画者「ワイルド へらない は やめよう。+1スピン」
+      const msg = fr.wildAdded ? `WILD ${fr.newWilds.length}こ！ +${fr.wildAdded} SPIN` : fr.added ? '' : 'のこり −1';
       this.freeHud(msg);
-      if (fr.newWilds.length) this.freeBanner(`WILD！\n回数 へらない`, '#ffd23a');
+      if (fr.wildAdded) this.freeBanner(`WILD！\n+${fr.wildAdded} SPIN`, '#ffd23a');
       if (fr.added) {
         audio.se('koBlast');
         this.time.delayedCall(fr.newWilds.length ? 1800 : 0, () => {

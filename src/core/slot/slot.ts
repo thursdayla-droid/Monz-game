@@ -283,8 +283,10 @@ export interface FreeSpinResult {
   res: SpinResult;
   /** 新しく 出た ワイルド [リール, 段] */
   newWilds: [number, number][];
-  /** 回数を 使ったか(新しい ワイルドが なければ 使う) */
+  /** 回数を 使ったか(2026-11-12〜 いつも 使う) */
   used: boolean;
+  /** ワイルドで ふえた 回数(新しい ワイルドが 出た 回は +1。いくつ 出ても +1。2026-11-12 企画者) */
+  wildAdded: number;
   /** ふえた 回数(王冠 3個 以上で +5) */
   added: number;
 }
@@ -309,14 +311,17 @@ export function freeSpin(state: FreeState, rng: Rng, probs: Record<BaseSymbol, n
   const res = evaluate(grid, state.bet, FREE_PAY_SCALE, true);
   for (const [r, i] of newWilds) state.sticky[r][i] = true;
   const added = res.crowns >= BONUS_CROWNS ? FREE_RETRIGGER : 0;
-  const used = newWilds.length === 0;
+  // 2026-11-12 企画者「ワイルド へらない は やめよう。+1スピン で いい」→ 毎回 1回 使い、新しい ワイルドが 出たら +1回
+  // (ワイルド 1つごとに +1 だと 払い戻しが 約1.5倍に なるので、いくつ 出ても +1【仮】)
+  const used = true;
+  const wildAdded = newWilds.length ? 1 : 0;
   state.played++;
   state.total += res.win;
-  state.left += added - (used ? 1 : 0);
+  state.left += added + wildAdded - 1;
   // フリーゲームの 中では 宝箱・フリーゲームの 入り口に しない
   res.bonus = false;
   res.free = 0;
-  return { res, newWilds, used, added };
+  return { res, newWilds, used, added, wildAdded };
 }
 
 /** フリーゲームを さいごまで 回した 合計(しらべる 用) */

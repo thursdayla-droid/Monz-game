@@ -149,7 +149,7 @@ describe('特別フリーゲーム(企画者 2026-11-11)', () => {
     expect(evaluate(g(5), 10)).toMatchObject({ bonus: false, free: 10 });
   });
 
-  it('5×5・ワイルドは 代わりに なる・のこる・新しい ワイルドが 出たら 回数を 使わない', async () => {
+  it('5×5・ワイルドは 代わりに なる・のこる・毎回 1回 使い 新しい ワイルドが 出たら +1回(企画者 2026-11-12)', async () => {
     const { freeSpin, newFree, evaluate } = await import('./slot');
     // ワイルドは 代わり
     const grid: Grid = [['star'], ['wild'], ['star'], ['bell'], ['bell']].map((c) => [...c, 'clover', 'cherry', 'diamond', 'gold7'] as SymbolId[]);
@@ -166,10 +166,9 @@ describe('特別フリーゲーム(企画者 2026-11-11)', () => {
       // のこった ワイルドは ワイルドの まま・新しい ワイルドは 空いた 所だけ
       expect(st.sticky.flat().filter(Boolean).length).toBe(stickyBefore + r.newWilds.length);
       for (let c = 0; c < 5; c++) for (let k = 0; k < 5; k++) if (st.sticky[c][k]) expect(r.res.grid[c][k]).toBe('wild');
-      if (r.newWilds.length) {
-        sawNew = true;
-        expect(st.left).toBe(before + r.added);
-      } else expect(st.left).toBe(before - 1 + r.added);
+      if (r.newWilds.length) sawNew = true;
+      expect(r.wildAdded).toBe(r.newWilds.length ? 1 : 0);
+      expect(st.left).toBe(before - 1 + r.added + r.wildAdded);
       for (const col of r.res.grid) expect(col.filter((x) => x === 'crown').length).toBeLessThanOrEqual(1);
     }
     expect(sawNew).toBe(true);
