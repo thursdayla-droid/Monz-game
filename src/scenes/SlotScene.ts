@@ -63,7 +63,7 @@ interface StoryReach {
   /** 題の 色 */
   color: string;
   /** 1枚絵(3枚)。title: 大きい 文字・line: セリフ・chara: キャラを 出す・prop: 仮の 絵の かわりの 絵文字・bg: 仮の 背景の 色 */
-  panels: { title?: string; line?: string; chara?: boolean; prop?: string; bg?: number; titleSide?: 'left' | 'right' }[];
+  panels: { title?: string; line?: string; chara?: boolean; prop?: string; bg?: number; titleSide?: 'left' | 'right'; crowd?: boolean }[];
   /** 結果。icon: 仮の 絵文字・show: ハズレでも 見せるか */
   /**
    * 届いた 1枚絵(public/assets/slot/reach/<id>_<名前>.webp)。名前: 1・2・3(何枚目)・2-1(2枚目の 1番目の 種類)・win・lose
@@ -197,6 +197,20 @@ const STORY_REACHES: StoryReach[] = [
     },
     win: { text: '彼女 ごきげん！！ 当たり！', icon: '👩💖🐆' },
     lose: { text: '彼女 おこっちゃった…', icon: '👩💢', show: true },
+  },
+  {
+    // 2026-11-12 企画者「プレミア 演出・100% 当たる」: アライグマR が 電話 → みんなが 集まる → みんなで バーベキュー
+    id: 'premium',
+    chara: 'slot:chara:araigumar',
+    charaFile: 'assets/slot/chara_araigumar.webp',
+    color: '#ffd23a',
+    panels: [
+      { title: 'プルルルル…', line: '「もしもし？ みんな 集合〜！」', chara: true, prop: '📱', bg: 0x3a1a08 },
+      { title: 'みんな 来た！', line: 'ぞくぞく 集まって きた…！', crowd: true, bg: 0x2a1408 },
+      { title: 'バーベキューだ！！', line: 'カンパーイ！！', prop: '🍖🔥🍻', bg: 0x4a2008 },
+    ],
+    win: { text: 'プレミア 確定！！ 大当たり！', icon: '🍖🎉👑' },
+    lose: { text: '', icon: '', show: false },
   },
 ];
 const symKey = (s: SymbolId) => (symScene?.textures.exists(artKey(s)) ? artKey(s) : drawnKey(s));
@@ -1020,6 +1034,18 @@ export class SlotScene extends Phaser.Scene {
           items.push(k);
         }
         if (pd.prop) items.push(this.text(pd.chara ? w * 0.14 : 0, -h * 0.02, pd.prop, Math.min(70, h * 0.2), '#ffffff', 0));
+        // みんなが 集まる(全員の キャラを 横に ならべて 1人ずつ とび出す)【仮の 見た目】
+        if (pd.crowd) {
+          const keys = STORY_REACHES.map((d) => d.chara).filter((k) => this.textures.exists(k));
+          keys.forEach((k, i) => {
+            const im = this.add.image((i - (keys.length - 1) / 2) * ((w - 40) / keys.length), h * 0.12, k);
+            im.setScale((h * 0.55) / im.height);
+            const y0 = im.y;
+            im.setY(h);
+            this.tweens.add({ targets: im, y: y0, duration: 300, delay: i * 180, ease: 'Back.easeOut' });
+            items.push(im);
+          });
+        }
       }
       if (hasArt) {
         // 絵が ある 時: 文字は 上と 下の 帯に 1行で(絵の キャラに かぶらない)
@@ -1159,11 +1185,18 @@ export class SlotScene extends Phaser.Scene {
     const bandH = Math.min(h * 0.15, 52);
     const by = ab.cy + ab.h / 2 - bandH / 2;
     if (art) items.push(this.add.rectangle(ab.cx, by, ab.w, bandH, 0x000000, 0.55));
-    items.push(this.text(art ? ab.cx + BAND_SHIFT : 0, art ? by : h * 0.33, r.text, Math.min(ok ? 42 : 36, art ? bandH * 0.62 : h * 0.1, ((art ? ab.w * BAND_ROOM : w * 0.9)) / r.text.length), ok ? '#ffd23a' : '#d8c8e8', 8));
+    items.push(this.text(BAND_SHIFT, art ? by : h * 0.33, r.text, Math.min(ok ? 42 : 36, art ? bandH * 0.62 : h * 0.1, ((art ? ab.w : w) * BAND_ROOM) / r.text.length), ok ? '#ffd23a' : '#d8c8e8', 8));
     this.lcdShow(items);
     if (ok) {
       this.cameras.main.flash(260, 255, 230, 200);
       audio.se('koBlast');
+      // プレミアは さらに ハデに(虹の 光・コイン・大きな ゆれ)
+      if (def.id === 'premium') {
+        this.lcd.addAt(lcdRays(this, this.lcdBox, 0xffd23a, 0.35, 18, 0, 0, 3000), 1);
+        coinFountain(this, W / 2, this.lcdBox.y + this.lcdBox.h / 2, 60);
+        this.cameras.main.shake(500, 0.01);
+        audio.se('cheer');
+      }
     } else if (r.show) {
       audio.se('back');
       this.time.delayedCall(STORY_RESULT_MS - 200, () => this.lcdIdle());

@@ -55,7 +55,7 @@ describe('MONZ SLOT リーチ', () => {
     expect(N / big).toBeGreaterThan(35);
     expect(N / big).toBeLessThan(62);
     const rate = (id: string) => byType[id].win / byType[id].n;
-    expect(BIG_REACHES.map((t) => t.id)).toEqual(['kyon', 'panda', 'usagi', 'ramen', 'golf', 'kanojo']);
+    expect(BIG_REACHES.map((t) => t.id)).toEqual(['kyon', 'panda', 'usagi', 'ramen', 'golf', 'kanojo', 'premium']);
     // 予告は ときどき(ハズレでも 少し)
     expect(notice / N).toBeGreaterThan(0.02);
     expect(notice / N).toBeLessThan(0.15);
@@ -220,8 +220,29 @@ describe('ステップアップの 順番(企画者 2026-11-12)', () => {
       const rng = mulberry32(i);
       const s = planShow(spin(rng, 10), 10, rng);
       const story = s.big ?? s.crownBig;
-      if (story) expect(s.notice).toBe(STEP_ORDER.indexOf(story.id) + 1);
+      if (story?.id === 'premium') expect(s.notice).toBe(0);
+      else if (story) expect(s.notice).toBe(STEP_ORDER.indexOf(story.id) + 1);
       else expect(s.notice).toBeLessThan(6);
     }
   }, 60_000);
+});
+
+describe('プレミア(企画者 2026-11-12「100% 当たる」)', () => {
+  it('アライグマR の プレミアは 当たりの 時だけ', () => {
+    let n = 0;
+    for (let i = 1; i < 1_000_000; i++) {
+      const rng = mulberry32(i);
+      const r = spin(rng, 10);
+      const s = planShow(r, 10, rng);
+      if (s.big?.id === 'premium') {
+        n++;
+        expect(s.bigSuccess).toBe(true);
+      }
+      if (s.crownBig?.id === 'premium') {
+        n++;
+        expect(r.bonus || r.free > 0).toBe(true);
+      }
+    }
+    expect(n).toBeGreaterThan(50);
+  }, 120_000);
 });

@@ -95,11 +95,14 @@ export const BIG_REACHES: readonly BigReachType[] = [
     // 2026-11-12 企画者「仕事と 私は やめよう」→ 質問 5つ(画面の STORY_REACHES と 同じ 数)
     variants: [1, 2, 3, 4, 5].map((i) => ({ name: `質問${i}【仮】`, winWeight: 1, loseWeight: 1 })),
   },
+  // 2026-11-12 企画者「プレミア 演出。100% 当たる」: アライグマR が 電話 → みんなが 集まる → バーベキュー。ハズレでは 出ない
+  { id: 'premium', name: 'アライグマRの プレミア', winWeight: 6, loseWeight: 0 },
 ];
 /** 7が 2個で ハズレの 時に キャラの リーチを 出さない(小さい リーチ だけ)重み */
 // 2026-11-12 7の 出やすさを かえた ので 合わせ直した(キャラごとの 当たる 確率を そのままに)
 // 2026-11-12 3人を 多く した ぶん 合わせ直し((のこりの 重み) ÷ (当たりの 重みの 合計) を 6.34 に)
-export const NO_STORY_LOSE = 327;
+// 2026-11-12 プレミア(当たりだけ)を 足した ぶん 327 → 365(ほかの キャラの 当たる 確率を そのままに)
+export const NO_STORY_LOSE = 365;
 /**
  * 王冠が 2つ 出た 時(さいごの リールより 前)の BONUS リーチで、キャラの リーチを 出す 割合(企画者 2026-11-12「2」)。
  * 当たり = 王冠が 3つ 以上(宝箱・フリーゲーム)。王冠の リーチは 約16回転に 1回。キャラごとの 割合は CROWN_PICK(全体で 約46%)。
@@ -186,6 +189,8 @@ const CROWN_PICK: Record<string, { win: number; rate: number }> = {
   ramen: { win: 0.2, rate: 0.4 },
   golf: { win: 0.2, rate: 0.4 },
   kanojo: { win: 0.015, rate: 0.8 },
+  // プレミア: 当たりの 時だけ(王冠 3つ 以上の 約4%)
+  premium: { win: 0.04, rate: 1 },
 };
 const crownWeight = (id: string, win: boolean): number => {
   const c = CROWN_PICK[id];
@@ -252,6 +257,8 @@ export function planShow(res: SpinResult, bet: number, rng: Rng): SpinShow {
   const story = out.big ?? out.crownBig;
   const at = story ? STEP_ORDER.indexOf(story.id) : -1;
   if (at >= 0) out.notice = (at + 1) as NoticeLevel;
+  // プレミアは 予告なしで いきなり(とつぜん 電話が 鳴る)
+  else if (story?.id === 'premium') out.notice = 0;
   // キャラの リーチが ない 時は 5段目(ヒヨコJ)まで。6段目(チーターS)まで 進めば 必ず チーターの リーチ
   return out;
 }

@@ -329,6 +329,12 @@
 
 - 2026-11-12 企画者「カンガルー・うさぎ・ひよこ もう少し リーチ 出やすく」→ 王冠 2つの リーチで 3人を 多く 出す（`CROWN_PICK`。キャラの 当たる 確率は そのまま）。7と 王冠を 合わせて：うさぎK 約90回に 1回・カンガルーH・ヒヨコJ 約130回・キョンK・パンダY 約95回・チーターS 約2,400回。
 
+## プレミア：アライグマR（2026-11-12 企画者「プレミア 演出・100% 当たる」）
+- 当たりの 時だけ 出る（7の 当たり・王冠 3つ 以上）。約1,400回転に 1回。予告（ステップアップ）なしで いきなり 始まる。
+- 流れ（アライグマR だけ 企画者の 絵・ほかは 仮）：1 電話「プルルルル…」「もしもし？ みんな 集合〜！」→ 2「みんな 来た！」全員が 集まる → 3「バーベキューだ！！」「カンパーイ！！」→ 当たり「プレミア 確定！！ 大当たり！」（コインが あふれる・大きく ゆれる）。
+- `BIG_REACHES` の premium（loseWeight 0）・王冠は `CROWN_PICK` premium。ほかの キャラの 当たる 確率は そのまま（`NO_STORY_LOSE` 365）。
+- アライグマR の 絵：design/slot/chara/araigumar_original.png → public/assets/slot/chara_araigumar.webp。1枚絵は reach/premium_1〜3・win。
+
 ## キャラの リーチの 足し方（2026-11-11〜）
 - `src/scenes/SlotScene.ts` の `STORY_REACHES` に 1人 足す（絵・題・3枚の 文字・当たり/ハズレの 文字）＋ `src/core/slot/reach.ts` の `BIG_REACHES` に 強さを 足す。
 - 1枚絵が 届いたら：元の 絵を `design/slot/reach/<id>_<名前>.png` に、横 900 に 小さく した webp(品質 80。確認用ページを 15MB より 小さく する ため) を `public/assets/slot/reach/<id>_<名前>.webp` に 置き、`STORY_REACHES` の `art` に 名前を 足す（名前: 1・2・3・2-1〜2-3（種類ごとの 2枚目）・win・lose）。
