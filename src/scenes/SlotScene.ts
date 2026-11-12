@@ -49,6 +49,8 @@ let symScene: Phaser.Scene | null = null;
 const LCD_BGS = ['normal', 'red', 'gold'] as const;
 type LcdBg = (typeof LCD_BGS)[number];
 const lcdBgKey = (n: LcdBg) => `slot:lcd:${n}`;
+/** 届いた 説明の 絵(ボーナス・フリーゲームの 前。2026-11-12 企画者が 用意する) */
+const GUIDE_ART: readonly string[] = [];
 /** 1枚絵の 下の 帯の 文字: 左下の 王冠ランプに かぶらない よう 右へ ずらす 量・使える はば(液晶の はばに 対する 割合) */
 const BAND_SHIFT = 0.07;
 const BAND_ROOM = 0.74;
@@ -298,6 +300,8 @@ export class SlotScene extends Phaser.Scene {
       for (const a of d.art ?? []) if (!this.textures.exists(`slot:reach:${d.id}:${a}`)) this.load.image(`slot:reach:${d.id}:${a}`, assetUrl(`assets/slot/reach/${d.id}_${a}.webp`));
     }
     for (const c of CHEST_COLORS) for (const o of [false, true]) if (!this.textures.exists(chestArtKey(c, o))) this.load.image(chestArtKey(c, o), assetUrl(`assets/slot/chest_${c}_${o ? 'o' : 'c'}.webp`));
+    // 企画者の 説明の 絵(2026-11-12〜。届いたら public/assets/slot/guide_bonus.webp・guide_free.webp)
+    for (const g of GUIDE_ART) if (!this.textures.exists(`slot:guide:${g}`)) this.load.image(`slot:guide:${g}`, assetUrl(`assets/slot/guide_${g}.webp`));
     // 企画者の 液晶の 背景(ふだん・赤・金。2026-11-10)
     for (const n of LCD_BGS) if (!this.textures.exists(lcdBgKey(n))) this.load.image(lcdBgKey(n), assetUrl(`assets/slot/lcd_${n}.webp`));
   }
@@ -1378,8 +1382,11 @@ export class SlotScene extends Phaser.Scene {
     this.winText.setText('0').setColor('#ffd23a');
     this.setRows(FREE_ROWS);
     this.freeHud(`${games}回 スタート！`);
-    this.freeBanner(`FREE GAME\n${games}回 スタート！`, '#ffd23a');
-    this.freeLoop(2200);
+    // 2026-11-12 企画者「始まる 前に 説明」
+    this.guide('free', () => {
+      this.freeBanner(`FREE GAME\n${games}回 スタート！`, '#ffd23a');
+      this.freeLoop(2200);
+    });
   }
 
   /** 次の 1回(のこりが 0 なら おわり) */
@@ -1509,10 +1516,64 @@ export class SlotScene extends Phaser.Scene {
 
   private startBonus(): void {
     this.bonus = newBonus(this.rng, this.bet);
+    // 先に 保存(説明の 間に 閉じても 続きから)
     saveBonus(this.bonus);
     this.clearGlow();
     this.winText.setText('0').setColor('#ffd23a');
-    this.bonusRound(false);
+    // 2026-11-12 企画者「ボーナスと フリーゲームが 始まる 前に 説明」
+    this.guide('bonus', () => this.bonusRound(false));
+  }
+
+  /**
+   * 始まる 前の 説明(2026-11-12 企画者。絵は 企画者が 用意する → slot:guide:bonus / slot:guide:free。それまで 仮の 文字)。
+   * 画面 いっぱい・タップで 始まる(オートの 時は 少し 待って 自動で)。遊び方の 説明に 報酬は 書かない【確定】
+   */
+  private guide(kind: 'bonus' | 'free', then: () => void): void {
+    const H = this.H;
+    const c = this.add.container(0, 0).setDepth(60);
+    const dim = this.add.rectangle(W / 2, H / 2, W, H, 0x0d0614, 0.92).setInteractive();
+    c.add(dim);
+    const key = `slot:guide:${kind}`;
+    if (this.textures.exists(key)) {
+      const img = this.add.image(W / 2, H / 2, key);
+      img.setScale(Math.min(W / img.width, H / img.height));
+      c.add(img);
+    } else {
+      const title = kind === 'bonus' ? 'TREASURE CHALLENGE' : 'FREE GAME';
+      const lines =
+        kind === 'bonus'
+          ? ['宝箱を 1つ えらぼう', '', '大当たり・あたり → つぎの ラウンドへ', '終了の 宝箱が 出たら おしまい', '', 'どの 宝箱に 何が 入っているかは', '毎回 かわるよ']
+          : ['5×5 の 大きな リールで 回るよ', '', 'WILD は ほかの 図柄の かわりに なる', 'WILD は おわりまで その場に のこる', 'WILD が 出たら +1 SPIN', '', '王冠 3つで 回数が ふえる'];
+      const t = this.text(W / 2, H * 0.28, title, 50, '#ffd23a', 10);
+      t.setShadow(0, 6, '#ff4ad8', 0, true, true);
+      const body = this.text(W / 2, H * 0.48, lines.join('\n'), 28, '#ffffff', 5).setLineSpacing(10);
+      c.add([t, body]);
+    }
+    const tap = this.text(W / 2, H * 0.82, this.autoNow ? '' : 'タップで スタート', 34, '#ffd23a', 8);
+    c.add(tap);
+    this.tweens.add({ targets: tap, alpha: 0.35, duration: 520, yoyo: true, repeat: -1 });
+    c.setAlpha(0);
+    this.tweens.add({ targets: c, alpha: 1, duration: 220 });
+    audio.se('select');
+    let done = false;
+    const go = () => {
+      if (done) return;
+      done = true;
+      audio.se('next');
+      this.tweens.add({ targets: c, alpha: 0, duration: 200, onComplete: () => c.destroy() });
+      then();
+    };
+    // 0.6秒は おせない(まちがって とばさない)
+    // 画面の どこを タップしても はじまる。0.6秒は おせない(まちがって とばさない)
+    const shownAt = Date.now();
+    const onTap = () => {
+      if (Date.now() - shownAt < 600) return;
+      this.input.off('pointerdown', onTap);
+      go();
+    };
+    this.input.on('pointerdown', onTap);
+    c.once(Phaser.GameObjects.Events.DESTROY, () => this.input.off('pointerdown', onTap));
+    if (this.autoNow) this.time.delayedCall(4000, go);
   }
 
   /** 1ラウンド: 宝箱 3つを 出す(resume: 閉じた あとの 続き) */
@@ -1562,7 +1623,7 @@ export class SlotScene extends Phaser.Scene {
     this.tweens.killTweensOf(img);
     this.tweens.add({ targets: img, scale: img.getData('base') * 1.18, duration: 160, yoyo: true });
     img.setTexture(chestKey(img.getData('col'), true));
-    const label = (k: ChestContent) => (k === 'big' ? `大当たり\n+${(b.bet * 5).toLocaleString()}` : k === 'normal' ? `あたり\n+${b.bet.toLocaleString()}` : '終了');
+    const label = (k: ChestContent) => (k === 'big' ? `大当たり\n+${(b.bet * CHEST_PAY.big).toLocaleString()}` : k === 'normal' ? `あたり\n+${(b.bet * CHEST_PAY.normal).toLocaleString()}` : '終了');
     const color = (k: ChestContent) => (k === 'big' ? '#ffd23a' : k === 'normal' ? '#ffffff' : '#b8a8c8');
     if (got === 'big') this.bigChest(img.x, img.y);
     else audio.se(got === 'normal' ? 'happy' : 'back');
@@ -1570,21 +1631,36 @@ export class SlotScene extends Phaser.Scene {
     const { w } = this.lcdBox;
     const banner = this.add.container(0, 0).setAlpha(0);
     const bandCol = got === 'big' ? 0xffd23a : got === 'normal' ? 0x9b5cff : 0x3a2a4a;
-    banner.add(this.add.rectangle(0, 0, w - 16, h * 0.5, 0x0d0614, 0.9).setStrokeStyle(6, bandCol));
-    const head = got === 'big' ? '大当たり！！' : got === 'normal' ? 'あたり！' : 'ボーナス 終了';
-    const t1 = this.text(0, got === 'end' ? 0 : -h * 0.08, head, Math.min(got === 'big' ? 70 : 58, h * 0.17), got === 'big' ? '#ffd23a' : got === 'normal' ? '#ffffff' : '#d8c8e8', 10);
+    // 2026-11-12 企画者「何が 当たったか もう少し わかりやすく」→ 液晶 いっぱいの 帯・宝箱から 中身が 飛び出す・コインを 数え上げ・つぎに どうなるか
+    banner.add(this.add.rectangle(0, 0, w - 8, h - 8, 0x0d0614, 0.92).setStrokeStyle(8, bandCol));
+    if (got !== 'end') banner.add(lcdRays(this, this.lcdBox, bandCol, got === 'big' ? 0.35 : 0.2, 14, 0, -h * 0.05, 5000));
+    const head = got === 'big' ? '大当たり！！' : got === 'normal' ? 'あたり！' : '終了…';
+    const t1 = this.text(0, -h * 0.3, head, Math.min(got === 'big' ? 80 : 66, h * 0.2), got === 'big' ? '#ffd23a' : got === 'normal' ? '#ffffff' : '#d8c8e8', 10);
     banner.add(t1);
-    if (pay) {
-      const t2 = this.text(0, h * 0.12, `+${pay.toLocaleString()} コイン`, Math.min(44, h * 0.11), got === 'big' ? '#ffffff' : '#ffd23a', 8);
-      banner.add(t2);
+    // 中身の 絵(コインの 山)
+    const pile = got === 'big' ? 7 : got === 'normal' ? 3 : 0;
+    for (let k = 0; k < pile; k++) {
+      const cx = (k - (pile - 1) / 2) * Math.min(56, (w * 0.7) / Math.max(1, pile));
+      const coin = this.textures.exists(COIN_ART_KEY) ? this.add.image(cx, -h * 0.02, COIN_ART_KEY).setDisplaySize(h * 0.17, h * 0.17) : this.text(cx, -h * 0.02, '●', h * 0.15, '#ffd23a');
+      banner.add(coin);
+      this.tweens.add({ targets: coin, y: { from: h * 0.15, to: -h * 0.02 - (k % 2) * 12 }, duration: 380, delay: 450 + k * 60, ease: 'Back.easeOut' });
     }
+    if (got === 'end') banner.add(this.text(0, -h * 0.02, '✖', Math.min(110, h * 0.3), '#8a7a9a', 8));
+    // もらえる 枚数(数え上げ)と つぎに どうなるか
+    const t2 = this.text(0, h * 0.2, got === 'end' ? `合計 +${b.total.toLocaleString()}` : '+0', Math.min(56, h * 0.14), got === 'big' ? '#ffd23a' : '#ffffff', 8);
+    banner.add(t2);
+    if (pay) {
+      const n = { v: 0 };
+      this.tweens.add({ targets: n, v: pay, duration: 700, delay: 600, onUpdate: () => t2.setText(`+${Math.round(n.v).toLocaleString()}`) });
+    }
+    banner.add(this.text(0, h * 0.38, got === 'end' ? 'ボーナス おしまい' : `つぎの ラウンドへ！（合計 +${b.total.toLocaleString()}）`, Math.min(26, h * 0.07), '#e8dcf4', 5));
     if (got === 'big') t1.setShadow(0, 6, '#ff4ad8', 0, true, true);
     this.time.delayedCall(450, () => {
       this.lcd.add(banner);
       banner.setScale(1.6);
       this.tweens.add({ targets: banner, alpha: 1, scale: 1, duration: 240, ease: 'Back.easeOut' });
     });
-    const showFor = got === 'big' ? 1700 : 1300;
+    const showFor = got === 'big' ? 2600 : got === 'normal' ? 2100 : 1800;
     // 帯を 消して、えらんだ 宝箱を 光らせ、ほかの 2つの 中身も 見せる
     this.time.delayedCall(450 + showFor, () => {
       this.tweens.add({ targets: banner, alpha: 0, duration: 200, onComplete: () => banner.destroy() });

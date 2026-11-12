@@ -37,8 +37,9 @@ export const SYMBOL_NAME: Record<SymbolId, string> = {
 /** 1マスの 出る 割合(%)【仮：仕様書の 暫定案】。合計が ちょうど 100% に なるよう 下で ならす */
 export const SYMBOL_WEIGHT: Record<BaseSymbol, number> = {
   // 2026-11-11 企画者「レインボー7・ゴールド7 は もっと 出にくく」(B): ゴールド7 3つ 以上 約300回に 1回・レインボー7 約1,000回に 1回【仮】
-  rainbow7: 3.35,
-  gold7: 5.1,
+  // 2026-11-12 企画者「普通の 7は 200分の1・レインボー7は もう少し 出ないように」→ ゴールド7 約200回に 1回・レインボー7 約1,500回に 1回【仮】
+  rainbow7: 2.94,
+  gold7: 5.93,
   diamond: 10.53,
   bell: 14.75,
   cherry: 20.01,
@@ -210,7 +211,8 @@ export function spin(rng: Rng, bet: number, probs?: Record<BaseSymbol, number>):
 
 export type ChestContent = 'big' | 'normal' | 'end';
 /** 宝箱の 中身の 報酬(BET の 何倍)【確定】 */
-export const CHEST_PAY: Record<ChestContent, number> = { big: 5, normal: 1, end: 0 };
+// 2026-11-12 企画者「宝箱 普通の 当たりが 50枚、大当たりが 200枚」(BET 10 の 時。BET で 変わる)→ BET の 5倍・20倍
+export const CHEST_PAY: Record<ChestContent, number> = { big: 20, normal: 5, end: 0 };
 
 /** 1ラウンドの 3つの 宝箱(毎回 まぜる。大当たり・普通・終了が 1つずつ) */
 export function dealChests(rng: Rng): [ChestContent, ChestContent, ChestContent] {

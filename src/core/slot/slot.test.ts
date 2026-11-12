@@ -87,36 +87,38 @@ describe('宝箱ボーナス', () => {
     expect(seen.size).toBe(6);
   });
 
-  it('大当たり 5倍・普通 1倍で 続く・終了で おわり(それまでの 合計は もらえる)', () => {
+  it('大当たり 20倍・普通 5倍で 続く・終了で おわり(それまでの 合計は もらえる。企画者 2026-11-12: BET 10 で 200枚・50枚)', () => {
     const rng = mulberry32(9);
     const b = newBonus(rng, 50);
     b.chests = ['big', 'normal', 'end'];
     pickChest(b, 0, rng);
-    expect(b).toMatchObject({ total: 250, round: 2, over: false });
+    expect(b).toMatchObject({ total: 1000, round: 2, over: false });
     b.chests = ['normal', 'end', 'big'];
     pickChest(b, 0, rng);
     b.chests = ['normal', 'end', 'big'];
     pickChest(b, 1, rng);
-    expect(b).toMatchObject({ total: 300, over: true, history: ['big', 'normal', 'end'] });
+    expect(b).toMatchObject({ total: 1250, over: true, history: ['big', 'normal', 'end'] });
   });
 });
 
 describe('払い戻し率', () => {
-  it('理論値: 宝箱は 約 100回転に 1回・平均 BET の 6倍(払い戻し率は 企画者の 決定で 95% より 上。特別フリーゲームは のぞく)', () => {
+  it('理論値: 宝箱は 約 100回転に 1回・平均 BET の 25倍(払い戻し率は 企画者の 決定で 95% より 上。特別フリーゲームは のぞく)', () => {
     const t = theory();
     expect(t.total).toBeGreaterThan(0.9);
     expect(t.total).toBeLessThan(3);
     expect(1 / t.bonusRate).toBeGreaterThan(90);
     expect(1 / t.bonusRate).toBeLessThan(110);
-    expect(t.bonusAvg).toBeCloseTo(6, 10);
+    expect(t.bonusAvg).toBeCloseTo(25, 10);
   });
 
-  it('モンテカルロ(20万回転)が 理論値と だいたい 合う', () => {
+  it('モンテカルロ(20万回転 × 3)が 理論値と だいたい 合う', () => {
     const t = theory();
-    const s = simulate(100, 200_000, 11);
-    // 特別フリーゲームは 理論値に 入って いないので のぞいて くらべる(ぶれは 宝箱の 分だけ 見る)
-    expect(Math.abs(s.totalRtp - s.freeRtp - t.total)).toBeLessThan(0.02);
-    expect(Math.abs(s.bonusRate - t.bonusRate)).toBeLessThan(0.001);
+    // 特別フリーゲームは 理論値に 入って いないので のぞいて くらべる。
+    // 2026-11-12 ゴールド7(5連 1,000倍)が 出やすく なり ぶれが 大きい ので 3回 回した 平均で くらべる
+    const runs = [11, 12, 13].map((seed) => simulate(100, 200_000, seed));
+    const avg = runs.reduce((a, s) => a + s.totalRtp - s.freeRtp, 0) / runs.length;
+    expect(Math.abs(avg - t.total)).toBeLessThan(0.08);
+    for (const s of runs) expect(Math.abs(s.bonusRate - t.bonusRate)).toBeLessThan(0.001);
   });
 });
 
