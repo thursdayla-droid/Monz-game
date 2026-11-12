@@ -77,8 +77,8 @@ export const payOf = (s: PaySymbol, length: 3 | 4 | 5, scale = PAY_SCALE): numbe
  * 特別フリーゲームの 中の 7の 配当(2026-11-11 企画者「フリーゲームの 7の 配当は 下げよう」)。
  * ふつうの ゲームの この 割合【仮】
  */
-// 2026-11-12 ワイルドを もとに もどした ぶん 0.1 → 0.012【仮】
-export let FREE_SEVEN_RATE = 0.012;
+// 2026-11-12 0.1 → 0.0187(フリーゲーム 1回 平均 BET の 約200倍)【仮】
+export let FREE_SEVEN_RATE = 0.0187;
 export const setFreeSevenRate = (r: number) => (FREE_SEVEN_RATE = r);
 
 /** ボーナスに 入る 王冠の 数(画面の 15マスの どこでも)【確定】 */
@@ -287,8 +287,8 @@ export const FREE_ROWS = 5;
 export const FREE_RETRIGGER = 5;
 // 2026-11-11 企画者「フリーゲームは 10分の1 しないで いい」→ ふつうと 同じ 配当
 // 2026-11-12 企画者「還元率を 下げたい」→「ワイルド 少なすぎ。報酬 下げて 良いから もう少し 出て ほしい」
-// → ワイルドは もとの 1マス 約1%・配当は ふつうの 6%・7 は ふつうの 1.2%(FREE_SEVEN_RATE。子役の 4つ・5つを 上げた ぶん さらに 下げた)【仮】
-export let FREE_PAY_SCALE = PAY_SCALE * 0.06;
+// → ワイルドは もとの 1マス 約1%。企画者「BET の 200倍に しよう」→ 配当は ふつうの 9.4%・7 は ふつうの 1.87%(FREE_SEVEN_RATE)で 1回 平均 約200倍【仮】
+export let FREE_PAY_SCALE = PAY_SCALE * 0.094;
 /** ワイルドの 重み(ほかの 図柄の 重みと 同じ 単位。合計 約104 なので 約1%) */
 export let FREE_WILD_WEIGHT = 1.0;
 export const setFreeTune = (scale: number, wild: number) => ((FREE_PAY_SCALE = scale), (FREE_WILD_WEIGHT = wild));
