@@ -256,12 +256,17 @@ export function planShow(res: SpinResult, bet: number, rng: Rng): SpinShow {
   // → キャラの リーチが ある 時は その キャラの 段まで 必ず 進んで、そこから リーチが 始まる
   const story = out.big ?? out.crownBig;
   const at = story ? STEP_ORDER.indexOf(story.id) : -1;
-  if (at >= 0) out.notice = (at + 1) as NoticeLevel;
+  // 2026-11-13 企画者「キャラリーチって ステップアップからじゃなくても 出るよね？ やたら ステップアップばっか」→「半分ずつ(当たりに 関係なし)」
+  // → キャラの リーチの 半分は ステップアップなしで いきなり 始まる
+  if (at >= 0) out.notice = (rng() < STORY_STEP_RATE ? at + 1 : 0) as NoticeLevel;
   // プレミアは 予告なしで いきなり(とつぜん 電話が 鳴る)
   else if (story?.id === 'premium') out.notice = 0;
   // キャラの リーチが ない 時は 5段目(ヒヨコJ)まで。6段目(チーターS)まで 進めば 必ず チーターの リーチ
   return out;
 }
+
+/** キャラの リーチの 前に ステップアップが 出る 割合(企画者 2026-11-13「半分ずつ」) */
+export const STORY_STEP_RATE = 0.5;
 
 /** ステップアップの キャラの 順番(企画者 2026-11-12)。STEP 1 キョンK → 6 チーターS */
 // 2026-11-12 企画者「2」→ うさぎK を パンダY と カンガルーH の 間に(6段)

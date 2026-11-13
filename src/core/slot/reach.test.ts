@@ -213,16 +213,27 @@ describe('王冠 2個の キャラの リーチ(企画者 2026-11-12「2」)', (
 });
 
 describe('ステップアップの 順番(企画者 2026-11-12)', () => {
-  it('キャラの リーチが ある 時は その キャラの 段まで・ない 時は 6段目(チーター)まで 進まない', async () => {
+  it('キャラの リーチが ある 時は その キャラの 段まで(半分は ステップアップなし)・ない 時は 6段目(チーター)まで 進まない', async () => {
     const { STEP_ORDER } = await import('./reach');
     expect(STEP_ORDER).toEqual(['kyon', 'panda', 'usagi', 'ramen', 'golf', 'kanojo']);
+    const cnt = { win: { n: 0, step: 0 }, lose: { n: 0, step: 0 } };
     for (let i = 1; i < 300_000; i++) {
       const rng = mulberry32(i);
       const s = planShow(spin(rng, 10), 10, rng);
       const story = s.big ?? s.crownBig;
       if (story?.id === 'premium') expect(s.notice).toBe(0);
-      else if (story) expect(s.notice).toBe(STEP_ORDER.indexOf(story.id) + 1);
-      else expect(s.notice).toBeLessThan(6);
+      else if (story) {
+        // 2026-11-13: 半分は ステップアップなし(いきなり リーチ)
+        expect([0, STEP_ORDER.indexOf(story.id) + 1]).toContain(s.notice);
+        const k = s.bigSuccess || (s.crownBig && !s.big) ? 'win' : 'lose';
+        cnt[k].n++;
+        if (s.notice) cnt[k].step++;
+      } else expect(s.notice).toBeLessThan(6);
+    }
+    // 当たり・ハズレに 関係なく だいたい 半分
+    for (const k of ['win', 'lose'] as const) {
+      expect(cnt[k].step / cnt[k].n).toBeGreaterThan(0.4);
+      expect(cnt[k].step / cnt[k].n).toBeLessThan(0.6);
     }
   }, 60_000);
 });
