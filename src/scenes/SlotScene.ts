@@ -1161,13 +1161,18 @@ export class SlotScene extends Phaser.Scene {
     return key;
   }
 
-  /** リーチの 1枚絵を 液晶 いっぱいに(はみ出す 所は 切る) */
+  /**
+   * リーチの 1枚絵: 絵 ぜんぶを 液晶の 中に(切らない)。あまった 左右は 同じ 絵を 暗く 広げて うめる。
+   * 2026-11-13 企画者「リーチの 絵が 液晶に 収まってない」→ 前は 液晶 いっぱいに して 上下を 切っていた
+   */
   private reachArt(key: string, box = this.artBox()): Phaser.GameObjects.GameObject[] {
+    const back = this.add.image(box.cx, box.cy, key);
+    const kb = Math.max(box.w / back.width, box.h / back.height);
+    back.setScale(kb).setTint(0x3a3048);
+    back.setCrop((back.width - box.w / kb) / 2, (back.height - box.h / kb) / 2, box.w / kb, box.h / kb);
     const img = this.add.image(box.cx, box.cy, key);
-    const kk = Math.max(box.w / img.width, box.h / img.height);
-    img.setScale(kk);
-    img.setCrop((img.width - box.w / kk) / 2, (img.height - box.h / kk) / 2, box.w / kk, box.h / kk);
-    return [img];
+    img.setScale(Math.min(box.w / img.width, box.h / img.height));
+    return [back, img];
   }
 
   /**

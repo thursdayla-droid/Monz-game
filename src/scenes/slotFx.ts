@@ -113,17 +113,19 @@ function faceSteps(scene: Phaser.Scene, lcd: Phaser.GameObjects.Container, box: 
     scene.time.delayedCall(i * per, () => {
       if (!lcd.active) return;
       lcd.removeAll(true);
+      // 2026-11-13 企画者「リーチの 絵が 液晶に 収まってない」→ 絵 ぜんぶを 液晶の 中に。あまりは 同じ 絵を 暗く
+      const back = scene.add.image(0, 0, faces[i]);
+      const kb = Math.max((w - 8) / back.width, (h - 8) / back.height);
+      back.setScale(kb).setTint(0x3a3a3a);
+      back.setCrop((back.width - (w - 8) / kb) / 2, (back.height - (h - 8) / kb) / 2, (w - 8) / kb, (h - 8) / kb);
       const img = scene.add.image(0, 0, faces[i]);
-      const kk = Math.max((w - 8) / img.width, (h - 8) / img.height);
-      img.setScale(kk * 1.15);
-      const cw = (w - 8) / kk;
-      const ch = (h - 8) / kk;
-      img.setCrop((img.width - cw) / 2, (img.height - ch) / 2, cw, ch);
+      const kk = Math.min((w - 8) / img.width, (h - 8) / img.height);
+      img.setScale(kk * 1.08);
       const steps = scene.add.container(0, h * 0.42);
       for (let n = 0; n < faces.length; n++) steps.add(scene.add.rectangle((n - (faces.length - 1) / 2) * 44, 0, 36, 12, n <= i ? 0xffd23a : 0x3a2a4a, 1).setStrokeStyle(2, 0x16101c));
       const label = txt(scene, 0, -h * 0.38, `STEP ${i + 1}`, Math.min(30, h * 0.08), '#ffffff', 6);
       const flash = scene.add.rectangle(0, 0, w - 8, h - 8, 0xffffff, 0.8);
-      lcd.add([img, steps, label, flash]);
+      lcd.add([back, img, steps, label, flash]);
       scene.tweens.add({ targets: img, scale: kk, duration: 260, ease: 'Back.easeOut' });
       scene.tweens.add({ targets: flash, alpha: 0, duration: 280 });
       audio.se(i >= 3 ? 'mcCutin' : 'mcSelect', { pitch: 1 + i * 0.12 });
