@@ -66,9 +66,10 @@ const ART_FOCUS: Record<string, number> = {
   'golf:3': 0.5,
 };
 
-/** 1枚絵の 下の 帯の 文字: 左下の 王冠ランプに かぶらない よう 右へ ずらす 量(点)・使える はば(絵の はばに 対する 割合) */
-const BAND_SHIFT = 56;
+/** 1枚絵の 下の 帯の 文字が 使える はば(絵の はばに 対する 割合) */
 const BAND_ROOM = 0.7;
+/** 液晶の 左はしから 王冠ランプの 右はしまで(点)。下の 帯の 文字は ここより 右に */
+const LAMP_ROOM = 96;
 /** 企画者の キャラの リーチ(2026-11-11〜。1人 1つ) */
 interface StoryReach {
   id: string;
@@ -1154,9 +1155,9 @@ export class SlotScene extends Phaser.Scene {
         if (pd.line) {
           const one = pd.line.replace(/\n/g, ' ');
           const y = bot - bandH / 2;
-          // 下の 帯は 左下の 王冠ランプに かぶらない よう 少し 右へ
-          const bx = ab.cx + BAND_SHIFT;
-          items.push(n === def.panels.length - 1 ? tierText(this, bx, y, one, fit(one, 36, BAND_ROOM), show.bigTier) : this.text(bx, y, one, fit(one, 30, BAND_ROOM), '#ffffff', 5));
+          const t = n === def.panels.length - 1 ? tierText(this, ab.cx, y, one, fit(one, 36, BAND_ROOM), show.bigTier) : this.text(ab.cx, y, one, fit(one, 30, BAND_ROOM), '#ffffff', 5);
+          this.dodgeLamp(t, ab);
+          items.push(t);
         }
         pd = { ...pd, title: undefined, line: undefined };
       }
@@ -1237,6 +1238,18 @@ export class SlotScene extends Phaser.Scene {
     return key;
   }
 
+  /**
+   * 下の 帯の 文字: ふだんは まん中。左下の 王冠ランプに かかる 時だけ、かからない ぶん 右へ ずらす。
+   * 2026-11-13 企画者「リーチ中の 下の 文字が 右に 寄りすぎてる」(前は いつも 56 ずらしていた)
+   */
+  private dodgeLamp(t: Phaser.GameObjects.Text, ab: { cx: number; w: number }): void {
+    const lampRight = ab.cx - ab.w / 2 + LAMP_ROOM;
+    const left = t.x - t.displayWidth / 2;
+    if (left >= lampRight) return;
+    const right = ab.cx + ab.w / 2 - 6;
+    t.setX(Math.min(t.x + (lampRight - left), right - t.displayWidth / 2));
+  }
+
   /** リーチの 1枚絵(上と 下は 少しだけ 切って 大きく。あまった 左右は 同じ 絵を 暗く。fitArt) */
   private reachArt(key: string, box = this.artBox()): Phaser.GameObjects.GameObject[] {
     return fitArt(this, key, box.cx, box.cy, box.w, box.h, 0x3a3048, ART_FOCUS[key.replace('slot:reach:', '')]);
@@ -1274,7 +1287,11 @@ export class SlotScene extends Phaser.Scene {
     // プレミアの 当たりの 絵は 絵の 中に「大当たり」の 文字が ある(企画者 2026-11-12)ので 帯と 文字は 出さない
     const artHasText = art && def.id === 'premium' && ok;
     if (art && !artHasText) items.push(this.add.rectangle(ab.cx, by, ab.w, bandH, 0x000000, 0.55));
-    if (!artHasText) items.push(this.text(r.top ? 0 : BAND_SHIFT, art ? by : h * 0.33, r.text, Math.min(ok ? 42 : 36, art ? bandH * 0.62 : h * 0.1, ((art ? ab.w : w) * BAND_ROOM) / r.text.length), ok ? '#ffd23a' : '#d8c8e8', 8));
+    if (!artHasText) {
+      const t = this.text(0, art ? by : h * 0.33, r.text, Math.min(ok ? 42 : 36, art ? bandH * 0.62 : h * 0.1, ((art ? ab.w : w) * BAND_ROOM) / r.text.length), ok ? '#ffd23a' : '#d8c8e8', 8);
+      if (!r.top) this.dodgeLamp(t, ab);
+      items.push(t);
+    }
     this.lcdShow(items);
     if (ok) {
       this.cameras.main.flash(260, 255, 230, 200);
