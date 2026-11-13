@@ -17,6 +17,9 @@ import { COIN_ART_FILE, COIN_ART_KEY } from './slotFx';
 const W = 720;
 const BASE_H = 1280;
 const LOGO_KEY = 'slot:logo';
+/** 企画者の ボタンの 絵(2026-11-13。元は design/slot/title/btn_*_original.png。黒い 背景を 消した もの) */
+const BTN_ART = ['play', 'shop', 'exchange'] as const;
+const btnKey = (n: (typeof BTN_ART)[number]) => `slot:btn:${n}`;
 const BG_KEY = 'slot:lcd:normal';
 const TITLE_BG_KEY = 'slot:title:bg';
 
@@ -34,6 +37,7 @@ export class SlotTitleScene extends Phaser.Scene {
 
   preload(): void {
     if (!this.textures.exists(LOGO_KEY)) this.load.image(LOGO_KEY, assetUrl('assets/slot/logo.webp'));
+    for (const n of BTN_ART) if (!this.textures.exists(btnKey(n))) this.load.image(btnKey(n), assetUrl(`assets/slot/btn_${n}.webp`));
     if (!this.textures.exists(BG_KEY)) this.load.image(BG_KEY, assetUrl('assets/slot/lcd_normal.webp'));
     if (!this.textures.exists(COIN_ART_KEY)) this.load.image(COIN_ART_KEY, assetUrl(COIN_ART_FILE));
     // 2026-11-12 企画者の タイトル画面の 背景(元は design/slot/title_bg.png)
@@ -84,10 +88,36 @@ export class SlotTitleScene extends Phaser.Scene {
     this.refresh();
 
     // ボタン 3つ(画面の 下に 入る ように)
-    const by = cy + 160 * k;
-    this.button(W / 2, by, 'あそぶ', 0xff4ad8, Math.round(60 * Math.max(0.8, k)), () => this.play());
-    this.button(W / 2, by + 150 * k, 'ショップ', 0x9b5cff, Math.round(44 * Math.max(0.8, k)), () => this.openShop());
-    this.button(W / 2, by + 270 * k, 'コイン交換', 0x2a9df4, Math.round(44 * Math.max(0.8, k)), () => this.openExchange());
+    // 2026-11-13 企画者「あそぶ は PLAY に」→ 企画者の ボタンの 絵(PLAY・SHOP・EXCHANGE)。絵が ない 時は 前の ボタン
+    if (BTN_ART.every((n) => this.textures.exists(btnKey(n)))) {
+      const s = Math.max(0.8, k);
+      let y = cy + 82 * k;
+      const place = (n: (typeof BTN_ART)[number], w: number, gap: number, onTap: () => void) => {
+        const img = this.add.image(W / 2, 0, btnKey(n));
+        img.setScale((w * s) / img.width);
+        y += img.displayHeight / 2;
+        img.setY(y);
+        y += img.displayHeight / 2 + gap * k;
+        img.setInteractive({ useHandCursor: true });
+        img.on('pointerdown', () => {
+          audio.unlock();
+          const k0 = img.scale;
+          this.tweens.add({ targets: img, scale: k0 * 0.94, duration: 70, yoyo: true });
+          onTap();
+        });
+        return img;
+      };
+      const play = place('play', 520, 4, () => this.play());
+      place('shop', 440, 2, () => this.openShop());
+      place('exchange', 440, 0, () => this.openExchange());
+      // PLAY は ゆっくり 光る(押して ほしい ボタン)
+      this.tweens.add({ targets: play, alpha: 0.85, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    } else {
+      const by = cy + 160 * k;
+      this.button(W / 2, by, 'PLAY', 0xff4ad8, Math.round(60 * Math.max(0.8, k)), () => this.play());
+      this.button(W / 2, by + 150 * k, 'ショップ', 0x9b5cff, Math.round(44 * Math.max(0.8, k)), () => this.openShop());
+      this.button(W / 2, by + 270 * k, 'コイン交換', 0x2a9df4, Math.round(44 * Math.max(0.8, k)), () => this.openExchange());
+    }
 
     // もどる
     const back = this.text(86, top + 46, '◀ もどる', 26).setBackgroundColor('#16101ccc').setPadding(16, 8, 16, 10).setDepth(20).setInteractive({ useHandCursor: true });

@@ -358,3 +358,8 @@
 - ふつうに 使う 時（ショップ・パックなど）は 買った ぶんから 先に へる（`update` の 中で 自動）。
 - ロイヤルコインへの 交換は `earnedCoins`（= coins − paidCoins）だけ（`spendEarned`）。タイトル画面には「交換できる MONZ コイン」を 出す。
 - 画面の MONZ コインの 数は 今まで どおり 合計 1つ。
+
+
+## タイトル画面の ボタン（2026-11-13 企画者）
+- 「あそぶ」は「PLAY」に。ボタンは 企画者の 絵（PLAY・SHOP・EXCHANGE）。元は design/slot/title/btn_*_original.png、黒い 背景を 消した ものを public/assets/slot/btn_*.webp。
+- ロイヤルコインは のこす（企画者「やっぱり ロイヤルコインは いる」）。
