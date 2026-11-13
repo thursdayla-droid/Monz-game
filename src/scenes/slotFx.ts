@@ -107,13 +107,18 @@ export function stepUp(scene: Phaser.Scene, lcd: Phaser.GameObjects.Container, b
 
 /** 1枚絵の 上と 下を 切って よい 量(それぞれ。0.1 = 1割) */
 export const ART_CUT = 0.1;
+/**
+ * 切る 場所(0 = 上を 残す・1 = 下を 残す)。ふだんは 下を 多めに 切る(顔・頭は 上・下は 文字の 帯で かくれる)。
+ * 2026-11-13 企画者「大切な ところは 映す ように」「カンガルーリーチも 星の 数が 見えなかった」
+ */
+export const ART_FOCUS_DEFAULT = 0.25;
 
 /**
  * 液晶に 1枚絵を 出す(リーチ・ステップアップ)。
  * 2026-11-13 企画者「液晶に 収まってない」→「小さく なるのは 微妙」→「あいだ」:
  * 上と 下は それぞれ ART_CUT まで 切って 大きく。それでも あまる 左右は 同じ 絵を 暗く して うめる
  */
-export function fitArt(scene: Phaser.Scene, key: string, cx: number, cy: number, w: number, h: number, tint: number): [Phaser.GameObjects.Image, Phaser.GameObjects.Image] {
+export function fitArt(scene: Phaser.Scene, key: string, cx: number, cy: number, w: number, h: number, tint: number, focus = ART_FOCUS_DEFAULT): [Phaser.GameObjects.Image, Phaser.GameObjects.Image] {
   const back = scene.add.image(cx, cy, key);
   const kb = Math.max(w / back.width, h / back.height);
   back.setScale(kb).setTint(tint);
@@ -123,7 +128,10 @@ export function fitArt(scene: Phaser.Scene, key: string, cx: number, cy: number,
   img.setScale(k);
   const cw = Math.min(img.width, w / k);
   const ch = Math.min(img.height, h / k);
-  img.setCrop((img.width - cw) / 2, (img.height - ch) / 2, cw, ch);
+  // 切る 場所: focus 0 = 上を 残す(下を 切る)・0.5 = 上下 同じ・1 = 下を 残す
+  const cy0 = (img.height - ch) * focus;
+  img.setCrop((img.width - cw) / 2, cy0, cw, ch);
+  img.setY(cy + (img.height / 2 - (cy0 + ch / 2)) * k);
   return [back, img];
 }
 

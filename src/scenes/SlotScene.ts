@@ -52,6 +52,20 @@ type LcdBg = (typeof LCD_BGS)[number];
 const lcdBgKey = (n: LcdBg) => `slot:lcd:${n}`;
 /** 届いた 説明の 絵(ボーナス・フリーゲームの 前。2026-11-12 企画者が 用意する) */
 const GUIDE_ART: readonly string[] = ['bonus', 'free'];
+/**
+ * 1枚絵ごとの 切る 場所(0 = 上を 残す・0.5 = まん中・1 = 下を 残す。書いて ない 絵は 少し 上を 残す)。
+ * 2026-11-13 企画者「大切な ところは 映す ように」
+ */
+const ART_FOCUS: Record<string, number> = {
+  // 星の 数・大当たりの 文字は 絵の いちばん 上
+  'ramen:win': 0,
+  'premium:win': 0,
+  // ボール・カップは 下(ハズレの 文字は 上に 出す)
+  'golf:lose': 1,
+  'golf:1': 0.5,
+  'golf:3': 0.5,
+};
+
 /** 1枚絵の 下の 帯の 文字: 左下の 王冠ランプに かぶらない よう 右へ ずらす 量(点)・使える はば(絵の はばに 対する 割合) */
 const BAND_SHIFT = 56;
 const BAND_ROOM = 0.7;
@@ -1163,7 +1177,7 @@ export class SlotScene extends Phaser.Scene {
 
   /** リーチの 1枚絵(上と 下は 少しだけ 切って 大きく。あまった 左右は 同じ 絵を 暗く。fitArt) */
   private reachArt(key: string, box = this.artBox()): Phaser.GameObjects.GameObject[] {
-    return fitArt(this, key, box.cx, box.cy, box.w, box.h, 0x3a3048);
+    return fitArt(this, key, box.cx, box.cy, box.w, box.h, 0x3a3048, ART_FOCUS[key.replace('slot:reach:', '')]);
   }
 
   /**
