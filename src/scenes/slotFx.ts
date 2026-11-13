@@ -105,6 +105,28 @@ export function stepUp(scene: Phaser.Scene, lcd: Phaser.GameObjects.Container, b
   return level * per;
 }
 
+/** 1枚絵の 上と 下を 切って よい 量(それぞれ。0.1 = 1割) */
+export const ART_CUT = 0.1;
+
+/**
+ * 液晶に 1枚絵を 出す(リーチ・ステップアップ)。
+ * 2026-11-13 企画者「液晶に 収まってない」→「小さく なるのは 微妙」→「あいだ」:
+ * 上と 下は それぞれ ART_CUT まで 切って 大きく。それでも あまる 左右は 同じ 絵を 暗く して うめる
+ */
+export function fitArt(scene: Phaser.Scene, key: string, cx: number, cy: number, w: number, h: number, tint: number): [Phaser.GameObjects.Image, Phaser.GameObjects.Image] {
+  const back = scene.add.image(cx, cy, key);
+  const kb = Math.max(w / back.width, h / back.height);
+  back.setScale(kb).setTint(tint);
+  back.setCrop((back.width - w / kb) / 2, (back.height - h / kb) / 2, w / kb, h / kb);
+  const img = scene.add.image(cx, cy, key);
+  const k = Math.max(Math.min(w / img.width, h / img.height), Math.min(kb, h / (img.height * (1 - 2 * ART_CUT))));
+  img.setScale(k);
+  const cw = Math.min(img.width, w / k);
+  const ch = Math.min(img.height, h / k);
+  img.setCrop((img.width - cw) / 2, (img.height - ch) / 2, cw, ch);
+  return [back, img];
+}
+
 /** ステップアップ(白黒の 1枚絵): 段ごとに 液晶 いっぱいに 白黒の 1枚目が 出る。段が 上がるほど 大きく ゆれる */
 function faceSteps(scene: Phaser.Scene, lcd: Phaser.GameObjects.Container, box: LcdBox, level: number, faces: string[], fast: boolean): number {
   const per = fast ? 500 : 850;
@@ -113,13 +135,8 @@ function faceSteps(scene: Phaser.Scene, lcd: Phaser.GameObjects.Container, box: 
     scene.time.delayedCall(i * per, () => {
       if (!lcd.active) return;
       lcd.removeAll(true);
-      // 2026-11-13 企画者「リーチの 絵が 液晶に 収まってない」→ 絵 ぜんぶを 液晶の 中に。あまりは 同じ 絵を 暗く
-      const back = scene.add.image(0, 0, faces[i]);
-      const kb = Math.max((w - 8) / back.width, (h - 8) / back.height);
-      back.setScale(kb).setTint(0x3a3a3a);
-      back.setCrop((back.width - (w - 8) / kb) / 2, (back.height - (h - 8) / kb) / 2, (w - 8) / kb, (h - 8) / kb);
-      const img = scene.add.image(0, 0, faces[i]);
-      const kk = Math.min((w - 8) / img.width, (h - 8) / img.height);
+      const [back, img] = fitArt(scene, faces[i], 0, 0, w - 8, h - 8, 0x3a3a3a);
+      const kk = img.scale;
       img.setScale(kk * 1.08);
       const steps = scene.add.container(0, h * 0.42);
       for (let n = 0; n < faces.length; n++) steps.add(scene.add.rectangle((n - (faces.length - 1) / 2) * 44, 0, 36, 12, n <= i ? 0xffd23a : 0x3a2a4a, 1).setStrokeStyle(2, 0x16101c));

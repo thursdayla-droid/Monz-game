@@ -9,7 +9,7 @@ import { fillSize, safeInsets } from '../ui/viewport';
 import { planShow, STEP_ORDER, type SpinShow } from '../core/slot/reach';
 import { pinTextures } from '../render/texBudget';
 import { CAB_FILE, CAB_KEY, cabinetLayout, cabinetTexture, type Rect } from './slotCabinet';
-import { COIN_ART_FILE, COIN_ART_KEY, coinFountain, cutIn, STEP_FILES, idleAnim, LAMP_FILES, lcdRays, NoticeLamp, PUSH_FILE, PUSH_KEY, pushButton, stepUp, tierText } from './slotFx';
+import { COIN_ART_FILE, COIN_ART_KEY, coinFountain, cutIn, fitArt, STEP_FILES, idleAnim, LAMP_FILES, lcdRays, NoticeLamp, PUSH_FILE, PUSH_KEY, pushButton, stepUp, tierText } from './slotFx';
 
 /**
  * MONZ SLOT(ミニゲーム⑤)の 画面(2026-11-10 企画者の 仕様書。docs/SLOT.md)。2段目: スロット画面。
@@ -1161,18 +1161,9 @@ export class SlotScene extends Phaser.Scene {
     return key;
   }
 
-  /**
-   * リーチの 1枚絵: 絵 ぜんぶを 液晶の 中に(切らない)。あまった 左右は 同じ 絵を 暗く 広げて うめる。
-   * 2026-11-13 企画者「リーチの 絵が 液晶に 収まってない」→ 前は 液晶 いっぱいに して 上下を 切っていた
-   */
+  /** リーチの 1枚絵(上と 下は 少しだけ 切って 大きく。あまった 左右は 同じ 絵を 暗く。fitArt) */
   private reachArt(key: string, box = this.artBox()): Phaser.GameObjects.GameObject[] {
-    const back = this.add.image(box.cx, box.cy, key);
-    const kb = Math.max(box.w / back.width, box.h / back.height);
-    back.setScale(kb).setTint(0x3a3048);
-    back.setCrop((back.width - box.w / kb) / 2, (back.height - box.h / kb) / 2, box.w / kb, box.h / kb);
-    const img = this.add.image(box.cx, box.cy, key);
-    img.setScale(Math.min(box.w / img.width, box.h / img.height));
-    return [back, img];
+    return fitArt(this, key, box.cx, box.cy, box.w, box.h, 0x3a3048);
   }
 
   /**
