@@ -64,6 +64,7 @@ const CSS = `
 .rmb .sfoe .stars{color:#ffb03a}
 .rmb .nav .jump{height:36px;border:2px solid #16101c;border-radius:10px;background:#ffd23a;color:#16101c;font:900 13px ${UI_FONT};padding:0 4px}
 .rmb .nav .skip{width:auto;padding:0 10px;font-size:12px}
+.rmb .nav .nhome{width:auto;padding:0 10px;font-size:12px;background:#16101c;color:#fff;border-color:#fff}
 /* 2026-11-05 企画者「文字の枠と被ってキャラが見えない」→ 下は 細い 半とうめいの 帯だけ(題名・あいては 上へ) */
 .rmb .stext{position:relative;display:flex;align-items:center;gap:12px;padding:8px calc(env(safe-area-inset-right) + 14px) calc(env(safe-area-inset-bottom) + 8px) calc(env(safe-area-inset-left) + 14px);background:linear-gradient(#0000,#000b 35%,#000d);color:#fff;min-height:52px}
 .rmb .stext .tx{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
@@ -114,8 +115,19 @@ function mount(scene: Phaser.Scene, html: string): HTMLDivElement {
   });
   const home = root.querySelector('.home') as HTMLElement;
   home.addEventListener('click', () => goHome(scene));
-  // ストーリーの 画面は 右上に ◀ ▶ とばす が あるので その 下
-  if (scene.scene.key === 'RumbleStory') home.style.top = 'calc(env(safe-area-inset-top) + 66px)';
+  // ストーリーの 画面は 右上に ◀ ▶ とばす が あるので、その ならびの 中に 入れる(.nhome。2026-11-13 企画者「とばすと ホームボタン 被ってる」)
+  if (scene.scene.key === 'RumbleStory') {
+    home.style.display = 'none';
+    root.addEventListener(
+      'click',
+      (ev) => {
+        if (!(ev.target as HTMLElement | null)?.closest?.('.nhome')) return;
+        ev.stopPropagation();
+        goHome(scene);
+      },
+      true,
+    );
+  }
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => root.remove());
   return root;
 }
@@ -240,7 +252,7 @@ export class RumbleStoryScene extends Phaser.Scene {
         const sc = ending[si];
         const L = sc.lines[li];
         box.innerHTML = `<div class="spic">${sc.image ? `<img src="${assetUrl(sc.image)}" alt="">` : '<span>一枚絵（企画者が作ります）</span>'}</div>
-          <div class="stop"><div class="sno"><span class="sname">${STORY_NAME}</span>ENDING<span class="stitle">${sc.title}</span></div><div class="nav"><button class="skip">とばす ▶▶</button></div></div>
+          <div class="stop"><div class="sno"><span class="sname">${STORY_NAME}</span>ENDING<span class="stitle">${sc.title}</span></div><div class="nav"><button class="skip">とばす ▶▶</button><button class="nhome">${HOME_LABEL}</button></div></div>
           <div class="stext"><div class="tx"><div class="who" style="display:${L?.who ? 'inline-block' : 'none'}">${L?.who ?? ''}</div><p class="line ${L?.who ? '' : 'narr'}">${L?.text ?? ''}</p></div><button class="go">▼ つぎへ</button></div>`;
         if (li === 0) {
           box.classList.remove('in2');
@@ -285,7 +297,7 @@ export class RumbleStoryScene extends Phaser.Scene {
       const lines = st.lines.length ? st.lines : [{ who: null, text: st.text }];
       box.innerHTML = `<div class="spic">${st.image ? `<img src="${assetUrl(st.image)}" alt="">` : '<span>一枚絵（企画者が作ります）</span>'}</div>
         <div class="stop"><button class="back">◀ もどる</button><div class="sno"><span class="sname">${STORY_NAME}</span>${st.no === SPECIAL_NO ? '特別編　STAGE ' + st.no : `第${st.chapter}章　STAGE ${st.no} <small>/ ${STORY_COUNT}</small>`}${done ? '<em>クリア</em>' : ''}<span class="stitle">${st.title}</span><span class="sfoe">あいて：${st.enemy.name}　Lv.${st.enemy.level}　<span class="stars">${'★'.repeat(st.enemy.prof)}${'☆'.repeat(5 - st.enemy.prof)}</span>${st.enemy.boss ? '　ボス' : ''}</span></div>
-          <div class="nav">${isPreview() ? `<select class="jump" title="確認用: ステージへ とぶ">${STORY_STAGES.map((x) => `<option value="${x.no}" ${x.no === no ? 'selected' : ''}>確認 ${x.no}</option>`).join('')}</select>` : ''}<button class="prev" ${no <= 1 ? 'disabled' : ''}>◀</button><button class="nxt" ${!canPlay(no + 1, cleared) ? 'disabled' : ''}>▶</button><button class="skip">とばす ▶▶</button></div></div>
+          <div class="nav">${isPreview() ? `<select class="jump" title="確認用: ステージへ とぶ">${STORY_STAGES.map((x) => `<option value="${x.no}" ${x.no === no ? 'selected' : ''}>確認 ${x.no}</option>`).join('')}</select>` : ''}<button class="prev" ${no <= 1 ? 'disabled' : ''}>◀</button><button class="nxt" ${!canPlay(no + 1, cleared) ? 'disabled' : ''}>▶</button><button class="skip">とばす ▶▶</button><button class="nhome">${HOME_LABEL}</button></div></div>
         ${allClear && !isPreview() && no === STORY_TOTAL ? '<div class="clear sclear">ストーリー クリア！ ◀ で 前の話も 遊べます</div>' : ''}
         <div class="bstart">${st.start ?? 'BATTLE START!'}</div>
         <div class="stext">
