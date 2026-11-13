@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { goHome, HOME_LABEL } from '../ui/homeButton';
 import { audio } from '../audio/engine';
 import { assetUrl } from '../assetUrl';
 import { canPlay, CPU_LEVELS, ENDINGS, nextStage, SPECIAL_NO, STORY_COUNT, STORY_NAME, STORY_STAGES, STORY_TOTAL } from '../core/rumble';
@@ -55,6 +56,7 @@ const CSS = `
 .rmb .spic img{width:100%;height:100%;object-fit:cover;object-position:50% 8%}
 .rmb .stop{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top) + 20px) calc(env(safe-area-inset-right) + 14px) 10px calc(env(safe-area-inset-left) + 14px);background:linear-gradient(#000c,#0000)}
 .rmb .stop .back{align-self:center}
+.rmb .home{position:absolute;z-index:5;right:calc(env(safe-area-inset-right) + 16px);top:calc(env(safe-area-inset-top) + 14px);background:#16101ccc;border:0;color:#fff;font:900 16px ${UI_FONT};padding:11px 16px;border-radius:12px;min-height:44px}
 .rmb .sno{flex:1;text-align:center;font:900 18px ${UI_FONT};color:#ffd23a;text-shadow:0 2px 0 #16101c,0 0 6px #000}
 .rmb .sname{display:block;font-size:11px;letter-spacing:.2em;color:#fff;-webkit-text-stroke:0;opacity:.85}
 .rmb .stitle{display:block;font-size:13px;color:#fff;margin-top:1px}
@@ -103,12 +105,17 @@ function mount(scene: Phaser.Scene, html: string): HTMLDivElement {
   root.style.setProperty('--btn', `url('${assetUrl(BTN_FRAME)}')`);
   root.style.setProperty('--btncpu', `url('${assetUrl(BTN_CPU)}')`);
   // MONZ RUMBLE は スマホ横だけ(2026-11-05 企画者)。縦の あいだは「横にしてね」で おおう
-  root.innerHTML = `<div class="in">${html}</div><div class="rot"><button class="rback">◀ もどる</button><div>スマホを 横にしてね<small>MONZ RUMBLE は 横画面で あそびます</small></div></div>`;
+  // 2026-11-13 企画者「1発で お世話画面に 戻る ホームボタン」(右上)
+  root.innerHTML = `<div class="in">${html}</div><button class="home">${HOME_LABEL}</button><div class="rot"><button class="rback">◀ もどる</button><div>スマホを 横にしてね<small>MONZ RUMBLE は 横画面で あそびます</small></div></div>`;
   document.body.appendChild(root);
   (root.querySelector('.rback') as HTMLElement).addEventListener('click', () => {
     audio.se('back');
     scene.scene.start('BattleMenu');
   });
+  const home = root.querySelector('.home') as HTMLElement;
+  home.addEventListener('click', () => goHome(scene));
+  // ストーリーの 画面は 右上に ◀ ▶ とばす が あるので その 下
+  if (scene.scene.key === 'RumbleStory') home.style.top = 'calc(env(safe-area-inset-top) + 66px)';
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => root.remove());
   return root;
 }

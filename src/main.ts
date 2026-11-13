@@ -38,6 +38,7 @@ import { SlotTitleScene } from './scenes/SlotTitleScene';
 import { applyCoinGifts } from './core/coinGift';
 import { fillTall, watchViewport } from './ui/viewport';
 import { installTextureBudget, trimTextures } from './render/texBudget';
+import { addHomeButton, HOME_BUTTON_SCENES } from './ui/homeButton';
 
 // 2026-11-09 企画者「公開してる ゲーム 友達たち やってるんだけど 100,000 コイン 追加できる？」→ 遊んでいる 人に 1回だけ
 applyCoinGifts();
@@ -73,6 +74,9 @@ game.events.once(Phaser.Core.Events.READY, () => {
       clearTimeout(trimT);
       trimT = setTimeout(() => trimTextures(game), 1000);
       fillTall(s);
+      // 2026-11-13 企画者「1発で お世話画面に 戻る ホームボタン」(メニュー画面だけ・右上)
+      // 確認用ページ(スロットだけ などの 一部だけ 入った ページ)には お世話画面が ないので 出さない
+      if (HOME_BUTTON_SCENES.has(s.scene.key) && !(window as { __MONZ_START?: string }).__MONZ_START) addHomeButton(s);
       // 2026-11-08 企画者「バトルセレクトで 横画面に してから 縦に したら 左上の 戻る 押せない」:
       // 画面の 大きさは 開いた 時の 向きで 決めるので、向きが 変わったら 作り直す(たての メニュー画面だけ)
       if (RELAYOUT_ON_ROTATE.has(s.scene.key))
