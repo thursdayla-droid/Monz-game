@@ -6,7 +6,7 @@ import { pickWeighted, randomSeed, mulberry32, type Rng } from '../core/rng';
 import { BETS, CHEST_PAY, dealChests, FREE_ROWS, freeSpin, SYMBOL_WEIGHT, newBonus, newFree, pickChest, REELS, ROWS, SYMBOL_NAME, SYMBOLS, spin, type BonusState, type ChestContent, type FreeSpinResult, type FreeState, type SpinResult, type SymbolId } from '../core/slot/slot';
 import { UI_FONT } from '../ui/paint';
 import { fillSize, safeInsets } from '../ui/viewport';
-import { planShow, STEP_ORDER, type SpinShow } from '../core/slot/reach';
+import { BIG_REACHES, planShow, STEP_ORDER, type SpinShow } from '../core/slot/reach';
 import { pinTextures } from '../render/texBudget';
 import { CAB_FILE, CAB_KEY, cabinetLayout, cabinetTexture, type Rect } from './slotCabinet';
 import { COIN_ART_FILE, COIN_ART_KEY, coinFountain, cutIn, fitArt, STEP_FILES, idleAnim, LAMP_FILES, lcdRays, NoticeLamp, PUSH_FILE, PUSH_KEY, pushButton, stepUp, tierText } from './slotFx';
@@ -284,6 +284,8 @@ export class SlotScene extends Phaser.Scene {
     return REELS * this.cell + (REELS - 1) * GAP;
   }
   private rng: Rng = mulberry32(randomSeed());
+  /** 確認用: 次の 回転で 見せる リーチ(企画者 2026-11-13「全ての リーチ 見れる ように 確認用 お願い」) */
+  private forceReach?: { id: string; win: boolean; variant: number };
   private bet: number = BETS[0];
   /** 2026-11-12〜 スロット 専用の コイン(MONZ コインでは ない) */
   private record!: SlotWallet;
@@ -480,6 +482,12 @@ export class SlotScene extends Phaser.Scene {
         this.busy = true;
         audio.unlock();
         this.startFree(5);
+      });
+      // リーチを えらんで 見る(2026-11-13 企画者「全ての リーチ 見れる ように 確認用 お願い」)
+      const rc = this.text(W - 150, 230, 'リーチを えらぶ（確認用）', 18, '#16101c').setBackgroundColor('#ff8ab3').setPadding(10, 6, 10, 8).setDepth(30).setInteractive({ useHandCursor: true });
+      rc.on('pointerdown', () => {
+        if (this.busy || this.autoLeft > 0) return;
+        this.reachPicker();
       });
     }
 
@@ -806,6 +814,58 @@ export class SlotScene extends Phaser.Scene {
 
   // ---------------- 回す ----------------
 
+  /** 確認用: えらんだ リーチに なる 回転を さがす(7の そろい方・当たり/ハズレが 合う 回転を 見つけて、リーチの キャラと 種類を 入れかえる) */
+  private forcedSpin(f: { id: string; win: boolean; variant: number }): { res: SpinResult; show: SpinShow } | undefined {
+    const big = BIG_REACHES.find((b) => b.id === f.id);
+    if (!big) return undefined;
+    for (let i = 1; i < 3_000_000; i++) {
+      const rng = mulberry32((i * 2654435761) >>> 0 || 1);
+      const res = spin(rng, this.bet);
+      const show = planShow(res, this.bet, rng);
+      if (!show.big || show.bigSuccess !== f.win || show.crownBig || res.bonus || res.free > 0) continue;
+      const at = STEP_ORDER.indexOf(big.id);
+      return { res, show: { ...show, big, bigVariant: big.variants ? f.variant : -1, notice: (at >= 0 ? at + 1 : 0) as SpinShow['notice'] } };
+    }
+    return undefined;
+  }
+
+  /** 確認用: リーチを えらぶ 画面。押すと すぐ 回る */
+  private reachPicker(): void {
+    const box = this.add.container(0, 0).setDepth(80);
+    const dim = this.add.rectangle(W / 2, this.H / 2, W, this.H, 0x000000, 0.82).setInteractive();
+    box.add(dim);
+    box.add(this.text(W / 2, 120, 'リーチを えらぶ（確認用）', 30, '#ffffff', 6));
+    const names: Record<string, string> = { kyon: 'キョンK', panda: 'パンダY', usagi: 'うさぎK', ramen: 'カンガルーH', golf: 'ヒヨコJ', kanojo: 'チーターS', premium: 'アライグマR' };
+    const rows: { label: string; id: string; variant: number; lose: boolean }[] = [];
+    for (const d of STORY_REACHES) {
+      const n = d.variants?.list.length ?? 1;
+      for (let v = 0; v < n; v++) {
+        const vt = d.variants ? (d.variants.list[v].title ?? `質問${v + 1}`) : '';
+        rows.push({ label: `${names[d.id] ?? d.id}${vt ? ' ' + vt.replace(/ /g, '') : ''}`, id: d.id, variant: v, lose: d.id !== 'premium' });
+      }
+    }
+    const rowH = Math.min(62, (this.H - 330) / rows.length);
+    const close = () => box.destroy();
+    rows.forEach((r, i) => {
+      const y = 190 + i * rowH;
+      box.add(this.text(40, y, r.label, Math.min(24, rowH * 0.42), '#ffffff', 4).setOrigin(0, 0.5));
+      const btn = (x: number, label: string, col: string, win: boolean) => {
+        const b = this.text(x, y, label, Math.min(22, rowH * 0.4), '#16101c').setBackgroundColor(col).setPadding(14, 6, 14, 8).setInteractive({ useHandCursor: true });
+        b.on('pointerdown', () => {
+          close();
+          this.forceReach = { id: r.id, win, variant: r.variant };
+          this.doSpin();
+        });
+        box.add(b);
+      };
+      btn(W - 230, '当たり', '#ffd23a', true);
+      if (r.lose) btn(W - 100, 'ハズレ', '#b8c4d8', false);
+    });
+    const cl = this.text(W / 2, 190 + rows.length * rowH + 40, 'とじる', 26, '#16101c').setBackgroundColor('#ffffff').setPadding(24, 8, 24, 10).setInteractive({ useHandCursor: true });
+    cl.on('pointerdown', close);
+    box.add(cl);
+  }
+
   private doSpin(auto = false): void {
     if (this.busy || this.picker) return;
     if (!auto) this.tweens.add({ targets: this.spinBtn, scale: 0.94, duration: 70, yoyo: true });
@@ -817,7 +877,9 @@ export class SlotScene extends Phaser.Scene {
       return;
     }
     // 結果は 先に 決める(リーチ演出は 4段目で これに 合わせて えらぶ)
-    const res = spin(this.rng, this.bet);
+    const forced = this.forceReach ? this.forcedSpin(this.forceReach) : undefined;
+    this.forceReach = undefined;
+    const res = forced?.res ?? spin(this.rng, this.bet);
     if (!this.record.slotSpin(this.bet, res.win)) return;
     this.busy = true;
     this.clearGlow();
@@ -833,7 +895,7 @@ export class SlotScene extends Phaser.Scene {
     this.paintAuto();
     if (this.autoNow && this.autoLeft === 0) this.spinLabel.setText('SPIN').setFontSize(52);
     // 見せ方(予告・リーチ)を 決める。結果は もう 決まって いる(払い戻し率は 変わらない)
-    const show = planShow(res, this.bet, this.rng);
+    const show = forced?.show ?? planShow(res, this.bet, this.rng);
     this.lastShow = show;
     this.crownOn = false;
     this.bigPlayed = false;
