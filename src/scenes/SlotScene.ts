@@ -31,9 +31,9 @@ const SAVE_KEY = 'monz:slot';
 const LOGO_KEY = 'slot:logo';
 /** ブラックアウト復活の 金の ROYAL JACKPOT の 絵(企画者が 作る。届いたら public/assets/slot/revive.webp。なければ ロゴで 仮) */
 const REVIVE_KEY = 'slot:revive';
-const REVIVE_FILE = 'assets/slot/revive.webp';
+const REVIVE_FILE = 'assets/slot/revive.webp'; // 元は design/slot/revive_original.png(企画者 2026-11-13)
 /** 企画者の 絵が 届いたら true */
-const REVIVE_ART = false;
+const REVIVE_ART = true;
 /** 止まる 時間(ms)【仮】: 1つめ・あとは 1つずつ */
 // 2026-11-10 企画者「今の 速度は オートの 時で いい。(ふつうは)じゃっかん 遅く」
 const STOP_FIRST = 1000;
@@ -1041,12 +1041,13 @@ export class SlotScene extends Phaser.Scene {
       audio.se('back', { pitch: 0.6 });
       this.tweens.add({ targets: black, alpha: 1, duration: 120 });
       this.time.delayedCall(REVIVE_DARK_MS * k, () => {
-        const cy = this.H * 0.42;
+        const cy = this.H * 0.45;
         const glow = this.add.circle(W / 2, cy, 40, 0xffd23a, 0.5).setDepth(1001).setScrollFactor(0);
         this.tweens.add({ targets: glow, scale: 14, alpha: 0, duration: 900, ease: 'Quad.easeOut' });
         const key = this.textures.exists(REVIVE_KEY) ? REVIVE_KEY : LOGO_KEY;
         const img = this.add.image(W / 2, cy, key).setDepth(1002).setScrollFactor(0);
-        const sc = Math.min((W * 0.9) / img.width, (this.H * 0.42) / img.height);
+        // 企画者の 絵(黒い 背景・光の 線ごと)は 大きく。仮の ロゴは 小さめ
+        const sc = key === REVIVE_KEY ? Math.min(W / img.width, (this.H * 0.75) / img.height) : Math.min((W * 0.9) / img.width, (this.H * 0.42) / img.height);
         img.setScale(sc * 0.2).setAlpha(0);
         this.tweens.add({ targets: img, scale: sc, alpha: 1, duration: 520, ease: 'Back.easeOut' });
         this.tweens.add({ targets: img, scale: sc * 1.05, duration: 600, delay: 560, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
