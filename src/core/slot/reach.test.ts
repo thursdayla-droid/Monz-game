@@ -55,7 +55,7 @@ describe('MONZ SLOT リーチ', () => {
     expect(N / big).toBeGreaterThan(35);
     expect(N / big).toBeLessThan(62);
     const rate = (id: string) => byType[id].win / byType[id].n;
-    expect(BIG_REACHES.map((t) => t.id)).toEqual(['kyon', 'panda', 'usagi', 'ramen', 'golf', 'kanojo', 'premium']);
+    expect(BIG_REACHES.map((t) => t.id)).toEqual(['kyon', 'panda', 'usagi', 'ramen', 'golf', 'kanojo', 'premium', 'line']);
     // 予告は ときどき(ハズレでも 少し)
     expect(notice / N).toBeGreaterThan(0.02);
     expect(notice / N).toBeLessThan(0.15);
@@ -221,7 +221,7 @@ describe('ステップアップの 順番(企画者 2026-11-12)', () => {
       const rng = mulberry32(i);
       const s = planShow(spin(rng, 10), 10, rng);
       const story = s.big ?? s.crownBig;
-      if (story?.id === 'premium') expect(s.notice).toBe(0);
+      if (story?.id === 'premium' || story?.id === 'line') expect(s.notice).toBe(0);
       else if (story) {
         // 2026-11-13: 半分は ステップアップなし(いきなり リーチ)
         expect([0, STEP_ORDER.indexOf(story.id) + 1]).toContain(s.notice);
@@ -245,10 +245,12 @@ describe('プレミア(企画者 2026-11-12「100% 当たる」)', () => {
       const rng = mulberry32(i);
       const r = spin(rng, 10);
       const s = planShow(r, 10, rng);
-      if (s.big?.id === 'premium') {
+      if (s.big?.id === 'premium' || s.big?.id === 'line') {
         n++;
         expect(s.bigSuccess).toBe(true);
       }
+      // グループLINE は 王冠の リーチには 出さない
+      expect(s.crownBig?.id).not.toBe('line');
       if (s.crownBig?.id === 'premium') {
         n++;
         expect(r.bonus || r.free > 0).toBe(true);

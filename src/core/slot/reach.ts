@@ -97,12 +97,16 @@ export const BIG_REACHES: readonly BigReachType[] = [
   },
   // 2026-11-12 企画者「プレミア 演出。100% 当たる」: アライグマR が 電話 → みんなが 集まる → バーベキュー。ハズレでは 出ない
   { id: 'premium', name: 'アライグマRの プレミア', winWeight: 6, loseWeight: 0 },
+  // 2026-11-13 企画者「グループLINEリーチ」: 飲み会の 参加者 募集 → 3人 参加で 大当たり。まずは 当たりの 会話 1つ(ハズレでは 出ない)。
+  // 出やすさは プレミアと 同じ【仮】
+  { id: 'line', name: 'グループLINEリーチ', winWeight: 6, loseWeight: 0 },
 ];
 /** 7が 2個で ハズレの 時に キャラの リーチを 出さない(小さい リーチ だけ)重み */
 // 2026-11-12 7の 出やすさを かえた ので 合わせ直した(キャラごとの 当たる 確率を そのままに)
 // 2026-11-12 3人を 多く した ぶん 合わせ直し((のこりの 重み) ÷ (当たりの 重みの 合計) を 6.34 に)
 // 2026-11-12 プレミア(当たりだけ)を 足した ぶん 327 → 365(ほかの キャラの 当たる 確率を そのままに)
-export const NO_STORY_LOSE = 365;
+// 2026-11-13 グループLINE(当たりだけ)を 足した ぶん 365 → 403(ほかの キャラの 当たる 確率を そのままに)
+export const NO_STORY_LOSE = 403;
 /**
  * 王冠が 2つ 出た 時(さいごの リールより 前)の BONUS リーチで、キャラの リーチを 出す 割合(企画者 2026-11-12「2」)。
  * 当たり = 王冠が 3つ 以上(宝箱・フリーゲーム)。王冠の リーチは 約16回転に 1回。キャラごとの 割合は CROWN_PICK(全体で 約46%)。
@@ -262,11 +266,11 @@ export function planShow(res: SpinResult, bet: number, rng: Rng): SpinShow {
   // → キャラの リーチの 半分は ステップアップなしで いきなり 始まる
   if (at >= 0) out.notice = (rng() < STORY_STEP_RATE ? at + 1 : 0) as NoticeLevel;
   // プレミアは 予告なしで いきなり(とつぜん 電話が 鳴る)
-  else if (story?.id === 'premium') out.notice = 0;
+  else if (story?.id === 'premium' || story?.id === 'line') out.notice = 0;
   // 2026-11-13 企画者「ブラックアウト復活リーチ」: キャラの リーチの 当たりの 1割は、ハズレたと 見せてから 画面 真っ暗 → 大当たり
   // (当たる 回数は 変わらない。見せ方だけ。プレミアは いつも 当たりなので 出さない)
   const storyWin = out.big ? out.bigSuccess : !!out.crownBig && (res.bonus || res.free > 0);
-  out.revive = !!story && story.id !== 'premium' && storyWin && rng() < REVIVE_RATE;
+  out.revive = !!story && story.id !== 'premium' && story.id !== 'line' && storyWin && rng() < REVIVE_RATE;
   // キャラの リーチが ない 時は 5段目(ヒヨコJ)まで。6段目(チーターS)まで 進めば 必ず チーターの リーチ
   return out;
 }

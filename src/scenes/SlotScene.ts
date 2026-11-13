@@ -8,6 +8,7 @@ import { UI_FONT } from '../ui/paint';
 import { fillSize, safeInsets } from '../ui/viewport';
 import { BIG_REACHES, planShow, STEP_ORDER, type SpinShow } from '../core/slot/reach';
 import { pinTextures } from '../render/texBudget';
+import { LINE_SCRIPTS, lineScriptMs, playLineReach } from './slotLine';
 import { CAB_FILE, CAB_KEY, cabinetLayout, cabinetTexture, type Rect } from './slotCabinet';
 import { COIN_ART_FILE, COIN_ART_KEY, coinFountain, cutIn, fitArt, STEP_FILES, idleAnim, LAMP_FILES, lcdRays, NoticeLamp, PUSH_FILE, PUSH_KEY, pushButton, stepUp, tierText } from './slotFx';
 
@@ -868,6 +869,7 @@ export class SlotScene extends Phaser.Scene {
         rows.push({ label: `${names[d.id] ?? d.id}${vt ? ' ' + vt.replace(/ /g, '') : ''}`, id: d.id, variant: v, lose: d.id !== 'premium' });
       }
     }
+    rows.push({ label: 'グループLINE', id: 'line', variant: 0, lose: false });
     const rowH = Math.min(62, (this.H - 340) / rows.length);
     const close = () => box.destroy();
     rows.forEach((r, i) => {
@@ -990,7 +992,8 @@ export class SlotScene extends Phaser.Scene {
       for (let i = 2; i < REELS; i++) this.reels[i].speed = 0.35;
       this.markReach(res, show, 2);
       this.bigPlayed = true;
-      const bigMs = (STORY_REACHES.some((d) => d.id === show.big?.id) ? STORY_REACH_MS : BIG_REACH_MS) * k;
+      // グループLINE(2026-11-13)は 会話の 長さ(オートでも 短く しない)
+      const bigMs = show.big.id === 'line' ? lineScriptMs(LINE_SCRIPTS.win1) : (STORY_REACHES.some((d) => d.id === show.big?.id) ? STORY_REACH_MS : BIG_REACH_MS) * k;
       this.bigReach(show, bigMs);
       // 2026-11-13 企画者「リーチで ハズレに なる 前に リールが ハズレるの 嫌」→ 結果の 絵を 先に 出して、少し あとで 3リール目を 止める
       const finish = () => {
@@ -1006,7 +1009,7 @@ export class SlotScene extends Phaser.Scene {
         next(RESULT_LEAD * k);
       };
       // ③ PUSH ボタン(押すと 結果)
-      if (show.push)
+      if (show.push && show.big.id !== 'line')
         return void this.time.delayedCall(bigMs, () => pushButton(this, this.lcd, this.lcdBox, show.bigTier, this.autoNow ? 700 : 4000, () => this.time.delayedCall(250, finish)));
       return void this.time.delayedCall(bigMs, finish);
     }
@@ -1022,7 +1025,7 @@ export class SlotScene extends Phaser.Scene {
     }
     // キャラの リーチの 結果の 絵を ゆっくり 見せてから 次の リール(2026-11-12 企画者「リーチは 楽しみたい」)
     if (r === 2 && this.bigPlayed) {
-      const total = (STORY_REACHES.some((d) => d.id === show.big?.id) ? STORY_RESULT_MS : LAST_REEL_MS) * k;
+      const total = (STORY_REACHES.some((d) => d.id === show.big?.id) || show.big?.id === 'line' ? STORY_RESULT_MS : LAST_REEL_MS) * k;
       return void next(Math.max(400, total - (this.time.now - this.resultAt)));
     }
     next(step);
@@ -1166,6 +1169,7 @@ export class SlotScene extends Phaser.Scene {
 
   /** 大きい リーチの 成功・失敗【仮の 見た目】 */
   private reachResult(ok: boolean): void {
+    if (this.lastShow?.big?.id === 'line') return this.lineResult();
     const story = STORY_REACHES.find((d) => d.id === this.lastShow?.big?.id);
     if (story) return this.storyResult(story, ok);
     const h = this.lcdBox.h;
@@ -1414,7 +1418,35 @@ export class SlotScene extends Phaser.Scene {
     } else this.lcdIdle();
   }
 
+  /** グループLINEの 大当たり: 金の 光が はじけて「ROYAL JACKPOT 大当たり！！」(ブラックアウト復活と 同じ 絵) */
+  private lineResult(): void {
+    const { w, h } = this.lcdBox;
+    this.setLcdBg('gold', 0.1);
+    const items: Phaser.GameObjects.GameObject[] = [this.add.rectangle(0, 0, w - 4, h - 4, 0x000000, 1)];
+    const glow = this.add.circle(0, 0, 30, 0xffd23a, 0.7);
+    this.tweens.add({ targets: glow, scale: 12, alpha: 0, duration: 800, ease: 'Quad.easeOut' });
+    items.push(glow);
+    const key = this.textures.exists(REVIVE_KEY) ? REVIVE_KEY : LOGO_KEY;
+    const img = this.add.image(0, 0, key);
+    const sc = Math.min((w - 4) / img.width, (h - 4) / img.height);
+    img.setScale(sc * 0.2).setAlpha(0);
+    this.tweens.add({ targets: img, scale: sc, alpha: 1, duration: 480, ease: 'Back.easeOut' });
+    items.push(img);
+    this.lcdShow(items);
+    this.lcd.addAt(lcdRays(this, this.lcdBox, 0xffd23a, 0.35, 18, 0, 0, 3000), 1);
+    this.cameras.main.flash(320, 255, 220, 120);
+    this.cameras.main.shake(420, 0.008);
+    coinFountain(this, W / 2, this.lcdBox.y + this.lcdBox.h / 2, 60);
+    audio.se('koBlast');
+    audio.se('cheer');
+  }
+
   private bigReach(show: SpinShow, ms: number): void {
+    // グループLINEリーチ(2026-11-13 企画者)
+    if (show.big?.id === 'line') {
+      this.setLcdBg('normal', 0.45);
+      return playLineReach(this, this.lcd, this.lcdBox, LINE_SCRIPTS.win1);
+    }
     const story = STORY_REACHES.find((d) => d.id === show.big?.id);
     if (story) return this.storyReach(story, show, ms);
     // 液晶の 背景: 赤は 赤い 稲妻・金と 虹は 金の 光・青と 緑は ふだんの 背景を 暗く
