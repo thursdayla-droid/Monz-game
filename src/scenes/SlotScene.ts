@@ -75,8 +75,8 @@ const ART_FOCUS: Record<string, number> = {
 const BAND_ROOM = 0.7;
 /** キャラの リーチ: 結果の 絵を 出してから 決まる リールを 止めるまで(ms)。2026-11-13 企画者「ハズレに なる 前に リールが ハズレるの 嫌」 */
 const RESULT_LEAD = 1200;
-/** ブラックアウト復活: ハズレの 絵を 見せる 長さ・真っ暗の 長さ(企画者「3秒後」)・金の ROYAL JACKPOT の 長さ(ms) */
-const REVIVE_LOSE_MS = 2200;
+/** ブラックアウト復活: ハズレの 絵を 見せる 長さ(企画者「3.5秒後」)・真っ暗の 長さ(企画者「3秒後」)・金の ROYAL JACKPOT の 長さ(ms) */
+const REVIVE_LOSE_MS = 3500;
 const REVIVE_DARK_MS = 3000;
 const REVIVE_GOLD_MS = 2600;
 /** 液晶の 左はしから 王冠ランプの 右はしまで(点)。下の 帯の 文字は ここより 右に */
@@ -1030,56 +1030,50 @@ export class SlotScene extends Phaser.Scene {
 
   /**
    * ブラックアウト復活(2026-11-13 企画者「ハズレたと 思った 瞬間、画面が 真っ暗に。3秒後に 金色の ROYAL JACKPOT が 出現して 大当たり！」)。
-   * 企画者「当たりの 1割・画面 ぜんぶ・キャラリーチ 全部」。lose: ハズレの 絵を 出す・win: 明るく なった あとの 当たりの 絵
+   * 企画者「当たりの 1割・キャラリーチ 全部」→「液晶だけで いい。ハズレ 出てから 3.5秒後、液晶が プチュンって 暗く」。
+   * lose: ハズレの 絵を 出す・win: 当たりの 絵(金の ROYAL JACKPOT の あと)
    */
   private reviveAfterLose(lose: () => void, win: () => void): void {
     const k = this.autoNow ? 0.7 : 1;
+    this.reviving = true;
     lose();
     this.time.delayedCall(REVIVE_LOSE_MS * k, () => {
-      const black = this.add.rectangle(W / 2, this.H / 2, W * 2, this.H * 2, 0x000000, 1).setDepth(1000).setScrollFactor(0).setAlpha(0);
-      audio.stopBgm(0.1);
-      audio.se('back', { pitch: 0.6 });
-      this.tweens.add({ targets: black, alpha: 1, duration: 120 });
+      const { w, h } = this.lcdBox;
+      // プチュン: 白く 光って 横の 線に つぶれ → 点に なって 消える(古い テレビを 消した 時)
+      const black = this.add.rectangle(0, 0, w - 4, h - 4, 0x000000, 1);
+      const beam = this.add.rectangle(0, 0, w - 4, h - 4, 0xffffff, 0.95);
+      this.lcd.add([black, beam]);
+      this.tweens.add({ targets: beam, scaleY: 0.015, duration: 110, ease: 'Quad.easeIn' });
+      this.tweens.add({ targets: beam, scaleX: 0, duration: 130, delay: 120, ease: 'Quad.easeIn' });
+      this.tweens.add({ targets: beam, alpha: 0, duration: 80, delay: 240 });
+      audio.stopBgm(0.08);
+      audio.se('beep', { pitch: 0.45 });
       this.time.delayedCall(REVIVE_DARK_MS * k, () => {
-        const cy = this.H * 0.45;
-        const glow = this.add.circle(W / 2, cy, 40, 0xffd23a, 0.5).setDepth(1001).setScrollFactor(0);
-        this.tweens.add({ targets: glow, scale: 14, alpha: 0, duration: 900, ease: 'Quad.easeOut' });
+        const glow = this.add.circle(0, 0, 30, 0xffd23a, 0.55);
+        this.tweens.add({ targets: glow, scale: 10, alpha: 0, duration: 800, ease: 'Quad.easeOut' });
         const key = this.textures.exists(REVIVE_KEY) ? REVIVE_KEY : LOGO_KEY;
-        const img = this.add.image(W / 2, cy, key).setDepth(1002).setScrollFactor(0);
-        // 企画者の 絵(黒い 背景・光の 線ごと)は 大きく。仮の ロゴは 小さめ
-        const sc = key === REVIVE_KEY ? Math.min(W / img.width, (this.H * 0.75) / img.height) : Math.min((W * 0.9) / img.width, (this.H * 0.42) / img.height);
+        const img = this.add.image(0, 0, key);
+        const sc = Math.min((w - 4) / img.width, (h - 4) / img.height);
         img.setScale(sc * 0.2).setAlpha(0);
-        this.tweens.add({ targets: img, scale: sc, alpha: 1, duration: 520, ease: 'Back.easeOut' });
-        this.tweens.add({ targets: img, scale: sc * 1.05, duration: 600, delay: 560, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-        const parts: Phaser.GameObjects.GameObject[] = [glow, img];
-        // 絵が 届くまでは ロゴの 下に 金の 文字【仮】
-        if (key === LOGO_KEY) {
-          const t = this.text(W / 2, cy + (img.height * sc) / 2 + 50, '大当たり！！', 76, '#ffd23a', 10).setDepth(1002).setScrollFactor(0).setScale(0.3);
-          this.tweens.add({ targets: t, scale: 1, duration: 420, delay: 200, ease: 'Back.easeOut' });
-          parts.push(t);
-        }
-        this.cameras.main.flash(420, 255, 220, 120);
-        this.cameras.main.shake(520, 0.012);
+        this.tweens.add({ targets: img, scale: sc, alpha: 1, duration: 480, ease: 'Back.easeOut' });
+        this.tweens.add({ targets: img, scale: sc * 1.04, duration: 600, delay: 520, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+        this.lcd.add([glow, img]);
+        this.cameras.main.flash(320, 255, 220, 120);
+        this.cameras.main.shake(420, 0.008);
         audio.se('koBlast');
         audio.se('cheer');
         this.time.delayedCall(REVIVE_GOLD_MS * k, () => {
-          // コインは 暗い 幕の 下に 出るので、明るく なる 時に
+          this.reviving = false;
           coinFountain(this, W / 2, this.lcdBox.y + this.lcdBox.h / 2, 60);
-          this.tweens.add({
-            targets: [black, ...parts],
-            alpha: 0,
-            duration: 450,
-            onComplete: () => {
-              black.destroy();
-              parts.forEach((p) => p.destroy());
-            },
-          });
           audio.playBgm('slot', 0.4);
           win();
         });
       });
     });
   }
+
+  /** ブラックアウト復活の とちゅう(ハズレの 絵の あと 液晶を ふだんに もどさない) */
+  private reviving = false;
 
   private crownOn = false;
   /** キャラの リーチの 結果の 絵を 出した 時刻(結果を 見せる 長さを 合わせる) */
@@ -1408,7 +1402,7 @@ export class SlotScene extends Phaser.Scene {
       }
     } else if (r.show) {
       audio.se('back');
-      this.time.delayedCall(STORY_RESULT_MS - 200, () => this.lcdIdle());
+      this.time.delayedCall(STORY_RESULT_MS - 200, () => !this.reviving && this.lcdIdle());
     } else this.lcdIdle();
   }
 
