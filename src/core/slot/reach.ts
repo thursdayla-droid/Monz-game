@@ -159,6 +159,8 @@ export interface SpinShow {
   crownBig: BigReachType | null;
   crownVariant: number;
   crownTier: ColorTier;
+  /** ブラックアウト復活(キャラの リーチの 当たりの 見せ方: ハズレの 絵 → 画面 真っ暗 → 金の ROYAL JACKPOT で 大当たり) */
+  revive?: boolean;
 }
 
 const pickW = <T>(rng: Rng, items: readonly T[], w: (t: T, i: number) => number): T => {
@@ -261,9 +263,16 @@ export function planShow(res: SpinResult, bet: number, rng: Rng): SpinShow {
   if (at >= 0) out.notice = (rng() < STORY_STEP_RATE ? at + 1 : 0) as NoticeLevel;
   // プレミアは 予告なしで いきなり(とつぜん 電話が 鳴る)
   else if (story?.id === 'premium') out.notice = 0;
+  // 2026-11-13 企画者「ブラックアウト復活リーチ」: キャラの リーチの 当たりの 1割は、ハズレたと 見せてから 画面 真っ暗 → 大当たり
+  // (当たる 回数は 変わらない。見せ方だけ。プレミアは いつも 当たりなので 出さない)
+  const storyWin = out.big ? out.bigSuccess : !!out.crownBig && (res.bonus || res.free > 0);
+  out.revive = !!story && story.id !== 'premium' && storyWin && rng() < REVIVE_RATE;
   // キャラの リーチが ない 時は 5段目(ヒヨコJ)まで。6段目(チーターS)まで 進めば 必ず チーターの リーチ
   return out;
 }
+
+/** ブラックアウト復活が 出る 割合(キャラの リーチの 当たりの うち。企画者 2026-11-13「当たりの 1割」) */
+export const REVIVE_RATE = 0.1;
 
 /** キャラの リーチの 前に ステップアップが 出る 割合(企画者 2026-11-13「半分ずつ」) */
 export const STORY_STEP_RATE = 0.5;

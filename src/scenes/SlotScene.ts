@@ -29,6 +29,11 @@ const GAP = 8;
 const SAVE_KEY = 'monz:slot';
 /** 企画者の ROYAL JACKPOT の ロゴ */
 const LOGO_KEY = 'slot:logo';
+/** ブラックアウト復活の 金の ROYAL JACKPOT の 絵(企画者が 作る。届いたら public/assets/slot/revive.webp。なければ ロゴで 仮) */
+const REVIVE_KEY = 'slot:revive';
+const REVIVE_FILE = 'assets/slot/revive.webp';
+/** 企画者の 絵が 届いたら true */
+const REVIVE_ART = false;
 /** 止まる 時間(ms)【仮】: 1つめ・あとは 1つずつ */
 // 2026-11-10 企画者「今の 速度は オートの 時で いい。(ふつうは)じゃっかん 遅く」
 const STOP_FIRST = 1000;
@@ -70,6 +75,10 @@ const ART_FOCUS: Record<string, number> = {
 const BAND_ROOM = 0.7;
 /** キャラの リーチ: 結果の 絵を 出してから 決まる リールを 止めるまで(ms)。2026-11-13 企画者「ハズレに なる 前に リールが ハズレるの 嫌」 */
 const RESULT_LEAD = 1200;
+/** ブラックアウト復活: ハズレの 絵を 見せる 長さ・真っ暗の 長さ(企画者「3秒後」)・金の ROYAL JACKPOT の 長さ(ms) */
+const REVIVE_LOSE_MS = 2200;
+const REVIVE_DARK_MS = 3000;
+const REVIVE_GOLD_MS = 2600;
 /** 液晶の 左はしから 王冠ランプの 右はしまで(点)。下の 帯の 文字は ここより 右に */
 const LAMP_ROOM = 96;
 /** 企画者の キャラの リーチ(2026-11-11〜。1人 1つ) */
@@ -288,7 +297,9 @@ export class SlotScene extends Phaser.Scene {
   }
   private rng: Rng = mulberry32(randomSeed());
   /** 確認用: 次の 回転で 見せる リーチ(企画者 2026-11-13「全ての リーチ 見れる ように 確認用 お願い」) */
-  private forceReach?: { id: string; win: boolean; variant: number };
+  private forceReach?: { id: string; win: boolean; variant: number; revive?: boolean };
+  /** 確認用: 当たりを ブラックアウト復活で 見る */
+  private forceRevive = false;
   private bet: number = BETS[0];
   /** 2026-11-12〜 スロット 専用の コイン(MONZ コインでは ない) */
   private record!: SlotWallet;
@@ -342,6 +353,7 @@ export class SlotScene extends Phaser.Scene {
     for (const [k, f] of LAMP_FILES) if (!this.textures.exists(k)) this.load.image(k, assetUrl(f));
     if (!this.textures.exists(COIN_ART_KEY)) this.load.image(COIN_ART_KEY, assetUrl(COIN_ART_FILE));
     if (!this.textures.exists(LOGO_KEY)) this.load.image(LOGO_KEY, assetUrl('assets/slot/logo.webp'));
+    if (!this.textures.exists(REVIVE_KEY) && REVIVE_ART) this.load.image(REVIVE_KEY, assetUrl(REVIVE_FILE));
     for (const [k, f] of STEP_FILES) if (!this.textures.exists(k)) this.load.image(k, assetUrl(f));
     // 企画者の キャラ(2026-11-11)
     for (const d of STORY_REACHES) {
@@ -818,7 +830,7 @@ export class SlotScene extends Phaser.Scene {
   // ---------------- 回す ----------------
 
   /** 確認用: えらんだ リーチに なる 回転を さがす(7の そろい方・当たり/ハズレが 合う 回転を 見つけて、リーチの キャラと 種類を 入れかえる) */
-  private forcedSpin(f: { id: string; win: boolean; variant: number }): { res: SpinResult; show: SpinShow } | undefined {
+  private forcedSpin(f: { id: string; win: boolean; variant: number; revive?: boolean }): { res: SpinResult; show: SpinShow } | undefined {
     const big = BIG_REACHES.find((b) => b.id === f.id);
     if (!big) return undefined;
     for (let i = 1; i < 3_000_000; i++) {
@@ -827,7 +839,7 @@ export class SlotScene extends Phaser.Scene {
       const show = planShow(res, this.bet, rng);
       if (!show.big || show.bigSuccess !== f.win || show.crownBig || res.bonus || res.free > 0) continue;
       const at = STEP_ORDER.indexOf(big.id);
-      return { res, show: { ...show, big, bigVariant: big.variants ? f.variant : -1, notice: (at >= 0 ? at + 1 : 0) as SpinShow['notice'] } };
+      return { res, show: { ...show, big, bigVariant: big.variants ? f.variant : -1, notice: (at >= 0 ? at + 1 : 0) as SpinShow['notice'], revive: !!f.revive && f.win && big.id !== 'premium' } };
     }
     return undefined;
   }
@@ -837,7 +849,16 @@ export class SlotScene extends Phaser.Scene {
     const box = this.add.container(0, 0).setDepth(80);
     const dim = this.add.rectangle(W / 2, this.H / 2, W, this.H, 0x000000, 0.82).setInteractive();
     box.add(dim);
-    box.add(this.text(W / 2, 120, 'リーチを えらぶ（確認用）', 30, '#ffffff', 6));
+    box.add(this.text(W / 2, 100, 'リーチを えらぶ（確認用）', 30, '#ffffff', 6));
+    // 当たりを ブラックアウト復活で 見る(2026-11-13)
+    const rv = this.text(W / 2, 148, '', 22, '#16101c').setPadding(14, 6, 14, 8).setInteractive({ useHandCursor: true });
+    const paintRv = () => rv.setText(`当たりを ブラックアウト復活で 見る：${this.forceRevive ? 'ON' : 'OFF'}`).setBackgroundColor(this.forceRevive ? '#ffd23a' : '#b8c4d8');
+    paintRv();
+    rv.on('pointerdown', () => {
+      this.forceRevive = !this.forceRevive;
+      paintRv();
+    });
+    box.add(rv);
     const names: Record<string, string> = { kyon: 'キョンK', panda: 'パンダY', usagi: 'うさぎK', ramen: 'カンガルーH', golf: 'ヒヨコJ', kanojo: 'チーターS', premium: 'アライグマR' };
     const rows: { label: string; id: string; variant: number; lose: boolean }[] = [];
     for (const d of STORY_REACHES) {
@@ -847,16 +868,16 @@ export class SlotScene extends Phaser.Scene {
         rows.push({ label: `${names[d.id] ?? d.id}${vt ? ' ' + vt.replace(/ /g, '') : ''}`, id: d.id, variant: v, lose: d.id !== 'premium' });
       }
     }
-    const rowH = Math.min(62, (this.H - 330) / rows.length);
+    const rowH = Math.min(62, (this.H - 340) / rows.length);
     const close = () => box.destroy();
     rows.forEach((r, i) => {
-      const y = 190 + i * rowH;
+      const y = 200 + i * rowH;
       box.add(this.text(40, y, r.label, Math.min(24, rowH * 0.42), '#ffffff', 4).setOrigin(0, 0.5));
       const btn = (x: number, label: string, col: string, win: boolean) => {
         const b = this.text(x, y, label, Math.min(22, rowH * 0.4), '#16101c').setBackgroundColor(col).setPadding(14, 6, 14, 8).setInteractive({ useHandCursor: true });
         b.on('pointerdown', () => {
           close();
-          this.forceReach = { id: r.id, win, variant: r.variant };
+          this.forceReach = { id: r.id, win, variant: r.variant, revive: this.forceRevive };
           this.doSpin();
         });
         box.add(b);
@@ -864,7 +885,7 @@ export class SlotScene extends Phaser.Scene {
       btn(W - 230, '当たり', '#ffd23a', true);
       if (r.lose) btn(W - 100, 'ハズレ', '#b8c4d8', false);
     });
-    const cl = this.text(W / 2, 190 + rows.length * rowH + 40, 'とじる', 26, '#16101c').setBackgroundColor('#ffffff').setPadding(24, 8, 24, 10).setInteractive({ useHandCursor: true });
+    const cl = this.text(W / 2, 200 + rows.length * rowH + 40, 'とじる', 26, '#16101c').setBackgroundColor('#ffffff').setPadding(24, 8, 24, 10).setInteractive({ useHandCursor: true });
     cl.on('pointerdown', close);
     box.add(cl);
   }
@@ -943,9 +964,13 @@ export class SlotScene extends Phaser.Scene {
         this.storyReach(def, { ...show, big: show.crownBig, bigVariant: show.crownVariant, bigTier: show.crownTier }, STORY_REACH_MS * k);
         // 2026-11-13 企画者「リーチで ハズレに なる 前に リールが ハズレるの 嫌」→ 結果の 絵を 先に 出してから のこりの リールを 止める
         return void this.time.delayedCall(STORY_REACH_MS * k, () => {
-          this.storyResult(def, res.bonus || res.free > 0);
-          this.resultAt = this.time.now;
-          next(RESULT_LEAD * k);
+          const done = () => {
+            this.storyResult(def, res.bonus || res.free > 0);
+            this.resultAt = this.time.now;
+            next(RESULT_LEAD * k);
+          };
+          if (show.revive) this.reviveAfterLose(() => this.storyResult(def, false), done);
+          else done();
         });
       }
       this.crownPanel(1, res);
@@ -969,6 +994,13 @@ export class SlotScene extends Phaser.Scene {
       this.bigReach(show, bigMs);
       // 2026-11-13 企画者「リーチで ハズレに なる 前に リールが ハズレるの 嫌」→ 結果の 絵を 先に 出して、少し あとで 3リール目を 止める
       const finish = () => {
+        // ブラックアウト復活(企画者 2026-11-13): ハズレの 絵 → 真っ暗 → 金の ROYAL JACKPOT → 当たりの 絵
+        if (show.revive)
+          return this.reviveAfterLose(() => this.reachResult(false), () => {
+            this.reachResult(true);
+            this.resultAt = this.time.now;
+            next(RESULT_LEAD * k);
+          });
         this.reachResult(show.bigSuccess);
         this.resultAt = this.time.now;
         next(RESULT_LEAD * k);
@@ -994,6 +1026,58 @@ export class SlotScene extends Phaser.Scene {
       return void next(Math.max(400, total - (this.time.now - this.resultAt)));
     }
     next(step);
+  }
+
+  /**
+   * ブラックアウト復活(2026-11-13 企画者「ハズレたと 思った 瞬間、画面が 真っ暗に。3秒後に 金色の ROYAL JACKPOT が 出現して 大当たり！」)。
+   * 企画者「当たりの 1割・画面 ぜんぶ・キャラリーチ 全部」。lose: ハズレの 絵を 出す・win: 明るく なった あとの 当たりの 絵
+   */
+  private reviveAfterLose(lose: () => void, win: () => void): void {
+    const k = this.autoNow ? 0.7 : 1;
+    lose();
+    this.time.delayedCall(REVIVE_LOSE_MS * k, () => {
+      const black = this.add.rectangle(W / 2, this.H / 2, W * 2, this.H * 2, 0x000000, 1).setDepth(1000).setScrollFactor(0).setAlpha(0);
+      audio.stopBgm(0.1);
+      audio.se('back', { pitch: 0.6 });
+      this.tweens.add({ targets: black, alpha: 1, duration: 120 });
+      this.time.delayedCall(REVIVE_DARK_MS * k, () => {
+        const cy = this.H * 0.42;
+        const glow = this.add.circle(W / 2, cy, 40, 0xffd23a, 0.5).setDepth(1001).setScrollFactor(0);
+        this.tweens.add({ targets: glow, scale: 14, alpha: 0, duration: 900, ease: 'Quad.easeOut' });
+        const key = this.textures.exists(REVIVE_KEY) ? REVIVE_KEY : LOGO_KEY;
+        const img = this.add.image(W / 2, cy, key).setDepth(1002).setScrollFactor(0);
+        const sc = Math.min((W * 0.9) / img.width, (this.H * 0.42) / img.height);
+        img.setScale(sc * 0.2).setAlpha(0);
+        this.tweens.add({ targets: img, scale: sc, alpha: 1, duration: 520, ease: 'Back.easeOut' });
+        this.tweens.add({ targets: img, scale: sc * 1.05, duration: 600, delay: 560, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+        const parts: Phaser.GameObjects.GameObject[] = [glow, img];
+        // 絵が 届くまでは ロゴの 下に 金の 文字【仮】
+        if (key === LOGO_KEY) {
+          const t = this.text(W / 2, cy + (img.height * sc) / 2 + 50, '大当たり！！', 76, '#ffd23a', 10).setDepth(1002).setScrollFactor(0).setScale(0.3);
+          this.tweens.add({ targets: t, scale: 1, duration: 420, delay: 200, ease: 'Back.easeOut' });
+          parts.push(t);
+        }
+        this.cameras.main.flash(420, 255, 220, 120);
+        this.cameras.main.shake(520, 0.012);
+        audio.se('koBlast');
+        audio.se('cheer');
+        this.time.delayedCall(REVIVE_GOLD_MS * k, () => {
+          // コインは 暗い 幕の 下に 出るので、明るく なる 時に
+          coinFountain(this, W / 2, this.lcdBox.y + this.lcdBox.h / 2, 60);
+          this.tweens.add({
+            targets: [black, ...parts],
+            alpha: 0,
+            duration: 450,
+            onComplete: () => {
+              black.destroy();
+              parts.forEach((p) => p.destroy());
+            },
+          });
+          audio.playBgm('slot', 0.4);
+          win();
+        });
+      });
+    });
   }
 
   private crownOn = false;
