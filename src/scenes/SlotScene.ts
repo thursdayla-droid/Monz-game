@@ -68,6 +68,8 @@ const ART_FOCUS: Record<string, number> = {
 
 /** 1枚絵の 下の 帯の 文字が 使える はば(絵の はばに 対する 割合) */
 const BAND_ROOM = 0.7;
+/** キャラの リーチ: 結果の 絵を 出してから 決まる リールを 止めるまで(ms)。2026-11-13 企画者「ハズレに なる 前に リールが ハズレるの 嫌」 */
+const RESULT_LEAD = 1200;
 /** 液晶の 左はしから 王冠ランプの 右はしまで(点)。下の 帯の 文字は ここより 右に */
 const LAMP_ROOM = 96;
 /** 企画者の キャラの リーチ(2026-11-11〜。1人 1つ) */
@@ -939,7 +941,12 @@ export class SlotScene extends Phaser.Scene {
           if (!this.reels[cr].spinning) this.cellGlow(cr, ci, true, 0xffd23a);
         });
         this.storyReach(def, { ...show, big: show.crownBig, bigVariant: show.crownVariant, bigTier: show.crownTier }, STORY_REACH_MS * k);
-        return void next(STORY_REACH_MS * k);
+        // 2026-11-13 企画者「リーチで ハズレに なる 前に リールが ハズレるの 嫌」→ 結果の 絵を 先に 出してから のこりの リールを 止める
+        return void this.time.delayedCall(STORY_REACH_MS * k, () => {
+          this.storyResult(def, res.bonus || res.free > 0);
+          this.resultAt = this.time.now;
+          next(RESULT_LEAD * k);
+        });
       }
       this.crownPanel(1, res);
     }
@@ -960,10 +967,16 @@ export class SlotScene extends Phaser.Scene {
       this.bigPlayed = true;
       const bigMs = (STORY_REACHES.some((d) => d.id === show.big?.id) ? STORY_REACH_MS : BIG_REACH_MS) * k;
       this.bigReach(show, bigMs);
-      // ③ PUSH ボタン(押すと 3リール目が 止まる)
+      // 2026-11-13 企画者「リーチで ハズレに なる 前に リールが ハズレるの 嫌」→ 結果の 絵を 先に 出して、少し あとで 3リール目を 止める
+      const finish = () => {
+        this.reachResult(show.bigSuccess);
+        this.resultAt = this.time.now;
+        next(RESULT_LEAD * k);
+      };
+      // ③ PUSH ボタン(押すと 結果)
       if (show.push)
-        return void this.time.delayedCall(bigMs, () => pushButton(this, this.lcd, this.lcdBox, show.bigTier, this.autoNow ? 700 : 4000, () => next(250)));
-      return void next(bigMs);
+        return void this.time.delayedCall(bigMs, () => pushButton(this, this.lcd, this.lcdBox, show.bigTier, this.autoNow ? 700 : 4000, () => this.time.delayedCall(250, finish)));
+      return void this.time.delayedCall(bigMs, finish);
     }
     if (r === 1 && show.small) {
       // 小さい リーチ: 3リール目が ゆっくり
@@ -976,11 +989,16 @@ export class SlotScene extends Phaser.Scene {
       this.lcdIdle();
     }
     // キャラの リーチの 結果の 絵を ゆっくり 見せてから 次の リール(2026-11-12 企画者「リーチは 楽しみたい」)
-    if (r === 2 && this.bigPlayed) return void next((STORY_REACHES.some((d) => d.id === show.big?.id) ? STORY_RESULT_MS : LAST_REEL_MS) * k);
+    if (r === 2 && this.bigPlayed) {
+      const total = (STORY_REACHES.some((d) => d.id === show.big?.id) ? STORY_RESULT_MS : LAST_REEL_MS) * k;
+      return void next(Math.max(400, total - (this.time.now - this.resultAt)));
+    }
     next(step);
   }
 
   private crownOn = false;
+  /** キャラの リーチの 結果の 絵を 出した 時刻(結果を 見せる 長さを 合わせる) */
+  private resultAt = 0;
   /** 王冠の BONUS リーチで 見せて いる キャラの リーチ */
   private crownStory: StoryReach | null = null;
   /** この 回転で キャラの リーチを 見せた(王冠の リーチが 先の 時は 見せない) */
@@ -1365,14 +1383,10 @@ export class SlotScene extends Phaser.Scene {
     audio.se('knock', { pitch: 1 + r * 0.05 });
     if (last && this.crownStory && !this.free) {
       // 王冠の キャラの リーチの 結果(王冠 3つ 以上 = 当たり)を 見せてから
-      const def = this.crownStory;
-      this.time.delayedCall(260, () => {
-        this.storyResult(def, res.bonus || res.free > 0);
-        this.time.delayedCall(STORY_RESULT_MS * (this.autoNow ? 0.6 : 1), () => this.reveal(res));
-      });
+      // (結果の 絵は のこりの リールを 止める 前に 出して いる)のこりの 時間 見せてから
+      const wait = Math.max(600, STORY_RESULT_MS * (this.autoNow ? 0.6 : 1) - (this.time.now - this.resultAt));
+      this.time.delayedCall(wait, () => this.reveal(res));
     } else if (last) this.time.delayedCall(260, () => (this.free ? this.revealFree() : this.reveal(res)));
-    // 大きい リーチの 結果(4リール目が 止まった 時に わかる)
-    if (r === 2 && this.bigPlayed && this.lastShow?.big) this.reachResult(this.lastShow.bigSuccess);
   }
 
   private reveal(res: SpinResult): void {
