@@ -31,7 +31,7 @@ const SAVE_KEY = 'monz:slot';
 const LOGO_KEY = 'slot:logo';
 /** ブラックアウト復活の 金の ROYAL JACKPOT の 絵(企画者が 作る。届いたら public/assets/slot/revive.webp。なければ ロゴで 仮) */
 const REVIVE_KEY = 'slot:revive';
-const REVIVE_FILE = 'assets/slot/revive.webp'; // 元は design/slot/revive_original.png(企画者 2026-11-13)
+const REVIVE_FILE = 'assets/slot/revive.webp'; // 元は design/slot/revive_wide_original.png(企画者 2026-11-13・横長)
 /** 企画者の 絵が 届いたら true */
 const REVIVE_ART = true;
 /** 止まる 時間(ms)【仮】: 1つめ・あとは 1つずつ */
@@ -1051,13 +1051,28 @@ export class SlotScene extends Phaser.Scene {
       this.time.delayedCall(REVIVE_DARK_MS * k, () => {
         const glow = this.add.circle(0, 0, 30, 0xffd23a, 0.55);
         this.tweens.add({ targets: glow, scale: 10, alpha: 0, duration: 800, ease: 'Quad.easeOut' });
+        // 2026-11-13 企画者の 横長の 絵(液晶 いっぱい。はしは 少し 切れる)。前の 縦長は unused/slot/revive_tall.webp
         const key = this.textures.exists(REVIVE_KEY) ? REVIVE_KEY : LOGO_KEY;
-        const img = this.add.image(0, 0, key);
-        const sc = Math.min((w - 4) / img.width, (h - 4) / img.height);
+        const parts: Phaser.GameObjects.GameObject[] = [glow];
+        let img: Phaser.GameObjects.Image;
+        if (key === REVIVE_KEY) {
+          const [back, front] = fitArt(this, key, 0, 0, w - 4, h - 4, 0x3a3048, 0.5);
+          img = front;
+          back.setAlpha(0);
+          this.tweens.add({ targets: back, alpha: 1, duration: 400 });
+          parts.unshift(back);
+        } else {
+          img = this.add.image(0, 0, key);
+          img.setScale(Math.min((w - 4) / img.width, (h - 4) / img.height));
+        }
+        const sc = img.scale;
         img.setScale(sc * 0.2).setAlpha(0);
         this.tweens.add({ targets: img, scale: sc, alpha: 1, duration: 480, ease: 'Back.easeOut' });
-        this.tweens.add({ targets: img, scale: sc * 1.04, duration: 600, delay: 520, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-        this.lcd.add([glow, img]);
+        // 液晶 いっぱいの 絵は 大きく すると はみ出すので、明るさで ゆっくり 光らせる
+        if (key === REVIVE_KEY) this.tweens.add({ targets: img, alpha: 0.82, duration: 600, delay: 520, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+        else this.tweens.add({ targets: img, scale: sc * 1.04, duration: 600, delay: 520, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+        parts.push(img);
+        this.lcd.add(parts);
         this.cameras.main.flash(320, 255, 220, 120);
         this.cameras.main.shake(420, 0.008);
         audio.se('koBlast');
