@@ -1055,16 +1055,9 @@ export class SlotScene extends Phaser.Scene {
         const key = this.textures.exists(REVIVE_KEY) ? REVIVE_KEY : LOGO_KEY;
         const parts: Phaser.GameObjects.GameObject[] = [glow];
         let img: Phaser.GameObjects.Image;
-        if (key === REVIVE_KEY) {
-          const [back, front] = fitArt(this, key, 0, 0, w - 4, h - 4, 0x3a3048, 0.5);
-          img = front;
-          back.setAlpha(0);
-          this.tweens.add({ targets: back, alpha: 1, duration: 400 });
-          parts.unshift(back);
-        } else {
-          img = this.add.image(0, 0, key);
-          img.setScale(Math.min((w - 4) / img.width, (h - 4) / img.height));
-        }
+        // 文字が 横 いっぱいなので 切らずに ぜんぶ 入れる(絵の 背景は 黒なので あまりは 黒の まま なじむ)
+        img = this.add.image(0, 0, key);
+        img.setScale(Math.min((w - 4) / img.width, (h - 4) / img.height));
         const sc = img.scale;
         img.setScale(sc * 0.2).setAlpha(0);
         this.tweens.add({ targets: img, scale: sc, alpha: 1, duration: 480, ease: 'Back.easeOut' });

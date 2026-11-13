@@ -124,7 +124,8 @@ export function fitArt(scene: Phaser.Scene, key: string, cx: number, cy: number,
   back.setScale(kb).setTint(tint);
   back.setCrop((back.width - w / kb) / 2, (back.height - h / kb) / 2, w / kb, h / kb);
   const img = scene.add.image(cx, cy, key);
-  const k = Math.max(Math.min(w / img.width, h / img.height), Math.min(kb, h / (img.height * (1 - 2 * ART_CUT))));
+  // 上下・左右とも ART_CUT までしか 切らない(横長の 絵を 細い 液晶に 出す 時に 文字が 切れない ように)
+  const k = Math.max(Math.min(w / img.width, h / img.height), Math.min(kb, h / (img.height * (1 - 2 * ART_CUT)), w / (img.width * (1 - 2 * ART_CUT))));
   img.setScale(k);
   const cw = Math.min(img.width, w / k);
   const ch = Math.min(img.height, h / k);
