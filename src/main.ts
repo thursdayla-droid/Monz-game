@@ -140,6 +140,11 @@ globalThis.addEventListener('orientationchange', () => {
   for (const ms of [400, 1000, 1800]) setTimeout(() => game.scale.refresh(), ms);
 });
 vv?.addEventListener('scroll', () => game.scale.refresh());
+// 2026-11-13 企画者「モンズランブル → タイトル → 戻る → 縦の バトル画面で 戻れない」(2回目):
+// iPhone は 向きを 変えた あと、時計・電池の 帯の ぶん ゲームの 位置が おくれて 変わる ことが あり、
+// 古い 位置の ままだと さわった 所が ずれて 小さい ボタン(左上の もどる)に とどかない。
+// → さわった 瞬間に 毎回 ゲームの 位置を 読みなおしてから ゲームに わたす(ゲームより 先に 動く よう capture)
+for (const ev of ['touchstart', 'pointerdown', 'mousedown'] as const) globalThis.addEventListener(ev, () => game.scale.updateBounds(), { capture: true, passive: true });
 setTimeout(() => resetZoom(), 500);
 
 // 開発中だけ、確認用にゲームを外から触れるようにする
