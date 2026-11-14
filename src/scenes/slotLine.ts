@@ -117,8 +117,13 @@ export const LINE_CLIMAX_MS = 3200;
 
 /** 会話 ぜんぶの 長さ(ms) */
 export function lineScriptMs(script: readonly LineMsg[]): number {
-  return script.reduce((a, m) => a + m.typingMs + m.waitMs, 0) + LINE_CLIMAX_MS;
+  return LINE_INTRO_MS + script.reduce((a, m) => a + m.typingMs + m.waitMs, 0) + LINE_CLIMAX_MS;
 }
+
+/** 最初の「3人 集まれば 当たり確定！」を 見せる 長さ(2026-11-14 企画者) */
+export const LINE_INTRO_MS = 1800;
+/** 最初に 出す 文(2026-11-14 企画者「最初に 3人 集まれば 当たり確定って 出そうか」) */
+export const LINE_INTRO = '3人集まれば\n当たり確定！';
 
 const txt = (scene: Phaser.Scene, x: number, y: number, s: string, size: number, color: string, stroke = 0, strokeColor = '#16101c') =>
   scene.add.text(x, y, s, { fontFamily: UI_FONT, fontSize: `${Math.round(size)}px`, fontStyle: '900', color, stroke: strokeColor, strokeThickness: stroke, align: 'left', lineSpacing: 2 });
@@ -245,7 +250,15 @@ export function playLineReach(scene: Phaser.Scene, lcd: Phaser.GameObjects.Conta
     }
   };
 
-  let t = 0;
+  // 最初に「3人 集まれば 当たり確定！」(帯で 出して 消える)
+  const introBand = scene.add.rectangle(0, 0, w, h * 0.5, 0x16101c, 0.88);
+  const intro = tierText(scene, 0, 0, LINE_INTRO, Math.min(60, h * 0.15), 'gold').setAlign('center').setScale(0.3);
+  root.add([introBand, intro]);
+  scene.tweens.add({ targets: intro, scale: 1, duration: 320, ease: 'Back.easeOut' });
+  audio.se('mcCutin');
+  scene.tweens.add({ targets: [introBand, intro], alpha: 0, duration: 300, delay: LINE_INTRO_MS - 300, onComplete: () => (introBand.destroy(), intro.destroy()) });
+
+  let t = LINE_INTRO_MS;
   script.forEach((m, i) => {
     const last = i === script.length - 1;
     if (m.typingMs > 0) {
