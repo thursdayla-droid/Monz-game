@@ -8,7 +8,7 @@ import { UI_FONT } from '../ui/paint';
 import { fillSize, safeInsets } from '../ui/viewport';
 import { BIG_REACHES, planShow, STEP_ORDER, type SpinShow } from '../core/slot/reach';
 import { pinTextures } from '../render/texBudget';
-import { LINE_SCRIPTS, lineScriptMs, playLineReach } from './slotLine';
+import { buildLineScript, type LineMsg, lineScriptMs, playLineReach } from './slotLine';
 import { CAB_FILE, CAB_KEY, cabinetLayout, cabinetTexture, type Rect } from './slotCabinet';
 import { COIN_ART_FILE, COIN_ART_KEY, coinFountain, cutIn, fitArt, STEP_FILES, idleAnim, LAMP_FILES, lcdRays, NoticeLamp, PUSH_FILE, PUSH_KEY, pushButton, stepUp, tierText } from './slotFx';
 
@@ -869,7 +869,7 @@ export class SlotScene extends Phaser.Scene {
         rows.push({ label: `${names[d.id] ?? d.id}${vt ? ' ' + vt.replace(/ /g, '') : ''}`, id: d.id, variant: v, lose: d.id !== 'premium' });
       }
     }
-    rows.push({ label: 'グループLINE', id: 'line', variant: 0, lose: false });
+    rows.push({ label: 'グループLINE', id: 'line', variant: 0, lose: true });
     const rowH = Math.min(62, (this.H - 340) / rows.length);
     const close = () => box.destroy();
     rows.forEach((r, i) => {
@@ -993,7 +993,9 @@ export class SlotScene extends Phaser.Scene {
       this.markReach(res, show, 2);
       this.bigPlayed = true;
       // グループLINE(2026-11-13)は 会話の 長さ(オートでも 短く しない)
-      const bigMs = show.big.id === 'line' ? lineScriptMs(LINE_SCRIPTS.win1) : (STORY_REACHES.some((d) => d.id === show.big?.id) ? STORY_REACH_MS : BIG_REACH_MS) * k;
+      // グループLINEの 会話は ここで 作る(返す 順番は 毎回 ちがう。当たり・ハズレは もう 決まっている)
+      if (show.big.id === 'line') this.lineScript = buildLineScript(show.bigSuccess, this.rng);
+      const bigMs = show.big.id === 'line' ? lineScriptMs(this.lineScript) : (STORY_REACHES.some((d) => d.id === show.big?.id) ? STORY_REACH_MS : BIG_REACH_MS) * k;
       this.bigReach(show, bigMs);
       // 2026-11-13 企画者「リーチで ハズレに なる 前に リールが ハズレるの 嫌」→ 結果の 絵を 先に 出して、少し あとで 3リール目を 止める
       const finish = () => {
@@ -1086,6 +1088,9 @@ export class SlotScene extends Phaser.Scene {
   /** ブラックアウト復活の とちゅう(ハズレの 絵の あと 液晶を ふだんに もどさない) */
   private reviving = false;
 
+  /** グループLINEの 今回の 会話 */
+  private lineScript: LineMsg[] = [];
+
   private crownOn = false;
   /** キャラの リーチの 結果の 絵を 出した 時刻(結果を 見せる 長さを 合わせる) */
   private resultAt = 0;
@@ -1169,7 +1174,11 @@ export class SlotScene extends Phaser.Scene {
 
   /** 大きい リーチの 成功・失敗【仮の 見た目】 */
   private reachResult(ok: boolean): void {
-    if (this.lastShow?.big?.id === 'line') return this.lineResult();
+    if (this.lastShow?.big?.id === 'line') {
+      if (ok) return this.lineResult();
+      // ハズレ: 「飲み会 不成立…」を 少し 見せてから ふだんの 液晶
+      return void this.time.delayedCall(STORY_RESULT_MS - 200, () => this.lcdIdle());
+    }
     const story = STORY_REACHES.find((d) => d.id === this.lastShow?.big?.id);
     if (story) return this.storyResult(story, ok);
     const h = this.lcdBox.h;
@@ -1445,7 +1454,7 @@ export class SlotScene extends Phaser.Scene {
     // グループLINEリーチ(2026-11-13 企画者)
     if (show.big?.id === 'line') {
       this.setLcdBg('normal', 0.45);
-      return playLineReach(this, this.lcd, this.lcdBox, LINE_SCRIPTS.win1);
+      return playLineReach(this, this.lcd, this.lcdBox, this.lineScript);
     }
     const story = STORY_REACHES.find((d) => d.id === show.big?.id);
     if (story) return this.storyReach(story, show, ms);

@@ -8,9 +8,10 @@ import { tierText, type LcdBox } from './slotFx';
  * ROYAL JACKPOT「グループLINEリーチ」(2026-11-13 企画者の 指示書)。
  * 友だちの グループLINEで 飲み会の 参加者を 募集 → 3人 参加で 大当たり。
  * - 当たり・ハズレは 先に 決まっている(planShow)。この 画面は 見せ方だけ(結果を 変えない)
- * - 会話は LINE_SCRIPTS に 1件ずつ(だれ・文・入力中の 長さ・次までの 待ち・参加か)。会話を 足す ときは ここに 足す
+ * - 会話は buildLineScript で 毎回 作る(だれが 何番目に 返すかは 毎回 ちがう。2026-11-14 企画者「返信する 順番は 任せます」)。
+ *   断る 理由は LINE_REFUSE(企画者が 作る。届くまで【仮】)
  * - 見た目は【仮】(LINE 風の 画面を 図形で 描く)。アイコン・音は LINE_ICON・LINE_SE で 差しかえ られる
- * 2026-11-13 企画者の 名前は「パンダP・ヒヨコG」だったが、ゲームの キャラは パンダY・ヒヨコJ なので その 名前で【確認待ち】
+ * 2026-11-14 企画者「パンダYで いいけど、ヒヨコGに して」
  */
 
 /** 1件の メッセージ */
@@ -34,7 +35,7 @@ export const LINE_ICON: Record<LineChara, { name: string; key: string }> = {
   kangarooh: { name: 'カンガルーH', key: 'slot:chara:kangarooh' },
   kyonk: { name: 'キョンK', key: 'slot:chara:kyonk' },
   panday: { name: 'パンダY', key: 'slot:chara:panday' },
-  hiyokoj: { name: 'ヒヨコJ', key: 'slot:chara:hiyokoj' },
+  hiyokoj: { name: 'ヒヨコG', key: 'slot:chara:hiyokoj' },
 };
 
 /** 効果音(【仮】ゲームの 合成音。差しかえる 時は ここ) */
@@ -52,20 +53,66 @@ export const LINE_LAMP_ROOM = 70;
 /** 何人で 成立か */
 export const LINE_NEED = 3;
 
-/** 会話(まずは 当たりの 1つ。ハズレ・ほかの 会話は 後で 足す) */
-export const LINE_SCRIPTS: Record<'win1', LineMsg[]> = {
-  win1: [
-    { from: 'me', text: '今日飲める人います？\n3人以上なら🍺', typingMs: 0, waitMs: 1100 },
-    { from: 'usagik', text: 'タイフェスだからパス', typingMs: 1300, waitMs: 1500 },
-    { from: 'kangarooh', text: 'ノ', typingMs: 1100, waitMs: 1300, join: true },
-    { from: 'kyonk', text: 'ノ', typingMs: 1100, waitMs: 1500, join: true },
-    // 「ヤキン」= 夜勤(参加では ない)
-    { from: 'panday', text: 'ヤキン', typingMs: 1700, waitMs: 1700 },
-    { from: 'hiyokoj', text: 'ノ', typingMs: 2600, waitMs: 0, join: true },
-  ],
+/** 最初に 自分が 送る 文 */
+export const LINE_ASK = '今日飲める人います？\n3人以上なら🍺';
+/** 参加の 返事 */
+export const LINE_JOIN = 'ノ';
+/**
+ * 断る 理由(キャラごと。いくつか あれば 毎回 どれか)。
+ * 2026-11-14 企画者「みんな 断る 理由を 作る」→ 届いたら ここを 置きかえる。【仮】と ある ものは 仮
+ */
+export const LINE_REFUSE: Record<LineChara, string[]> = {
+  usagik: ['タイフェスだからパス'],
+  // 「ヤキン」= 夜勤
+  panday: ['ヤキン'],
+  kangarooh: ['ラーメン屋の行列なう【仮】'],
+  kyonk: ['今日は先約ある【仮】'],
+  hiyokoj: ['打ちっぱなし行く【仮】'],
 };
 
-/** さいごの「ノ」の あと(止まる → 金の 吹き出し → 3人参加！！ → 飲み会成立！！)の 長さ */
+/** だれが 何番目に 返すか・参加か を 決めて 会話を 作る(当たり: 3人目の「ノ」で おわる / ハズレ: 2人の まま おわる) */
+export function buildLineScript(win: boolean, rng: () => number): LineMsg[] {
+  const members = shuffle(Object.keys(LINE_ICON) as LineChara[], rng);
+  // 当たり: 参加 3人(さいごの 1人が 3人目)。その 前に 1人 断って 期待を 下げる
+  // ハズレ: 参加 2人(たまに 1人)。さいごの 1人が 断る(「あと1人！」の あと)
+  const joins = win ? 3 : rng() < 0.8 ? 2 : 1;
+  const last = members[4];
+  const beforeLast = members[3];
+  const first3 = members.slice(0, 3);
+  const joinSet = new Set<LineChara>();
+  if (win) {
+    // さいごは 参加・その 前は 断る・はじめの 3人の うち 2人 参加
+    joinSet.add(last);
+    for (const m of shuffle(first3, rng).slice(0, 2)) joinSet.add(m);
+  } else {
+    for (const m of shuffle(first3, rng).slice(0, joins)) joinSet.add(m);
+  }
+  void beforeLast;
+  const msgs: LineMsg[] = [{ from: 'me', text: LINE_ASK, typingMs: 0, waitMs: 1100 }];
+  members.forEach((m, i) => {
+    const join = joinSet.has(m);
+    const reasons = LINE_REFUSE[m];
+    msgs.push({
+      from: m,
+      text: join ? LINE_JOIN : reasons[Math.floor(rng() * reasons.length)].replace('【仮】', ''),
+      typingMs: i === 4 ? 2600 : 1100 + Math.round(rng() * 500),
+      waitMs: i === 4 ? 0 : 1300 + Math.round(rng() * 400),
+      join,
+    });
+  });
+  return msgs;
+}
+
+function shuffle<T>(list: readonly T[], rng: () => number): T[] {
+  const a = [...list];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/** さいごの 返事の あと(当たり: 止まる → 金の 吹き出し → 3人参加！！ → 飲み会成立！！ / ハズレ: 不成立)の 長さ */
 export const LINE_CLIMAX_MS = 3200;
 
 /** 会話 ぜんぶの 長さ(ms) */
@@ -173,7 +220,20 @@ export function playLineReach(scene: Phaser.Scene, lcd: Phaser.GameObjects.Conta
     cursor += b.height + gap;
   };
 
+  // 2026-11-14 企画者「リーチ中 今 何人か わからない」→ 液晶の 右下に 今の 人数(大きく)
+  const big = txt(scene, -L - 14, -T - 10, '0人', fs * 1.9, '#ffd23a', 7).setOrigin(1, 1);
+  const bigLabel = txt(scene, -L - 14 - big.width - 8, -T - 16, '参加', fs * 0.85, '#ffffff', 5).setOrigin(1, 1);
+  root.add([scene.add.rectangle(-L - 6, -T - 4, big.width + bigLabel.width + 44, big.height + 6, 0x16101c, 0.6).setOrigin(1, 1), bigLabel, big]);
+  const paintBig = (down: boolean) => {
+    big.setText(`${joined}人`);
+    bigLabel.setX(-L - 14 - big.width - 8);
+    big.setColor(down ? '#9aa4b8' : joined >= LINE_NEED ? '#ffd23a' : joined >= LINE_NEED - 1 ? '#ff5a7a' : '#ffd23a');
+    if (down) scene.tweens.add({ targets: big, x: big.x + 5, duration: 50, yoyo: true, repeat: 3 });
+    else scene.tweens.add({ targets: big, scale: { from: 1.6, to: 1 }, duration: 280, ease: 'Back.easeOut' });
+  };
+
   const setCount = (down = false) => {
+    paintBig(down);
     count.setText(joined >= LINE_NEED - 1 && joined < LINE_NEED ? `参加 ${joined}/${LINE_NEED}  あと1人！` : `参加 ${joined}/${LINE_NEED}`);
     if (down) {
       count.setColor('#9aa4b8');
@@ -223,6 +283,7 @@ export function playLineReach(scene: Phaser.Scene, lcd: Phaser.GameObjects.Conta
       setCount(true);
     }
     if (last && joined >= LINE_NEED) climax(b);
+    else if (last) loseEnd();
   }
 
   /** 3人目: 止まる → 吹き出しが 金に 光る → 3人参加！！ → 飲み会成立！！ */
@@ -246,6 +307,21 @@ export function playLineReach(scene: Phaser.Scene, lcd: Phaser.GameObjects.Conta
       root.add([a, c]);
       scene.tweens.add({ targets: a, scale: 1, alpha: 1, duration: 360, delay: 700, ease: 'Back.easeOut', onStart: () => audio.se('mcCutin') });
       scene.tweens.add({ targets: c, scale: 1, alpha: 1, duration: 360, delay: 1500, ease: 'Back.easeOut', onStart: () => audio.se('cheer') });
+    });
+  }
+
+  /** ハズレ: さいごの 人も 断る → 灰色に なって「飲み会 不成立…」 */
+  function loseEnd(): void {
+    scene.time.delayedCall(500, () => {
+      if (!root.active) return;
+      const dim = scene.add.rectangle(0, 0, w, h, 0x16101c, 0);
+      root.add(dim);
+      scene.tweens.add({ targets: dim, fillAlpha: 0.6, duration: 400 });
+      const a = txt(scene, 0, -h * 0.1, `参加 ${joined}人…`, Math.min(56, h * 0.15), '#c8c0d8', 8).setOrigin(0.5).setAlpha(0);
+      const c = txt(scene, 0, h * 0.14, '飲み会 不成立…', Math.min(52, h * 0.14), '#9aa4b8', 8).setOrigin(0.5).setAlpha(0);
+      root.add([a, c]);
+      scene.tweens.add({ targets: a, alpha: 1, duration: 300, delay: 400 });
+      scene.tweens.add({ targets: c, alpha: 1, y: c.y + 6, duration: 400, delay: 1000, onStart: () => audio.se(LINE_SE.down, { pitch: 0.6 }) });
     });
   }
 }

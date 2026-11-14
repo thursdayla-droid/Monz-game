@@ -167,6 +167,10 @@ describe('キャラの リーチの 当たる 確率(企画者 2026-11-11)', () 
     expect(Math.abs(rate('golf') - 0.4)).toBeLessThan(0.05);
     expect(n.panda / n.kyon).toBeGreaterThan(0.85);
     expect(n.panda / n.kyon).toBeLessThan(1.15);
+    // グループLINE(2026-11-14): キョンKと 同じ くらい 出て、当たるのは 約10%
+    expect(Math.abs(rate('line') - 0.1)).toBeLessThan(0.04);
+    expect(n.line / n.kyon).toBeGreaterThan(0.85);
+    expect(n.line / n.kyon).toBeLessThan(1.15);
   }, 60_000);
 });
 
@@ -245,7 +249,7 @@ describe('プレミア(企画者 2026-11-12「100% 当たる」)', () => {
       const rng = mulberry32(i);
       const r = spin(rng, 10);
       const s = planShow(r, 10, rng);
-      if (s.big?.id === 'premium' || s.big?.id === 'line') {
+      if (s.big?.id === 'premium') {
         n++;
         expect(s.bigSuccess).toBe(true);
       }
