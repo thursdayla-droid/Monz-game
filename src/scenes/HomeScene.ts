@@ -707,6 +707,11 @@ export class HomeScene extends Phaser.Scene {
       this.cameras.main.fadeOut(200, 0, 0, 0);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('MinigameSelect'));
     }
+    else if (action === 'adventure' && !(import.meta.env as Record<string, unknown>).DEV) {
+      // 2026-11-14 企画者「冒険は 公開 まだ やめて ほしい。開発中 とかに できる？」→ 公開ページでは「冒険は じゅんび中！」
+      // (開発中の 画面と 確認用ページ〔MONZ RUMBLE の 冒険の 試作〕では 入れる)
+      this.comingSoon(HOME_ACTION_LABELS[action]);
+    }
     else if (action === 'adventure') {
       // 冒険(2026-11-07 企画者)
       this.busy = true;
