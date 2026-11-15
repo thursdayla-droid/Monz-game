@@ -69,7 +69,8 @@ else:
     for d in ['parts', 'down', 'faces']:
         paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + f'assets/bunk/{d}/*.png'))
     paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/birth/*.webp') + glob.glob(pub + 'assets/home/*.webp') + glob.glob(pub + 'assets/home/icons/*.webp') + glob.glob(pub + 'assets/home/rooms/*.webp') + glob.glob(pub + 'assets/furniture/*.webp') + glob.glob(pub + 'assets/bunk/poses/*.webp') + glob.glob(pub + 'assets/minigame/*.webp') + glob.glob(pub + 'assets/mofu/*.webp') + glob.glob(pub + 'assets/mofu/parts/*.webp'))
-    paths += myth_paths
+    # 2026-11-15 お世話の 姿の 絵(BUNK 以外)。15MB に 入れるため MYTHCLASH の 絵は MYTHCLASH の ページ(--myth)だけに
+    paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/poses/*/*.webp'))
 assets = {}
 for p in paths:
     if p.endswith('.glb'):
@@ -153,6 +154,9 @@ for p in sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/bgm/*.m
     if MJ and not (p.startswith('assets/se/') or p.endswith('mahjong.mp3')):
         continue
     if SLOT and not (p.startswith('assets/se/') or p.endswith(('/slot.mp3', '/slot_bonus.mp3'))):
+        continue
+    # 2026-11-15 ゲームの ページは 15MB に 入れるため、べつの 確認用ページが ある 遊び(麻雀・スロット・MYTHCLASH)の 曲は 入れない
+    if not (MJ or SLOT or MYTH or B3D) and p.startswith('assets/bgm/') and any(k in p for k in ('mahjong', 'slot', 'mythclash')):
         continue
     if p in BGM_NOT_YET or (MYTH and 'mythclash' not in p) or (B3D and 'battle' not in p and not (STORY and 'ending' in p) and not p.startswith('assets/se/')) or (B3D and not STORY and p.endswith(('battle2.mp3', 'battle3.mp3'))):
         continue
