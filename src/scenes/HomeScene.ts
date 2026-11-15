@@ -16,6 +16,7 @@ import { clearSave, loadSave } from '../core/save';
 import { BUNK_MOTION, BunkView, cutoutKey, TEST_PERSONALITY } from '../render/bunkView';
 import { FIRST_MONZ } from '../core/questions';
 import { MOFU_CUTOUT_KEY, MofuView } from '../render/mofuView';
+import { CARE_LOOK_DIR, CARE_POSES, carePoseKey, hasCarePoses, loadCarePoses } from '../render/carePoses';
 import { CareView, careFaceKey, careKey, hasCareImage, loadCare } from '../render/careView';
 import { careArtId, evoName, evolvedAt } from '../core/evolution';
 import { drawCoin, drawHeart, drawIcon, drawMeat, drawMeatImage, drawMenuButton, drawPanel } from '../ui/homeArt';
@@ -135,6 +136,8 @@ export class HomeScene extends Phaser.Scene {
     preloadPacks(this, sp === 'mofu' ? ['bunk', 'mofu', 'home'] : ['bunk', 'home']);
     // ほかの 種族は 企画者の お世話用の 絵(2026-11-08)
     if (sp) loadCare(this.load, sp);
+    // 1段階めの 姿の 絵(座る・寝る など。2026-11-15〜 BUNK 以外も)
+    if (sp && hasCarePoses(sp)) loadCarePoses(this.load, sp);
     // 進化した 姿(2026-11-09 企画者 Lv.30・Lv.60)
     if (sp && m0 && careArtId(sp, m0.level) !== sp) loadCare(this.load, careArtId(sp, m0.level));
     preloadFurniture(this, loadLife().inventory.owned);
@@ -468,14 +471,14 @@ export class HomeScene extends Phaser.Scene {
 
   /** 今の行動に合う姿の絵(なければ null = ふつうのBUNKを動かす) */
   private poseFor(): BunkPoseImage | null {
-    // 姿の絵(座る・眠るなど)は BUNK だけ(MOFU の絵は まだない)
-    if (this.species !== 'bunk' || this.art !== this.species) return null;
+    // 姿の絵(座る・眠るなど)は 1段階めだけ。BUNK と、絵が とどいた 種族(2026-11-15〜 MOFU から)
+    if (this.art !== this.species || (this.species !== 'bunk' && !hasCarePoses(this.species))) return null;
     const life = this.life!;
     // 眠っているときは、なでられていても眠った姿のまま
-    if (life.act === 'sleep' && this.textures.exists(bunkPoseKey('sleep'))) return 'sleep';
+    if (life.act === 'sleep' && this.textures.exists(this.poseKey('sleep'))) return 'sleep';
     if (life.isPaused || life.body.reaction?.kind === 'happy' || life.body.reaction?.kind === 'angry' || life.body.reaction?.kind === 'surprised') return null;
     const n = this.record?.needs;
-    const has = (p: BunkPoseImage) => (this.textures.exists(bunkPoseKey(p)) ? p : null);
+    const has = (p: BunkPoseImage) => (this.textures.exists(this.poseKey(p)) ? p : null);
     switch (life.act) {
       case 'sleep':
         return has('sleep');
@@ -485,13 +488,24 @@ export class HomeScene extends Phaser.Scene {
         return has('hungry');
       case 'look':
         // 見渡す: 横を向いた絵と、正面のBUNKを交互に
-        return life.facing < 0 ? has('look') : null;
+        // 絵が 向いている 方を 向いた 時だけ(BUNK は 左・MOFU は 右)
+        return life.facing === (CARE_LOOK_DIR[this.species] ?? -1) ? has('look') : null;
       case 'rest':
         if (n && n.mood < 0.3) return null;
         return n && n.sleepy > 0.6 ? has('sleepy') : has('sit');
       default:
         return null;
     }
+  }
+
+  /** 姿の 絵の 名前(BUNK は bunk:pose:〜、ほかの 種族は pose:<種族>:〜) */
+  private poseKey(pose: BunkPoseImage): string {
+    return this.species === 'bunk' ? bunkPoseKey(pose) : carePoseKey(this.species, pose);
+  }
+
+  /** 姿の 絵の 高さ(立っている BUNK = 1) */
+  private poseHeight(pose: BunkPoseImage): number {
+    return this.species === 'bunk' ? BUNK_POSE_IMAGES[pose].height : (CARE_POSES[this.species]?.[pose]?.height ?? 1);
   }
 
   private showPose(pose: BunkPoseImage | null, sc: number): void {
@@ -501,7 +515,7 @@ export class HomeScene extends Phaser.Scene {
     if (pose !== this.shownPose) {
       this.shownPose = pose;
       if (pose) {
-        img.setTexture(bunkPoseKey(pose));
+        img.setTexture(this.poseKey(pose));
         // 切りかわるときに、少しだけふわっと
         img.setAlpha(0.4);
         this.tweens.add({ targets: img, alpha: 1, duration: 160 });
@@ -511,7 +525,7 @@ export class HomeScene extends Phaser.Scene {
     img.setVisible(!!pose);
     view.setVisible(!pose);
     if (!pose) return;
-    const target = BUNK_POSE_IMAGES[pose].height * MONZ_H * sc;
+    const target = this.poseHeight(pose) * MONZ_H * sc;
     const base = target / img.height;
     // ゆっくり呼吸(眠っているときはもっとゆっくり)。伸びは、ぐーっと上へ
     const period = pose === 'sleep' ? 3.2 : 2.2;
