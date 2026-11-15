@@ -75,9 +75,12 @@ export class MahjongQuestScene extends Phaser.Scene {
     this.busy = false;
     this.prog = loadProgress();
     // アプリを 開きなおした 時は 最初の ステージから(この 回の 遊びの 間だけ 続きから。企画者 2026-11-09)
+    // 2026-11-15 企画者「ホームに 戻ると セーブ 消える」→ 中断した 対局が ある 時は 最初からに しない(続きから できる)
     if (!sessionFlag()) {
-      resetRun(this.prog);
-      saveProgress(this.prog);
+      if (!loadSuspend()) {
+        resetRun(this.prog);
+        saveProgress(this.prog);
+      }
       setSessionFlag(true);
     }
     // クリアの ごほうびは ここで 1回だけ 足して 保存
@@ -418,9 +421,11 @@ export class MahjongQuestScene extends Phaser.Scene {
     b.on('pointerup', () => {
       audio.se('back');
       if ((window as { __MONZ_START?: string }).__MONZ_START === 'MahjongQuest') return;
-      // 麻雀クエストを やめたら 次は 最初の ステージから
-      resetRun(this.prog);
-      saveProgress(this.prog);
+      // 麻雀クエストを やめたら 次は 最初の ステージから(中断した 対局が ある 時は のこす。2026-11-15)
+      if (!loadSuspend()) {
+        resetRun(this.prog);
+        saveProgress(this.prog);
+      }
       setSessionFlag(false);
       this.scene.start('MinigameSelect');
     });
