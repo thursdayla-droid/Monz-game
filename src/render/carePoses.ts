@@ -6,7 +6,7 @@ import { assetUrl } from '../assetUrl';
  * 企画者の 絵(design/species/<種族>/poses/)を tools/make_care_poses.py で 切り抜いた もの。
  * 1段階め だけ。height は 立っている BUNK の 高さに 対する 大きさ。
  */
-export type CarePoseName = 'sit' | 'sleep' | 'stretch' | 'look' | 'hungry' | 'sleepy';
+export type CarePoseName = 'sit' | 'sleep' | 'stretch' | 'look' | 'hungry' | 'sleepy' | 'happy' | 'angry' | 'cry' | 'surprised';
 type PoseInfo = Partial<Record<CarePoseName, { w: number; h: number; height: number }>>;
 
 const found = import.meta.glob('../../public/assets/poses/*/poses.json', { eager: true, import: 'default' }) as Record<string, PoseInfo>;

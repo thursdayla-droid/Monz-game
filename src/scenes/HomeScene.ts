@@ -67,6 +67,8 @@ export const BUNK_POSE_IMAGES = {
 } as const;
 export type BunkPoseImage = keyof typeof BUNK_POSE_IMAGES;
 export const bunkPoseKey = (name: string) => `bunk:pose:${name}`;
+/** 姿の 絵の 名前。気持ちの 絵(喜ぶ・怒る・泣く・びっくり)は BUNK 以外(2026-11-15〜。BUNK は 顔の 部品で 表情を 出す) */
+type PoseName = BunkPoseImage | 'happy' | 'angry' | 'cry' | 'surprised';
 
 /** 企画者の肉の絵(design/home/meat.png → design/home/make_meat.py で切り抜き) */
 export const MEAT_KEY = 'home:meatImage';
@@ -108,7 +110,7 @@ export class HomeScene extends Phaser.Scene {
   private strokeHand?: Phaser.GameObjects.Image;
   /** 行動に合わせた姿の絵(座る・眠る・伸び・見渡す・お腹がすいた・眠い)。出している間は BunkView を隠す */
   private poseImg?: Phaser.GameObjects.Image;
-  private shownPose: BunkPoseImage | null = null;
+  private shownPose: PoseName | null = null;
   place: HomePlace = 'street';
   /** アイテムボックスから「部屋に置く」で来たときの家具 */
   private pendingPlace?: string;
@@ -470,15 +472,20 @@ export class HomeScene extends Phaser.Scene {
   }
 
   /** 今の行動に合う姿の絵(なければ null = ふつうのBUNKを動かす) */
-  private poseFor(): BunkPoseImage | null {
+  private poseFor(): PoseName | null {
     // 姿の絵(座る・眠るなど)は 1段階めだけ。BUNK と、絵が とどいた 種族(2026-11-15〜 MOFU から)
     if (this.art !== this.species || (this.species !== 'bunk' && !hasCarePoses(this.species))) return null;
     const life = this.life!;
     // 眠っているときは、なでられていても眠った姿のまま
     if (life.act === 'sleep' && this.textures.exists(this.poseKey('sleep'))) return 'sleep';
+    // 気持ちの 絵(喜ぶ・怒る・びっくり・泣く)。絵が ある 種族だけ(BUNK は 顔の 部品)
+    const r = life.body.reaction;
+    const feel: PoseName | null =
+      r?.kind === 'angry' ? 'angry' : r?.kind === 'surprised' ? 'surprised' : r?.kind === 'happy' || r?.face === 'happy' ? 'happy' : life.act === 'cry' || (r?.face === 'sad' && life.act !== 'beg') ? 'cry' : null;
+    if (feel && this.textures.exists(this.poseKey(feel))) return feel;
     if (life.isPaused || life.body.reaction?.kind === 'happy' || life.body.reaction?.kind === 'angry' || life.body.reaction?.kind === 'surprised') return null;
     const n = this.record?.needs;
-    const has = (p: BunkPoseImage) => (this.textures.exists(this.poseKey(p)) ? p : null);
+    const has = (p: PoseName) => (this.textures.exists(this.poseKey(p)) ? p : null);
     switch (life.act) {
       case 'sleep':
         return has('sleep');
@@ -499,16 +506,16 @@ export class HomeScene extends Phaser.Scene {
   }
 
   /** 姿の 絵の 名前(BUNK は bunk:pose:〜、ほかの 種族は pose:<種族>:〜) */
-  private poseKey(pose: BunkPoseImage): string {
+  private poseKey(pose: PoseName): string {
     return this.species === 'bunk' ? bunkPoseKey(pose) : carePoseKey(this.species, pose);
   }
 
   /** 姿の 絵の 高さ(立っている BUNK = 1) */
-  private poseHeight(pose: BunkPoseImage): number {
-    return this.species === 'bunk' ? BUNK_POSE_IMAGES[pose].height : (CARE_POSES[this.species]?.[pose]?.height ?? 1);
+  private poseHeight(pose: PoseName): number {
+    return this.species === 'bunk' ? (BUNK_POSE_IMAGES[pose as BunkPoseImage]?.height ?? 1) : (CARE_POSES[this.species]?.[pose]?.height ?? 1);
   }
 
-  private showPose(pose: BunkPoseImage | null, sc: number): void {
+  private showPose(pose: PoseName | null, sc: number): void {
     const img = this.poseImg!;
     const life = this.life!;
     const view = this.view!;
@@ -531,7 +538,11 @@ export class HomeScene extends Phaser.Scene {
     const period = pose === 'sleep' ? 3.2 : 2.2;
     const breath = 1 + 0.018 * Math.sin((this.t * Math.PI * 2) / period);
     const stretchUp = pose === 'stretch' ? 1 + 0.04 * Math.sin(Math.min(1, (this.t % 2.4) / 1.2) * Math.PI) : 1;
-    img.setPosition(life.x, life.y + 4).setScale(base * (2 - breath), base * breath * stretchUp).setDepth(DEPTH.monz + this.depthOf(life.y));
+    // 気持ちの 絵の 動き: 喜ぶ = ぴょんぴょん・怒る = ぷるぷる・びっくり = はじめに 小さく とぶ
+    const age = life.body.reaction?.age ?? 0;
+    const hop = pose === 'happy' ? Math.abs(Math.sin(this.t * 9)) * 14 : pose === 'surprised' && age < 0.3 ? Math.sin((age / 0.3) * Math.PI) * 22 : 0;
+    const shake = pose === 'angry' ? Math.sin(this.t * 60) * 3 : 0;
+    img.setPosition(life.x + shake, life.y + 4 - hop).setScale(base * (2 - breath), base * breath * stretchUp).setDepth(DEPTH.monz + this.depthOf(life.y));
   }
 
   /** 頭の上の吹き出し(肉の絵) */

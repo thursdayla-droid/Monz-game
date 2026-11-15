@@ -17,7 +17,7 @@ from PIL import Image, ImageFilter
 from scipy import ndimage
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
-NAMES = ['sit', 'sleep', 'stretch', 'look', 'hungry', 'sleepy']
+NAMES = ['sit', 'sleep', 'stretch', 'look', 'hungry', 'sleepy', 'happy', 'angry', 'cry', 'surprised']
 HEIGHT = 520  # ゲームで 使う 高さ(px)。お世話画面では 小さく 出すので 十分
 
 
