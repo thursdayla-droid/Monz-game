@@ -9,7 +9,7 @@ import { applyDamage, damageOf, PLAYER_SEAT, stageResult, umaDamage, type Damage
 import { doDiscard, doKan, doKyuushu, doTsumo, doraIndicators, reactOptions, resolveReactions, seatWind, turnOptions, uraIndicators, type Reaction, type RoundResult, type RoundState } from '../core/mahjong/round';
 import type { Meld } from '../core/mahjong/score';
 import { EAST, isRed, type Kind, kindOf, type Tile } from '../core/mahjong/tiles';
-import { randomSeed } from '../core/rng';
+import { mulberry32, randomSeed } from '../core/rng';
 import { stageAt, type StageInfo } from '../core/mahjong/stages';
 import { applyItem, itemInfo, type ItemId } from '../core/mahjong/items';
 import { UI_FONT } from '../ui/paint';
@@ -146,7 +146,8 @@ export class MahjongScene extends Phaser.Scene {
     this.buildActors();
     this.ui = this.add.container(0, 0).setDepth(50);
     const seed = this.resume?.game.seed ?? randomSeed();
-    this.mj = this.resume ? restoreGame(this.resume.game) : newGame(seed, 0);
+    // 2026-11-15 企画者「毎回 親からじゃ なくて ランダムに」→ 起家(最初の 親)は 4人から ランダム(種から 決まる)
+    this.mj = this.resume ? restoreGame(this.resume.game) : newGame(seed, Math.floor(mulberry32(seed ^ 0x5eed)() * 4));
     const lv = [LEVELS[0], ...this.st.levels];
     this.cpus = [0, 1, 2, 3].map((i) => makeCpu(lv[i], seed + i * 977));
     this.hp = this.resume ? { ...this.resume.hp } : { player: START_HP, playerMax: START_HP, enemy: this.st.enemyHp, enemyMax: this.st.enemyHp };
