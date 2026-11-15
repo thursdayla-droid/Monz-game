@@ -24,9 +24,11 @@ STORY = '--story' in sys.argv[2:]
 B3D = '--b3d' in sys.argv[2:] or '--b3d2' in sys.argv[2:] or STORY
 # 2026-11-04: 10体の3Dモデルは 1ページ(15MB)に入らないので、新しい5体(RIOT など)は 2つめのページ(--b3d2)。相手の BUNK の3体は 両方に入れる
 B3D2 = '--b3d2' in sys.argv[2:]
+# 2026-11-15 8つめ: お世話の 姿(全種族の 姿・気持ちの 絵)。ゲームの ページに 入りきらないので、ミニゲームの 絵・曲を 外した ページ
+CARE = '--care' in sys.argv[2:]
 NEW5 = ('riot', 'rioter', 'riotrax', 'grit', 'gritter', 'gritbull', 'snek', 'sneker', 'snekxus', 'vybe', 'vyga', 'vygard', 'shellz', 'sheld', 'sheldozer')
 if not os.path.exists(out):
-    open(out, 'w').write('<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>' + ('STREET KING 確認用' if STORY else '3Dバトル 確認用2' if B3D2 else '3Dバトル 確認用' if B3D else 'MYTHCLASH 確認用' if MYTH else 'ROYAL JACKPOT 確認用' if SLOT else 'MONZ') + '</title>'
+    open(out, 'w').write('<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>' + ('STREET KING 確認用' if STORY else '3Dバトル 確認用2' if B3D2 else '3Dバトル 確認用' if B3D else 'MYTHCLASH 確認用' if MYTH else 'ROYAL JACKPOT 確認用' if SLOT else 'お世話 確認用' if CARE else 'MONZ') + '</title>'
                          '<style>html,body{margin:0;height:100%;background:#1b1024;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none}#game{width:100%;height:100%}</style></head>'
                          '<body><div id="boot" style="color:#fff;font:20px sans-serif;text-align:center;padding-top:40vh">よみこみ中…</div><div id="game"></div>\n<script type="module"></script></body></html>')
 js = open(glob.glob(root + '/dist/assets/index-*.js')[0]).read()
@@ -69,8 +71,11 @@ else:
     for d in ['parts', 'down', 'faces']:
         paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + f'assets/bunk/{d}/*.png'))
     paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/birth/*.webp') + glob.glob(pub + 'assets/home/*.webp') + glob.glob(pub + 'assets/home/icons/*.webp') + glob.glob(pub + 'assets/home/rooms/*.webp') + glob.glob(pub + 'assets/furniture/*.webp') + glob.glob(pub + 'assets/bunk/poses/*.webp') + glob.glob(pub + 'assets/minigame/*.webp') + glob.glob(pub + 'assets/mofu/*.webp') + glob.glob(pub + 'assets/mofu/parts/*.webp'))
-    # 2026-11-15 お世話の 姿の 絵(BUNK 以外)。15MB に 入れるため MYTHCLASH の 絵は MYTHCLASH の ページ(--myth)だけに
-    paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/poses/*/*.webp'))
+    # 2026-11-15 お世話の 姿の 絵(BUNK 以外)は お世話の ページ(--care)だけ。そのページには ミニゲームの 絵を 入れない
+    # (15MB に 入れるため MYTHCLASH の 絵は MYTHCLASH の ページ(--myth)だけに)
+    if CARE:
+        paths = [p for p in paths if not p.startswith('assets/minigame/')]
+        paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/poses/*/*.webp'))
 assets = {}
 for p in paths:
     if p.endswith('.glb'):
@@ -162,7 +167,7 @@ for p in sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/bgm/*.m
     if SLOT and not (p.startswith('assets/se/') or p.endswith(('/slot.mp3', '/slot_bonus.mp3'))):
         continue
     # 2026-11-15 ゲームの ページは 15MB に 入れるため、べつの 確認用ページが ある 遊び(麻雀・スロット・MYTHCLASH)の 曲は 入れない
-    if not (MJ or SLOT or MYTH or B3D) and p.startswith('assets/bgm/') and any(k in p for k in ('mahjong', 'slot', 'mythclash')):
+    if not (MJ or SLOT or MYTH or B3D) and p.startswith('assets/bgm/') and any(k in p for k in ('mahjong', 'slot', 'mythclash') + (('dash', 'slugger', 'card', 'battle') if CARE else ())):
         continue
     if p in BGM_NOT_YET or (MYTH and 'mythclash' not in p) or (B3D and 'battle' not in p and not (STORY and 'ending' in p) and not p.startswith('assets/se/')) or (B3D and not STORY and p.endswith(('battle2.mp3', 'battle3.mp3'))):
         continue
