@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { assetUrl } from '../assetUrl';
-import { clearStage, loadProgress, resetRun, saveProgress, type MjProgress } from '../core/mahjong/progress';
+import { clearStage, clearSuspend, loadProgress, loadSuspend, resetRun, saveProgress, type MjProgress } from '../core/mahjong/progress';
 import { ENDING_ART, ENDING_STORY, FINAL_ENDING_STORY, LOSE_MONZ_EXP, STAGE_COUNT, STAGES, stageAt } from '../core/mahjong/stages';
 import { LifeRecord, loadLife, LIFE_KEY } from '../core/lifeSave';
 import { UI_FONT } from '../ui/paint';
@@ -317,6 +317,24 @@ export class MahjongQuestScene extends Phaser.Scene {
       });
     };
     zone(TITLE_ART.start, () => this.go('story'));
+    // 中断した 対局の 続きから(2026-11-15 企画者「一時停止して いつでも 続きから」→ A: 局の はじめから)
+    const sus = loadSuspend();
+    if (sus && (sus.stage !== this.prog.stage || sus.lap !== this.prog.lap)) clearSuspend();
+    else if (sus) {
+      const wind = ['東', '南', '西', '北'][sus.game.roundWind] ?? '';
+      const label = `▶ 続きから（STAGE ${sus.stage + 1}・${wind}${sus.game.kyoku + 1}局）`;
+      const cy = y0 + (TITLE_ART.start[1] - 70) * k;
+      const b = this.text(W / 2, cy, label, 30, '#16101c', 0).setBackgroundColor('#ffd23a').setPadding(30, 14, 30, 14).setInteractive({ useHandCursor: true });
+      this.tweens.add({ targets: b, scale: 1.05, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      b.on('pointerdown', () => {
+        if (this.busy) return;
+        audio.unlock();
+        audio.se('select');
+        this.busy = true;
+        this.cameras.main.fadeOut(250, 0, 0, 0);
+        this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('Mahjong', { resume: true }));
+      });
+    }
     zone(TITLE_ART.howto, () => this.howTo());
     // 今の ステージ・ゴールド(小さく)
     const st = `${this.prog.lap >= 2 ? `${this.prog.lap}周目 ` : ''}STAGE ${this.prog.stage + 1}  ${this.prog.gold}G`;

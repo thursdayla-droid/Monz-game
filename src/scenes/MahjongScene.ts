@@ -3,7 +3,8 @@ import { audio } from '../audio/engine';
 import type { SeName } from '../audio/sfx';
 import { assetUrl } from '../assetUrl';
 import { cpuReact, cpuTurn, makeCpu, type Cpu } from '../core/mahjong/ai';
-import { newGame, nextHanchan, nextRound, type GameState } from '../core/mahjong/game';
+import { newGame, nextHanchan, nextRound, restoreGame, snapshotGame, type GameState } from '../core/mahjong/game';
+import { clearSuspend, loadSuspend, saveSuspend, type MjSuspend } from '../core/mahjong/progress';
 import { applyDamage, damageOf, PLAYER_SEAT, stageResult, umaDamage, type Damage, type Hp } from '../core/mahjong/rpg';
 import { doDiscard, doKan, doKyuushu, doTsumo, doraIndicators, reactOptions, resolveReactions, seatWind, turnOptions, uraIndicators, type Reaction, type RoundResult, type RoundState } from '../core/mahjong/round';
 import type { Meld } from '../core/mahjong/score';
@@ -92,11 +93,16 @@ export class MahjongScene extends Phaser.Scene {
   /** この ステージで 使った アイテム(発動したら null) */
   private item: ItemId | null = null;
 
-  init(data: { stage?: number; lap?: number; item?: ItemId | null }): void {
-    this.stageNo = data?.stage ?? 0;
-    this.lap = data?.lap ?? 1;
+  /** 続きから(中断した 局の はじめ)。null = 新しく 始める */
+  private resume: MjSuspend | null = null;
+
+  init(data: { stage?: number; lap?: number; item?: ItemId | null; resume?: boolean }): void {
+    // 2026-11-15 企画者「麻雀中に 一時停止して いつでも 続きから」→ A: 局の はじめから
+    this.resume = data?.resume ? loadSuspend() : null;
+    this.stageNo = this.resume?.stage ?? data?.stage ?? 0;
+    this.lap = this.resume?.lap ?? data?.lap ?? 1;
     this.st = stageAt(this.stageNo, this.lap);
-    this.item = data?.item ?? null;
+    this.item = ((this.resume ? this.resume.item : data?.item) ?? null) as ItemId | null;
     this.sys.settings.data = {};
   }
 
@@ -139,11 +145,12 @@ export class MahjongScene extends Phaser.Scene {
     this.layer = this.add.container(0, 0);
     this.buildActors();
     this.ui = this.add.container(0, 0).setDepth(50);
-    const seed = randomSeed();
-    this.mj = newGame(seed, 0);
+    const seed = this.resume?.game.seed ?? randomSeed();
+    this.mj = this.resume ? restoreGame(this.resume.game) : newGame(seed, 0);
     const lv = [LEVELS[0], ...this.st.levels];
     this.cpus = [0, 1, 2, 3].map((i) => makeCpu(lv[i], seed + i * 977));
-    this.hp = { player: START_HP, playerMax: START_HP, enemy: this.st.enemyHp, enemyMax: this.st.enemyHp };
+    this.hp = this.resume ? { ...this.resume.hp } : { player: START_HP, playerMax: START_HP, enemy: this.st.enemyHp, enemyMax: this.st.enemyHp };
+    this.paused = false;
     audio.playBgm('mahjong');
     this.cameras.main.fadeIn(250, 0, 0, 0);
     this.step();
@@ -288,6 +295,8 @@ export class MahjongScene extends Phaser.Scene {
     }
     if (this.dealtRound !== s && s.phase === 'turn') {
       this.dealtRound = s;
+      // 局の はじめを 保存(中断・アプリが 閉じても ここから 続き)
+      saveSuspend({ version: 1, stage: this.stageNo, lap: this.lap, item: this.item, hp: { ...this.hp }, game: snapshotGame(this.mj) });
       this.seenEv = 0;
       this.playDeal(() => this.step());
       return;
@@ -576,9 +585,10 @@ export class MahjongScene extends Phaser.Scene {
     if (this.item) this.ui.add(this.text(Math.max(80, sp / 2), 588, `アイテム: ${itemInfo(this.item)?.name ?? ''}`, 15, '#ffd23a', 4));
     // やめる(左上)
     // 2026-11-09 企画者「やめる 押せない。もう少し 下に」→ iPhone の 横画面の 上の はしと 切りかきを よけて 大きく
-    const back = this.text(Math.max(110, this.geo.sp / 2), 100, '◀ やめる', 22, '#ffffff', 0).setInteractive({ useHandCursor: true });
+    // 2026-11-15 企画者「一時停止して いつでも 続きから」→ やめる の かわりに 一時停止(続ける・中断・やめる)
+    const back = this.text(Math.max(110, this.geo.sp / 2), 100, '⏸ 一時停止', 22, '#ffffff', 0).setInteractive({ useHandCursor: true });
     back.setBackgroundColor('#16101ccc').setPadding(18, 12, 18, 12);
-    back.on('pointerup', () => this.quit());
+    back.on('pointerup', () => this.pauseMenu());
     this.ui.add(back);
     // オートパス(鳴きを 聞かない。ロンは 聞く)
     const ap = this.text(W - Math.max(90, sp / 2), 470, `オートパス ${autoPass ? 'ON' : 'OFF'}`, 18, autoPass ? '#16101c' : '#ffffff').setInteractive({ useHandCursor: true });
@@ -922,9 +932,59 @@ export class MahjongScene extends Phaser.Scene {
     panel.add(b);
   }
 
+  private paused = false;
+
+  /** 一時停止: 時間を 止めて「続ける・中断して あとで 続ける・やめる」 */
+  private pauseMenu(): void {
+    if (this.paused || this.leaving || this.finished) return;
+    this.paused = true;
+    audio.se('select');
+    this.time.paused = true;
+    this.tweens.pauseAll();
+    const box = this.add.container(this.W / 2, H / 2).setDepth(200);
+    box.add(this.add.rectangle(0, 0, this.W * 2, H * 2, 0x000000, 0.6).setInteractive());
+    box.add(this.add.rectangle(0, 0, 640, 470, 0x16101c, 0.97).setStrokeStyle(5, 0xffd23a));
+    box.add(this.text(0, -180, '一時停止', 40, '#ffd23a', 6));
+    const btn = (y: number, label: string, sub: string, color: string, onTap: () => void) => {
+      const b = this.text(0, y, label, 28, '#16101c', 0).setBackgroundColor(color).setPadding(30, 10, 30, 10).setInteractive({ useHandCursor: true });
+      b.on('pointerup', onTap);
+      box.add([b, this.text(0, y + 38, sub, 16, '#d8c8e8', 0)]);
+    };
+    const close = () => {
+      box.destroy();
+      this.time.paused = false;
+      this.tweens.resumeAll();
+      this.paused = false;
+    };
+    btn(-90, '▶ 続ける', '', '#ffd23a', () => {
+      audio.se('select');
+      close();
+    });
+    btn(10, '中断して あとで 続ける', 'つぎは この 局の はじめから', '#7de8ff', () => {
+      close();
+      this.leaveTo(false);
+    });
+    btn(120, 'やめる', 'この ステージは さいしょから', '#ffffff', () => {
+      if (!window.confirm('対局を やめますか？(続きからは できなく なります)')) return;
+      close();
+      this.leaveTo(true);
+    });
+  }
+
+  /** 麻雀クエストの タイトルへ。giveUp = 中断の データも 消す */
+  private leaveTo(giveUp: boolean): void {
+    if (this.leaving) return;
+    this.leaving = true;
+    this.timer?.remove();
+    if (giveUp) clearSuspend();
+    audio.se('back');
+    this.scene.start('MahjongQuest', { mode: 'title' });
+  }
+
   /** ステージ クリア / ゲームオーバー【仮：画面は あとで(4段目)】 */
   private finish(res: 'clear' | 'lose'): void {
     this.finished = res;
+    clearSuspend();
     this.redraw();
     const panel = this.add.container(this.W / 2, H / 2).setDepth(90);
     panel.add(this.add.rectangle(0, 0, 640, 320, 0x16101c, 0.96).setStrokeStyle(6, res === 'clear' ? 0xffd23a : 0x9fe0ff));
@@ -937,15 +997,6 @@ export class MahjongScene extends Phaser.Scene {
       this.cameras.main.fadeOut(300, 0, 0, 0);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('MahjongQuest', res === 'clear' ? { mode: 'clear', gold: this.st.gold } : { mode: 'lose' }));
     });
-  }
-
-  private quit(force = false): void {
-    if (this.leaving) return;
-    if (!force && !this.finished && !window.confirm('対局を やめて もどりますか？')) return;
-    this.leaving = true;
-    this.timer?.remove();
-    audio.se('back');
-    this.scene.start('MahjongQuest', { mode: 'title' });
   }
 
   /** 開発用: 今の 状態(テスト用) */

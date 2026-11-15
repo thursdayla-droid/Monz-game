@@ -93,3 +93,26 @@ export function nextHanchan(g: GameState): void {
   g.count++;
   begin(g);
 }
+
+/** 局の はじめの 状態(中断・続きから 用。牌は 種から 作りなおす ので 入れない) */
+export interface GameSnapshot {
+  seed: number;
+  points: number[];
+  roundWind: number;
+  kyoku: number;
+  startDealer: number;
+  honba: number;
+  sticks: number;
+  count: number;
+}
+
+export function snapshotGame(g: GameState): GameSnapshot {
+  return { seed: g.seed, points: [...g.points], roundWind: g.roundWind, kyoku: g.kyoku, startDealer: g.startDealer, honba: g.honba, sticks: g.sticks, count: g.count };
+}
+
+/** 中断した 局の はじめから(2026-11-15 企画者「麻雀中に 一時停止して いつでも 続きから」→ A: 局の はじめから) */
+export function restoreGame(snap: GameSnapshot, rules?: Partial<RoundRules>): GameState {
+  const g = { ...snap, points: [...snap.points], over: false, rules } as GameState;
+  begin(g);
+  return g;
+}

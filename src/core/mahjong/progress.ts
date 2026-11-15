@@ -1,10 +1,12 @@
 import type { KeyValueStore } from '../save';
+import type { GameSnapshot } from './game';
+import type { Hp } from './rpg';
 import { MAX_LAP, STAGE_COUNT } from './stages';
 
 /**
  * MAHJONG QUEST の 進み具合(どの ステージ・何周目・ゴールド・持ち物)。
  * お世話の データ(monz:life)とは 別の 場所に 保存する(古い データに 影響しない)。
- * 対局の 途中の セーブは しない【未確定】
+ * 対局の 途中は 局の はじめごとに 保存(MjSuspend。2026-11-15 企画者「一時停止して いつでも 続きから」→ A: 局の はじめから)
  */
 export const MJ_KEY = 'monz:mahjong';
 
@@ -83,4 +85,52 @@ export function clearStage(p: MjProgress, gold: number): { lapUp: boolean; compl
  */
 export function resetRun(p: MjProgress): void {
   Object.assign(p, { ...newProgress(), clears: p.clears });
+}
+
+/** 対局の 中断(局の はじめの 状態)。続きからは その 局の 配牌から */
+export const MJ_SUSPEND_KEY = 'monz:mahjong:suspend';
+
+export interface MjSuspend {
+  version: 1;
+  stage: number;
+  lap: number;
+  /** まだ 発動して いない アイテム */
+  item: string | null;
+  hp: Hp;
+  game: GameSnapshot;
+}
+
+export function saveSuspend(s: MjSuspend, store = defaultStore()): void {
+  try {
+    store?.setItem(MJ_SUSPEND_KEY, JSON.stringify(s));
+  } catch {
+    /* 保存できなくても 続ける */
+  }
+}
+
+/** 中断の データ(こわれて いたら null) */
+export function loadSuspend(store = defaultStore()): MjSuspend | null {
+  try {
+    const raw = store?.getItem(MJ_SUSPEND_KEY);
+    if (!raw) return null;
+    const d = JSON.parse(raw) as Partial<MjSuspend>;
+    const num = (v: unknown) => Number.isFinite(Number(v));
+    const g = d.game;
+    const h = d.hp;
+    if (d.version !== 1 || !num(d.stage) || !num(d.lap) || !g || !h) return null;
+    if (!Array.isArray(g.points) || g.points.length !== 4 || !g.points.every(num)) return null;
+    if (![g.seed, g.roundWind, g.kyoku, g.startDealer, g.honba, g.sticks, g.count].every(num)) return null;
+    if (![h.player, h.playerMax, h.enemy, h.enemyMax].every(num) || h.player <= 0 || h.enemy <= 0) return null;
+    return { version: 1, stage: Number(d.stage), lap: Number(d.lap), item: typeof d.item === 'string' ? d.item : null, hp: { ...h }, game: { ...g, points: g.points.map(Number) } };
+  } catch {
+    return null;
+  }
+}
+
+export function clearSuspend(store = defaultStore()): void {
+  try {
+    store?.removeItem?.(MJ_SUSPEND_KEY);
+  } catch {
+    /* なにも しない */
+  }
 }
