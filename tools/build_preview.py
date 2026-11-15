@@ -119,6 +119,12 @@ for p in paths:
             im = Image.open(pub + p)
             im.resize((1024, round(im.height * 1024 / im.width)), Image.LANCZOS).save(bb, "WEBP", quality=28, method=6)
             data = bb.getvalue()
+        elif p.startswith('assets/poses/'):
+            # 2026-11-15 お世話の 姿の 絵(10種族×6枚): 確認用ページでは 高さ 300 に(画面では 小さく 出すので 見た目の 大きさは 同じ。ゲーム本体は そのまま)
+            bb = io.BytesIO()
+            im = Image.open(pub + p)
+            im.resize((round(im.width * 300 / im.height), 300), Image.LANCZOS).save(bb, 'WEBP', quality=50, method=6)
+            data = bb.getvalue()
         elif p.startswith('assets/mythclash/opponents/'):
             # 対戦相手の顔(33人分)は、確認用ページでは 160×160 に小さくする(画面では丸く小さく出すので見た目はほぼ同じ)
             bb = io.BytesIO()
