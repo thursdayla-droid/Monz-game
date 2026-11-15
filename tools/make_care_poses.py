@@ -7,6 +7,7 @@ public/assets/poses/<種族>/<姿>.webp と poses.json に 書き出す(2026-11-
 高さ: 基準の 姿(ふだんの お世話の 絵と 同じ 姿)を、ふだんの 絵の 高さに そろえ、ほかの 姿は その 比で 決める。
 使い方: python3 tools/make_care_poses.py <種族> <基準の姿> <ふだんの絵の高さ(立っているBUNK=1)>
   例: python3 tools/make_care_poses.py mofu sit 1.04
+  姿ごとに 大きさを 直す 時は 後ろに <姿>=<高さ> (例: sit=0.85。絵ごとに 体の 大きさが ちがう 時)
 """
 import json
 import os
@@ -40,6 +41,7 @@ def remove_light_bg(im: Image.Image) -> Image.Image:
 
 def main() -> None:
     sp, ref, ref_h = sys.argv[1], sys.argv[2], float(sys.argv[3])
+    fix = {k: float(v) for k, v in (a.split('=') for a in sys.argv[4:])}
     src = os.path.join(ROOT, 'design', 'species', sp, 'poses')
     out = os.path.join(ROOT, 'public', 'assets', 'poses', sp)
     os.makedirs(out, exist_ok=True)
@@ -57,7 +59,7 @@ def main() -> None:
     for name, rgba in cut.items():
         w = round(rgba.width * HEIGHT / rgba.height)
         rgba.resize((w, HEIGHT), Image.LANCZOS).save(os.path.join(out, f'{name}.webp'), quality=90, method=6)
-        info[name] = {'w': w, 'h': HEIGHT, 'height': round(ref_h * rgba.height / base, 3)}
+        info[name] = {'w': w, 'h': HEIGHT, 'height': fix.get(name, round(ref_h * rgba.height / base, 3))}
         print(sp, name, info[name])
     with open(os.path.join(out, 'poses.json'), 'w') as f:
         json.dump(info, f, indent=2)
