@@ -66,6 +66,8 @@ export const BUNK_POSE_IMAGES = {
   sleepy: { height: 1.0 },
 } as const;
 export type BunkPoseImage = keyof typeof BUNK_POSE_IMAGES;
+/** 確認用: 進化した 姿を 見る(0 = ふつう。1・30・60 = その レベルの 姿だけ 見せる。保存は 変えない) */
+let devFormLevel = 0;
 export const bunkPoseKey = (name: string) => `bunk:pose:${name}`;
 /** 姿の 絵の 名前。気持ちの 絵(喜ぶ・怒る・泣く・びっくり)は BUNK 以外(2026-11-15〜。BUNK は 顔の 部品で 表情を 出す) */
 type PoseName = BunkPoseImage | 'happy' | 'angry' | 'cry' | 'surprised';
@@ -141,9 +143,10 @@ export class HomeScene extends Phaser.Scene {
     // 1段階めの 姿の 絵(座る・寝る など。2026-11-15〜 BUNK 以外も)
     if (sp && hasCarePoses(sp)) loadCarePoses(this.load, sp);
     // 進化した 姿(2026-11-09 企画者 Lv.30・Lv.60)
-    if (sp && m0 && careArtId(sp, m0.level) !== sp) {
-      loadCare(this.load, careArtId(sp, m0.level));
-      if (hasCarePoses(careArtId(sp, m0.level))) loadCarePoses(this.load, careArtId(sp, m0.level));
+    const lv0 = devFormLevel || m0?.level || 1;
+    if (sp && m0 && careArtId(sp, lv0) !== sp) {
+      loadCare(this.load, careArtId(sp, lv0));
+      if (hasCarePoses(careArtId(sp, lv0))) loadCarePoses(this.load, careArtId(sp, lv0));
     }
     preloadFurniture(this, loadLife().inventory.owned);
   }
@@ -190,7 +193,7 @@ export class HomeScene extends Phaser.Scene {
     this.shadow = this.add.ellipse(life.x, life.y, 300, 46, 0x000000, 0.28);
     this.species = record.monz.species;
     // 進化して いれば 進化した 姿の 絵(お世話用の 絵の 名前 <種族>_f2 / _f3)
-    this.art = careArtId(this.species, record.level);
+    this.art = careArtId(this.species, devFormLevel || record.level);
     const view =
       this.art !== this.species && this.textures.exists(careKey(this.art))
         ? new CareView(this, life.x, life.y, this.scaleRange[0], this.art)
@@ -717,6 +720,13 @@ export class HomeScene extends Phaser.Scene {
     const next = FIRST_MONZ[(FIRST_MONZ.indexOf(this.species as (typeof FIRST_MONZ)[number]) + 1) % FIRST_MONZ.length];
     button(540, `${speciesName(next)}にする`, () => {
       if (isSpecies(next)) this.record?.setSpecies(next);
+      this.scene.restart();
+    });
+    // 確認用(2026-11-16): 進化した 姿(2・3段階め)の 絵を 見る。見た目だけ(レベル・保存は そのまま)
+    const forms = [0, 30, 60];
+    const fi = Math.max(0, forms.indexOf(devFormLevel));
+    button(582, `姿: ${['ふつう', '2段階め', '3段階め'][(fi + 1) % 3]}にする`, () => {
+      devFormLevel = forms[(fi + 1) % 3];
       this.scene.restart();
     });
     // 時間を進めて、お腹がすいたり眠くなったりするのを確かめる
