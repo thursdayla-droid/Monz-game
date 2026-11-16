@@ -141,7 +141,10 @@ export class HomeScene extends Phaser.Scene {
     // 1段階めの 姿の 絵(座る・寝る など。2026-11-15〜 BUNK 以外も)
     if (sp && hasCarePoses(sp)) loadCarePoses(this.load, sp);
     // 進化した 姿(2026-11-09 企画者 Lv.30・Lv.60)
-    if (sp && m0 && careArtId(sp, m0.level) !== sp) loadCare(this.load, careArtId(sp, m0.level));
+    if (sp && m0 && careArtId(sp, m0.level) !== sp) {
+      loadCare(this.load, careArtId(sp, m0.level));
+      if (hasCarePoses(careArtId(sp, m0.level))) loadCarePoses(this.load, careArtId(sp, m0.level));
+    }
     preloadFurniture(this, loadLife().inventory.owned);
   }
 
@@ -474,7 +477,8 @@ export class HomeScene extends Phaser.Scene {
   /** 今の行動に合う姿の絵(なければ null = ふつうのBUNKを動かす) */
   private poseFor(): PoseName | null {
     // 姿の絵(座る・眠るなど)は 1段階めだけ。BUNK と、絵が とどいた 種族(2026-11-15〜 MOFU から)
-    if (this.art !== this.species || (this.species !== 'bunk' && !hasCarePoses(this.species))) return null;
+    // 2026-11-16〜 進化した 姿も(BUNKER から)。絵が ある 姿だけ
+    if (this.art !== 'bunk' && !hasCarePoses(this.art)) return null;
     const life = this.life!;
     // 眠っているときは、なでられていても眠った姿のまま
     if (life.act === 'sleep' && this.textures.exists(this.poseKey('sleep'))) return 'sleep';
@@ -496,7 +500,7 @@ export class HomeScene extends Phaser.Scene {
       case 'look':
         // 見渡す: 横を向いた絵と、正面のBUNKを交互に
         // 絵が 向いている 方を 向いた 時だけ(BUNK は 左・MOFU は 右)
-        return life.facing === (CARE_LOOK_DIR[this.species] ?? -1) ? has('look') : null;
+        return life.facing === (CARE_LOOK_DIR[this.art] ?? -1) ? has('look') : null;
       case 'rest':
         if (n && n.mood < 0.3) return null;
         return n && n.sleepy > 0.6 ? has('sleepy') : has('sit');
@@ -507,12 +511,12 @@ export class HomeScene extends Phaser.Scene {
 
   /** 姿の 絵の 名前(BUNK は bunk:pose:〜、ほかの 種族は pose:<種族>:〜) */
   private poseKey(pose: PoseName): string {
-    return this.species === 'bunk' ? bunkPoseKey(pose) : carePoseKey(this.species, pose);
+    return this.art === 'bunk' ? bunkPoseKey(pose) : carePoseKey(this.art, pose);
   }
 
   /** 姿の 絵の 高さ(立っている BUNK = 1) */
   private poseHeight(pose: PoseName): number {
-    return this.species === 'bunk' ? (BUNK_POSE_IMAGES[pose as BunkPoseImage]?.height ?? 1) : (CARE_POSES[this.species]?.[pose]?.height ?? 1);
+    return this.art === 'bunk' ? (BUNK_POSE_IMAGES[pose as BunkPoseImage]?.height ?? 1) : (CARE_POSES[this.art]?.[pose]?.height ?? 1);
   }
 
   private showPose(pose: PoseName | null, sc: number): void {
