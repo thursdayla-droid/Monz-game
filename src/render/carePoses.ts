@@ -19,7 +19,7 @@ for (const [path, info] of Object.entries(found)) {
 /**
  * 見渡す 姿の 絵が 向いている 方(-1 = 向かって左・1 = 右)。その 向きの 時だけ 出す(姿の 絵は 反転しない)
  */
-export const CARE_LOOK_DIR: Record<string, -1 | 1> = { mofu: 1, crownie: 1, zipp: 1, puni: 1, riot: 1, grit: 1, vybe: 1 };
+export const CARE_LOOK_DIR: Record<string, -1 | 1> = { mofu: 1, crownie: 1, zipp: 1, puni: 1, riot: 1, grit: 1, vybe: 1, shellz: 1 };
 
 export const carePoseKey = (sp: string, name: string) => `pose:${sp}:${name}`;
 export const hasCarePoses = (sp: string): boolean => !!CARE_POSES[sp];
