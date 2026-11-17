@@ -170,7 +170,7 @@ for p in sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/bgm/*.m
     # MYTHCLASH の確認用ページには、MYTHCLASH の曲と効果音だけ
     if MJ and not (p.startswith('assets/se/') or p.endswith('mahjong.mp3')):
         continue
-    if SLOT and not (p.startswith('assets/se/') or p.endswith(('/slot.mp3', '/slot_bonus.mp3', '/slot_jackpot.mp3'))):
+    if SLOT and not (p.startswith('assets/se/') or p.endswith(('/slot.mp3', '/slot_bonus.mp3', '/slot_jackpot.mp3', '/slot_jackpot2.mp3'))):
         continue
     # 2026-11-15 ゲームの ページは 15MB に 入れるため、べつの 確認用ページが ある 遊び(麻雀・スロット・MYTHCLASH)の 曲は 入れない
     if not (MJ or SLOT or MYTH or B3D) and p.startswith('assets/bgm/') and any(k in p for k in ('mahjong', 'slot', 'mythclash') + (('dash', 'slugger', 'card', 'battle') if CARE else ())):
@@ -185,7 +185,7 @@ for p in sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/bgm/*.m
     # 効果音は短いので、確認用ページでも音質をあまり落とさない(48kbps)
     # 2026-11-09: 麻雀クエストの ページは 軽いので 曲も 64kbps(企画者の 対戦BGM)
     se = p.startswith('assets/se/')
-    subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-i', pub + p, '-c:a', 'libmp3lame', '-ac', '1', '-ar', '32000' if se or MJ or SLOT else ('16000' if (STORY and 'ending' in p) else '22050' if (B3D or MYTH) else '16000'), '-b:a', '48k' if se else ('64k' if (MJ or SLOT) else '12k' if (STORY and 'ending' in p) else '20k' if (B3D or MYTH) else '12k'), tmp], check=True)
+    subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-i', pub + p, '-c:a', 'libmp3lame', '-ac', '1', '-ar', '32000' if se or MJ or SLOT else ('16000' if (STORY and 'ending' in p) else '22050' if (B3D or MYTH) else '16000'), '-b:a', '48k' if se else ('64k' if MJ else '40k' if SLOT else '12k' if (STORY and 'ending' in p) else '20k' if (B3D or MYTH) else '12k'), tmp], check=True)
     assets[p] = 'data:audio/mpeg;base64,' + base64.b64encode(open(tmp, 'rb').read()).decode()
     os.remove(tmp)
 jsons = {p: json.load(open(pub + p)) for p in ['assets/bunk/parts/parts.json', 'assets/bunk/down/parts.json', 'assets/bunk/faces/faces.json']}

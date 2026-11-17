@@ -20,6 +20,7 @@ Claude Code が、音量をそろえてから `public/assets/bgm/` に入れ、`
 | ROYAL JACKPOT（2026-11-12） | slot.m4a | public/assets/bgm/slot.mp3 |
 | ROYAL JACKPOT フリーゲーム・宝箱ボーナス（2026-11-12） | slot_bonus.m4a | public/assets/bgm/slot_bonus.mp3 |
 | ROYAL JACKPOT 7の 大当たり（2026-11-17） | slot_jackpot.m4a | public/assets/bgm/slot_jackpot.mp3 |
+| ROYAL JACKPOT 7の 大当たり 2曲め（2026-11-17。2曲から ランダム） | slot_jackpot2.m4a | public/assets/bgm/slot_jackpot2.mp3 |
 
 - 歌・ラップなし（インスト）。
 - アプリで公開してよい（商用利用できる）曲だけを使う。

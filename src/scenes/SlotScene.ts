@@ -291,6 +291,8 @@ export class SlotScene extends Phaser.Scene {
   private jpWait?: Phaser.Time.TimerEvent;
   private jpSpinning = false;
   private jpLastPay = 0;
+  /** 大当たりの 曲(2曲から ランダム。2026-11-17 企画者) */
+  private jpBgm: 'slotJackpot' | 'slotJackpot2' = 'slotJackpot';
   private jpTimers: Phaser.Time.TimerEvent[] = [];
   private jpHudText?: Phaser.GameObjects.Text;
   private jpTotalText?: Phaser.GameObjects.Text;
@@ -2051,7 +2053,9 @@ export class SlotScene extends Phaser.Scene {
     this.cameras.main.shake(500, 0.012);
     audio.se('koBlast');
     this.time.delayedCall(300, () => audio.se('cheer'));
-    audio.playBgm('slotJackpot');
+    // 大当たりの 曲は 2曲から ランダム(大当たり 1回ごと。2026-11-17 企画者「どっちか ランダムで」)
+    this.jpBgm = Math.random() < 0.5 ? 'slotJackpot' : 'slotJackpot2';
+    audio.playBgm(this.jpBgm);
   }
 
   /** 2つめの 画面:「20R BONUS START!」(2026-11-17 企画者「7 そろって ボーナスって 出た 後 20R なんちゃら みたいなの」) */
@@ -2081,7 +2085,9 @@ export class SlotScene extends Phaser.Scene {
     const s = this.jp;
     if (!s) return;
     this.busy = true;
-    audio.playBgm('slotJackpot');
+    // 続きから(題を 出して いない)の 時も 曲を えらぶ
+    if (msg) this.jpBgm = Math.random() < 0.5 ? 'slotJackpot' : 'slotJackpot2';
+    audio.playBgm(this.jpBgm);
     this.spinLabel.setText('FREE').setFontSize(52);
     this.startFreeFx();
     this.jpAnim();
