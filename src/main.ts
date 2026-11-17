@@ -57,7 +57,9 @@ const game = new Phaser.Game({
   // 1回の描画で使うテクスチャを1枚に限定する。複数枚にすると一部の環境でパーツが欠けて描かれたため。
   render: { antialias: true, maxTextures: 1 },
   // 指 2本ぶん(1本が 消えた ボタンで 残っても 押せる ように。2026-11-17)
-  input: { activePointers: 2 },
+  // 2026-11-17(2回目): ゲームの 外(MONZ RUMBLE の ボタンなど)を さわった 指は ゲームで 数えない
+  // (外の ボタンは すぐ 消えたり、iPhone が 指を はなした ことを とどけない ことが あり、指が 残って 押せなく なる)
+  input: { activePointers: 2, windowEvents: false },
   scene: [BootScene, SplashScene, TitleScene, QuestionScene, BirthScene, RoomSelectScene, HomeScene, ShopScene, MinigameSelectScene, CardTitleScene, CardPlayScene, DashScene, SluggerScene, MahjongQuestScene, MahjongScene, SlotTitleScene, SlotScene, BattleMenuScene, AutoBattleScene, Battle3DScene, RumbleModeScene, RumbleStoryScene, AdventureScene, BattleScene, MythTitleScene, MythPackScene, BinderScene, MythBattleScene, MythDeckScene, MythModeScene, MythTowerScene, MythFloorScene, MythGuideScene, CompareScene, BunkPartsScene],
 });
 
@@ -157,17 +159,23 @@ for (const ev of ['touchstart', 'pointerdown', 'mousedown'] as const) globalThis
 // 消えた ボタンの「指を はなした」は ゲームに とどかず、ゲームは まだ 指が さわって いると 思いこむ →
 // さわれる 指の 数が うまって、そのあと 何を 押しても 反応 しない。
 // → 新しく さわった 瞬間に、もう 画面に ない 指を ゲームから 外す(ゲームより 先に 動く よう capture)
+const releaseTouches = (live: Set<number>) => {
+  for (const p of game.input?.pointers ?? []) {
+    if (!p || p.id === 0 || !p.active || live.has(p.identifier)) continue;
+    p.active = false;
+    p.isDown = false;
+    p.primaryDown = false;
+    p.buttons = 0;
+  }
+};
+// 画面が かわった 時も、のこって いる 指を 外す(2026-11-17 企画者「バトル → 戻る → ホーム → お世話画面 押せない」)
+game.events.once(Phaser.Core.Events.READY, () => {
+  for (const s of game.scene.scenes) s.events.on(Phaser.Scenes.Events.CREATE, () => releaseTouches(new Set()));
+});
 globalThis.addEventListener(
   'touchstart',
   (e) => {
-    const live = new Set(Array.from((e as TouchEvent).touches, (t) => t.identifier));
-    for (const p of game.input?.pointers ?? []) {
-      if (!p || p.id === 0 || !p.active || live.has(p.identifier)) continue;
-      p.active = false;
-      p.isDown = false;
-      p.primaryDown = false;
-      p.buttons = 0;
-    }
+    releaseTouches(new Set(Array.from((e as TouchEvent).touches, (t) => t.identifier)));
   },
   { capture: true, passive: true },
 );
