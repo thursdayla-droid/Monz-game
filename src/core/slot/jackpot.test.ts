@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../rng';
-import { chainCounts, jackpotGrid, jackpotOver, jackpotWin, newJackpot, nextJackpot, payNowWithJackpot, playRound, rainbowChainValue, RAINBOW_NEXT, STOCK_RATE } from './jackpot';
+import { chainCounts, jackpotGrid, jackpotOver, jackpotWin, newJackpot, nextJackpot, payNowWithJackpot, playRound, RAINBOW_NEXT, drawCont, PREMIUM_REACH, PREMIUM_RATE, CONT_REACHES, goldContRate, finalGrid } from './jackpot';
 import { evaluate, payOf, type Grid } from './slot';
 
 const g = (rows: string[][]): Grid => [0, 1, 2, 3, 4].map((r) => rows.map((row) => row[r])) as Grid;
@@ -50,14 +50,15 @@ describe('7の 大当たり', () => {
     expect(jackpotWin(res)?.symbol).toBe('rainbow7');
   });
 
-  it('レインボー7 の あとは かならず 次・ゴールド7 の あとは おわり', () => {
+  it('レインボー7 の あとは かならず 次(ゴールド 2:レインボー 1)', () => {
     const rng = mulberry32(5);
     const gold = newJackpot(10, { symbol: 'gold7', length: 3, raw: 1000 });
+    // rng なし = 継続しない
     expect(nextJackpot(gold, rng)).toBeUndefined();
     let rainbows = 0;
     const N = 30000;
     for (let i = 0; i < N; i++) {
-      const s = newJackpot(10, { symbol: 'rainbow7', length: 3, raw: 1000 });
+      const s = newJackpot(10, { symbol: 'rainbow7', length: 3, raw: 1000 }, 1, 0, rng);
       while (!jackpotOver(s)) playRound(s);
       const n = nextJackpot(s, rng)!;
       expect(n.chain).toBe(2);
@@ -68,26 +69,38 @@ describe('7の 大当たり', () => {
     expect(Math.abs(rainbows / N - RAINBOW_NEXT)).toBeLessThan(0.01);
   });
 
-  it('上乗せ: 大当たり 1回ごとに 約半分・たまった ぶんは あとで 順番に', () => {
+  it('さいごの リーチ: キャラは 6人 均等・アライグマ 1/30・ゴールド7 は 約半分 継続・レインボー7 は かならず', () => {
     const rng = mulberry32(11);
-    let adds = 0;
-    const N = 20000;
+    const N = 60000;
+    const count: Record<string, number> = {};
+    let cont = 0;
     for (let i = 0; i < N; i++) {
-      const s = newJackpot(10, { symbol: 'gold7', length: 3, raw: 1000 }, 1, 0, rng);
-      if (s.addAt >= 0) {
-        adds++;
-        expect(s.addAt).toBeGreaterThanOrEqual(1);
-        expect(s.addAt).toBeLessThanOrEqual(s.rounds - 3);
-      }
-      while (!jackpotOver(s)) playRound(s);
-      expect(s.stock.length).toBe(s.addAt >= 0 ? 1 : 0);
-      const n = nextJackpot(s, rng);
-      if (s.addAt >= 0) {
-        expect(n?.fromStock).toBe(true);
-        expect(n?.symbol).toBe(s.addSym);
-      } else expect(n).toBeUndefined();
+      const c = drawCont(rng, 'gold7');
+      count[c.reach] = (count[c.reach] ?? 0) + 1;
+      if (c.cont) cont++;
+      if (c.reach === PREMIUM_REACH) expect(c.cont).toBe(true);
+      expect(drawCont(rng, 'rainbow7').cont).toBe(true);
     }
-    expect(Math.abs(adds / N - STOCK_RATE)).toBeLessThan(0.015);
+    expect(Math.abs(count[PREMIUM_REACH] / N - PREMIUM_RATE)).toBeLessThan(0.004);
+    for (const id of CONT_REACHES) expect(Math.abs(count[id] / N - (1 - PREMIUM_RATE) / 6)).toBeLessThan(0.008);
+    expect(Math.abs(cont / N - goldContRate())).toBeLessThan(0.01);
+    // 継続しない 時は 次なし・継続なら そろった 7の 大当たり
+    const s = newJackpot(10, { symbol: 'gold7', length: 3, raw: 1000 }, 1, 0, rng);
+    while (!jackpotOver(s)) playRound(s);
+    const n = nextJackpot(s, rng);
+    if (s.cont) expect(n?.symbol).toBe(s.contSym);
+    else expect(n).toBeUndefined();
+  });
+
+  it('さいごの 回の 図柄: リーチ → 当たりは 5つ・ハズレは 2つ', () => {
+    const rng = mulberry32(3);
+    for (let i = 0; i < 100; i++) {
+      const w = finalGrid(rng, 'rainbow7', true);
+      expect(w.every((c) => c[1] === 'rainbow7')).toBe(true);
+      const l = finalGrid(rng, 'gold7', false);
+      expect(l.map((c) => c[1] === 'gold7')).toEqual([true, true, false, false, false]);
+      expect(evaluate(l, 10).wins.some((x) => x.symbol === 'gold7')).toBe(false);
+    }
   });
 
   it('続く 大当たりの 平均の 回数(ためしに 回した 結果と 計算が 合う)', () => {
@@ -109,10 +122,9 @@ describe('7の 大当たり', () => {
       const want = sym === 'gold7' ? c.gold : c.rainbow;
       expect(Math.abs(total / N - want) / want).toBeLessThan(0.06);
     }
-    // 上乗せ 50%: ゴールド7 は 平均 4回・レインボー7 は 平均 10回
-    expect(chainCounts(0.5).gold).toBeCloseTo(4, 6);
-    expect(chainCounts(0.5).rainbow).toBeCloseTo(10, 6);
-    expect(rainbowChainValue()).toBeCloseTo(1000, 0);
+    // ゴールド7 は 平均 約2.6回・レインボー7 は 平均 約4.1回
+    expect(chainCounts().gold).toBeCloseTo(2.6, 1);
+    expect(chainCounts().rainbow).toBeCloseTo(4.1, 1);
   });
 
   it('大当たり中の 図柄は まん中が 5つ そろう(7・王冠は 出ない)', () => {
@@ -124,8 +136,5 @@ describe('7の 大当たり', () => {
         for (const x of col) expect(['gold7', 'rainbow7', 'crown', 'wild']).not.toContain(x);
       }
     }
-    // 上乗せの 回は 7が そろう
-    const { grid } = jackpotGrid(rng, 'rainbow7');
-    for (const col of grid) expect(col[1]).toBe('rainbow7');
   });
 });
