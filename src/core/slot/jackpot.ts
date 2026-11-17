@@ -22,7 +22,8 @@ export const RAINBOW_NEXT = 1 / 3;
  * 「キョン・パンダ・ウサギ・カンガルー・ヒヨコ・チーターは どれも 均等、50% の 確率で 7が 当たりで 継続」「アライグマは プレミアで 30分の1」。
  * レインボー7 の 大当たりは 次も 確定(リーチは かならず 当たる)。
  */
-export const CONT_REACHES = ['kyon', 'panda', 'usagi', 'ramen', 'golf', 'kanojo'] as const;
+// 2026-11-17 コモンリスザルJ(野球)も 足した(キャラは 均等)
+export const CONT_REACHES = ['kyon', 'panda', 'usagi', 'ramen', 'golf', 'kanojo', 'yakyu'] as const;
 export const PREMIUM_REACH = 'premium';
 export const PREMIUM_RATE = 1 / 30;
 export const CONT_RATE = 0.5;

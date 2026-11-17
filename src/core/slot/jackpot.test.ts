@@ -84,8 +84,8 @@ describe('7の 大当たり', () => {
     expect(Math.abs(count[PREMIUM_REACH] / N - PREMIUM_RATE)).toBeLessThan(0.004);
     // キョンK は キャバ嬢と 遅刻で 半分ずつ(キャラは 均等)
     count.kyon += count.chikoku ?? 0;
-    expect(Math.abs((count.chikoku ?? 0) / N - (1 - PREMIUM_RATE) / 12)).toBeLessThan(0.006);
-    for (const id of CONT_REACHES) expect(Math.abs(count[id] / N - (1 - PREMIUM_RATE) / 6)).toBeLessThan(0.008);
+    expect(Math.abs((count.chikoku ?? 0) / N - (1 - PREMIUM_RATE) / (CONT_REACHES.length * 2))).toBeLessThan(0.006);
+    for (const id of CONT_REACHES) expect(Math.abs(count[id] / N - (1 - PREMIUM_RATE) / CONT_REACHES.length)).toBeLessThan(0.008);
     expect(Math.abs(cont / N - goldContRate())).toBeLessThan(0.01);
     // 継続しない 時は 次なし・継続なら そろった 7の 大当たり
     const s = newJackpot(10, { symbol: 'gold7', length: 3, raw: 1000 }, 1, 0, rng);

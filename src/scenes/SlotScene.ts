@@ -218,6 +218,29 @@ const STORY_REACHES: StoryReach[] = [
     lose: { text: 'カップの ふちで 止まった…', icon: '⛳💧', show: true, top: true },
   },
   {
+    // 2026-11-17 企画者「コモンリスザルJ リーチ」: 野球の 試合。バッターボックス(ふつう／へんな ポーズで 笑わせる)→ ピッチャーが 投げる → 打てるか！
+    // 当たり = ホームラン・ハズレ = 空振りで みんな キレてる
+    id: 'yakyu',
+    chara: 'slot:chara:risuzaruj',
+    charaFile: 'assets/slot/chara_risuzaruj.webp',
+    art: ['1-1', '1-2', '2', '3', 'win', 'lose'],
+    color: '#c070ff',
+    panels: [
+      { line: 'バッターボックスへ…！', chara: true },
+      { title: 'ピッチャー 投げた！', line: 'うおおっ！', prop: '⚾💨' },
+      { title: '打てるか…！？', line: 'カキーン…！？', prop: '⚾⚡' },
+    ],
+    variants: {
+      panel: 0,
+      list: [
+        { title: '集中…！', line: 'ここで 決める…！' },
+        { title: 'へんな ポーズ！？', line: 'ほらほら〜 見て見て〜', color: '#ffd23a' },
+      ],
+    },
+    win: { text: 'ホームラン！！ 当たり！', icon: '⚾🎆🐒' },
+    lose: { text: '空振り… みんな キレてる…', icon: '⚾💢', show: true },
+  },
+  {
     // 2026-11-11 企画者 リーチ⑥: 彼女に 質問されて 答える。彼女が 喜べば 当たり
     id: 'kanojo',
     chara: 'slot:chara:cheetahs',
@@ -908,7 +931,7 @@ export class SlotScene extends Phaser.Scene {
       paintRv();
     });
     box.add(rv);
-    const names: Record<string, string> = { kyon: 'キョンK', chikoku: 'キョンK 遅刻', panda: 'パンダY', usagi: 'うさぎK', ramen: 'カンガルーH', golf: 'ヒヨコJ', kanojo: 'チーターS', premium: 'アライグマR' };
+    const names: Record<string, string> = { kyon: 'キョンK', chikoku: 'キョンK 遅刻', yakyu: 'リスザルJ', panda: 'パンダY', usagi: 'うさぎK', ramen: 'カンガルーH', golf: 'ヒヨコJ', kanojo: 'チーターS', premium: 'アライグマR' };
     const rows: { label: string; id: string; variant: number; lose: boolean }[] = [];
     for (const d of STORY_REACHES) {
       const n = d.variants?.list.length ?? 1;

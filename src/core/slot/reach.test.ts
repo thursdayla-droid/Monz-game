@@ -56,7 +56,7 @@ describe('MONZ SLOT リーチ', () => {
     expect(N / big).toBeGreaterThan(35);
     expect(N / big).toBeLessThan(62);
     const rate = (id: string) => byType[id].win / byType[id].n;
-    expect(BIG_REACHES.map((t) => t.id)).toEqual(['kyon', 'panda', 'usagi', 'ramen', 'golf', 'kanojo', 'premium', 'line', 'chikoku']);
+    expect(BIG_REACHES.map((t) => t.id)).toEqual(['kyon', 'panda', 'usagi', 'ramen', 'golf', 'kanojo', 'premium', 'line', 'chikoku', 'yakyu']);
     // 予告は ときどき(ハズレでも 少し)
     expect(notice / N).toBeGreaterThan(0.02);
     expect(notice / N).toBeLessThan(0.15);
@@ -116,10 +116,10 @@ describe('MONZ SLOT 演出(色・ステップアップ・告知ランプ・PUSH�
 
 describe('種類が ある リーチ(企画者 2026-11-11: ラーメン 3種類・ゴルフの 芝生 3種類で 当たりやすさが ちがう)', () => {
   it('種類は 種類が ある リーチの 時だけ・3番目 > 2番目 > 1番目 の 順に 当たりやすい', () => {
-    expect(BIG_REACHES.filter((t) => t.variants).map((t) => t.id)).toEqual(['ramen', 'golf', 'kanojo']);
+    expect(BIG_REACHES.filter((t) => t.variants).map((t) => t.id)).toEqual(['ramen', 'golf', 'kanojo', 'yakyu']);
     const ids = ['ramen', 'golf'];
-    const n: Record<string, number[]> = { kanojo: [0, 0, 0, 0, 0] };
-    const win: Record<string, number[]> = { kanojo: [0, 0, 0, 0, 0] };
+    const n: Record<string, number[]> = { kanojo: [0, 0, 0, 0, 0], yakyu: [0, 0] };
+    const win: Record<string, number[]> = { kanojo: [0, 0, 0, 0, 0], yakyu: [0, 0] };
     for (const id of ids) {
       n[id] = [0, 0, 0];
       win[id] = [0, 0, 0];
@@ -143,6 +143,12 @@ describe('種類が ある リーチ(企画者 2026-11-11: ラーメン 3種類�
     }
     // 彼女の 質問は 5つ どれも 出る(当たりやすさは 同じ。2026-11-12 仕事と 私を やめた)
     expect(n.kanojo.every((x) => x > 15)).toBe(true);
+    // 野球(2026-11-17): ふつう 約20%・へんな ポーズ 約50%・半分ずつ 出る
+    const yr = n.yakyu.map((x, i) => win.yakyu[i] / x);
+    expect(Math.abs(yr[0] - 0.2)).toBeLessThan(0.07);
+    expect(Math.abs(yr[1] - 0.5)).toBeLessThan(0.08);
+    expect(n.yakyu[0] / n.yakyu[1]).toBeGreaterThan(0.75);
+    expect(n.yakyu[0] / n.yakyu[1]).toBeLessThan(1.3);
   }, 60_000);
 });
 
@@ -176,6 +182,10 @@ describe('キャラの リーチの 当たる 確率(企画者 2026-11-11)', () 
     expect(Math.abs(rate('chikoku') - 0.1)).toBeLessThan(0.04);
     expect(n.chikoku / n.kyon).toBeGreaterThan(0.85);
     expect(n.chikoku / n.kyon).toBeLessThan(1.15);
+    // コモンリスザルJ の 野球リーチ(2026-11-17): うさぎK と 同じ くらい 出て、約35%(へんな ポーズ 50%・ふつう 20%)
+    expect(Math.abs(rate('yakyu') - 0.35)).toBeLessThan(0.05);
+    expect(n.yakyu / n.usagi).toBeGreaterThan(0.85);
+    expect(n.yakyu / n.usagi).toBeLessThan(1.15);
   }, 60_000);
 });
 
@@ -230,7 +240,7 @@ describe('ステップアップの 順番(企画者 2026-11-12)', () => {
       const rng = mulberry32(i);
       const s = planShow(spin(rng, 10), 10, rng);
       const story = s.big ?? s.crownBig;
-      if (story?.id === 'premium' || story?.id === 'line') expect(s.notice).toBe(0);
+      if (story?.id === 'premium' || story?.id === 'line' || story?.id === 'yakyu') expect(s.notice).toBe(0);
       else if (story) {
         // 2026-11-13: 半分は ステップアップなし(いきなり リーチ)
         expect([0, STEP_ORDER.indexOf(STEP_ALIAS[story.id] ?? story.id) + 1]).toContain(s.notice);
