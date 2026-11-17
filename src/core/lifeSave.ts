@@ -747,9 +747,10 @@ export class LifeRecord {
     if (n.full <= LOVE_RULES.feedAtMost + 1e-9) this.gainLove('feed', now);
     const m = this.monz;
     this.update({}, { needs: { ...this.needs, zeroFullSec: 0, full: Math.min(1, n.full + NEEDS_RULES.feedFull), mood: Math.min(1, n.mood + NEEDS_RULES.feedMood) }, careCount: { ...m.careCount, feed: m.careCount.feed + 1 } });
-    this.gainExp(NEEDS_RULES.feedExp, now, 'feed');
-    // ゆうきロボの かくし 効果(1日の 上限とは べつ)
-    if (this.yukiroboPlaced) this.gainExp(YUKIROBO_EXP, now, 'other');
+    const got = this.gainExp(NEEDS_RULES.feedExp, now, 'feed');
+    // ゆうきロボの かくし 効果。2026-11-17 企画者「ごはんの +10 は 食べられなかったら 入れないで」
+    // → ごはんの 経験値が 入った 時だけ(1日の 上限で 入らなかった 時・お腹 いっぱいで 食べなかった 時は なし)
+    if (got > 0 && this.yukiroboPlaced) this.gainExp(YUKIROBO_EXP, now, 'other');
   }
 
   pet(happy: boolean, now = Date.now()): void {
@@ -800,7 +801,7 @@ export class LifeRecord {
    * 経験値をためる。たまったらレベルが上がって、コインとステータスポイントがもらえる。
    * kind: お世話(feed・pet)は1日の上限あり(なでるぶんは、さらに少ない上限)。ミニゲームなど(other)は上限なし。
    */
-  private gainExp(amount: number, now: number, kind: 'feed' | 'pet' | 'other'): void {
+  private gainExp(amount: number, now: number, kind: 'feed' | 'pet' | 'other'): number {
     const m = this.monz;
     const today = dayKey(new Date(now));
     const used = m.expDay === today ? m.expToday : 0;
@@ -813,7 +814,7 @@ export class LifeRecord {
     // 2026-11-07 企画者「最大レベルは 100」: 100 になったら 経験値は たまらない
     if (level >= MAX_LEVEL) {
       if (exp !== 0 || level > MAX_LEVEL) this.update({}, { level: MAX_LEVEL, exp: 0 });
-      return;
+      return 0;
     }
     let techs = m.techs;
     exp += got;
@@ -846,5 +847,6 @@ export class LifeRecord {
       this.emit({ type: 'levelUp', level: lv, coins, gain: gains[i], learned: learnedAt[i] });
       this.add(coins);
     }
+    return got;
   }
 }

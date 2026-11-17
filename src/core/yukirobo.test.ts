@@ -38,6 +38,11 @@ describe('ゆうきロボ(2026-11-17 企画者)', () => {
     a.feed();
     b.feed();
     expect(exp(b) - b1 - (exp(a) - a1)).toBe(10);
+    // ごはんの 経験値が 1日の 上限で 入らない 時は +10 も なし(2026-11-17 企画者「食べられなかったら 入れないで」)
+    for (let i = 0; i < 50; i++) b.feed();
+    const b3 = exp(b);
+    b.feed();
+    expect(exp(b)).toBe(b3);
     const a2 = exp(a);
     const b2 = exp(b);
     a.pet(true);
