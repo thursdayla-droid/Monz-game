@@ -84,6 +84,7 @@ describe('7の 大当たり', () => {
     expect(Math.abs(count[PREMIUM_REACH] / N - PREMIUM_RATE)).toBeLessThan(0.004);
     // キョンK は キャバ嬢と 遅刻で 半分ずつ(キャラは 均等)
     count.kyon += count.chikoku ?? 0;
+    count.usagi += count.tenbai ?? 0;
     expect(Math.abs((count.chikoku ?? 0) / N - (1 - PREMIUM_RATE) / (CONT_REACHES.length * 2))).toBeLessThan(0.006);
     for (const id of CONT_REACHES) expect(Math.abs(count[id] / N - (1 - PREMIUM_RATE) / CONT_REACHES.length)).toBeLessThan(0.008);
     expect(Math.abs(cont / N - goldContRate())).toBeLessThan(0.01);

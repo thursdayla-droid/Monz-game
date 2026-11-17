@@ -106,7 +106,8 @@ interface StoryReach {
    * 種類が ある リーチ(BIG_REACHES の variants と 同じ 順)。panel 番目の 1枚絵の 題・絵・セリフを 種類で かえる。
    * next: その 次の 1枚絵の セリフ(質問 → 答え など)
    */
-  variants?: { panel: number; list: { title?: string; prop?: string; color?: string; line?: string; next?: string }[] };
+  /** artPanels: ほかにも 種類ごとの 絵(<n>-<種類>)が ある 1枚絵(2026-11-17 転売リーチ) */
+  variants?: { panel: number; artPanels?: number[]; list: { title?: string; prop?: string; color?: string; line?: string; next?: string }[] };
 }
 const STORY_REACHES: StoryReach[] = [
   {
@@ -216,6 +217,30 @@ const STORY_REACHES: StoryReach[] = [
     win: { text: 'カップイン！！ 当たり！', icon: '⛳🐤🎉' },
     // 2026-11-13 企画者「ハズレの 時 カップに 入ってる ところが 文字と 重なって 見えなかった」→ 文字は 上に
     lose: { text: 'カップの ふちで 止まった…', icon: '⛳💧', show: true, top: true },
+  },
+  {
+    // 2026-11-17 企画者「うさぎKの 転売リーチ」: MONZ カードの ボックス(10,000コイン)か MONZ ロゴの スニーカー(20,000コイン)を 買って 売る。
+    // 当たり = 2倍で 売れて 喜ぶ・ハズレ = 半分に なって 悔しがる
+    id: 'tenbai',
+    chara: 'slot:chara:usagik',
+    charaFile: 'assets/slot/chara_usagik.webp',
+    art: ['1-1', '1-2', '2-1', '2-2', '3', 'win', 'lose'],
+    color: '#ff8ae0',
+    panels: [
+      { line: 'これは 高く 売れる…！', chara: true },
+      { title: 'フリマに 出品！', line: 'いくらで 売れるかな…', prop: '📱📦' },
+      { title: '売れるか…！？', line: 'ピコン…！？', prop: '📱⚡' },
+    ],
+    variants: {
+      panel: 0,
+      artPanels: [1],
+      list: [
+        { title: 'MONZ カード ボックス', line: '10,000コインで 買った！', next: 'いくらで 売れるかな…' },
+        { title: 'MONZ スニーカー', line: '20,000コインで 買った！', next: 'いくらで 売れるかな…' },
+      ],
+    },
+    win: { text: '2倍で 売れた！！ 当たり！', icon: '💰🐰' },
+    lose: { text: '半額に なった…', icon: '📉😭', show: true },
   },
   {
     // 2026-11-17 企画者「コモンリスザルJ リーチ」: 野球の 試合。バッターボックス(ふつう／へんな ポーズで 笑わせる)→ ピッチャーが 投げる → 打てるか！
@@ -931,7 +956,7 @@ export class SlotScene extends Phaser.Scene {
       paintRv();
     });
     box.add(rv);
-    const names: Record<string, string> = { kyon: 'キョンK', chikoku: 'キョンK 遅刻', yakyu: 'リスザルJ', panda: 'パンダY', usagi: 'うさぎK', ramen: 'カンガルーH', golf: 'ヒヨコJ', kanojo: 'チーターS', premium: 'アライグマR' };
+    const names: Record<string, string> = { kyon: 'キョンK', chikoku: 'キョンK 遅刻', yakyu: 'リスザルJ', tenbai: 'うさぎK 転売', panda: 'パンダY', usagi: 'うさぎK', ramen: 'カンガルーH', golf: 'ヒヨコJ', kanojo: 'チーターS', premium: 'アライグマR' };
     const rows: { label: string; id: string; variant: number; lose: boolean }[] = [];
     for (const d of STORY_REACHES) {
       const n = d.variants?.list.length ?? 1;
@@ -1320,7 +1345,7 @@ export class SlotScene extends Phaser.Scene {
       }
       if (v?.next && def.variants!.panel + 1 === n) pd = { ...pd, line: v.next };
       const items: Phaser.GameObjects.GameObject[] = [];
-      const vKey = v && def.variants!.panel === n ? `slot:reach:${def.id}:${n + 1}-${show.bigVariant + 1}` : '';
+      const vKey = v && (def.variants!.panel === n || def.variants!.artPanels?.includes(n)) ? `slot:reach:${def.id}:${n + 1}-${show.bigVariant + 1}` : '';
       const artKey = vKey && this.textures.exists(vKey) ? vKey : `slot:reach:${def.id}:${n + 1}`;
       const hasArt = this.textures.exists(artKey);
       const ab = this.artBox();

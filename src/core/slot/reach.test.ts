@@ -52,11 +52,12 @@ describe('MONZ SLOT リーチ', () => {
     }
     expect(N / small).toBeGreaterThan(80);
     // 2026-11-17 遅刻リーチを 足して 小さい リーチは 少し へった(約165回に 1回)
-    expect(N / small).toBeLessThan(185);
+    // 転売リーチも 足して 約215回に 1回
+    expect(N / small).toBeLessThan(250);
     expect(N / big).toBeGreaterThan(35);
     expect(N / big).toBeLessThan(62);
     const rate = (id: string) => byType[id].win / byType[id].n;
-    expect(BIG_REACHES.map((t) => t.id)).toEqual(['kyon', 'panda', 'usagi', 'ramen', 'golf', 'kanojo', 'premium', 'line', 'chikoku', 'yakyu']);
+    expect(BIG_REACHES.map((t) => t.id)).toEqual(['kyon', 'panda', 'usagi', 'ramen', 'golf', 'kanojo', 'premium', 'line', 'chikoku', 'tenbai', 'yakyu']);
     // 予告は ときどき(ハズレでも 少し)
     expect(notice / N).toBeGreaterThan(0.02);
     expect(notice / N).toBeLessThan(0.15);
@@ -116,10 +117,10 @@ describe('MONZ SLOT 演出(色・ステップアップ・告知ランプ・PUSH�
 
 describe('種類が ある リーチ(企画者 2026-11-11: ラーメン 3種類・ゴルフの 芝生 3種類で 当たりやすさが ちがう)', () => {
   it('種類は 種類が ある リーチの 時だけ・3番目 > 2番目 > 1番目 の 順に 当たりやすい', () => {
-    expect(BIG_REACHES.filter((t) => t.variants).map((t) => t.id)).toEqual(['ramen', 'golf', 'kanojo', 'yakyu']);
+    expect(BIG_REACHES.filter((t) => t.variants).map((t) => t.id)).toEqual(['ramen', 'golf', 'kanojo', 'tenbai', 'yakyu']);
     const ids = ['ramen', 'golf'];
-    const n: Record<string, number[]> = { kanojo: [0, 0, 0, 0, 0], yakyu: [0, 0] };
-    const win: Record<string, number[]> = { kanojo: [0, 0, 0, 0, 0], yakyu: [0, 0] };
+    const n: Record<string, number[]> = { kanojo: [0, 0, 0, 0, 0], yakyu: [0, 0], tenbai: [0, 0] };
+    const win: Record<string, number[]> = { kanojo: [0, 0, 0, 0, 0], yakyu: [0, 0], tenbai: [0, 0] };
     for (const id of ids) {
       n[id] = [0, 0, 0];
       win[id] = [0, 0, 0];
@@ -167,8 +168,8 @@ describe('キャラの リーチの 当たる 確率(企画者 2026-11-11)', () 
     expect(Math.abs(rate('kyon') - 0.1)).toBeLessThan(0.04);
     expect(Math.abs(rate('usagi') - 0.3)).toBeLessThan(0.04);
     expect(Math.abs(rate('panda') - 0.2)).toBeLessThan(0.04);
-    // チーターS は めったに 出ない(100万回転で 約200回)ので ぶれが 大きい
-    expect(Math.abs(rate('kanojo') - 0.8)).toBeLessThan(0.07);
+    // チーターS は めったに 出ない(100万回転で 約200回)ので ぶれが 大きい(2026-11-17 リーチが ふえて 乱数の 順が かわり 0.07 → 0.1)
+    expect(Math.abs(rate('kanojo') - 0.8)).toBeLessThan(0.1);
     // カンガルーH・ヒヨコJ は 今の 数字(約40%)で 決定
     expect(Math.abs(rate('ramen') - 0.4)).toBeLessThan(0.05);
     expect(Math.abs(rate('golf') - 0.4)).toBeLessThan(0.05);
@@ -186,6 +187,10 @@ describe('キャラの リーチの 当たる 確率(企画者 2026-11-11)', () 
     expect(Math.abs(rate('yakyu') - 0.35)).toBeLessThan(0.05);
     expect(n.yakyu / n.usagi).toBeGreaterThan(0.85);
     expect(n.yakyu / n.usagi).toBeLessThan(1.15);
+    // うさぎKの 転売リーチ(2026-11-17): キョンK と 同じ
+    expect(Math.abs(rate('tenbai') - 0.1)).toBeLessThan(0.04);
+    expect(n.tenbai / n.kyon).toBeGreaterThan(0.85);
+    expect(n.tenbai / n.kyon).toBeLessThan(1.15);
   }, 60_000);
 });
 

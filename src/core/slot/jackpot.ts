@@ -78,6 +78,8 @@ export function drawCont(rng: Rng, symbol: JackpotSymbol): Pick<JackpotState, 'r
   let reach: string = premium ? PREMIUM_REACH : CONT_REACHES[Math.floor(rng() * CONT_REACHES.length)];
   // キョンK は キャバ嬢リーチと 遅刻リーチ(2026-11-17)を 半分ずつ(キャラは 均等の まま)
   if (reach === 'kyon' && rng() < 0.5) reach = 'chikoku';
+  // うさぎK は アイドルと 転売(2026-11-17)を 半分ずつ
+  else if (reach === 'usagi' && rng() < 0.5) reach = 'tenbai';
   const hit = rng() < CONT_RATE;
   return { reach, cont: premium || symbol === 'rainbow7' || hit, contSym: drawSeven(rng) };
 }

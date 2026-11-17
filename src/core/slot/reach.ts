@@ -103,6 +103,17 @@ export const BIG_REACHES: readonly BigReachType[] = [
   // 2026-11-17 企画者「キョンKの 遅刻リーチ」(朝 ハッて 起きて 間に合うか。間に合えば 当たり・現場監督に 怒られたら ハズレ)
   // キョンKの キャバ嬢リーチと 同じ 出やすさ・当たる 確率(約10%)【仮】
   { id: 'chikoku', name: 'キョンKの 遅刻リーチ', winWeight: 20, loseWeight: 180 },
+  // 2026-11-17 企画者「うさぎKの 転売リーチ」: ほかの 弱い リーチ(キョンK など)と 同じ(約10%)。カード ボックス／スニーカー 半分ずつ・同じ 当たりやすさ【仮】
+  {
+    id: 'tenbai',
+    name: 'うさぎKの 転売リーチ',
+    winWeight: 20,
+    loseWeight: 180,
+    variants: [
+      { name: 'MONZ カード ボックス', winWeight: 1, loseWeight: 1 },
+      { name: 'MONZ スニーカー', winWeight: 1, loseWeight: 1 },
+    ],
+  },
   // 2026-11-17 企画者「コモンリスザルJ の 野球リーチ」: 出やすさは うさぎK と 同じ・へんな ポーズ 50%・ふつう 20%(半分ずつ 出る → 合わせて 約35%)
   {
     id: 'yakyu',
@@ -121,8 +132,8 @@ export const BIG_REACHES: readonly BigReachType[] = [
 // 2026-11-12 プレミア(当たりだけ)を 足した ぶん 327 → 365(ほかの キャラの 当たる 確率を そのままに)
 // 2026-11-13 グループLINE(当たりだけ)を 足した ぶん 365 → 403(ほかの キャラの 当たる 確率を そのままに)
 // 2026-11-14 グループLINEを キョンKと 同じ 重み(当たり 20・ハズレ 180)に した ぶん 403 → 312
-// 2026-11-17 遅刻リーチ・野球リーチを 足した ので 312 → 389(キャラごとの 当たる 確率を そのままに)
-export const NO_STORY_LOSE = 389;
+// 2026-11-17 遅刻・野球・転売リーチを 足した ので 312 → 209(キャラごとの 当たる 確率を そのままに)
+export const NO_STORY_LOSE = 209;
 /**
  * 王冠が 2つ 出た 時(さいごの リールより 前)の BONUS リーチで、キャラの リーチを 出す 割合(企画者 2026-11-12「2」)。
  * 当たり = 王冠が 3つ 以上(宝箱・フリーゲーム)。王冠の リーチは 約16回転に 1回。キャラごとの 割合は CROWN_PICK(全体で 約46%)。
@@ -302,4 +313,4 @@ export const STORY_STEP_RATE = 0.5;
 // 2026-11-12 企画者「2」→ うさぎK を パンダY と カンガルーH の 間に(6段)
 export const STEP_ORDER: readonly string[] = ['kyon', 'panda', 'usagi', 'ramen', 'golf', 'kanojo'];
 /** 同じ キャラの べつの リーチ(ステップアップは その キャラの 段) */
-export const STEP_ALIAS: Readonly<Record<string, string>> = { chikoku: 'kyon' };
+export const STEP_ALIAS: Readonly<Record<string, string>> = { chikoku: 'kyon', tenbai: 'usagi' };
