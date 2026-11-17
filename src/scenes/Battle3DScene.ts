@@ -1330,10 +1330,15 @@ export class Battle3DScene extends Phaser.Scene {
 
   private cleanup(): void {
     window.removeEventListener('resize', this.onResize);
-    this.field?.dispose();
-    this.field = undefined;
+    // 先に 画面から 外す(3D の 片づけで 何か 起きても、おおいが 残って 押せなく ならない ように)
     this.root?.remove();
     this.root = undefined;
+    try {
+      this.field?.dispose();
+    } catch {
+      /* 片づけに 失敗しても 続ける */
+    }
+    this.field = undefined;
   }
 }
 

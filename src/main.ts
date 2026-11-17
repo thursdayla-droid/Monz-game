@@ -56,6 +56,8 @@ const game = new Phaser.Game({
   },
   // 1回の描画で使うテクスチャを1枚に限定する。複数枚にすると一部の環境でパーツが欠けて描かれたため。
   render: { antialias: true, maxTextures: 1 },
+  // 指 2本ぶん(1本が 消えた ボタンで 残っても 押せる ように。2026-11-17)
+  input: { activePointers: 2 },
   scene: [BootScene, SplashScene, TitleScene, QuestionScene, BirthScene, RoomSelectScene, HomeScene, ShopScene, MinigameSelectScene, CardTitleScene, CardPlayScene, DashScene, SluggerScene, MahjongQuestScene, MahjongScene, SlotTitleScene, SlotScene, BattleMenuScene, AutoBattleScene, Battle3DScene, RumbleModeScene, RumbleStoryScene, AdventureScene, BattleScene, MythTitleScene, MythPackScene, BinderScene, MythBattleScene, MythDeckScene, MythModeScene, MythTowerScene, MythFloorScene, MythGuideScene, CompareScene, BunkPartsScene],
 });
 
@@ -149,6 +151,26 @@ vv?.addEventListener('scroll', () => game.scale.refresh());
 // 古い 位置の ままだと さわった 所が ずれて 小さい ボタン(左上の もどる)に とどかない。
 // → さわった 瞬間に 毎回 ゲームの 位置を 読みなおしてから ゲームに わたす(ゲームより 先に 動く よう capture)
 for (const ev of ['touchstart', 'pointerdown', 'mousedown'] as const) globalThis.addEventListener(ev, () => game.scale.updateBounds(), { capture: true, passive: true });
+
+// 2026-11-17 企画者「モンズランブル → ストーリーで バトル → タイトルへ → 戻る → バトル画面で 何も 押せない」(3回目):
+// MONZ RUMBLE の ボタン(ゲームの 外の ボタン)を 押すと、指を はなす 前に その ボタンが 消える ことが ある。
+// 消えた ボタンの「指を はなした」は ゲームに とどかず、ゲームは まだ 指が さわって いると 思いこむ →
+// さわれる 指の 数が うまって、そのあと 何を 押しても 反応 しない。
+// → 新しく さわった 瞬間に、もう 画面に ない 指を ゲームから 外す(ゲームより 先に 動く よう capture)
+globalThis.addEventListener(
+  'touchstart',
+  (e) => {
+    const live = new Set(Array.from((e as TouchEvent).touches, (t) => t.identifier));
+    for (const p of game.input?.pointers ?? []) {
+      if (!p || p.id === 0 || !p.active || live.has(p.identifier)) continue;
+      p.active = false;
+      p.isDown = false;
+      p.primaryDown = false;
+      p.buttons = 0;
+    }
+  },
+  { capture: true, passive: true },
+);
 setTimeout(() => resetZoom(), 500);
 
 // 2026-11-17 企画者「モンズランブルの あと バトル画面で 戻るも MYTHCLASH も 押せない」:
