@@ -7,7 +7,7 @@ import { BETS, CHEST_PAY, dealChests, FREE_ROWS, freeSpin, SYMBOL_WEIGHT, newBon
 import { UI_FONT } from '../ui/paint';
 import { fillSize, safeInsets } from '../ui/viewport';
 import { BIG_REACHES, planShow, STEP_ORDER, type SpinShow } from '../core/slot/reach';
-import { jackpotGrid, roundsOf, jackpotOver, jackpotWin, newJackpot, nextJackpot, payNowWithJackpot, playRound, type JackpotState } from '../core/slot/jackpot';
+import { jackpotGrid, roundsOf, stockAt, jackpotOver, jackpotWin, newJackpot, nextJackpot, payNowWithJackpot, playRound, type JackpotState } from '../core/slot/jackpot';
 import { pinTextures } from '../render/texBudget';
 import { buildLineScript, type LineMsg, lineScriptMs, playLineReach } from './slotLine';
 import { CAB_FILE, CAB_KEY, cabinetLayout, cabinetTexture, type Rect } from './slotCabinet';
@@ -291,6 +291,8 @@ export class SlotScene extends Phaser.Scene {
   private jpWait?: Phaser.Time.TimerEvent;
   private jpSpinning = false;
   private jpLastPay = 0;
+  /** この 回で 上乗せの 7が そろった */
+  private jpLastUp?: 'gold7' | 'rainbow7';
   private jpTimers: Phaser.Time.TimerEvent[] = [];
   private jpHudText?: Phaser.GameObjects.Text;
   private jpTotalText?: Phaser.GameObjects.Text;
@@ -957,7 +959,7 @@ export class SlotScene extends Phaser.Scene {
     // 7が そろったら 大当たり: 7の ぶんは 大当たりの 間に 分けて もらう(合計は 同じ)。先に 保存(とちゅうで 閉じても 続きから)
     const jw = jackpotWin(res);
     if (!this.record.slotSpin(this.bet, payNowWithJackpot(res, jw))) return;
-    this.jpNext = jw ? newJackpot(this.bet, jw) : undefined;
+    this.jpNext = jw ? newJackpot(this.bet, jw, 1, 0, this.rng) : undefined;
     if (this.jpNext) saveJp(this.jpNext);
     this.busy = true;
     this.clearGlow();
@@ -1969,7 +1971,8 @@ export class SlotScene extends Phaser.Scene {
   /** フリーゲームの まん中に 大きな 文字(リールの 上) */
   private freeBanner(msg: string, color: string): void {
     const y = this.reelY + (this.rows * this.cell + (this.rows - 1) * GAP) / 2;
-    const c = this.add.container(W / 2, y).setDepth(9);
+    // コイン(25)より 前
+    const c = this.add.container(W / 2, y).setDepth(26);
     c.add(this.add.rectangle(0, 0, this.reelW + 10, 150, 0x0d0614, 0.85).setStrokeStyle(5, 0xffd23a));
     c.add(this.text(0, 0, msg, 46, color, 9));
     c.setScale(1.6).setAlpha(0);
@@ -2084,11 +2087,12 @@ export class SlotScene extends Phaser.Scene {
     this.jpWait = undefined;
     if (!s || this.jpSpinning) return;
     if (jackpotOver(s)) return this.jpRoundEnd();
-    // 先に もらって 保存(とちゅうで 閉じても コインは もらえる)
+    // 先に もらって 保存(とちゅうで 閉じても コインは もらえる)。上乗せの 回は 7が そろう
+    this.jpLastUp = stockAt(s);
     this.jpLastPay = playRound(s);
     this.record.add(this.jpLastPay);
     saveJp(s);
-    const { grid } = jackpotGrid(this.rng);
+    const { grid } = jackpotGrid(this.rng, this.jpLastUp);
     const res: SpinResult = { grid, wins: [], win: this.jpLastPay, crowns: 0, bonus: false, free: 0, crownCells: [] };
     this.jpSpinning = true;
     this.crownStory = null;
@@ -2098,7 +2102,9 @@ export class SlotScene extends Phaser.Scene {
       v.spinning = true;
       v.speed = 1;
     }
-    for (let r = 0; r < REELS; r++) this.time.delayedCall(420 + r * 150, () => this.stopReel(r, res, r === REELS - 1));
+    // 上乗せの 回は さいごの リールを ゆっくり(リーチ)
+    for (let r = 0; r < REELS; r++) this.time.delayedCall(420 + r * 150 + (this.jpLastUp && r === REELS - 1 ? 1400 : 0), () => this.stopReel(r, res, r === REELS - 1));
+    if (this.jpLastUp) this.time.delayedCall(420 + 3 * 150 + 200, () => this.reels[REELS - 1] && (this.reels[REELS - 1].speed = 0.35));
   }
 
   private jpReveal(): void {
@@ -2117,15 +2123,29 @@ export class SlotScene extends Phaser.Scene {
     const p = this.text(W / 2, y, `+${this.jpLastPay.toLocaleString()}`, 64, '#ffd23a', 10).setDepth(9);
     p.setShadow(0, 6, '#ff4ad8', 0, true, true);
     this.tweens.add({ targets: p, y: y - 60, alpha: 0, duration: 1100, delay: 300, onComplete: () => p.destroy() });
-    if (jackpotOver(s)) this.time.delayedCall(1200, () => this.jpRoundEnd());
-    else this.jpLoop(1700);
+    const up = this.jpLastUp;
+    this.jpLastUp = undefined;
+    let extra = 0;
+    if (up) {
+      // 2026-11-17 企画者「20R 中も 7 当たる？」→ 上乗せ(この 大当たりの あとに もう 1回)
+      extra = 2400;
+      this.reelFlash();
+      this.cameras.main.flash(350, 255, 230, 120);
+      this.cameras.main.shake(400, 0.01);
+      audio.se('koBlast');
+      this.time.delayedCall(250, () => audio.se('cheer'));
+      coinFountain(this, W / 2, this.reelY + 200, 50);
+      this.freeBanner(`上乗せ！！\n${SYMBOL_NAME[up]}`, up === 'rainbow7' ? '#ff8ae0' : '#ffd23a');
+    }
+    if (jackpotOver(s)) this.time.delayedCall(1200 + extra, () => this.jpRoundEnd());
+    else this.jpLoop(1700 + extra);
   }
 
   /** ROUND と 合計(液晶の 上) */
   private jpHud(): void {
     const s = this.jp;
     if (!s) return;
-    this.jpHudText?.setText(`ROUND ${s.round}/${s.rounds}`);
+    this.jpHudText?.setText(`ROUND ${s.round}/${s.rounds}${s.stock.length ? `  上乗せ×${s.stock.length}` : ''}`);
     this.jpTotalText?.setText(`+${s.chainTotal.toLocaleString()}`);
   }
 
@@ -2140,7 +2160,7 @@ export class SlotScene extends Phaser.Scene {
     this.stopJpAnim();
     const h = this.lcdBox.h;
     this.setLcdBg('gold', 0.1);
-    const t = this.text(0, -h * 0.08, '次も 大当たり\n確定！！', Math.min(70, h * 0.2, this.lcdBox.w * 0.1), '#ffffff', 12);
+    const t = this.text(0, -h * 0.08, next.fromStock ? '上乗せの\n大当たり！！' : '次も 大当たり\n確定！！', Math.min(70, h * 0.2, this.lcdBox.w * 0.1), '#ffffff', 12);
     t.setShadow(0, 8, '#ff4ad8', 0, true, true);
     this.lcdShow([lcdRays(this, this.lcdBox, 0xff8ae0, 0.35, 18), t]);
     t.setScale(2.4);
@@ -2538,7 +2558,7 @@ function loadSave(): SlotSave {
     const j = d.jp;
     const jok = j && (BETS as readonly number[]).includes(Number(j.bet)) && (j.symbol === 'gold7' || j.symbol === 'rainbow7') && [3, 4, 5].includes(Number(j.length)) && Number(j.total) > 0 && Number(j.round) >= 0 && Number(j.round) <= 30;
     const jp: JackpotState | undefined = jok
-      ? { bet: Number(j.bet), symbol: j.symbol, length: Number(j.length) as 3 | 4 | 5, total: Math.floor(Number(j.total)), rounds: Number(j.rounds) > 0 ? Math.floor(Number(j.rounds)) : roundsOf(Number(j.length) as 3 | 4 | 5), round: Math.floor(Number(j.round)), paid: Math.max(0, Math.floor(Number(j.paid) || 0)), chain: Math.max(1, Math.floor(Number(j.chain) || 1)), chainTotal: Math.max(0, Math.floor(Number(j.chainTotal) || 0)) }
+      ? { bet: Number(j.bet), symbol: j.symbol, length: Number(j.length) as 3 | 4 | 5, total: Math.floor(Number(j.total)), rounds: Number(j.rounds) > 0 ? Math.floor(Number(j.rounds)) : roundsOf(Number(j.length) as 3 | 4 | 5), round: Math.floor(Number(j.round)), paid: Math.max(0, Math.floor(Number(j.paid) || 0)), chain: Math.max(1, Math.floor(Number(j.chain) || 1)), chainTotal: Math.max(0, Math.floor(Number(j.chainTotal) || 0)), addAt: Number.isFinite(Number(j.addAt)) ? Math.floor(Number(j.addAt)) : -1, addSym: j.addSym === 'rainbow7' ? 'rainbow7' : 'gold7', stock: Array.isArray(j.stock) ? j.stock.filter((x) => x === 'gold7' || x === 'rainbow7') : [] }
       : undefined;
     return { jp, free, bet: (BETS as readonly number[]).includes(bet) ? bet : undefined, bonus: ok ? { bet: Number(b.bet), round: Math.max(1, Math.floor(Number(b.round))), total: Math.max(0, Math.floor(Number(b.total))), history: Array.isArray(b.history) ? b.history : [] } : undefined };
   } catch {
@@ -2568,7 +2588,7 @@ function saveFree(f: FreeState | undefined): void {
 }
 
 function saveJp(j: JackpotState | undefined): void {
-  writeSave({ ...loadSave(), jp: j ? { ...j } : undefined });
+  writeSave({ ...loadSave(), jp: j ? { ...j, stock: [...j.stock] } : undefined });
 }
 
 /**

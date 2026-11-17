@@ -16,6 +16,11 @@ export const ROUNDS_BY_LENGTH: Record<3 | 4 | 5, number> = { 3: 20, 4: 25, 5: 30
 export const roundsOf = (length: 3 | 4 | 5): number => ROUNDS_BY_LENGTH[length] ?? JACKPOT_ROUNDS;
 /** 次の 大当たりが レインボー7(また 続く)の 割合【仮】。のこりは ゴールド7(そこで おわり) */
 export const RAINBOW_NEXT = 1 / 3;
+/**
+ * 大当たりの とちゅうで 7が そろって もう 1回 大当たりが ふえる(上乗せ)割合(大当たり 1回 ごと)。
+ * 2026-11-17 企画者「50% ぐらい」「ショップで 換金 できる アイテムは 高く する つもり」【仮】
+ */
+export const STOCK_RATE = 0.5;
 export type JackpotSymbol = 'gold7' | 'rainbow7';
 const SEVENS: readonly JackpotSymbol[] = ['rainbow7', 'gold7'];
 /** 大当たり中に そろう 図柄(7と 王冠は 出さない。まぎらわしい ため) */
@@ -38,6 +43,11 @@ export interface JackpotState {
   chain: number;
   /** 連チャン ぜんぶの 合計(これまでの 大当たりの ぶんも ふくむ) */
   chainTotal: number;
+  /** 上乗せの 7が そろう 回(0 から。-1 = なし)と その 7 */
+  addAt: number;
+  addSym: JackpotSymbol;
+  /** 上乗せで たまった 大当たり(この あとに 順番に) */
+  stock: JackpotSymbol[];
 }
 
 /** その 回転で 大当たりに なる 7の 当たり(レインボー7 を 先に) */
@@ -55,10 +65,20 @@ export function payNowWithJackpot(res: SpinResult, w: WayWin | undefined): numbe
   return Math.max(0, Math.round(res.wins.filter((x) => x !== w).reduce((a, x) => a + x.raw, 0)));
 }
 
-export function newJackpot(bet: number, w: Pick<WayWin, 'symbol' | 'length' | 'raw'>, chain = 1, before = 0): JackpotState {
+const drawSeven = (rng: Rng): JackpotSymbol => (rng() < RAINBOW_NEXT ? 'rainbow7' : 'gold7');
+
+/** rng を 渡すと 上乗せ(STOCK_RATE)を 先に 決める */
+export function newJackpot(bet: number, w: Pick<WayWin, 'symbol' | 'length' | 'raw'>, chain = 1, before = 0, rng?: Rng, stock: JackpotSymbol[] = []): JackpotState {
   const rounds = roundsOf(w.length);
-  return { bet, symbol: w.symbol as JackpotSymbol, length: w.length, total: Math.max(rounds, Math.round(w.raw)), rounds, round: 0, paid: 0, chain, chainTotal: before };
+  const add = !!rng && rng() < STOCK_RATE;
+  // 上乗せは 2回目〜さいごの 2つ前 の どこか(さいごの 方だと 気づきにくい)
+  const addAt = add && rng ? 1 + Math.floor(rng() * (rounds - 3)) : -1;
+  const addSym = add && rng ? drawSeven(rng) : 'gold7';
+  return { bet, symbol: w.symbol as JackpotSymbol, length: w.length, total: Math.max(rounds, Math.round(w.raw)), rounds, round: 0, paid: 0, chain, chainTotal: before, addAt, addSym, stock: [...stock] };
 }
+
+/** 次に 回す 回が 上乗せの 回なら その 7 */
+export const stockAt = (s: JackpotState): JackpotSymbol | undefined => (s.addAt === s.round ? s.addSym : undefined);
 
 /** i 回目(0 から)に もらう 枚数。合計が ぴったり total に なる(あまりは 後ろの 回に 1枚ずつ) */
 export function roundPay(s: Pick<JackpotState, 'total' | 'rounds'>, i: number): number {
@@ -71,6 +91,8 @@ export function roundPay(s: Pick<JackpotState, 'total' | 'rounds'>, i: number): 
 export function playRound(s: JackpotState): number {
   if (s.round >= s.rounds) return 0;
   const pay = roundPay(s, s.round);
+  const up = stockAt(s);
+  if (up) s.stock.push(up);
   s.round++;
   s.paid += pay;
   s.chainTotal += pay;
@@ -79,29 +101,48 @@ export function playRound(s: JackpotState): number {
 
 export const jackpotOver = (s: JackpotState): boolean => s.round >= s.rounds;
 
-/** レインボー7 の あとの 次の 大当たり(ゴールド7 なら そこで おわり)。レインボー7 で なければ undefined */
-export function nextJackpot(s: JackpotState, rng: Rng): JackpotState | undefined {
-  if (s.symbol !== 'rainbow7') return undefined;
-  const symbol: JackpotSymbol = rng() < RAINBOW_NEXT ? 'rainbow7' : 'gold7';
-  return newJackpot(s.bet, { symbol, length: 3, raw: s.bet * payOf(symbol, 3) }, s.chain + 1, s.chainTotal);
+/**
+ * 次の 大当たり。レインボー7 の あとは かならず(ゴールド7 か レインボー7 を 抽選)。
+ * それ いがいは 上乗せで たまった 大当たり(なければ おわり = undefined)。fromStock: 上乗せの ぶんか
+ */
+export function nextJackpot(s: JackpotState, rng: Rng): (JackpotState & { fromStock: boolean }) | undefined {
+  const stock = [...s.stock];
+  let symbol: JackpotSymbol | undefined;
+  let fromStock = false;
+  if (s.symbol === 'rainbow7') symbol = drawSeven(rng);
+  else if (stock.length) {
+    symbol = stock.shift();
+    fromStock = true;
+  }
+  if (!symbol) return undefined;
+  return { ...newJackpot(s.bet, { symbol, length: 3, raw: s.bet * payOf(symbol, 3) }, s.chain + 1, s.chainTotal, rng, stock), fromStock };
 }
 
 /**
  * 大当たり中の 1回の 図柄。まん中の 段が 5つ そろう(どの 図柄かは 毎回 ちがう)。
  * ほかの マスは 7・王冠 以外から ばらばらに
  */
-export function jackpotGrid(rng: Rng): { grid: Grid; symbol: PaySymbol } {
-  const symbol = LINE_SYMBOLS[Math.floor(rng() * LINE_SYMBOLS.length)];
+export function jackpotGrid(rng: Rng, seven?: JackpotSymbol): { grid: Grid; symbol: PaySymbol } {
+  // seven: 上乗せの 回は その 7が そろう
+  const symbol = seven ?? LINE_SYMBOLS[Math.floor(rng() * LINE_SYMBOLS.length)];
   const others = LINE_SYMBOLS.filter((t) => t !== symbol);
   const grid: Grid = Array.from({ length: REELS }, () => Array.from({ length: ROWS }, () => others[Math.floor(rng() * others.length)]));
   for (let r = 0; r < REELS; r++) grid[r][1] = symbol;
   return { grid, symbol };
 }
 
-/** レインボー7 1回から もらえる 平均(BET の 何倍。連チャンの ぶんも ふくむ)。テスト・バランス用 */
+/**
+ * 7が そろった 時に 続く 大当たりの 平均の 回数(はじめの 1回も ふくむ)。テスト・バランス用。
+ * X = ゴールド/レインボー を 2:1 で えらんだ 大当たり 1回からの 平均。G = 1 + p X・R = 1 + p X + X・X = (2G + R) / 3
+ */
+export function chainCounts(p = STOCK_RATE, q = RAINBOW_NEXT): { gold: number; rainbow: number } {
+  // X = (1-q)(1 + pX) + q(1 + pX + X) → X (1 - p - q) = 1
+  const x = 1 / (1 - p - q);
+  return { gold: 1 + p * x, rainbow: 1 + p * x + x };
+}
+
+/** レインボー7 1回から もらえる 平均(BET の 何倍。連チャンの ぶんも ふくむ。次からは 3つ そろいの 配当) */
 export function rainbowChainValue(length: 3 | 4 | 5 = 3): number {
-  // 次の 大当たりは かならず 1回。それが レインボーなら また 続く → 平均 1 / (1 - RAINBOW_NEXT) 回
-  const extra = 1 / (1 - RAINBOW_NEXT);
-  const avgNext = RAINBOW_NEXT * payOf('rainbow7', 3) + (1 - RAINBOW_NEXT) * payOf('gold7', 3);
-  return payOf('rainbow7', length) + extra * avgNext;
+  const c = chainCounts();
+  return payOf('rainbow7', length) + (c.rainbow - 1) * payOf('gold7', 3);
 }
