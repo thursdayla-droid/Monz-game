@@ -2288,7 +2288,7 @@ export class SlotScene extends Phaser.Scene {
     if (!s) return;
     this.stopJpAnim();
     const { w, h } = this.lcdBox;
-    const keys = jpArtKeys(this);
+    const keys = jpArtKeys(this, s.symbol === 'rainbow7');
     const layer = this.add.container(0, 0);
     const hud = this.add.container(0, 0);
     this.jpHudText = this.text(-w / 2 + 16, -h / 2 + 22, '', Math.min(26, h * 0.075), '#ffffff', 6).setOrigin(0, 0.5);
@@ -2297,7 +2297,7 @@ export class SlotScene extends Phaser.Scene {
     hud.add([this.jpHudText, this.jpTotalText, tag]);
     this.lcdShow([layer, hud]);
     this.jpHud();
-    // はじめは 金の 扉の 絵から
+    // はじめは 金の 扉の 絵から(レインボー7 は 虹の 7)
     let i = 0;
     const show = () => {
       if (!layer.active) return;
@@ -2671,11 +2671,14 @@ function saveJp(j: JackpotState | undefined): void {
  * 7の 大当たり中の 液晶の 絵(2026-11-17 企画者「新しく 作って、今 ある 絵も ところどころ 良い 感じに」)。
  * 新しい 絵(public/assets/slot/jackpot/jp_<番号>.webp。JP_ART)と、キャラの リーチの 当たりの 絵・金の ROYAL JACKPOT を まぜる
  */
-// 2026-11-17 企画者の 大当たりの 絵 6枚(元は design/slot/jackpot/jp_<番号>_original.png): ①金の 扉 ②コインに ダイブ ③おどる ④乾杯 ⑤屋上の 花火 ⑥王座
-const JP_ART: readonly string[] = ['1', '2', '3', '4', '5', '6'];
+// 2026-11-17 企画者の 大当たりの 絵(元は design/slot/jackpot/jp_<番号>_original.png): ①金の 扉 ②コインに ダイブ ③おどる ④乾杯 ⑤屋上の 花火 ⑥王座 ⑦高級車と ヘリ ⑧虹の 7の 道(レインボー7 の 大当たりだけ)
+const JP_ART: readonly string[] = ['1', '2', '3', '4', '5', '6', '7', '8'];
+const JP_RAINBOW_ONLY = '8';
 const jpArtKey = (n: string) => `slot:jp:${n}`;
-function jpArtKeys(scene: Phaser.Scene): string[] {
-  const fresh = JP_ART.map(jpArtKey).filter((k) => scene.textures.exists(k));
+function jpArtKeys(scene: Phaser.Scene, rainbow = false): string[] {
+  // レインボー7 の 時は 虹の 7の 絵から
+  const ids = rainbow ? [JP_RAINBOW_ONLY, ...JP_ART.filter((n) => n !== JP_RAINBOW_ONLY)] : JP_ART.filter((n) => n !== JP_RAINBOW_ONLY);
+  const fresh = ids.map(jpArtKey).filter((k) => scene.textures.exists(k));
   const old = [...STORY_REACHES.filter((d) => d.art?.includes('win')).map((d) => `slot:reach:${d.id}:win`), REVIVE_KEY].filter((k) => scene.textures.exists(k));
   // 新しい 絵 2枚ごとに 今 ある 絵を 1枚
   const out: string[] = [];
