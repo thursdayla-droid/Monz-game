@@ -2291,7 +2291,8 @@ export class SlotScene extends Phaser.Scene {
     hud.add([this.jpHudText, this.jpTotalText, tag]);
     this.lcdShow([layer, hud]);
     this.jpHud();
-    let i = Math.floor(Math.random() * Math.max(1, keys.length));
+    // はじめは 金の 扉の 絵から
+    let i = 0;
     const show = () => {
       if (!layer.active) return;
       const old = layer.list.slice();
@@ -2664,7 +2665,8 @@ function saveJp(j: JackpotState | undefined): void {
  * 7の 大当たり中の 液晶の 絵(2026-11-17 企画者「新しく 作って、今 ある 絵も ところどころ 良い 感じに」)。
  * 新しい 絵(public/assets/slot/jackpot/jp_<番号>.webp。JP_ART)と、キャラの リーチの 当たりの 絵・金の ROYAL JACKPOT を まぜる
  */
-const JP_ART: readonly string[] = [];
+// 2026-11-17 企画者の 大当たりの 絵 6枚(元は design/slot/jackpot/jp_<番号>_original.png): ①金の 扉 ②コインに ダイブ ③おどる ④乾杯 ⑤屋上の 花火 ⑥王座
+const JP_ART: readonly string[] = ['1', '2', '3', '4', '5', '6'];
 const jpArtKey = (n: string) => `slot:jp:${n}`;
 function jpArtKeys(scene: Phaser.Scene): string[] {
   const fresh = JP_ART.map(jpArtKey).filter((k) => scene.textures.exists(k));
