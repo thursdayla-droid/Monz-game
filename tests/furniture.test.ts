@@ -16,10 +16,10 @@ const recordWith = (coins: number) => {
 
 describe('furniture list', () => {
   it('has 3 series (+ VIP) x all kinds, with unique ids, not tied to any room', () => {
-    // ＋2: 金マッチョの当たり(2つの像)
+    // ＋2: 金マッチョの当たり(2つの像)・＋1: ゆうきロボ(2026-11-17 ROYAL JACKPOT の ショップ)
     expect(FURNITURE.filter((f) => !f.prize)).toHaveLength(FURNITURE_SERIES.length * FURNITURE_KINDS.length);
-    expect(new Set(FURNITURE.map((f) => f.id)).size).toBe(4 * FURNITURE_KINDS.length + 2);
-    expect(FURNITURE.filter((f) => f.series !== 'vip')).toHaveLength(3 * FURNITURE_KINDS.length);
+    expect(new Set(FURNITURE.map((f) => f.id)).size).toBe(4 * FURNITURE_KINDS.length + 3);
+    expect(FURNITURE.filter((f) => f.series !== 'vip' && !f.prize)).toHaveLength(3 * FURNITURE_KINDS.length);
     expect(FURNITURE_KINDS).toContain('tv');
     expect(FURNITURE_KINDS).toContain('plant');
     expect(furniture('pop_bed')).toMatchObject({ series: 'pop', kind: 'bed', price: 500 });
