@@ -125,6 +125,21 @@ const STORY_REACHES: StoryReach[] = [
     lose: { text: 'ブタ子だった…', icon: '🐷', show: true },
   },
   {
+    // 2026-11-17 企画者「キョンKの 遅刻リーチ」: 朝 ベッドで ハッて 起きて、間に合うか？ 間に合えば 当たり・現場監督に 怒られたら ハズレ
+    id: 'chikoku',
+    chara: 'slot:chara:kyonk',
+    charaFile: 'assets/slot/chara_kyonk.webp',
+    art: ['1', '2', '3', 'win', 'lose'],
+    color: '#ffd23a',
+    panels: [
+      { title: 'ハッ！！', line: 'や、やばい！ 寝坊した！！', chara: true },
+      { title: '全力ダッシュ！', line: '間に合え〜〜っ！！', prop: '🍞💨' },
+      { title: 'あと 少し…！', line: '門が 見えた…！', prop: '⏰🚧' },
+    ],
+    win: { text: 'セーフ！！ 間に合った！ 当たり！', icon: '🦌✨' },
+    lose: { text: '現場監督に 怒られた…', icon: '🦁💢', show: true },
+  },
+  {
     // 2026-11-11 企画者 リーチ②: 風呂に 入りたくない パンダY が 風呂に 入るか 入らないか。入ったら 当たり
     id: 'panda',
     chara: 'slot:chara:panday',
@@ -893,7 +908,7 @@ export class SlotScene extends Phaser.Scene {
       paintRv();
     });
     box.add(rv);
-    const names: Record<string, string> = { kyon: 'キョンK', panda: 'パンダY', usagi: 'うさぎK', ramen: 'カンガルーH', golf: 'ヒヨコJ', kanojo: 'チーターS', premium: 'アライグマR' };
+    const names: Record<string, string> = { kyon: 'キョンK', chikoku: 'キョンK 遅刻', panda: 'パンダY', usagi: 'うさぎK', ramen: 'カンガルーH', golf: 'ヒヨコJ', kanojo: 'チーターS', premium: 'アライグマR' };
     const rows: { label: string; id: string; variant: number; lose: boolean }[] = [];
     for (const d of STORY_REACHES) {
       const n = d.variants?.list.length ?? 1;

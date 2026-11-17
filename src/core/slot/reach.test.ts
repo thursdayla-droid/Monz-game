@@ -51,11 +51,12 @@ describe('MONZ SLOT リーチ', () => {
       }
     }
     expect(N / small).toBeGreaterThan(80);
-    expect(N / small).toBeLessThan(150);
+    // 2026-11-17 遅刻リーチを 足して 小さい リーチは 少し へった(約165回に 1回)
+    expect(N / small).toBeLessThan(185);
     expect(N / big).toBeGreaterThan(35);
     expect(N / big).toBeLessThan(62);
     const rate = (id: string) => byType[id].win / byType[id].n;
-    expect(BIG_REACHES.map((t) => t.id)).toEqual(['kyon', 'panda', 'usagi', 'ramen', 'golf', 'kanojo', 'premium', 'line']);
+    expect(BIG_REACHES.map((t) => t.id)).toEqual(['kyon', 'panda', 'usagi', 'ramen', 'golf', 'kanojo', 'premium', 'line', 'chikoku']);
     // 予告は ときどき(ハズレでも 少し)
     expect(notice / N).toBeGreaterThan(0.02);
     expect(notice / N).toBeLessThan(0.15);
@@ -171,6 +172,10 @@ describe('キャラの リーチの 当たる 確率(企画者 2026-11-11)', () 
     expect(Math.abs(rate('line') - 0.1)).toBeLessThan(0.04);
     expect(n.line / n.kyon).toBeGreaterThan(0.85);
     expect(n.line / n.kyon).toBeLessThan(1.15);
+    // キョンKの 遅刻リーチ(2026-11-17): キャバ嬢リーチと 同じ
+    expect(Math.abs(rate('chikoku') - 0.1)).toBeLessThan(0.04);
+    expect(n.chikoku / n.kyon).toBeGreaterThan(0.85);
+    expect(n.chikoku / n.kyon).toBeLessThan(1.15);
   }, 60_000);
 });
 
@@ -218,7 +223,7 @@ describe('王冠 2個の キャラの リーチ(企画者 2026-11-12「2」)', (
 
 describe('ステップアップの 順番(企画者 2026-11-12)', () => {
   it('キャラの リーチが ある 時は その キャラの 段まで(半分は ステップアップなし)・ない 時は 6段目(チーター)まで 進まない', async () => {
-    const { STEP_ORDER } = await import('./reach');
+    const { STEP_ORDER, STEP_ALIAS } = await import('./reach');
     expect(STEP_ORDER).toEqual(['kyon', 'panda', 'usagi', 'ramen', 'golf', 'kanojo']);
     const cnt = { win: { n: 0, step: 0 }, lose: { n: 0, step: 0 } };
     for (let i = 1; i < 300_000; i++) {
@@ -228,7 +233,7 @@ describe('ステップアップの 順番(企画者 2026-11-12)', () => {
       if (story?.id === 'premium' || story?.id === 'line') expect(s.notice).toBe(0);
       else if (story) {
         // 2026-11-13: 半分は ステップアップなし(いきなり リーチ)
-        expect([0, STEP_ORDER.indexOf(story.id) + 1]).toContain(s.notice);
+        expect([0, STEP_ORDER.indexOf(STEP_ALIAS[story.id] ?? story.id) + 1]).toContain(s.notice);
         const k = s.bigSuccess || (s.crownBig && !s.big) ? 'win' : 'lose';
         cnt[k].n++;
         if (s.notice) cnt[k].step++;

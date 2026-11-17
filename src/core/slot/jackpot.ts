@@ -74,7 +74,9 @@ const drawSeven = (rng: Rng): JackpotSymbol => (rng() < RAINBOW_NEXT ? 'rainbow7
 /** さいごの 回の リーチと 継続を 決める(結果は 先に 決まる) */
 export function drawCont(rng: Rng, symbol: JackpotSymbol): Pick<JackpotState, 'reach' | 'cont' | 'contSym'> {
   const premium = rng() < PREMIUM_RATE;
-  const reach = premium ? PREMIUM_REACH : CONT_REACHES[Math.floor(rng() * CONT_REACHES.length)];
+  let reach: string = premium ? PREMIUM_REACH : CONT_REACHES[Math.floor(rng() * CONT_REACHES.length)];
+  // キョンK は キャバ嬢リーチと 遅刻リーチ(2026-11-17)を 半分ずつ(キャラは 均等の まま)
+  if (reach === 'kyon' && rng() < 0.5) reach = 'chikoku';
   const hit = rng() < CONT_RATE;
   return { reach, cont: premium || symbol === 'rainbow7' || hit, contSym: drawSeven(rng) };
 }

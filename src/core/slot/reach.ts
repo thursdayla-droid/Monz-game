@@ -100,6 +100,9 @@ export const BIG_REACHES: readonly BigReachType[] = [
   // 2026-11-13 企画者「グループLINEリーチ」: 飲み会の 参加者 募集 → 3人 参加で 大当たり。
   // 2026-11-14 企画者「出る 回数は キョンK・パンダYと 同じ ぐらい」「当たる 確率は 10% ぐらい」→ キョンKと 同じ 重み
   { id: 'line', name: 'グループLINEリーチ', winWeight: 20, loseWeight: 180 },
+  // 2026-11-17 企画者「キョンKの 遅刻リーチ」(朝 ハッて 起きて 間に合うか。間に合えば 当たり・現場監督に 怒られたら ハズレ)
+  // キョンKの キャバ嬢リーチと 同じ 出やすさ・当たる 確率(約10%)【仮】
+  { id: 'chikoku', name: 'キョンKの 遅刻リーチ', winWeight: 20, loseWeight: 180 },
 ];
 /** 7が 2個で ハズレの 時に キャラの リーチを 出さない(小さい リーチ だけ)重み */
 // 2026-11-12 7の 出やすさを かえた ので 合わせ直した(キャラごとの 当たる 確率を そのままに)
@@ -107,7 +110,8 @@ export const BIG_REACHES: readonly BigReachType[] = [
 // 2026-11-12 プレミア(当たりだけ)を 足した ぶん 327 → 365(ほかの キャラの 当たる 確率を そのままに)
 // 2026-11-13 グループLINE(当たりだけ)を 足した ぶん 365 → 403(ほかの キャラの 当たる 確率を そのままに)
 // 2026-11-14 グループLINEを キョンKと 同じ 重み(当たり 20・ハズレ 180)に した ぶん 403 → 312
-export const NO_STORY_LOSE = 312;
+// 2026-11-17 遅刻リーチを 足した ので 312 → 259(キャラごとの 当たる 確率を そのままに)
+export const NO_STORY_LOSE = 259;
 /**
  * 王冠が 2つ 出た 時(さいごの リールより 前)の BONUS リーチで、キャラの リーチを 出す 割合(企画者 2026-11-12「2」)。
  * 当たり = 王冠が 3つ 以上(宝箱・フリーゲーム)。王冠の リーチは 約16回転に 1回。キャラごとの 割合は CROWN_PICK(全体で 約46%)。
@@ -262,7 +266,7 @@ export function planShow(res: SpinResult, bet: number, rng: Rng): SpinShow {
   // 2026-11-12 企画者「ステップアップは キョン・パンダ・カンガルー・ヒヨコ・チーターの 順番で」「発展するなら 始まる」
   // → キャラの リーチが ある 時は その キャラの 段まで 必ず 進んで、そこから リーチが 始まる
   const story = out.big ?? out.crownBig;
-  const at = story ? STEP_ORDER.indexOf(story.id) : -1;
+  const at = story ? STEP_ORDER.indexOf(STEP_ALIAS[story.id] ?? story.id) : -1;
   // 2026-11-13 企画者「キャラリーチって ステップアップからじゃなくても 出るよね？ やたら ステップアップばっか」→「半分ずつ(当たりに 関係なし)」
   // → キャラの リーチの 半分は ステップアップなしで いきなり 始まる
   if (at >= 0) out.notice = (rng() < STORY_STEP_RATE ? at + 1 : 0) as NoticeLevel;
@@ -285,3 +289,5 @@ export const STORY_STEP_RATE = 0.5;
 /** ステップアップの キャラの 順番(企画者 2026-11-12)。STEP 1 キョンK → 6 チーターS */
 // 2026-11-12 企画者「2」→ うさぎK を パンダY と カンガルーH の 間に(6段)
 export const STEP_ORDER: readonly string[] = ['kyon', 'panda', 'usagi', 'ramen', 'golf', 'kanojo'];
+/** 同じ キャラの べつの リーチ(ステップアップは その キャラの 段) */
+export const STEP_ALIAS: Readonly<Record<string, string>> = { chikoku: 'kyon' };
