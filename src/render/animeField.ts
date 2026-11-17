@@ -2947,7 +2947,19 @@ export class AnimeField {
   }
 
   dispose(): void {
+    // 絵(テクスチャ)・材質も 外す。さいごに 3D の 描く 場所(WebGL)を すぐ 返す
+    // (2026-11-17 企画者「モンズランブルの あと バトル画面で 戻るも MYTHCLASH も 押せない」:
+    //  iPhone は 3D の 描く 場所を 返さないと、ゲームの 画面の 描く 場所が 止められて 画面が 動かなく なる ことが ある)
+    this.scene.traverse((o) => {
+      const m = o as THREE.Mesh;
+      m.geometry?.dispose?.();
+      const mats = Array.isArray(m.material) ? m.material : m.material ? [m.material] : [];
+      for (const mat of mats) {
+        for (const v of Object.values(mat)) if (v instanceof THREE.Texture) v.dispose();
+        mat.dispose();
+      }
+    });
     this.renderer.dispose();
-    this.scene.traverse((o) => (o as THREE.Mesh).geometry?.dispose?.());
+    this.renderer.forceContextLoss();
   }
 }

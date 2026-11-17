@@ -151,6 +151,18 @@ vv?.addEventListener('scroll', () => game.scale.refresh());
 for (const ev of ['touchstart', 'pointerdown', 'mousedown'] as const) globalThis.addEventListener(ev, () => game.scale.updateBounds(), { capture: true, passive: true });
 setTimeout(() => resetZoom(), 500);
 
+// 2026-11-17 企画者「モンズランブルの あと バトル画面で 戻るも MYTHCLASH も 押せない」:
+// iPhone は 3D(MONZ RUMBLE)の あと、ゲームの 画面の 描く 場所(WebGL)を 止める ことが ある → 画面が 止まって 何も 動かない ように 見える。
+// 止まって 2.5秒 もどらなければ 読みなおす(保存データは そのまま)
+let glLostTimer: ReturnType<typeof setTimeout> | undefined;
+game.events.once(Phaser.Core.Events.READY, () => {
+  game.canvas?.addEventListener('webglcontextlost', () => {
+    clearTimeout(glLostTimer);
+    glLostTimer = setTimeout(() => location.reload(), 2500);
+  });
+  game.canvas?.addEventListener('webglcontextrestored', () => clearTimeout(glLostTimer));
+});
+
 // 開発中だけ、確認用にゲームを外から触れるようにする
 // 2026-11-08 企画者「やってる人のデータを消さないで」: iPhone などに「この ゲームの 保存データは 自動で 消さないで」と お願いする
 // (ことわられても ゲームは そのまま 動く)
