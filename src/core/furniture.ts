@@ -65,6 +65,11 @@ export interface FurnitureDef {
   prize?: boolean;
 }
 
+/** ゆうきロボ(2026-11-17 企画者) */
+export const YUKIROBO = 'cyber_yukirobo';
+/** ゆうきロボを 部屋に 置いた 時の かくし 効果: ごはん・なでる 1回ごとに 足す 経験値 */
+export const YUKIROBO_EXP = 10;
+
 export const furnitureId = (series: FurnitureSeries, kind: FurnitureKind) => `${series}_${kind}`;
 
 /**
@@ -76,7 +81,7 @@ export const MYSTERY_ITEMS: Record<string, readonly string[]> = { vip_toy: ['vip
  * 種類の大きさ(KIND_RULES の width)にかける倍率。絵の形がほかと大きくちがう家具だけ【仮】。
  * 金マッチョの2つは、高さがそろうようにする(細長い像は横はばをせまく)
  */
-export const ITEM_WIDTH_SCALE: Record<string, number> = { vip_toy_a: (1140 / 640) / (1331 / 471) };
+export const ITEM_WIDTH_SCALE: Record<string, number> = { vip_toy_a: (1140 / 640) / (1331 / 471), cyber_yukirobo: 1.15 };
 export const itemWidthScale = (id: string): number => ITEM_WIDTH_SCALE[id] ?? 1;
 /** 家具の名前を、シリーズ＋種類の名前から変えるもの */
 const SPECIAL_NAMES: Record<string, string> = { vip_toy: '金マッチョ' };
@@ -102,6 +107,9 @@ export const FURNITURE: FurnitureDef[] = [
     const b = BASE_FURNITURE.find((f) => f.id === box)!;
     return prizes.map((id) => ({ ...b, id, file: `assets/furniture/${id}.webp`, prize: true }));
   }),
+  // 2026-11-17 企画者「ゆうきロボ」: ROYAL JACKPOT の ショップで 5,000,000 ロイヤルコインと 交換 → サイバーの 家具。ショップ(MONZ コイン)には 出さない
+  // 部屋に 置くと、ごはん・なでる 1回ごとに 経験値 +10(かくし 効果。YUKIROBO_EXP)
+  { id: YUKIROBO, series: 'cyber', kind: 'toy', name: 'ゆうきロボ', price: 0, file: `assets/furniture/${YUKIROBO}.webp`, prize: true },
 ];
 
 /** ふくびきの家具を買ったときに当たる家具を選ぶ(r: 0以上1未満の乱数)。ふくびきでなければ、そのまま */
@@ -114,7 +122,7 @@ export function drawPrize(id: string, r: number): string {
  * 企画者の絵が届いている家具(design/furniture/ → make_furniture.py で切り抜き)。届いていない家具は【仮】の見た目。
  * 企画者決定(2026-10-21): 家具の絵は斜め横向き。反転で逆向きにも使う
  */
-export const FURNITURE_ART_READY: readonly string[] = ['street_bed', 'street_sofa', 'street_table', 'street_carpet', 'street_tv', 'street_light', 'street_plant', 'street_toy', 'pop_bed', 'pop_sofa', 'pop_table', 'pop_tv', 'pop_carpet', 'pop_light', 'pop_plant', 'pop_toy', 'cyber_bed', 'cyber_sofa', 'cyber_table', 'cyber_tv', 'cyber_carpet', 'cyber_light', 'cyber_plant', 'cyber_toy', 'vip_bed', 'vip_sofa', 'vip_table', 'vip_tv', 'vip_carpet', 'vip_light', 'vip_plant', 'vip_toy_a', 'vip_toy_b'];
+export const FURNITURE_ART_READY: readonly string[] = ['street_bed', 'street_sofa', 'street_table', 'street_carpet', 'street_tv', 'street_light', 'street_plant', 'street_toy', 'pop_bed', 'pop_sofa', 'pop_table', 'pop_tv', 'pop_carpet', 'pop_light', 'pop_plant', 'pop_toy', 'cyber_bed', 'cyber_sofa', 'cyber_table', 'cyber_tv', 'cyber_carpet', 'cyber_light', 'cyber_plant', 'cyber_toy', 'vip_bed', 'vip_sofa', 'vip_table', 'vip_tv', 'vip_carpet', 'vip_light', 'vip_plant', 'vip_toy_a', 'vip_toy_b', 'cyber_yukirobo'];
 export const furnitureKey = (id: string) => `furniture:${id}`;
 
 /**
@@ -133,7 +141,7 @@ export const FURNITURE_TURN_LONG: Record<string, number> = { street_tv: 1.5, pop
 /** 床の線に合わせてかたむけない家具(上にのびた画面などが ななめに見えるため。企画者の指示 2026-10-22) */
 export const NO_SHEAR_KINDS: readonly FurnitureKind[] = ['tv', 'light', 'plant'];
 /** 種類にかかわらず、かたむけない家具(POPのおもちゃはぬいぐるみ、CYBERはロボットの犬、VIPは金の像なので、まっすぐ立てる) */
-export const NO_SHEAR_ITEMS: readonly string[] = ['pop_toy', 'cyber_toy', 'vip_toy_a', 'vip_toy_b'];
+export const NO_SHEAR_ITEMS: readonly string[] = ['pop_toy', 'cyber_toy', 'vip_toy_a', 'vip_toy_b', 'cyber_yukirobo'];
 export const FURNITURE_TURN_FLOOR: Record<string, number> = { street_tv: 0.42, pop_tv: 0.42, cyber_tv: 0.42, vip_tv: 0.42 };
 export const FURNITURE_TURN_ART_READY: readonly string[] = Object.keys(FURNITURE_TURN_ART);
 /** 縦向きのとき、左右のはばだけを広げる倍率(企画者の指示 2026-10-22: ソファは若干広く)【仮】 */

@@ -213,13 +213,19 @@ export class SlotTitleScene extends Phaser.Scene {
       const row = this.add.rectangle(W / 2, y, W - 120, step - 16, 0x2a1838).setStrokeStyle(3, 0x9b5cff);
       const name = this.text(200, y, item.ready ? item.name : '？？？', 30, item.ready ? '#ffffff' : '#8a7a9a', 4);
       const owned = this.wallet.itemCount(item.id);
-      const sub = this.text(200, y + 30, owned ? `もっている ${owned}` : '', 18, '#d8c8e8');
+      const sub = this.text(200, y + 30, owned ? `もっている ${owned}` : (item.ready && item.text) || '', 18, '#d8c8e8');
+      // 説明が 長い 時は 左に そろえる(わくから はみ出さない ように)
+      if (!owned && item.text) sub.setOrigin(0, 0.5).setX(84);
       const price = this.text(W - 190, y, item.ready ? `${item.price.toLocaleString()}` : 'じゅんび中', 26, item.ready ? '#ffd23a' : '#8a7a9a', 4);
       c.add([row, name, sub, price]);
       if (item.ready) {
         row.setInteractive({ useHandCursor: true });
         row.on('pointerdown', () => {
+          // 高い 物は 1回 たしかめる(2026-11-17 ゆうきロボ 5,000,000)
+          if (item.price >= 100_000 && item.price <= this.wallet.coins && !window.confirm(`${item.name}を ${item.price.toLocaleString()} ${SLOT_COIN_NAME}で 交換しますか？`)) return;
           if (this.wallet.buy(item)) {
+            // 家具は お世話の アイテムボックスへ(2026-11-17 ゆうきロボ)
+            if (item.furniture) this.life.receiveItem(item.furniture);
             audio.se('koBlast');
             coin.setText(`${SLOT_COIN_NAME} ${this.wallet.coins.toLocaleString()}`);
             sub.setText(`もっている ${this.wallet.itemCount(item.id)}`);

@@ -6,7 +6,7 @@
  * 【仮】コインの最初の枚数(0)。コインはレベルが上がったとき・ミニゲームでもらえる(企画者決定)。
  */
 import { ALL_PLACES, SECRET_PLACE, type HomePlace } from './home';
-import { drawPrize, furniture, isFurniture, itemPrice, MOVE_TICKET, MYSTERY_ITEMS } from './furniture';
+import { drawPrize, furniture, isFurniture, itemPrice, MOVE_TICKET, MYSTERY_ITEMS, YUKIROBO, YUKIROBO_EXP } from './furniture';
 import { catchUp, dayKey, expToNext, levelUpCoins, newNeeds, NEEDS_RULES, stepNeeds, isNight, type Needs } from './needs';
 import type { KeyValueStore } from './save';
 import { isSpecies, RENAMED_SPECIES, type SpeciesId } from './species';
@@ -557,6 +557,17 @@ export class LifeRecord {
     return got;
   }
 
+  /** ほかの ゲームで 交換した 物を アイテムボックスに 入れる(コインは 使わない。2026-11-17 ゆうきロボ) */
+  receiveItem(id: string): void {
+    const inv = this.data.inventory;
+    this.update({ inventory: { ...inv, owned: [...inv.owned, id] } });
+  }
+
+  /** ゆうきロボを 部屋に 置いて いるか(かくし 効果) */
+  private get yukiroboPlaced(): boolean {
+    return this.data.inventory.placed.some((p) => p.item === YUKIROBO);
+  }
+
   // ---------------- MYTHCLASH のカードパック ----------------
 
   get mythclash(): MythCollection {
@@ -737,6 +748,8 @@ export class LifeRecord {
     const m = this.monz;
     this.update({}, { needs: { ...this.needs, zeroFullSec: 0, full: Math.min(1, n.full + NEEDS_RULES.feedFull), mood: Math.min(1, n.mood + NEEDS_RULES.feedMood) }, careCount: { ...m.careCount, feed: m.careCount.feed + 1 } });
     this.gainExp(NEEDS_RULES.feedExp, now, 'feed');
+    // ゆうきロボの かくし 効果(1日の 上限とは べつ)
+    if (this.yukiroboPlaced) this.gainExp(YUKIROBO_EXP, now, 'other');
   }
 
   pet(happy: boolean, now = Date.now()): void {
@@ -746,7 +759,10 @@ export class LifeRecord {
     const m = this.monz;
     this.update({}, { needs: { ...this.needs, touch: Math.min(1, (n.touch ?? 0) + NEEDS_RULES.petTouch), zeroTouchSec: 0, mood: Math.min(1, n.mood + (happy ? NEEDS_RULES.petMood : NEEDS_RULES.petMood / 3)) }, careCount: { ...m.careCount, pet: m.careCount.pet + 1 } });
     // 経験値は、なでるのゲージがMAXでなかったときだけ(企画者決定 2026-10-21)
-    if ((n.touch ?? 0) < NEEDS_RULES.gaugeMax) this.gainExp(NEEDS_RULES.petExp, now, 'pet');
+    if ((n.touch ?? 0) < NEEDS_RULES.gaugeMax) {
+      this.gainExp(NEEDS_RULES.petExp, now, 'pet');
+      if (this.yukiroboPlaced) this.gainExp(YUKIROBO_EXP, now, 'other');
+    }
   }
 
   /** 愛を増やす(最大値まで)。loveFeedToday・lovePetToday は記録だけ(上限には使わない) */

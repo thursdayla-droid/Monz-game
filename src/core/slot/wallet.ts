@@ -22,8 +22,17 @@ export interface SlotShopItem {
   price: number;
   /** 交換できるか(中身が 決まるまで false) */
   ready: boolean;
+  /** ショップの 説明 */
+  text?: string;
+  /** 交換すると お世話の アイテムボックスに 入る 家具(1つだけ 持てる) */
+  furniture?: string;
 }
-export const SLOT_SHOP_ITEMS: readonly SlotShopItem[] = [1, 2, 3, 4, 5].map((i) => ({ id: `item${i}`, name: '？？？', price: 0, ready: false }));
+export const SLOT_SHOP_ITEMS: readonly SlotShopItem[] = [
+  ...[1, 2, 3, 4].map((i) => ({ id: `item${i}`, name: '？？？', price: 0, ready: false })),
+  // 2026-11-17 企画者「ゆうきロボ」: 5個目(いちばん 下)。5,000,000 ロイヤルコイン → サイバーの 家具。
+  // 説明は 企画者「ごはんと おかずを 一緒に 食べれない」(かくし 効果は 書かない)
+  { id: 'item5', name: 'ゆうきロボ', price: 5_000_000, ready: true, text: 'ごはんとおかずを一緒に食べれない', furniture: 'cyber_yukirobo' },
+];
 
 export const SLOT_WALLET_KEY = 'monz:slotcoin';
 
