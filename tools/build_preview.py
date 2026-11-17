@@ -130,6 +130,14 @@ for p in paths:
             im = Image.open(pub + p)
             im.resize((800, round(im.height * 800 / im.width)), Image.LANCZOS).save(bb, 'WEBP', quality=40, method=6)
             data = bb.getvalue()
+        elif SLOT and p.startswith('assets/slot/reach/'):
+            # 2026-11-17 リーチの 絵が ふえて 15MB を こえた: スロットの 確認用ページでは 横 800 に(ゲーム本体は そのまま)
+            bb = io.BytesIO()
+            im = Image.open(pub + p)
+            if im.width > 800:
+                im = im.resize((800, round(im.height * 800 / im.width)), Image.LANCZOS)
+            im.convert('RGB').save(bb, 'WEBP', quality=50, method=6)
+            data = bb.getvalue()
         elif p.startswith('assets/poses/'):
             # 2026-11-15 お世話の 姿の 絵(10種族×6枚): 確認用ページでは 高さ 260 に(画面では 小さく 出すので 見た目の 大きさは 同じ。ゲーム本体は そのまま)
             bb = io.BytesIO()
