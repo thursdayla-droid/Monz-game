@@ -57,17 +57,17 @@ describe('7の 大当たり', () => {
     let rainbows = 0;
     const N = 30000;
     for (let i = 0; i < N; i++) {
-      const s = newJackpot(10, { symbol: 'rainbow7', length: 3, raw: 2000 });
+      const s = newJackpot(10, { symbol: 'rainbow7', length: 3, raw: 1000 });
       while (!jackpotOver(s)) playRound(s);
       const n = nextJackpot(s, rng)!;
       expect(n.chain).toBe(2);
-      expect(n.chainTotal).toBe(2000);
+      expect(n.chainTotal).toBe(1000);
       expect(n.total).toBe(10 * payOf(n.symbol, 3));
       if (n.symbol === 'rainbow7') rainbows++;
     }
     expect(Math.abs(rainbows / N - RAINBOW_NEXT)).toBeLessThan(0.01);
-    // レインボー7 3つ 1回の 平均は BET の 400倍くらい(200倍 + 次の 大当たり 平均 1.5回)
-    expect(rainbowChainValue()).toBeCloseTo(200 + 1.5 * (200 / 3 + 200 / 3), 0);
+    // レインボー7 3つ 1回の 平均は BET の 250倍(100倍 + 次の 大当たり 平均 1.5回 × 100倍)
+    expect(rainbowChainValue()).toBeCloseTo(250, 0);
   });
 
   it('大当たり中の 図柄は まん中が 5つ そろう(7・王冠は 出ない)', () => {
