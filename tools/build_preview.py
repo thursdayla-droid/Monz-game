@@ -124,6 +124,12 @@ for p in paths:
             im = Image.open(pub + p)
             im.resize((1024, round(im.height * 1024 / im.width)), Image.LANCZOS).save(bb, "WEBP", quality=28, method=6)
             data = bb.getvalue()
+        elif p.startswith('assets/slot/jackpot/'):
+            # 2026-11-17 大当たりの 絵(液晶に 出す): 確認用ページでは 横 800 に(15MB に 入れるため。ゲーム本体は そのまま)
+            bb = io.BytesIO()
+            im = Image.open(pub + p)
+            im.resize((800, round(im.height * 800 / im.width)), Image.LANCZOS).save(bb, 'WEBP', quality=40, method=6)
+            data = bb.getvalue()
         elif p.startswith('assets/poses/'):
             # 2026-11-15 お世話の 姿の 絵(10種族×6枚): 確認用ページでは 高さ 260 に(画面では 小さく 出すので 見た目の 大きさは 同じ。ゲーム本体は そのまま)
             bb = io.BytesIO()
