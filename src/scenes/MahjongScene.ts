@@ -487,7 +487,7 @@ export class MahjongScene extends Phaser.Scene {
     const full = this.dealt ? 13 : n;
     for (let i = 0; i < n; i++) c.add(this.tile(-((full - 1) * bw) / 2 + i * bw, dy, 'mj:back', bw - 1));
     // 鳴いた 牌(伏せた 手の 横)
-    this.drawMelds(c, p.melds, ((n - 1) * bw) / 2 + 16, dy, seat === BOSS ? 24 : 26);
+    this.drawMelds(c, p.melds, ((n - 1) * bw) / 2 + 16, dy, seat === BOSS ? 24 : 26, seat);
     // 名前・リーチ
     if (p.riichi) {
       const nameT = this.text(-((n - 1) * bw) / 2 - 50, dy, 'リーチ', 18, '#ffd23a', 5);
@@ -496,16 +496,29 @@ export class MahjongScene extends Phaser.Scene {
     }
   }
 
-  private drawMelds(c: Phaser.GameObjects.Container, melds: Meld[], x0: number, y: number, w: number): void {
+  /**
+   * 鳴いた 牌。2026-11-17 企画者「左の 人から チーしたのに 対面の 人から 鳴いた ことに なってる・鳴いた 牌も ズレてた」:
+   * 鳴いた 牌(横向き)は、だれから 鳴いたかで 置く 場所を かえる(上家〔左〕= 左はし・対面 = まん中・下家〔右〕= 右はし)。
+   * 横向きの 牌は 横はばが 牌の 高さぶん。下を ほかの 牌に そろえる
+   */
+  private drawMelds(c: Phaser.GameObjects.Container, melds: Meld[], x0: number, y: number, w: number, owner: number): void {
+    const h = w * (172 / 132);
     let x = x0;
     for (const m of melds) {
-      const tiles = [...m.tiles];
+      const rest = m.tiles.filter((t) => t !== m.called);
+      let tiles = [...m.tiles];
+      if (m.called !== undefined && m.from !== undefined && m.type !== 'ankan') {
+        const rel = (m.from - owner + 4) % 4;
+        const at = rel === 3 ? 0 : rel === 2 ? 1 : rest.length;
+        tiles = [...rest.slice(0, at), m.called, ...rest.slice(at)];
+      }
       tiles.forEach((t, i) => {
         const hidden = m.type === 'ankan' && (i === 0 || i === 3);
-        const isCalled = t === m.called;
-        const img = this.tile(x + w / 2, y, hidden ? 'mj:back' : texOf(t), w, isCalled ? Math.PI / 2 : 0);
+        const isCalled = m.type !== 'ankan' && t === m.called;
+        const tw = isCalled ? h : w;
+        const img = this.tile(x + tw / 2, isCalled ? y + (h - w) / 2 : y, hidden ? 'mj:back' : texOf(t), w, isCalled ? Math.PI / 2 : 0);
         c.add(img);
-        x += isCalled ? w * 1.3 : w;
+        x += tw;
       });
       x += 8;
     }
@@ -518,7 +531,8 @@ export class MahjongScene extends Phaser.Scene {
     const W = this.W;
     // 2026-11-08 企画者「牌が 小さくて 押しづらい」→ 画面の はばに 合わせて できるだけ 大きく(最大 96)
     const meldTile = 46;
-    const meldW0 = p.melds.reduce((a, m) => a + m.tiles.length * meldTile + 14, 0);
+    // 横向きの 牌(鳴いた 牌)は 高さぶんの はば
+    const meldW0 = p.melds.reduce((a, m) => a + m.tiles.length * meldTile + (m.type !== 'ankan' && m.called !== undefined ? meldTile * (172 / 132 - 1) : 0) + 8, 0);
     const tw = Math.min(96, Math.floor((W - 30 - meldW0 - 20) / 14.4));
     const th = tw * (172 / 132);
     const drawn = s.turn === 0 && s.drawn !== null && !this.dealt ? s.drawn : null;
@@ -547,7 +561,7 @@ export class MahjongScene extends Phaser.Scene {
     // 鳴いた 牌
     const mc = this.add.container(0, 0);
     this.layer.add(mc);
-    this.drawMelds(mc, p.melds, W - 20 - meldW, y + 10, meldTile);
+    this.drawMelds(mc, p.melds, W - 20 - meldW, y + 10, meldTile, PLAYER_SEAT);
     if (p.riichi) this.layer.add(this.text(x0 + 30, y - th / 2 - 18, 'リーチ中', 18, '#ffd23a', 4));
   }
 
@@ -641,14 +655,19 @@ export class MahjongScene extends Phaser.Scene {
       if (o.pon.length) list.push(['ポン', '#ff8a3a', () => this.resolve({ type: 'pon', tiles: o.pon[0] })]);
       o.chi.forEach((c, i) => list.push([o.chi.length > 1 ? `チー${i + 1}` : 'チー', '#3ad070', () => this.resolve({ type: 'chi', tiles: c })]));
       list.push(['パス', '#ffffff', () => this.resolve(null)]);
-      // チーが いくつか ある 時は、どの 牌で 鳴くかを 小さく 見せる
+      // チーが いくつか ある 時は、どの 牌で 鳴くかを その ボタンの すぐ 上に 見せる
+      // (2026-11-17 企画者「ズレてた・2牌が 背景と 同化して 見えにくい」→ ボタンの 真上・こい 板の 上に 大きく)
       const by = H - (Math.min(96, Math.floor((this.W - 50) / 14.4)) * 172) / 132 - 44;
-      if (o.chi.length > 1)
+      if (o.chi.length > 1) {
+        const first = list.findIndex(([l]) => l.startsWith('チー'));
         o.chi.forEach((c, i) => {
-          const x = this.geo.cx + this.geo.tw / 2 - 240 - i * 110;
-          c.forEach((t, j) => this.ui.add(this.tile(x + j * 32, by - 70, texOf(t), 30)));
-          this.ui.add(this.text(x + 16, by - 104, `チー${i + 1}`, 15, '#3ad070', 4));
+          const x = this.geo.cx + this.geo.tw / 2 - 80 - (first + i) * 140;
+          const tw = 40;
+          const y = by - 82;
+          this.ui.add(this.add.rectangle(x, y, tw * c.length + 16, tw * (172 / 132) + 14, 0x16101c, 0.92).setStrokeStyle(3, 0x3ad070));
+          c.forEach((t, j) => this.ui.add(this.tile(x + (j - (c.length - 1) / 2) * tw, y, texOf(t), tw - 2)));
         });
+      }
     }
     const by = H - (Math.min(96, Math.floor((this.W - 50) / 14.4)) * 172) / 132 - 44;
     list.forEach(([label, color, f], i) => this.button(this.geo.cx + this.geo.tw / 2 - 80 - i * 140, by, label, color, f));
