@@ -81,7 +81,8 @@ export const MYSTERY_ITEMS: Record<string, readonly string[]> = { vip_toy: ['vip
  * 種類の大きさ(KIND_RULES の width)にかける倍率。絵の形がほかと大きくちがう家具だけ【仮】。
  * 金マッチョの2つは、高さがそろうようにする(細長い像は横はばをせまく)
  */
-export const ITEM_WIDTH_SCALE: Record<string, number> = { vip_toy_a: (1140 / 640) / (1331 / 471), cyber_yukirobo: 1.15 };
+// ゆうきロボ: 2026-11-17 企画者「少し 小さめで」→ 1.15 から 0.85 に
+export const ITEM_WIDTH_SCALE: Record<string, number> = { vip_toy_a: (1140 / 640) / (1331 / 471), cyber_yukirobo: 0.85 };
 export const itemWidthScale = (id: string): number => ITEM_WIDTH_SCALE[id] ?? 1;
 /** 家具の名前を、シリーズ＋種類の名前から変えるもの */
 const SPECIAL_NAMES: Record<string, string> = { vip_toy: '金マッチョ' };
