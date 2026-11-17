@@ -743,6 +743,8 @@ export class LifeRecord {
 
   feed(now = Date.now()): void {
     const n = this.needs;
+    // お腹 いっぱい(ゲージ MAX)なら 食べない(画面でも 食べずに 怒る)。経験値・愛も ふえない
+    if (n.full >= NEEDS_RULES.gaugeMax) return;
     // 愛が増えるのは、ごはんを2目もり ぜんぶ食べられるとき(ゲージ 8 以下)だけ(企画者決定 2026-10-21)
     if (n.full <= LOVE_RULES.feedAtMost + 1e-9) this.gainLove('feed', now);
     const m = this.monz;

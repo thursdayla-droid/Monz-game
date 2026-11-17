@@ -50,7 +50,8 @@ export const NEEDS_RULES = {
    */
   feedExp: 15,
   petExp: 4,
-  dailyExpCap: 50,
+  // 2026-11-17 企画者「ごはんの 経験値 上限 いらない。ちゃんと 食べたら 入る」→ 上限なし(前は 50)
+  dailyExpCap: Infinity,
   /** ゲージがMAX(10目もりの10 = 9.5以上)とみなす値。お腹: ごはんを断る / なでる: 経験値が入らない */
   gaugeMax: 0.95,
 } as const;

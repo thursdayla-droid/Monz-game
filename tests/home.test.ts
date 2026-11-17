@@ -179,9 +179,10 @@ describe('life record', () => {
     rec.pet(true, now);
     rec.pet(true, now);
     expect(rec.monz.exp).toBe(NEEDS_RULES.petExp * 7);
-    // ごはんの経験値の上限は、なでたぶんに関係なく残る
-    for (let i = 0; i < 5; i++) rec.feed(now);
-    expect(rec.monz.expToday).toBe(NEEDS_RULES.dailyExpCap);
+    // 2026-11-17 企画者「ごはんの 経験値 上限 いらない」→ 食べれば 毎回 入る(お腹 いっぱいなら 食べない)
+    const e0 = rec.monz.exp + rec.monz.level * 1e6;
+    rec.feed(now);
+    expect(rec.monz.exp + rec.monz.level * 1e6).toBeGreaterThan(e0);
   });
 
   it('caring twice a day levels up in two to three days and pays coins', () => {
@@ -195,6 +196,8 @@ describe('life record', () => {
     for (let d = 0; d < 5; d++) {
       for (const hour of [0, 10]) {
         const now = t + d * day + hour * 3600 * 1000;
+        // 2026-11-17 お腹 いっぱいなら 食べない ように した ので、時間を すすめて お腹を へらす
+        rec.advance(10, now);
         rec.feed(now);
         for (let i = 0; i < 3; i++) rec.pet(true, now);
         if (ups.length && firstUp < 0) firstUp = d;
