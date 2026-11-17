@@ -7,7 +7,7 @@ import { BETS, CHEST_PAY, dealChests, FREE_ROWS, freeSpin, SYMBOL_WEIGHT, newBon
 import { UI_FONT } from '../ui/paint';
 import { fillSize, safeInsets } from '../ui/viewport';
 import { BIG_REACHES, planShow, STEP_ORDER, type SpinShow } from '../core/slot/reach';
-import { JACKPOT_ROUNDS, jackpotGrid, jackpotOver, jackpotWin, newJackpot, nextJackpot, payNowWithJackpot, playRound, type JackpotState } from '../core/slot/jackpot';
+import { jackpotGrid, roundsOf, jackpotOver, jackpotWin, newJackpot, nextJackpot, payNowWithJackpot, playRound, type JackpotState } from '../core/slot/jackpot';
 import { pinTextures } from '../render/texBudget';
 import { buildLineScript, type LineMsg, lineScriptMs, playLineReach } from './slotLine';
 import { CAB_FILE, CAB_KEY, cabinetLayout, cabinetTexture, type Rect } from './slotCabinet';
@@ -2021,20 +2021,20 @@ export class SlotScene extends Phaser.Scene {
     this.credit.setText(this.shown.toLocaleString());
     this.reelFlash();
     coinFountain(this, W / 2, this.reelY + 200, 60);
-    this.jpTitle(s, `${SYMBOL_NAME[s.symbol]} ${s.length}つ！\n${JACKPOT_ROUNDS}回 そろう！`);
+    this.jpTitle(s);
     this.time.delayedCall(3600, () => this.jpBegin(''));
   }
 
   /** 大きな 題(BIG BONUS!!)を 液晶に */
-  private jpTitle(s: JackpotState, sub: string): void {
+  private jpTitle(s: JackpotState): void {
     const h = this.lcdBox.h;
     const rainbow = s.symbol === 'rainbow7';
     this.stopJpAnim();
     this.setLcdBg('gold', 0.1);
     const t = this.text(0, -h * 0.16, rainbow ? 'RAINBOW\nBIG BONUS!!' : 'BIG BONUS!!', Math.min(rainbow ? 70 : 100, h * (rainbow ? 0.19 : 0.26), this.lcdBox.w * 0.12), '#ffd23a', 12);
     t.setShadow(0, 8, rainbow ? '#7de8ff' : '#ff4ad8', 0, true, true);
-    const sub1 = this.text(0, h * 0.24, sub, Math.min(30, h * 0.085), '#ffffff', 8);
-    const items: Phaser.GameObjects.GameObject[] = [lcdRays(this, this.lcdBox, rainbow ? 0xff8ae0 : 0xffd23a, 0.32, 18), t, sub1];
+    // 2026-11-17 企画者「白文字の 7が 3つ！ 20回 そろう！ は いらない」
+    const items: Phaser.GameObjects.GameObject[] = [lcdRays(this, this.lcdBox, rainbow ? 0xff8ae0 : 0xffd23a, 0.32, 18), t];
     if (s.chain > 1) items.push(this.text(0, -h * 0.42, `連チャン ${s.chain}回目！`, Math.min(30, h * 0.09), '#7de8ff', 6));
     this.lcdShow(items);
     t.setScale(2.6);
@@ -2125,7 +2125,7 @@ export class SlotScene extends Phaser.Scene {
   private jpHud(): void {
     const s = this.jp;
     if (!s) return;
-    this.jpHudText?.setText(`ROUND ${s.round}/${JACKPOT_ROUNDS}`);
+    this.jpHudText?.setText(`ROUND ${s.round}/${s.rounds}`);
     this.jpTotalText?.setText(`+${s.chainTotal.toLocaleString()}`);
   }
 
@@ -2151,7 +2151,7 @@ export class SlotScene extends Phaser.Scene {
     this.cameras.main.flash(400, 255, 200, 255);
     audio.se('koBlast');
     this.time.delayedCall(2600, () => {
-      this.jpTitle(next, `${SYMBOL_NAME[next.symbol]}！\n${JACKPOT_ROUNDS}回 そろう！`);
+      this.jpTitle(next);
       this.time.delayedCall(3200, () => this.jpBegin(''));
     });
   }
@@ -2536,9 +2536,9 @@ function loadSave(): SlotSave {
     const fok = f && (BETS as readonly number[]).includes(Number(f.bet)) && Number(f.left) > 0 && Array.isArray(f.sticky) && f.sticky.length === REELS && f.sticky.every((c) => Array.isArray(c) && c.length === FREE_ROWS);
     const free: FreeState | undefined = fok ? { bet: Number(f.bet), left: Math.floor(Number(f.left)), games: Math.floor(Number(f.games) || 0), played: Math.floor(Number(f.played) || 0), total: Math.max(0, Math.floor(Number(f.total) || 0)), sticky: f.sticky.map((c) => c.map((x) => x === true)) } : undefined;
     const j = d.jp;
-    const jok = j && (BETS as readonly number[]).includes(Number(j.bet)) && (j.symbol === 'gold7' || j.symbol === 'rainbow7') && [3, 4, 5].includes(Number(j.length)) && Number(j.total) > 0 && Number(j.round) >= 0 && Number(j.round) <= JACKPOT_ROUNDS;
+    const jok = j && (BETS as readonly number[]).includes(Number(j.bet)) && (j.symbol === 'gold7' || j.symbol === 'rainbow7') && [3, 4, 5].includes(Number(j.length)) && Number(j.total) > 0 && Number(j.round) >= 0 && Number(j.round) <= 30;
     const jp: JackpotState | undefined = jok
-      ? { bet: Number(j.bet), symbol: j.symbol, length: Number(j.length) as 3 | 4 | 5, total: Math.floor(Number(j.total)), round: Math.floor(Number(j.round)), paid: Math.max(0, Math.floor(Number(j.paid) || 0)), chain: Math.max(1, Math.floor(Number(j.chain) || 1)), chainTotal: Math.max(0, Math.floor(Number(j.chainTotal) || 0)) }
+      ? { bet: Number(j.bet), symbol: j.symbol, length: Number(j.length) as 3 | 4 | 5, total: Math.floor(Number(j.total)), rounds: Number(j.rounds) > 0 ? Math.floor(Number(j.rounds)) : roundsOf(Number(j.length) as 3 | 4 | 5), round: Math.floor(Number(j.round)), paid: Math.max(0, Math.floor(Number(j.paid) || 0)), chain: Math.max(1, Math.floor(Number(j.chain) || 1)), chainTotal: Math.max(0, Math.floor(Number(j.chainTotal) || 0)) }
       : undefined;
     return { jp, free, bet: (BETS as readonly number[]).includes(bet) ? bet : undefined, bonus: ok ? { bet: Number(b.bet), round: Math.max(1, Math.floor(Number(b.round))), total: Math.max(0, Math.floor(Number(b.total))), history: Array.isArray(b.history) ? b.history : [] } : undefined };
   } catch {

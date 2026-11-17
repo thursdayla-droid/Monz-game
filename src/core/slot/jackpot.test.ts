@@ -1,22 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../rng';
-import { JACKPOT_ROUNDS, jackpotGrid, jackpotOver, jackpotWin, newJackpot, nextJackpot, payNowWithJackpot, playRound, rainbowChainValue, RAINBOW_NEXT } from './jackpot';
+import { jackpotGrid, jackpotOver, jackpotWin, newJackpot, nextJackpot, payNowWithJackpot, playRound, rainbowChainValue, RAINBOW_NEXT } from './jackpot';
 import { evaluate, payOf, type Grid } from './slot';
 
 const g = (rows: string[][]): Grid => [0, 1, 2, 3, 4].map((r) => rows.map((row) => row[r])) as Grid;
 
 describe('7の 大当たり', () => {
-  it('20回で 合計が 今の 配当と ぴったり 同じ', () => {
-    for (const total of [1000, 1503, 20000, 37]) {
-      const s = newJackpot(10, { symbol: 'gold7', length: 3, raw: total });
+  it('3つ 20回・4つ 25回・5つ 30回で 合計が 今の 配当と ぴったり 同じ', () => {
+    for (const [length, total] of [[3, 1000], [3, 1503], [4, 20000], [5, 37], [5, 5000]] as const) {
+      const s = newJackpot(10, { symbol: 'gold7', length, raw: total });
       let sum = 0;
       let n = 0;
       while (!jackpotOver(s)) {
         sum += playRound(s);
         n++;
       }
-      expect(n).toBe(JACKPOT_ROUNDS);
-      expect(sum).toBe(Math.max(JACKPOT_ROUNDS, total));
+      expect(n).toBe({ 3: 20, 4: 25, 5: 30 }[length]);
+      expect(sum).toBe(Math.max(n, total));
       expect(playRound(s)).toBe(0);
     }
   });
