@@ -136,7 +136,7 @@ for p in paths:
             im = Image.open(pub + p)
             if im.width > 800:
                 im = im.resize((800, round(im.height * 800 / im.width)), Image.LANCZOS)
-            im.convert('RGB').save(bb, 'WEBP', quality=50, method=6)
+            im.convert('RGB').save(bb, 'WEBP', quality=42, method=6)
             data = bb.getvalue()
         elif p.startswith('assets/poses/'):
             # 2026-11-15 お世話の 姿の 絵(10種族×6枚): 確認用ページでは 高さ 260 に(画面では 小さく 出すので 見た目の 大きさは 同じ。ゲーム本体は そのまま)
@@ -193,7 +193,7 @@ for p in sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/bgm/*.m
     # 効果音は短いので、確認用ページでも音質をあまり落とさない(48kbps)
     # 2026-11-09: 麻雀クエストの ページは 軽いので 曲も 64kbps(企画者の 対戦BGM)
     se = p.startswith('assets/se/')
-    subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-i', pub + p, '-c:a', 'libmp3lame', '-ac', '1', '-ar', '32000' if se or MJ or SLOT else ('16000' if (STORY and 'ending' in p) else '22050' if (B3D or MYTH) else '16000'), '-b:a', '48k' if se else ('64k' if MJ else '40k' if SLOT else '12k' if (STORY and 'ending' in p) else '20k' if (B3D or MYTH) else '12k'), tmp], check=True)
+    subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-i', pub + p, '-c:a', 'libmp3lame', '-ac', '1', '-ar', '32000' if se or MJ or SLOT else ('16000' if (STORY and 'ending' in p) else '22050' if (B3D or MYTH) else '16000'), '-b:a', '48k' if se else ('64k' if MJ else '32k' if SLOT else '12k' if (STORY and 'ending' in p) else '20k' if (B3D or MYTH) else '12k'), tmp], check=True)
     assets[p] = 'data:audio/mpeg;base64,' + base64.b64encode(open(tmp, 'rb').read()).decode()
     os.remove(tmp)
 jsons = {p: json.load(open(pub + p)) for p in ['assets/bunk/parts/parts.json', 'assets/bunk/down/parts.json', 'assets/bunk/faces/faces.json']}
