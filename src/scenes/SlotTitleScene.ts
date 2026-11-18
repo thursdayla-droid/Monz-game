@@ -224,7 +224,7 @@ export class SlotTitleScene extends Phaser.Scene {
       const y = y0 + 80 + i * step;
       const row = this.add.rectangle(W / 2, y, W - 120, step - 16, 0x2a1838).setStrokeStyle(3, 0x9b5cff);
       const name = this.text(200, y, item.ready ? item.name : '？？？', 30, item.ready ? '#ffffff' : '#8a7a9a', 4);
-      const owned = this.wallet.itemCount(item.id);
+      const owned = this.ownedCount(item);
       const sub = this.text(200, y + 30, owned ? `もっている ${owned}` : (item.ready && item.text) || '', 18, '#d8c8e8');
       // 説明が 長い 時は 左に そろえる(わくから はみ出さない ように)
       if (!owned && item.text) sub.setOrigin(0, 0.5).setX(84);
@@ -255,6 +255,14 @@ export class SlotTitleScene extends Phaser.Scene {
         row.on('pointerdown', () => this.openItem(item));
       }
     });
+  }
+
+  /**
+   * もっている 数。お世話の アイテムに 送る 物(スクラッチ・家具)は アイテムの 中の 数(使ったら へる)。
+   * 2026-11-17 企画者「コインスクラッチ 買って 使ったのに もっているが まだ 表示 されてる」
+   */
+  private ownedCount(item: (typeof SLOT_SHOP_ITEMS)[number]): number {
+    return item.furniture ? this.life.owns(item.furniture) : this.wallet.itemCount(item.id);
   }
 
   /** 商品の くわしい 画面: 大きな 絵・説明・(スクラッチは)もらえる 物の 表・交換 */
@@ -296,7 +304,7 @@ export class SlotTitleScene extends Phaser.Scene {
       }
       y += 6;
     }
-    const owned = this.wallet.itemCount(item.id);
+    const owned = this.ownedCount(item);
     const info = this.text(W / 2, y + 6, `${SLOT_COIN_NAME} ${this.wallet.coins.toLocaleString()}${owned ? `   もっている ${owned}` : ''}`, 20, '#c8bcd8', 3);
     c.add(info);
     // 2026-11-17 企画者「交換 できない」: 確認用ページ(アプリの 中)では window.confirm が 出ずに いつも「いいえ」に なって いた
@@ -327,7 +335,7 @@ export class SlotTitleScene extends Phaser.Scene {
         // 家具・スクラッチは お世話の アイテムへ
         if (item.furniture) this.life.receiveItem(item.furniture);
         audio.se('koBlast');
-        info.setText(`${SLOT_COIN_NAME} ${this.wallet.coins.toLocaleString()}   もっている ${this.wallet.itemCount(item.id)}`);
+        info.setText(`${SLOT_COIN_NAME} ${this.wallet.coins.toLocaleString()}   もっている ${this.ownedCount(item)}`);
         this.cameras.main.flash(200, 255, 230, 120);
       } else {
         audio.se('tap', { pitch: 0.7 });
