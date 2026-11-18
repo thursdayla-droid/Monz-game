@@ -136,7 +136,14 @@ for p in paths:
             im = Image.open(pub + p)
             if im.width > 800:
                 im = im.resize((800, round(im.height * 800 / im.width)), Image.LANCZOS)
-            im.convert('RGB').save(bb, 'WEBP', quality=42, method=6)
+            im.convert('RGB').save(bb, 'WEBP', quality=36, method=6)
+            data = bb.getvalue()
+        elif p.startswith('assets/scratch/') or (not SLOT and p.startswith('assets/slot/sym_')):
+            # 2026-11-17 スクラッチの 券・マーク: 確認用ページでは 小さく(ゲーム本体は そのまま)
+            bb = io.BytesIO()
+            im = Image.open(pub + p)
+            im.thumbnail((200, 200))
+            im.save(bb, 'WEBP', quality=60, method=6)
             data = bb.getvalue()
         elif p.startswith('assets/poses/'):
             # 2026-11-15 お世話の 姿の 絵(10種族×6枚): 確認用ページでは 高さ 260 に(画面では 小さく 出すので 見た目の 大きさは 同じ。ゲーム本体は そのまま)
