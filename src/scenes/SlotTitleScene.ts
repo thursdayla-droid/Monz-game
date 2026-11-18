@@ -218,7 +218,8 @@ export class SlotTitleScene extends Phaser.Scene {
       const sub = this.text(200, y + 30, owned ? `もっている ${owned}` : (item.ready && item.text) || '', 18, '#d8c8e8');
       // 説明が 長い 時は 左に そろえる(わくから はみ出さない ように)
       if (!owned && item.text) sub.setOrigin(0, 0.5).setX(84);
-      const price = this.text(W - 190, y, item.ready ? `${item.price.toLocaleString()}` : 'じゅんび中', 26, item.ready ? '#ffd23a' : '#8a7a9a', 4);
+      // 2026-11-17 企画者「分かりにくいから 5,000,000 RC に」(RC = ロイヤルコイン)
+      const price = this.text(W - 190, y, item.ready ? `${item.price.toLocaleString()} RC` : 'じゅんび中', 26, item.ready ? '#ffd23a' : '#8a7a9a', 4);
       c.add([row, name, sub, price]);
       // 商品の 絵(左はし)。絵が ある 時は 名前と 説明を 右へ
       const artKey = `slot:shop:${item.id}`;
@@ -228,6 +229,12 @@ export class SlotTitleScene extends Phaser.Scene {
         c.add(img);
         name.setX(name.x + 70);
         sub.setX(sub.x + 70);
+      }
+      // 名前と 説明は 左を そろえて 少し はなす(2026-11-17 企画者「名前と 説明 少し 離して・左側 合わせて 綺麗に」)
+      if (item.ready && item.text) {
+        const left = sub.x;
+        name.setOrigin(0, 0.5).setPosition(left, y - 14);
+        sub.setY(y + 26);
       }
       if (item.ready) {
         row.setInteractive({ useHandCursor: true });
