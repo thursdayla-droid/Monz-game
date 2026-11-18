@@ -74,6 +74,7 @@ export class ShopScene extends Phaser.Scene {
     // スクラッチの マーク(ROYAL JACKPOT の 図柄の 絵)
     if (!this.textures.exists(COIN_ART_KEY)) this.load.image(COIN_ART_KEY, assetUrl(COIN_ART_FILE));
     // スクラッチ券の 絵(2026-11-17 企画者。元は design/scratch/)
+    for (const k of ['coin', 'exp']) if (!this.textures.exists(`scratch:board:${k}`)) this.load.image(`scratch:board:${k}`, assetUrl(`assets/scratch/board_${k}.webp`));
     for (const k of Object.values(SCRATCH_ITEMS)) if (!this.textures.exists(`scratch:art:${k}`)) this.load.image(`scratch:art:${k}`, assetUrl(`assets/scratch/${k}.webp`));
     for (const m of SCRATCH_MARKS) if (!this.textures.exists(`scratch:${m}`)) this.load.image(`scratch:${m}`, assetUrl(scratchMarkFile(m)));
   }
@@ -506,26 +507,31 @@ export class ShopScene extends Phaser.Scene {
     box.add(this.add.rectangle(0, -400, W, H + 800, 0x000000, 0.7).setOrigin(0, 0).setInteractive());
     const PH = 1060;
     const top = H / 2 - PH / 2;
-    const g = this.add.graphics();
-    g.fillGradientStyle(0xffe680, 0xffe680, 0xffb020, 0xffb020, 1).fillRoundedRect(40, top, W - 80, PH, 28);
-    g.lineStyle(8, 0x16101c, 1).strokeRoundedRect(40, top, W - 80, PH, 28);
-    box.add(g);
-    box.add(this.t(W / 2, top + 56, SCRATCH_NAMES[kind], 44, INK));
-    box.add(this.t(W / 2, top + 108, '指で なぞって 3つ けずろう！ 2つ そろえば 当たり', 22, '#5a3a10'));
+    // 企画者の 板の 絵(2026-11-17「黄色い 背景 ださい」→ コインは 青・EXP は 紫。元は design/scratch/board_*_original.png)
+    const boardKey = `scratch:board:${kind}`;
+    if (this.textures.exists(boardKey)) box.add(this.add.image(W / 2, top + PH / 2, boardKey).setDisplaySize(W - 60, PH + 20));
+    else {
+      const g = this.add.graphics();
+      g.fillStyle(0x1c1340, 1).fillRoundedRect(40, top, W - 80, PH, 28);
+      g.lineStyle(8, 0xffd23a, 1).strokeRoundedRect(40, top, W - 80, PH, 28);
+      box.add(g);
+    }
+    box.add(this.t(W / 2, top + 110, SCRATCH_NAMES[kind], 44, '#ffd23a').setStroke('#16101c', 8));
+    box.add(this.t(W / 2, top + 160, '指で なぞって 3つ けずろう！ 2つ そろえば 当たり', 22, '#ffffff').setStroke('#16101c', 5));
     // 何が そろったら どの くらい(確率は 出さない)
-    const ty0 = top + 410;
+    const ty0 = top + 440;
     const tbl = this.add.graphics();
     // 2026-11-17 企画者「枠が 狭すぎて 下が 窮屈。余裕 持って」→ 下に 30 あける
-    const tblH = 84 + SCRATCH_TABLE[kind].filter((p) => p.mark).length * 50;
-    tbl.fillStyle(0xfff6d8, 1).fillRoundedRect(80, ty0 - 34, W - 160, tblH, 18);
-    tbl.lineStyle(4, 0x16101c, 1).strokeRoundedRect(80, ty0 - 34, W - 160, tblH, 18);
+    const tblH = 76 + SCRATCH_TABLE[kind].filter((p) => p.mark).length * 46;
+    tbl.fillStyle(0x0d0820, 0.65).fillRoundedRect(84, ty0 - 34, W - 168, tblH, 18);
+    tbl.lineStyle(3, 0xffd23a, 0.8).strokeRoundedRect(84, ty0 - 34, W - 168, tblH, 18);
     box.add(tbl);
-    box.add(this.t(W / 2, ty0, kind === 'coin' ? '2つ そろうと MONZ コイン' : '2つ そろうと EXP', 22, '#8a5a10'));
+    box.add(this.t(W / 2, ty0, kind === 'coin' ? '2つ そろうと MONZ コイン' : '2つ そろうと EXP', 22, '#ffd23a'));
     const rows = new Map<string, Phaser.GameObjects.Text>();
     SCRATCH_TABLE[kind]
       .filter((p) => p.mark)
       .forEach((p, i) => {
-        const y = ty0 + 48 + i * 50;
+        const y = ty0 + 44 + i * 46;
         for (const dx of [-170, -118]) {
           const key = `scratch:${p.mark}`;
           if (this.textures.exists(key)) {
@@ -534,18 +540,18 @@ export class ShopScene extends Phaser.Scene {
             box.add(ic);
           }
         }
-        box.add(this.t(W / 2 - 60, y, '→', 26, '#8a7a60'));
-        const amt = this.t(W / 2 + 180, y, `${p.amount.toLocaleString()} ${kind === 'coin' ? 'コイン' : 'EXP'}`, 28, INK, 1, 0.5);
+        box.add(this.t(W / 2 - 60, y, '→', 26, '#c8bcd8'));
+        const amt = this.t(W / 2 + 180, y, `${p.amount.toLocaleString()} ${kind === 'coin' ? 'コイン' : 'EXP'}`, 28, '#ffffff', 1, 0.5);
         box.add(amt);
         rows.set(p.mark!, amt);
       });
-    const resY = top + PH - 160;
+    const resY = top + PH - 222;
     // 2026-11-17 企画者「赤文字の 何が 当たったかが はみ出して 見えにくい」→ 2行・小さめ・白い 板の 上
-    const resBg = this.add.rectangle(W / 2, resY, W - 140, 120, 0xffffff, 0.9).setStrokeStyle(4, 0x16101c).setVisible(false);
+    const resBg = this.add.rectangle(W / 2, resY, W - 168, 100, 0x0d0820, 0.8).setStrokeStyle(4, 0xffd23a).setVisible(false);
     box.add(resBg);
     const result = this.t(W / 2, resY, '', 36, INK);
     box.add(result);
-    const closeBtn = this.t(W / 2, top + PH - 56, 'とじる', 32, '#ffffff').setBackgroundColor('#16101c').setPadding(40, 12, 40, 14).setVisible(false);
+    const closeBtn = this.t(W / 2, top + PH - 118, 'とじる', 32, INK).setBackgroundColor('#ffd23a').setPadding(40, 12, 40, 14).setVisible(false);
     closeBtn.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
       audio.se('back');
       for (const k of keys) if (this.textures.exists(k)) this.textures.remove(k);
@@ -558,12 +564,12 @@ export class ShopScene extends Phaser.Scene {
       const p = res.prize;
       if (p.amount) {
         audio.se('cheer');
-        result.setText(`当たり！！\n${kind === 'coin' ? `MONZ コイン +${p.amount.toLocaleString()}` : `EXP +${p.amount.toLocaleString()}`}`).setColor('#c0182a');
-        rows.get(p.mark!)?.setColor('#c0182a');
+        result.setText(`当たり！！\n${kind === 'coin' ? `MONZ コイン +${p.amount.toLocaleString()}` : `EXP +${p.amount.toLocaleString()}`}`).setColor('#ffd23a');
+        rows.get(p.mark!)?.setColor('#ffd23a');
         this.cameras.main.flash(300, 255, 240, 160);
       } else {
         audio.se('back');
-        result.setText('ハズレ…').setColor('#5a4a66');
+        result.setText('ハズレ…').setColor('#c8bcd8');
       }
       resBg.setVisible(true);
       result.setScale(1.6);
@@ -571,8 +577,8 @@ export class ShopScene extends Phaser.Scene {
       closeBtn.setVisible(true);
     };
     // 3つの マス。銀は 自分で 描いた 絵(なぞった 所を 消す)
-    const cell = 180;
-    const cy = top + 250;
+    const cell = 160;
+    const cy = top + 290;
     const R = 22;
     const keys: string[] = [];
     let open = 0;
@@ -580,7 +586,7 @@ export class ShopScene extends Phaser.Scene {
     const coin = this.textures.exists(COIN_ART_KEY) ? this.add.image(0, 0, COIN_ART_KEY).setVisible(false).setDepth(101) : undefined;
     coin?.setScale(70 / coin.width);
     res.marks.forEach((m, i) => {
-      const x = W / 2 + (i - 1) * (cell + 20);
+      const x = W / 2 + (i - 1) * (cell + 18);
       box.add(this.add.rectangle(x, cy, cell, cell, 0xffffff, 1).setStrokeStyle(5, 0x16101c));
       const key = `scratch:${m}`;
       if (this.textures.exists(key)) {
