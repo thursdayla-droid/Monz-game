@@ -12,7 +12,7 @@ const exp = (r: LifeRecord) => r.snapshot.monz[0].exp + r.snapshot.monz[0].level
 describe('ゆうきロボ(2026-11-17 企画者)', () => {
   it('ROYAL JACKPOT の ショップの 5個目・5,000,000・サイバーの 家具(MONZ の ショップには 出ない)', () => {
     const item = SLOT_SHOP_ITEMS[4];
-    expect(item).toMatchObject({ name: 'ゆうきロボ', price: 5_000_000, ready: true, furniture: YUKIROBO, text: 'ごはんとおかずを一緒に食べれない' });
+    expect(item).toMatchObject({ name: 'ゆうきロボ', price: 5_000_000, ready: true, furniture: YUKIROBO, text: '少し人見知り克服した。' });
     expect(furniture(YUKIROBO)).toMatchObject({ series: 'cyber', prize: true });
     const w = new SlotWallet(mem());
     expect(w.buy(item)).toBe(false);

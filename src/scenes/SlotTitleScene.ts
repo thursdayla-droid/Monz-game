@@ -42,6 +42,8 @@ export class SlotTitleScene extends Phaser.Scene {
     if (!this.textures.exists(COIN_ART_KEY)) this.load.image(COIN_ART_KEY, assetUrl(COIN_ART_FILE));
     // 2026-11-12 企画者の タイトル画面の 背景(元は design/slot/title_bg.png)
     if (!this.textures.exists(TITLE_BG_KEY)) this.load.image(TITLE_BG_KEY, assetUrl('assets/slot/title_bg.webp'));
+    // ショップの 商品の 絵(2026-11-17 企画者「ゆうきロボは ショップの 家具 みたいに 絵を 出して」)
+    for (const it of SLOT_SHOP_ITEMS) if (it.art && !this.textures.exists(`slot:shop:${it.id}`)) this.load.image(`slot:shop:${it.id}`, assetUrl(it.art));
   }
 
   create(): void {
@@ -218,6 +220,15 @@ export class SlotTitleScene extends Phaser.Scene {
       if (!owned && item.text) sub.setOrigin(0, 0.5).setX(84);
       const price = this.text(W - 190, y, item.ready ? `${item.price.toLocaleString()}` : 'じゅんび中', 26, item.ready ? '#ffd23a' : '#8a7a9a', 4);
       c.add([row, name, sub, price]);
+      // 商品の 絵(左はし)。絵が ある 時は 名前と 説明を 右へ
+      const artKey = `slot:shop:${item.id}`;
+      if (item.ready && item.art && this.textures.exists(artKey)) {
+        const img = this.add.image(110, y, artKey);
+        img.setScale(Math.min((step - 26) / img.height, 90 / img.width));
+        c.add(img);
+        name.setX(name.x + 70);
+        sub.setX(sub.x + 70);
+      }
       if (item.ready) {
         row.setInteractive({ useHandCursor: true });
         row.on('pointerdown', () => {
