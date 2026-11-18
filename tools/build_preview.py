@@ -138,6 +138,13 @@ for p in paths:
                 im = im.resize((800, round(im.height * 800 / im.width)), Image.LANCZOS)
             im.convert('RGB').save(bb, 'WEBP', quality=36, method=6)
             data = bb.getvalue()
+        elif p.startswith('assets/scratch/board_'):
+            # スクラッチの 板: 確認用ページでは 横 400 に
+            bb = io.BytesIO()
+            im = Image.open(pub + p)
+            im.thumbnail((400, 700))
+            im.save(bb, 'WEBP', quality=60, method=6)
+            data = bb.getvalue()
         elif p.startswith('assets/scratch/') or (not SLOT and p.startswith('assets/slot/sym_')):
             # 2026-11-17 スクラッチの 券・マーク: 確認用ページでは 小さく(ゲーム本体は そのまま)
             bb = io.BytesIO()
