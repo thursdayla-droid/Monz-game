@@ -504,7 +504,7 @@ export class ShopScene extends Phaser.Scene {
     this.busy = true;
     const box = this.add.container(0, 0).setDepth(100);
     box.add(this.add.rectangle(0, -400, W, H + 800, 0x000000, 0.7).setOrigin(0, 0).setInteractive());
-    const PH = 960;
+    const PH = 1060;
     const top = H / 2 - PH / 2;
     const g = this.add.graphics();
     g.fillGradientStyle(0xffe680, 0xffe680, 0xffb020, 0xffb020, 1).fillRoundedRect(40, top, W - 80, PH, 28);
@@ -515,8 +515,10 @@ export class ShopScene extends Phaser.Scene {
     // 何が そろったら どの くらい(確率は 出さない)
     const ty0 = top + 410;
     const tbl = this.add.graphics();
-    tbl.fillStyle(0xfff6d8, 1).fillRoundedRect(80, ty0 - 34, W - 160, 52 + SCRATCH_TABLE[kind].filter((p) => p.mark).length * 50, 18);
-    tbl.lineStyle(4, 0x16101c, 1).strokeRoundedRect(80, ty0 - 34, W - 160, 52 + SCRATCH_TABLE[kind].filter((p) => p.mark).length * 50, 18);
+    // 2026-11-17 企画者「枠が 狭すぎて 下が 窮屈。余裕 持って」→ 下に 30 あける
+    const tblH = 84 + SCRATCH_TABLE[kind].filter((p) => p.mark).length * 50;
+    tbl.fillStyle(0xfff6d8, 1).fillRoundedRect(80, ty0 - 34, W - 160, tblH, 18);
+    tbl.lineStyle(4, 0x16101c, 1).strokeRoundedRect(80, ty0 - 34, W - 160, tblH, 18);
     box.add(tbl);
     box.add(this.t(W / 2, ty0, kind === 'coin' ? '2つ そろうと MONZ コイン' : '2つ そろうと EXP', 22, '#8a5a10'));
     const rows = new Map<string, Phaser.GameObjects.Text>();
@@ -537,8 +539,11 @@ export class ShopScene extends Phaser.Scene {
         box.add(amt);
         rows.set(p.mark!, amt);
       });
-    const resY = top + PH - 150;
-    const result = this.t(W / 2, resY, '', 40, INK);
+    const resY = top + PH - 160;
+    // 2026-11-17 企画者「赤文字の 何が 当たったかが はみ出して 見えにくい」→ 2行・小さめ・白い 板の 上
+    const resBg = this.add.rectangle(W / 2, resY, W - 140, 120, 0xffffff, 0.9).setStrokeStyle(4, 0x16101c).setVisible(false);
+    box.add(resBg);
+    const result = this.t(W / 2, resY, '', 36, INK);
     box.add(result);
     const closeBtn = this.t(W / 2, top + PH - 56, 'とじる', 32, '#ffffff').setBackgroundColor('#16101c').setPadding(40, 12, 40, 14).setVisible(false);
     closeBtn.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
@@ -553,13 +558,14 @@ export class ShopScene extends Phaser.Scene {
       const p = res.prize;
       if (p.amount) {
         audio.se('cheer');
-        result.setText(`当たり！！ ${kind === 'coin' ? `MONZ コイン +${p.amount.toLocaleString()}` : `EXP +${p.amount.toLocaleString()}`}`).setColor('#c0182a');
+        result.setText(`当たり！！\n${kind === 'coin' ? `MONZ コイン +${p.amount.toLocaleString()}` : `EXP +${p.amount.toLocaleString()}`}`).setColor('#c0182a');
         rows.get(p.mark!)?.setColor('#c0182a');
         this.cameras.main.flash(300, 255, 240, 160);
       } else {
         audio.se('back');
         result.setText('ハズレ…').setColor('#5a4a66');
       }
+      resBg.setVisible(true);
       result.setScale(1.6);
       this.tweens.add({ targets: result, scale: 1, duration: 300, ease: 'Back.easeOut' });
       closeBtn.setVisible(true);
