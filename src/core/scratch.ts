@@ -6,12 +6,13 @@ import type { Rng } from './rng';
  * 【確定】下の 表は 企画者の 数字
  */
 export type ScratchKind = 'coin' | 'exp';
-export type ScratchMark = 'cherry' | 'clover' | 'star' | 'bell' | 'diamond' | 'gold7' | 'rainbow7' | 'crown' | 'bronze' | 'gclover' | 'thunder' | 'pstar' | 'rcrown';
+export type ScratchMark = 'cherry' | 'clover' | 'star' | 'bell' | 'diamond' | 'gold7' | 'rainbow7' | 'crown' | 'bronze' | 'gclover' | 'thunder' | 'pstar' | 'rcrown' | 'peanut' | 'hotdog' | 'kinba' | 'alien' | 'kirin' | 'saru';
 /**
  * マークの 絵。コインスクラッチは 企画者の 専用の 絵(2026-11-17「スロットと 一緒に なっちゃう から 絵柄 変える」。元は design/scratch/marks/)、
  * EXPスクラッチは ROYAL JACKPOT の 図柄の 絵
  */
-const OWN_MARKS: Partial<Record<ScratchMark, string>> = { bronze: 'bronze', gclover: 'clover', thunder: 'thunder', pstar: 'star', rcrown: 'crown' };
+// EXPスクラッチも 企画者の 専用の 絵(2026-11-17。元は design/scratch/marks_exp/。ホットドッグの 中指は 黒の モザイク)
+const OWN_MARKS: Partial<Record<ScratchMark, string>> = { bronze: 'bronze', gclover: 'clover', thunder: 'thunder', pstar: 'star', rcrown: 'crown', peanut: 'peanut', hotdog: 'hotdog', kinba: 'kinba', alien: 'alien', kirin: 'kirin', saru: 'saru' };
 /** マークの 大きさの 倍率(2026-11-17 企画者「王冠 1番 大当たり だから もう少し 大きく」) */
 export const SCRATCH_MARK_SCALE: Partial<Record<ScratchMark, number>> = { rcrown: 1.3 };
 export const scratchMarkScale = (m: ScratchMark): number => SCRATCH_MARK_SCALE[m] ?? 1;
@@ -45,12 +46,13 @@ export const SCRATCH_TABLE: Record<ScratchKind, readonly ScratchPrize[]> = {
   // 10% ハズレ・16% 100・20% 200・40% 500・10% 1,000・3% 5,000・1% 10,000(経験値)
   exp: [
     { mark: null, amount: 0, rate: 10 },
-    { mark: 'star', amount: 100, rate: 16 },
-    { mark: 'cherry', amount: 200, rate: 20 },
-    { mark: 'clover', amount: 500, rate: 40 },
-    { mark: 'bell', amount: 1000, rate: 10 },
-    { mark: 'gold7', amount: 5000, rate: 3 },
-    { mark: 'rainbow7', amount: 10000, rate: 1 },
+    // マーク(2026-11-17 企画者「下から ピーナッツ・ホットドッグ・金歯・宇宙人・(宇宙人の 次に 良いのが)キリン・猿」)
+    { mark: 'peanut', amount: 100, rate: 16 },
+    { mark: 'hotdog', amount: 200, rate: 20 },
+    { mark: 'kinba', amount: 500, rate: 40 },
+    { mark: 'alien', amount: 1000, rate: 10 },
+    { mark: 'kirin', amount: 5000, rate: 3 },
+    { mark: 'saru', amount: 10000, rate: 1 },
   ],
 };
 
