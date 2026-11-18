@@ -4,7 +4,7 @@ import { assetUrl } from '../assetUrl';
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { EXCHANGE_PACKS, EXCHANGE_RATE, exchangeCoins, SLOT_COIN_NAME, SLOT_SHOP_ITEMS, SlotWallet } from '../core/slot/wallet';
 import { UI_FONT } from '../ui/paint';
-import { SCRATCH_ITEMS, SCRATCH_TABLE, scratchMarkFile, type ScratchKind } from '../core/scratch';
+import { SCRATCH_ITEMS, SCRATCH_TABLE, scratchMarkFile, scratchMarkScale, type ScratchKind } from '../core/scratch';
 import { fillSize, safeInsets } from '../ui/viewport';
 import { COIN_ART_FILE, COIN_ART_KEY } from './slotFx';
 
@@ -283,7 +283,7 @@ export class SlotTitleScene extends Phaser.Scene {
           const key = `scratch:${p.mark}`;
           if (this.textures.exists(key)) {
             const ic = this.add.image(W / 2 + dx, y, key);
-            ic.setScale(48 / Math.max(ic.width, ic.height));
+            ic.setScale((48 * scratchMarkScale(p.mark!)) / Math.max(ic.width, ic.height));
             c.add(ic);
           }
         }

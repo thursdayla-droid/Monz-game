@@ -12,6 +12,9 @@ export type ScratchMark = 'cherry' | 'clover' | 'star' | 'bell' | 'diamond' | 'g
  * EXPスクラッチは ROYAL JACKPOT の 図柄の 絵
  */
 const OWN_MARKS: Partial<Record<ScratchMark, string>> = { bronze: 'bronze', gclover: 'clover', thunder: 'thunder', pstar: 'star', rcrown: 'crown' };
+/** マークの 大きさの 倍率(2026-11-17 企画者「王冠 1番 大当たり だから もう少し 大きく」) */
+export const SCRATCH_MARK_SCALE: Partial<Record<ScratchMark, number>> = { rcrown: 1.3 };
+export const scratchMarkScale = (m: ScratchMark): number => SCRATCH_MARK_SCALE[m] ?? 1;
 export const scratchMarkFile = (m: ScratchMark): string => (OWN_MARKS[m] ? `assets/scratch/mark_${OWN_MARKS[m]}.webp` : `assets/slot/sym_${m}.webp`);
 
 export const SCRATCH_ITEMS: Record<ScratchKind, string> = { coin: 'scratch_coin', exp: 'scratch_exp' };

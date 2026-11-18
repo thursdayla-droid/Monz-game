@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { COIN_ART_FILE, COIN_ART_KEY } from './slotFx';
-import { drawScratch, scratchMarkFile, SCRATCH_ITEMS, SCRATCH_NAMES, SCRATCH_TABLE, type ScratchKind } from '../core/scratch';
+import { drawScratch, scratchMarkFile, scratchMarkScale, SCRATCH_ITEMS, SCRATCH_NAMES, SCRATCH_TABLE, type ScratchKind } from '../core/scratch';
 import { FURNITURE, FURNITURE_ART_READY, FURNITURE_SERIES, furnitureKey, KIND_RULES, MOVE_TICKET, MYSTERY_ITEMS, OTHER_ITEMS, SERIES_LABELS, type FurnitureDef, type FurnitureSeries } from '../core/furniture';
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { drawCoin, drawPanel } from '../ui/homeArt';
@@ -530,7 +530,7 @@ export class ShopScene extends Phaser.Scene {
           const key = `scratch:${p.mark}`;
           if (this.textures.exists(key)) {
             const ic = this.add.image(W / 2 + dx, y, key);
-            ic.setScale(44 / Math.max(ic.width, ic.height));
+            ic.setScale((44 * scratchMarkScale(p.mark!)) / Math.max(ic.width, ic.height));
             box.add(ic);
           }
         }
@@ -585,7 +585,7 @@ export class ShopScene extends Phaser.Scene {
       const key = `scratch:${m}`;
       if (this.textures.exists(key)) {
         const img = this.add.image(x, cy, key);
-        img.setScale((cell - 30) / Math.max(img.width, img.height));
+        img.setScale(Math.min(cell - 8, (cell - 30) * scratchMarkScale(m)) / Math.max(img.width, img.height));
         box.add(img);
       }
       const ck = `scratch:cover:${Date.now()}:${i}`;
