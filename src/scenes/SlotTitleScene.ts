@@ -4,6 +4,7 @@ import { assetUrl } from '../assetUrl';
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { EXCHANGE_PACKS, EXCHANGE_RATE, exchangeCoins, SLOT_COIN_NAME, SLOT_SHOP_ITEMS, SlotWallet } from '../core/slot/wallet';
 import { UI_FONT } from '../ui/paint';
+import { SCRATCH_ITEMS, SCRATCH_TABLE, type ScratchKind } from '../core/scratch';
 import { fillSize, safeInsets } from '../ui/viewport';
 import { COIN_ART_FILE, COIN_ART_KEY } from './slotFx';
 
@@ -43,6 +44,7 @@ export class SlotTitleScene extends Phaser.Scene {
     // 2026-11-12 企画者の タイトル画面の 背景(元は design/slot/title_bg.png)
     if (!this.textures.exists(TITLE_BG_KEY)) this.load.image(TITLE_BG_KEY, assetUrl('assets/slot/title_bg.webp'));
     // ショップの 商品の 絵(2026-11-17 企画者「ゆうきロボは ショップの 家具 みたいに 絵を 出して」)
+    for (const p of [...SCRATCH_TABLE.coin, ...SCRATCH_TABLE.exp]) if (p.mark && !this.textures.exists(`slot:symart:${p.mark}`)) this.load.image(`slot:symart:${p.mark}`, assetUrl(`assets/slot/sym_${p.mark}.webp`));
     for (const it of SLOT_SHOP_ITEMS) if (it.art && !this.textures.exists(`slot:shop:${it.id}`)) this.load.image(`slot:shop:${it.id}`, assetUrl(it.art));
   }
 
@@ -238,22 +240,69 @@ export class SlotTitleScene extends Phaser.Scene {
       }
       if (item.ready) {
         row.setInteractive({ useHandCursor: true });
-        row.on('pointerdown', () => {
-          // 高い 物は 1回 たしかめる(2026-11-17 ゆうきロボ 5,000,000)
-          if (item.price >= 100_000 && item.price <= this.wallet.coins && !window.confirm(`${item.name}を ${item.price.toLocaleString()} ${SLOT_COIN_NAME}で 交換しますか？`)) return;
-          if (this.wallet.buy(item)) {
-            // 家具は お世話の アイテムボックスへ(2026-11-17 ゆうきロボ)
-            if (item.furniture) this.life.receiveItem(item.furniture);
-            audio.se('koBlast');
-            coin.setText(`${SLOT_COIN_NAME} ${this.wallet.coins.toLocaleString()}`);
-            sub.setText(`もっている ${this.wallet.itemCount(item.id)}`);
-          } else {
-            audio.se('tap', { pitch: 0.7 });
-            this.cameras.main.shake(100, 0.003);
-          }
-        });
+        // 2026-11-17 企画者「イメージ画像は 出して。何が 2つ そろったら どの くらい もらえるか」→ 押すと くわしい 画面
+        row.on('pointerdown', () => this.openItem(item));
       }
     });
+  }
+
+  /** 商品の くわしい 画面: 大きな 絵・説明・(スクラッチは)もらえる 物の 表・交換 */
+  private openItem(item: (typeof SLOT_SHOP_ITEMS)[number]): void {
+    const c = this.openPanel(item.name);
+    const H = this.H;
+    const top = H / 2 + 40 - H * 0.36;
+    const back = this.text(100, top + 22, '◀ もどる', 22, '#ffffff', 4).setInteractive({ useHandCursor: true });
+    back.on('pointerdown', () => this.openShop());
+    c.add(back);
+    const kind = (Object.keys(SCRATCH_ITEMS) as ScratchKind[]).find((k) => SCRATCH_ITEMS[k] === item.furniture);
+    const artKey = `slot:shop:${item.id}`;
+    const artH = kind ? 180 : 260;
+    if (this.textures.exists(artKey)) {
+      const img = this.add.image(W / 2, top + 110 + artH / 2, artKey);
+      img.setScale(Math.min(artH / img.height, (W - 200) / img.width));
+      c.add(img);
+    }
+    let y = top + 130 + artH;
+    if (item.text) c.add(this.text(W / 2, y, item.text, 24, '#d8c8e8', 4));
+    y += 46;
+    if (kind) {
+      // 何が 2つ そろったら どの くらい もらえるか(確率は 出さない。企画者「公表しない」)
+      c.add(this.text(W / 2, y, kind === 'coin' ? '2つ そろうと MONZ コイン' : '2つ そろうと 経験値', 22, '#ffd23a', 4));
+      y += 40;
+      for (const p of SCRATCH_TABLE[kind]) {
+        if (!p.mark) continue;
+        for (const dx of [-190, -136]) {
+          const key = `slot:symart:${p.mark}`;
+          if (this.textures.exists(key)) {
+            const ic = this.add.image(W / 2 + dx, y, key);
+            ic.setScale(48 / Math.max(ic.width, ic.height));
+            c.add(ic);
+          }
+        }
+        const amt = this.text(W / 2 + 190, y, `${p.amount.toLocaleString()} ${kind === 'coin' ? 'コイン' : '経験値'}`, 28, '#ffffff', 4).setOrigin(1, 0.5);
+        c.add([this.text(W / 2 - 84, y, '→', 26, '#c8bcd8', 3), amt]);
+        y += 48;
+      }
+      y += 6;
+    }
+    const owned = this.wallet.itemCount(item.id);
+    const info = this.text(W / 2, y + 6, `${SLOT_COIN_NAME} ${this.wallet.coins.toLocaleString()}${owned ? `   もっている ${owned}` : ''}`, 20, '#c8bcd8', 3);
+    c.add(info);
+    const buy = this.button(W / 2, Math.max(y + 70, top + H * 0.72 - 150), `${item.price.toLocaleString()} RC で 交換`, 0xb02ad0, 30, () => {
+      if (item.price >= 100_000 && item.price <= this.wallet.coins && !window.confirm(`${item.name}を ${item.price.toLocaleString()} ${SLOT_COIN_NAME}で 交換しますか？`)) return;
+      if (this.wallet.buy(item)) {
+        // 家具・スクラッチは お世話の アイテムへ
+        if (item.furniture) this.life.receiveItem(item.furniture);
+        audio.se('koBlast');
+        info.setText(`${SLOT_COIN_NAME} ${this.wallet.coins.toLocaleString()}   もっている ${this.wallet.itemCount(item.id)}`);
+        this.cameras.main.flash(200, 255, 230, 120);
+      } else {
+        audio.se('tap', { pitch: 0.7 });
+        this.cameras.main.shake(100, 0.003);
+        info.setText(`${SLOT_COIN_NAME}が たりないよ`);
+      }
+    }, 460, 84);
+    c.add(buy);
   }
 
   /** コイン交換: MONZ コイン → スロットの コイン(もどせない) */
