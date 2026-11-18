@@ -253,7 +253,7 @@ const STORY_REACHES: StoryReach[] = [
     panels: [
       { line: 'バッターボックスへ…！', chara: true },
       { title: 'ピッチャー 投げた！', line: 'うおおっ！', prop: '⚾💨' },
-      { title: '打てるか…！？', line: 'カキーン…！？', prop: '⚾⚡' },
+      { title: '打てるか…！？', line: 'かませるか…？', prop: '⚾⚡' },
     ],
     variants: {
       panel: 0,
