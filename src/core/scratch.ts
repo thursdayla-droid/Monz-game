@@ -9,7 +9,7 @@ export type ScratchKind = 'coin' | 'exp';
 export type ScratchMark = 'cherry' | 'clover' | 'star' | 'bell' | 'diamond' | 'gold7' | 'rainbow7' | 'crown';
 
 export const SCRATCH_ITEMS: Record<ScratchKind, string> = { coin: 'scratch_coin', exp: 'scratch_exp' };
-export const SCRATCH_NAMES: Record<ScratchKind, string> = { coin: 'コインスクラッチ', exp: '経験値スクラッチ' };
+export const SCRATCH_NAMES: Record<ScratchKind, string> = { coin: 'コインスクラッチ', exp: 'EXPスクラッチ' };
 /** ROYAL JACKPOT の ショップの 値段(RC) */
 export const SCRATCH_PRICE = 100_000;
 

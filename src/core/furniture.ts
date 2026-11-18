@@ -172,7 +172,7 @@ export const OTHER_ITEMS: OtherItemDef[] = [
   { id: MOVE_TICKET, name: '引越し券', price: 10000, text: '好きな部屋へ1回引っ越せる' },
   // 2026-11-17 企画者「スクラッチ」: ROYAL JACKPOT の ショップで 1枚 100,000 RC。アイテムから 使って 削る(src/core/scratch.ts)
   { id: 'scratch_coin', name: 'コインスクラッチ', price: 0, text: '3つ けずって 2つ そろえば 当たり', hidden: true },
-  { id: 'scratch_exp', name: '経験値スクラッチ', price: 0, text: '3つ けずって 2つ そろえば 当たり', hidden: true },
+  { id: 'scratch_exp', name: 'EXPスクラッチ', price: 0, text: '3つ けずって 2つ そろえば 当たり', hidden: true },
 ];
 
 /** 買えるもの(家具・その他)の値段。知らない番号なら undefined */

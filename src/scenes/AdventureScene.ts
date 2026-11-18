@@ -457,7 +457,7 @@ export class AdventureScene extends Phaser.Scene {
     const res = this.root!.querySelector('.result') as HTMLElement;
     res.classList.toggle('lose', s.result === 'lose');
     (res.querySelector('h1') as HTMLElement).textContent = s.result === 'clear' ? 'CLEAR' : 'LOSE';
-    (res.querySelector('.prize') as HTMLElement).textContent = `けいけんち +${got.exp}　コイン +${got.coins}`;
+    (res.querySelector('.prize') as HTMLElement).textContent = `EXP +${got.exp}　コイン +${got.coins}`;
     window.setTimeout(() => (res.style.display = 'flex'), 700);
     audio.se(s.result === 'clear' ? 'cheer' : 'back');
   }

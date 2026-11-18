@@ -518,7 +518,7 @@ export class ShopScene extends Phaser.Scene {
     tbl.fillStyle(0xfff6d8, 1).fillRoundedRect(80, ty0 - 34, W - 160, 52 + SCRATCH_TABLE[kind].filter((p) => p.mark).length * 50, 18);
     tbl.lineStyle(4, 0x16101c, 1).strokeRoundedRect(80, ty0 - 34, W - 160, 52 + SCRATCH_TABLE[kind].filter((p) => p.mark).length * 50, 18);
     box.add(tbl);
-    box.add(this.t(W / 2, ty0, kind === 'coin' ? '2つ そろうと MONZ コイン' : '2つ そろうと 経験値', 22, '#8a5a10'));
+    box.add(this.t(W / 2, ty0, kind === 'coin' ? '2つ そろうと MONZ コイン' : '2つ そろうと EXP', 22, '#8a5a10'));
     const rows = new Map<string, Phaser.GameObjects.Text>();
     SCRATCH_TABLE[kind]
       .filter((p) => p.mark)
@@ -533,7 +533,7 @@ export class ShopScene extends Phaser.Scene {
           }
         }
         box.add(this.t(W / 2 - 60, y, '→', 26, '#8a7a60'));
-        const amt = this.t(W / 2 + 180, y, `${p.amount.toLocaleString()} ${kind === 'coin' ? 'コイン' : '経験値'}`, 28, INK, 1, 0.5);
+        const amt = this.t(W / 2 + 180, y, `${p.amount.toLocaleString()} ${kind === 'coin' ? 'コイン' : 'EXP'}`, 28, INK, 1, 0.5);
         box.add(amt);
         rows.set(p.mark!, amt);
       });
@@ -553,7 +553,7 @@ export class ShopScene extends Phaser.Scene {
       const p = res.prize;
       if (p.amount) {
         audio.se('cheer');
-        result.setText(`当たり！！ ${kind === 'coin' ? `MONZ コイン +${p.amount.toLocaleString()}` : `経験値 +${p.amount.toLocaleString()}`}`).setColor('#c0182a');
+        result.setText(`当たり！！ ${kind === 'coin' ? `MONZ コイン +${p.amount.toLocaleString()}` : `EXP +${p.amount.toLocaleString()}`}`).setColor('#c0182a');
         rows.get(p.mark!)?.setColor('#c0182a');
         this.cameras.main.flash(300, 255, 240, 160);
       } else {

@@ -1115,7 +1115,7 @@ export class MythBattleScene extends Phaser.Scene {
         // 10階のボス(ジンシー)を倒したら、特別なカード Mr.CLASH(企画者 2026-10-28)。1枚だけ
         if (m.floor === TOWER_FLOORS && new LifeRecord(loadLife()).mythGetSpecialCard(MR_CLASH)) this.time.delayedCall(900, () => this.showSpecialCard());
         lines.push([`${m.floor}階 クリア！${r?.first ? '（はじめて！）' : ''}`, '#ffd23a']);
-        if (r) lines.push([`コイン +${r.coins.toLocaleString()}　経験値 +${r.exp}`, '#ffffff']);
+        if (r) lines.push([`コイン +${r.coins.toLocaleString()}　EXP +${r.exp}`, '#ffffff']);
         if (m.floor < TOWER_FLOORS) buttons.push(['次の階へ', () => this.leave('MythFloor', { match: { mode: 'tower', floor: m.floor + 1, battle: 0, runId: newTowerRun(m.floor + 1) } })]);
         else lines.push(['タワーの てっぺんに着いた！', '#ffb070']);
         buttons.push(['もどる', toTower]);
@@ -1130,7 +1130,7 @@ export class MythBattleScene extends Phaser.Scene {
         // 次の強さが解放(企画者 2026-11-01)
         const next = r?.first ? CPU_LEVELS.find((lv) => BATTLE_UNLOCK_FROM[lv] === m.level) : undefined;
         if (next) lines.push([`「${CPU_LABELS[next]}」が 解放された！`, '#7dffa0']);
-        if (r) lines.push([`コイン +${r.coins.toLocaleString()}　経験値 +${r.exp}`, '#ffffff']);
+        if (r) lines.push([`コイン +${r.coins.toLocaleString()}　EXP +${r.exp}`, '#ffffff']);
       }
       buttons.push(['もう一度', () => this.scene.restart({ deck, match: m })], ['もどる', () => (m ? this.leave('MythMode', { view: 'cpu' }) : this.leave())]);
     }

@@ -275,7 +275,7 @@ export class SlotTitleScene extends Phaser.Scene {
     y += 46;
     if (kind) {
       // 何が 2つ そろったら どの くらい もらえるか(確率は 出さない。企画者「公表しない」)
-      c.add(this.text(W / 2, y, kind === 'coin' ? '2つ そろうと MONZ コイン' : '2つ そろうと 経験値', 22, '#ffd23a', 4));
+      c.add(this.text(W / 2, y, kind === 'coin' ? '2つ そろうと MONZ コイン' : '2つ そろうと EXP', 22, '#ffd23a', 4));
       y += 40;
       for (const p of SCRATCH_TABLE[kind]) {
         if (!p.mark) continue;
@@ -287,7 +287,7 @@ export class SlotTitleScene extends Phaser.Scene {
             c.add(ic);
           }
         }
-        const amt = this.text(W / 2 + 190, y, `${p.amount.toLocaleString()} ${kind === 'coin' ? 'コイン' : '経験値'}`, 28, '#ffffff', 4).setOrigin(1, 0.5);
+        const amt = this.text(W / 2 + 190, y, `${p.amount.toLocaleString()} ${kind === 'coin' ? 'コイン' : 'EXP'}`, 28, '#ffffff', 4).setOrigin(1, 0.5);
         c.add([this.text(W / 2 - 84, y, '→', 26, '#c8bcd8', 3), amt]);
         y += 48;
       }

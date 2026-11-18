@@ -259,7 +259,7 @@ export class MahjongQuestScene extends Phaser.Scene {
       this.tweens.add({ targets: t, scale: { from: 1.8, to: 1 }, duration: 450, ease: 'Back.easeOut' });
       this.charImg('mjc:hero', W / 2, 390, 250, false);
       this.text(W / 2, 560, `+${this.params.gold ?? 0}G  （もちもの ${this.prog.gold}G）`, 34, '#ffffff', 6);
-      if (this.monzReward) this.text(W / 2, 606, `MONZ に  +${this.monzReward.coins} コイン  +${this.monzReward.exp} けいけんち`, 24, '#ffd23a', 5);
+      if (this.monzReward) this.text(W / 2, 606, `MONZ に  +${this.monzReward.coins} コイン  +${this.monzReward.exp} EXP`, 24, '#ffd23a', 5);
       audio.se('cheer');
       this.button(W / 2 - 200, H - 50, '道具屋へ', '#ff8a3a', () => {
         this.shopSay = 'いらっしゃい。\nいい モン あるぜ。';
@@ -281,7 +281,7 @@ export class MahjongQuestScene extends Phaser.Scene {
       this.text(W / 2, 170, 'GAME OVER', 90, '#9fe0ff', 12);
       this.charImg('mjc:hero', W / 2, 440, 280, false).setTint(0x8888aa);
       this.text(W / 2, 590, `${stageLabel} から やりなおし`, 28, '#ffffff', 6);
-      if (this.monzReward) this.text(W / 2, 630, `MONZ に  +${this.monzReward.exp} けいけんち`, 22, '#ffd23a', 5);
+      if (this.monzReward) this.text(W / 2, 630, `MONZ に  +${this.monzReward.exp} EXP`, 22, '#ffd23a', 5);
       this.button(W / 2 - 170, H - 50, 'もう一度', '#ffd23a', () => this.go('intro'));
       this.button(W / 2 + 170, H - 50, 'タイトルへ', '#ffffff', () => this.go('title'));
     }

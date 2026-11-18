@@ -34,7 +34,7 @@ describe('スクラッチの 交換と 使う', () => {
   it('ROYAL JACKPOT の ショップの 上 2つ・100,000 RC・MONZ の ショップでは 買えない・1枚 使うと へる', () => {
     expect(SLOT_SHOP_ITEMS.slice(0, 2).map((i) => [i.name, i.price, i.furniture])).toEqual([
       ['コインスクラッチ', 100_000, 'scratch_coin'],
-      ['経験値スクラッチ', 100_000, 'scratch_exp'],
+      ['EXPスクラッチ', 100_000, 'scratch_exp'],
     ]);
     const r = new LifeRecord(newLife(1));
     r.add(1_000_000);

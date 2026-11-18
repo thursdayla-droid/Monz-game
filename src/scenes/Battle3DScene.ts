@@ -1310,7 +1310,7 @@ export class Battle3DScene extends Phaser.Scene {
       const rec = new LifeRecord(loadLife());
       const cpu = CPU_LEVELS.find((c) => c.id === this.params.cpu) ?? CPU_LEVELS[1];
       const got = this.params.mode === 'story' ? (this.params.stage ? rec.rumbleWin('story', this.params.stage) : null) : rec.rumbleWin('free', cpu.prof, cpu.id);
-      if (got) prize = `けいけんち +${got.exp}　コイン +${got.coins}${got.first ? '' : '（2回目から）'}`;
+      if (got) prize = `EXP +${got.exp}　コイン +${got.coins}${got.first ? '' : '（2回目から）'}`;
     }
     this.ui.resultPrize.textContent = prize;
     this.ui.resultPrize.style.display = prize ? 'block' : 'none';
