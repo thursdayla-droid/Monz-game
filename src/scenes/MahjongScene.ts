@@ -463,17 +463,25 @@ export class MahjongScene extends Phaser.Scene {
     // 河: 6枚ずつ
     const rw = 32;
     const rh = rw * (172 / 132);
+    // 2026-11-17 企画者「リーチすると 少し 重なってる」→ 横向きの 牌(リーチ)は 高さぶんの はばを とり、同じ 段の あとの 牌を ずらす
+    let rowNo = -1;
+    let rowX = 0;
     p.discards.forEach((d, i) => {
       const row = Math.min(3, Math.floor(i / 6));
-      const col = i - row * 6 + (row === 3 ? 6 * 0 : 0);
-      const x = -3 * rw + rw / 2 + (row === 3 ? i - 18 : col) * rw;
-      const y = (seat % 2 === 0 ? 80 : 104) + row * rh + rh / 2;
+      if (row !== rowNo) {
+        rowNo = row;
+        rowX = -3 * rw;
+      }
+      const tw = d.riichi ? rh : rw;
+      const x = rowX + tw / 2;
+      rowX += tw;
+      const y = (seat % 2 === 0 ? 80 : 104) + row * rh + rh / 2 + (d.riichi ? (rh - rw) / 2 : 0);
       const img = this.tile(x, y, texOf(d.tile), rw, d.riichi ? Math.PI / 2 : 0);
       if (d.called) img.setAlpha(0.35);
       c.add(img);
       // さいごに 捨てた 牌に 印
       if (s.lastTile && s.lastTile.seat === seat && i === p.discards.length - 1 && s.phase !== 'turn') {
-        const m = this.add.rectangle(x, y, rw + 4, rh + 4).setStrokeStyle(3, 0xff4a6a);
+        const m = this.add.rectangle(x, y, (d.riichi ? rh : rw) + 4, (d.riichi ? rw : rh) + 4).setStrokeStyle(3, 0xff4a6a);
         c.add(m);
       }
     });
@@ -823,10 +831,15 @@ export class MahjongScene extends Phaser.Scene {
       const p = this.round.players[w.seat];
       const hand = [...p.hand, ...(w.from === null ? [] : [this.round.lastTile!.tile])];
       hand.forEach((t, i) => panel.add(this.tile(-((hand.length - 1) * 42) / 2 + i * 42, -200, texOf(t), 40)));
+      // 2026-11-17 企画者「上がった 時 表ドラも 見せて」→ ドラ表示(表)・リーチなら 裏ドラ表示も
+      const dora = doraIndicators(this.round);
+      panel.add(this.text(-330, -146, 'ドラ表示', 14, '#ffb03a'));
+      dora.forEach((k, i) => panel.add(this.tile(-272 + i * 28, -146, kindTex(k), 26)));
       if (p.riichi) {
         const ura = uraIndicators(this.round);
-        panel.add(this.text(-330, -146, '裏ドラ表示', 14, '#ffb03a'));
-        ura.forEach((k, i) => panel.add(this.tile(-262 + i * 28, -146, kindTex(k), 26)));
+        const ux = -272 + Math.max(1, dora.length) * 28 + 90;
+        panel.add(this.text(ux - 54, -146, '裏ドラ表示', 14, '#ffb03a'));
+        ura.forEach((k, i) => panel.add(this.tile(ux + 14 + i * 28, -146, kindTex(k), 26)));
       }
     } else {
       title = r.reason === 'kyuushu' ? '九種九牌で 流局' : r.nagashi?.length ? `流し満貫！(${r.nagashi.map((n) => SEAT_NAME[n.seat]).join('・')})` : '流局';
