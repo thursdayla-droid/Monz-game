@@ -127,6 +127,14 @@ export class SlotTitleScene extends Phaser.Scene {
     const back = this.text(86, top + 46, '◀ もどる', 26).setBackgroundColor('#16101ccc').setPadding(16, 8, 16, 10).setDepth(20).setInteractive({ useHandCursor: true });
     back.on('pointerdown', () => (this.panel ? this.closePanel() : this.leave()));
 
+    // 開発用(お世話画面の +1000コイン と 同じく 公開前に 外す): RC を 足す(2026-11-17 企画者「スクラッチ 買って 使って みたい」)
+    if ((import.meta.env as Record<string, string | undefined>).VITE_RELEASE !== '1') {
+      const devRc = this.text(150, top + 110, '+100,000 RC（確認用）', 18, '#16101c').setBackgroundColor('#ffd23a').setPadding(10, 6, 10, 8).setDepth(20).setInteractive({ useHandCursor: true });
+      devRc.on('pointerdown', () => {
+        this.wallet.add(100_000);
+        this.refresh();
+      });
+    }
     // 確認用ページだけ: MONZ コインを 足す(コイン交換を ためす ため)
     if (['Slot', 'SlotTitle'].includes((window as { __MONZ_START?: string }).__MONZ_START ?? '')) {
       const dev = this.text(W - 160, top + 46, '+10,000 MONZ（確認用）', 18, '#16101c').setBackgroundColor('#7de8ff').setPadding(10, 6, 10, 8).setDepth(20).setInteractive({ useHandCursor: true });
@@ -316,7 +324,7 @@ export class SlotTitleScene extends Phaser.Scene {
     c.add(info);
     c.add(this.text(W / 2, y0 + 70, `MONZ コイン 1枚 → ${SLOT_COIN_NAME} ${EXCHANGE_RATE}枚\n${SLOT_COIN_NAME}は MONZ コインに もどせません${this.life.paidCoins > 0 ? '\nお金で 買った MONZ コインは 交換 できません' : ''}`, 20, '#d8c8e8', 3));
     EXCHANGE_PACKS.forEach((m, i) => {
-      const b = this.button(W / 2, y0 + 190 + i * 130, `${m.toLocaleString()} MONZ → ${(m * EXCHANGE_RATE).toLocaleString()}`, 0x2a9df4, 30, () => {
+      const b = this.button(W / 2, y0 + 190 + i * 130, `${m.toLocaleString()} MONZ → ${(m * EXCHANGE_RATE).toLocaleString()} RC`, 0x2a9df4, 30, () => {
         if (exchangeCoins(this.life, this.wallet, m)) {
           audio.se('koBlast');
           show();

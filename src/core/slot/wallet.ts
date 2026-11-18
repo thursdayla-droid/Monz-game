@@ -8,7 +8,8 @@
  */
 
 /** コインの 名前(2026-11-12 企画者「コインの 名前は OK」で 決定) */
-export const SLOT_COIN_NAME = 'ロイヤルコイン';
+// 2026-11-17 企画者「ロイヤルコインは RC で 統一しよう」
+export const SLOT_COIN_NAME = 'RC';
 /** MONZ コイン 1枚で 何枚 買えるか【仮】 */
 export const EXCHANGE_RATE = 1;
 /** コイン交換で えらべる MONZ コインの 枚数【仮】 */
