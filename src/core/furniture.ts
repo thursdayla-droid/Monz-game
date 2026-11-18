@@ -161,6 +161,8 @@ export interface OtherItemDef {
   price: number;
   /** ショップの説明。企画者決定: 引越し券は「好きな部屋へ1回引っ越せる」だけ(4つめの部屋のことは書かない) */
   text: string;
+  /** MONZ コインの ショップには 出さない(ROYAL JACKPOT の ショップで 交換する 物。2026-11-17 スクラッチ) */
+  hidden?: boolean;
 }
 
 export const MOVE_TICKET = 'move_ticket';
@@ -168,6 +170,9 @@ export const MOVE_TICKET = 'move_ticket';
 export const OTHER_ITEMS: OtherItemDef[] = [
   // 【仮】値段 10,000コイン
   { id: MOVE_TICKET, name: '引越し券', price: 10000, text: '好きな部屋へ1回引っ越せる' },
+  // 2026-11-17 企画者「スクラッチ」: ROYAL JACKPOT の ショップで 1枚 100,000 RC。アイテムから 使って 削る(src/core/scratch.ts)
+  { id: 'scratch_coin', name: 'コインスクラッチ', price: 0, text: '3つ けずって 2つ そろえば 当たり', hidden: true },
+  { id: 'scratch_exp', name: '経験値スクラッチ', price: 0, text: '3つ けずって 2つ そろえば 当たり', hidden: true },
 ];
 
 /** 買えるもの(家具・その他)の値段。知らない番号なら undefined */

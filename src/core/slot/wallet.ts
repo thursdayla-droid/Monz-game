@@ -24,13 +24,16 @@ export interface SlotShopItem {
   ready: boolean;
   /** ショップの 説明 */
   text?: string;
-  /** 交換すると お世話の アイテムボックスに 入る 家具 */
+  /** 交換すると お世話の アイテムボックスに 入る 物(家具・スクラッチ) */
   furniture?: string;
   /** ショップに 出す 絵(家具の ショップと 同じく。2026-11-17 企画者) */
   art?: string;
 }
 export const SLOT_SHOP_ITEMS: readonly SlotShopItem[] = [
-  ...[1, 2, 3, 4].map((i) => ({ id: `item${i}`, name: '？？？', price: 0, ready: false })),
+  // 2026-11-17 企画者「スクラッチ」: 上から コインスクラッチ・経験値スクラッチ。1枚 100,000 RC → お世話画面の アイテムに 入る
+  { id: 'item1', name: 'コインスクラッチ', price: 100_000, ready: true, text: 'MONZ コインが 当たる', furniture: 'scratch_coin' },
+  { id: 'item2', name: '経験値スクラッチ', price: 100_000, ready: true, text: '経験値が 当たる', furniture: 'scratch_exp' },
+  ...[3, 4].map((i) => ({ id: `item${i}`, name: '？？？', price: 0, ready: false })),
   // 2026-11-17 企画者「ゆうきロボ」: 5個目(いちばん 下)。5,000,000 ロイヤルコイン → サイバーの 家具。
   // 説明は 企画者「ごはんと おかずを 一緒に 食べれない」→ 2026-11-17「少し 人見知り 克服した。」(かくし 効果は 書かない)
   { id: 'item5', name: 'ゆうきロボ', price: 5_000_000, ready: true, text: '少し人見知り克服した。', furniture: 'cyber_yukirobo', art: 'assets/furniture/cyber_yukirobo.webp' },

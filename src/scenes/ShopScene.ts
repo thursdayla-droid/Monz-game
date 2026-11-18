@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
+import { drawScratch, SCRATCH_ITEMS, SCRATCH_NAMES, SCRATCH_TABLE, type ScratchKind } from '../core/scratch';
 import { FURNITURE, FURNITURE_ART_READY, FURNITURE_SERIES, furnitureKey, KIND_RULES, MOVE_TICKET, MYSTERY_ITEMS, OTHER_ITEMS, SERIES_LABELS, type FurnitureDef, type FurnitureSeries } from '../core/furniture';
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { drawCoin, drawPanel } from '../ui/homeArt';
@@ -13,6 +14,9 @@ import { PACK_PRICE } from '../core/mythclash/packs';
 const W = 720;
 const H = 1280;
 const INK = '#16101c';
+/** スクラッチの 持ち物なら その 種類 */
+const scratchKindOf = (id: string): ScratchKind | undefined => (Object.keys(SCRATCH_ITEMS) as ScratchKind[]).find((k) => SCRATCH_ITEMS[k] === id);
+const SCRATCH_MARKS = [...new Set(Object.values(SCRATCH_TABLE).flatMap((t) => t.map((p) => p.mark).filter((m): m is NonNullable<typeof m> => !!m)))];
 // 家具8種類(2026-10-22 テレビ・植物を追加)が1画面に入る大きさ
 const CARD = { w: 320, h: 206, gap: 14, top: 330 };
 /** 確認の箱に出す絵の高さ */
@@ -66,6 +70,8 @@ export class ShopScene extends Phaser.Scene {
       if (f && !this.textures.exists(furnitureKey(id))) this.load.image(furnitureKey(id), assetUrl(f.file));
     }
     if (this.mode === 'shop' && !this.textures.exists(MYTH_PACK_IMAGE)) this.load.image(MYTH_PACK_IMAGE, assetUrl(MYTH_PACK_FILE));
+    // スクラッチの マーク(ROYAL JACKPOT の 図柄の 絵)
+    for (const m of SCRATCH_MARKS) if (!this.textures.exists(`scratch:${m}`)) this.load.image(`scratch:${m}`, assetUrl(`assets/slot/sym_${m}.webp`));
   }
 
   create(): void {
@@ -184,7 +190,8 @@ export class ShopScene extends Phaser.Scene {
       return;
     }
     // 引越し券など
-    const others = OTHER_ITEMS.filter((o) => this.mode === 'shop' || record.owns(o.id) > 0);
+    // スクラッチ(2026-11-17)は ROYAL JACKPOT の ショップで 交換する ので ここの ショップには 出さない
+    const others = OTHER_ITEMS.filter((o) => (this.mode === 'shop' ? !o.hidden : record.owns(o.id) > 0));
     if (!others.length) {
       list.add(this.t(W / 2, 640, 'まだ ありません\nショップで 買えます', 32, '#ffffff'));
       return;
@@ -199,7 +206,8 @@ export class ShopScene extends Phaser.Scene {
       // 【仮】引越し券の絵がまだないので、券の形をかく
       g.fillStyle(0xffd23a, 1).fillRoundedRect(24, 40, 170, 120, 14);
       g.lineStyle(4, 0x16101c, 1).strokeRoundedRect(24, 40, 170, 120, 14);
-      c.add([g, this.t(109, 100, 'TICKET', 28), this.t(220, 40, o.name, 36, INK, 0, 0), this.t(220, 96, o.text, 24, '#5a4a66', 0, 0)]);
+      const scratch = scratchKindOf(o.id);
+      c.add([g, this.t(109, 100, scratch ? 'SCRATCH' : 'TICKET', 28), this.t(220, 40, o.name, 36, INK, 0, 0), this.t(220, 96, scratch ? 'さわって けずろう' : o.text, 24, '#5a4a66', 0, 0)]);
       if (this.mode === 'shop') {
         c.add(this.priceRow(220, 160, o.price));
         c.add(this.t(W - 90, 176, `持っている：${record.owns(o.id)}`, 22, '#5a4a66', 1, 0.5));
@@ -454,12 +462,96 @@ export class ShopScene extends Phaser.Scene {
   private useOther(id: string): void {
     if (this.busy) return;
     audio.se('tap');
+    const kind = scratchKindOf(id);
+    if (kind) return this.openScratch(kind);
     if (id === MOVE_TICKET) {
       // 引越し先を選ぶ画面へ(引越し券を使うのは、引越し先を決めたとき)
       this.busy = true;
       this.cameras.main.fadeOut(200, 0, 0, 0);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('RoomSelect', { mode: 'move' }));
     }
+  }
+
+  /**
+   * スクラッチを 削る(2026-11-17 企画者「3個 削って 2個 同じ マーク そろったら 当たり」)。
+   * 先に 1枚 使って 結果を 決め、もらう ものも 先に 入れる(とちゅうで 閉じても なくならない)。削るのは 見せ方だけ
+   */
+  private openScratch(kind: ScratchKind): void {
+    const record = this.record;
+    if (!record || !record.useItem(SCRATCH_ITEMS[kind])) return;
+    const res = drawScratch(kind, Math.random);
+    if (res.prize.amount) {
+      if (kind === 'coin') record.add(res.prize.amount);
+      else record.grant({ runId: `scratch:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`, source: 'scratch', coins: 0, exp: res.prize.amount });
+    }
+    this.busy = true;
+    const box = this.add.container(0, 0).setDepth(100);
+    box.add(this.add.rectangle(0, -400, W, H + 800, 0x000000, 0.7).setOrigin(0, 0).setInteractive());
+    const top = H / 2 - 330;
+    const g = this.add.graphics();
+    g.fillGradientStyle(0xffe680, 0xffe680, 0xffb020, 0xffb020, 1).fillRoundedRect(50, top, W - 100, 660, 28);
+    g.lineStyle(8, 0x16101c, 1).strokeRoundedRect(50, top, W - 100, 660, 28);
+    box.add(g);
+    box.add(this.t(W / 2, top + 60, SCRATCH_NAMES[kind], 44, INK));
+    box.add(this.t(W / 2, top + 116, 'さわって 3つ けずろう！\n2つ そろえば 当たり', 24, '#5a3a10'));
+    const cell = 170;
+    let open = 0;
+    const result = this.t(W / 2, top + 470, '', 40, INK);
+    box.add(result);
+    const closeBtn = this.t(W / 2, top + 590, 'とじる', 32, '#ffffff').setBackgroundColor('#16101c').setPadding(40, 12, 40, 14).setVisible(false);
+    closeBtn.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
+      audio.se('back');
+      box.destroy();
+      this.busy = false;
+      this.scene.restart({ mode: this.mode, tab: 'other' });
+    });
+    box.add(closeBtn);
+    const finish = () => {
+      const p = res.prize;
+      if (p.amount) {
+        audio.se('cheer');
+        result.setText(`当たり！！\n${kind === 'coin' ? `MONZ コイン +${p.amount.toLocaleString()}` : `経験値 +${p.amount.toLocaleString()}`}`).setColor('#c0182a');
+        this.cameras.main.flash(300, 255, 240, 160);
+      } else {
+        audio.se('back');
+        result.setText('ハズレ…').setColor('#5a4a66');
+      }
+      result.setScale(1.6);
+      this.tweens.add({ targets: result, scale: 1, duration: 300, ease: 'Back.easeOut' });
+      closeBtn.setVisible(true);
+    };
+    res.marks.forEach((m, i) => {
+      const x = W / 2 + (i - 1) * (cell + 24);
+      const y = top + 300;
+      box.add(this.add.rectangle(x, y, cell, cell, 0xffffff, 1).setStrokeStyle(5, 0x16101c));
+      const key = `scratch:${m}`;
+      if (this.textures.exists(key)) {
+        const img = this.add.image(x, y, key);
+        img.setScale((cell - 30) / Math.max(img.width, img.height));
+        box.add(img);
+      } else box.add(this.t(x, y, m, 24, INK));
+      // 銀の おおい(さわると けずれる)
+      const cover = this.add.rectangle(x, y, cell - 6, cell - 6, 0xb8bcc8, 1).setInteractive({ useHandCursor: true });
+      const label = this.t(x, y, '？', 64, '#7a7e8a');
+      box.add([cover, label]);
+      let left = 1;
+      let done = false;
+      const scratchAt = (amount: number) => {
+        if (done) return;
+        left -= amount;
+        cover.setAlpha(Math.max(0, left));
+        label.setAlpha(Math.max(0, left));
+        if (Math.random() < 0.5) audio.se('tap', { pitch: 1.6 + Math.random() * 0.3 });
+        if (left > 0.25) return;
+        done = true;
+        cover.destroy();
+        label.destroy();
+        audio.se('select');
+        if (++open === 3) this.time.delayedCall(350, finish);
+      };
+      cover.on('pointerdown', () => scratchAt(0.25));
+      cover.on('pointermove', (p: Phaser.Input.Pointer) => p.isDown && scratchAt(0.07));
+    });
   }
 
   private leave(): void {

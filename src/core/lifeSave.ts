@@ -6,7 +6,7 @@
  * 【仮】コインの最初の枚数(0)。コインはレベルが上がったとき・ミニゲームでもらえる(企画者決定)。
  */
 import { ALL_PLACES, SECRET_PLACE, type HomePlace } from './home';
-import { drawPrize, furniture, isFurniture, itemPrice, MOVE_TICKET, MYSTERY_ITEMS, YUKIROBO, YUKIROBO_EXP } from './furniture';
+import { drawPrize, furniture, isFurniture, itemPrice, MOVE_TICKET, MYSTERY_ITEMS, OTHER_ITEMS, YUKIROBO, YUKIROBO_EXP } from './furniture';
 import { catchUp, dayKey, expToNext, levelUpCoins, newNeeds, NEEDS_RULES, stepNeeds, isNight, type Needs } from './needs';
 import type { KeyValueStore } from './save';
 import { isSpecies, RENAMED_SPECIES, type SpeciesId } from './species';
@@ -547,6 +547,7 @@ export class LifeRecord {
     // VIPの家具は、VIPルームを開放してから。当たりの家具はショップでは買えない
     if (furniture(id)?.series === 'vip' && !this.data.vipOpen) return null;
     if (furniture(id)?.prize) return null;
+    if (OTHER_ITEMS.find((o) => o.id === id)?.hidden) return null;
     if (price === undefined || !(n >= 1) || price * n > this.data.coins) return null;
     const inv = this.data.inventory;
     const got = Array.from({ length: n }, () => drawPrize(id, rand()));
@@ -561,6 +562,15 @@ export class LifeRecord {
   receiveItem(id: string): void {
     const inv = this.data.inventory;
     this.update({ inventory: { ...inv, owned: [...inv.owned, id] } });
+  }
+
+  /** 持ち物を 1つ 使う(スクラッチ など。2026-11-17)。持って いなければ false */
+  useItem(id: string): boolean {
+    const inv = this.data.inventory;
+    const i = inv.owned.lastIndexOf(id);
+    if (i < 0 || this.inBox(id) <= 0) return false;
+    this.update({ inventory: { ...inv, owned: inv.owned.filter((_, k) => k !== i) } });
+    return true;
   }
 
   /** ゆうきロボを 部屋に 置いて いるか(かくし 効果) */
