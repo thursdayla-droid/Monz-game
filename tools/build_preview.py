@@ -61,7 +61,7 @@ elif MYTH:
     paths = myth_paths + card_paths
 elif SLOT:
     # 2026-11-10 企画者の 図柄の 絵
-    paths = sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/slot/**/*.webp', recursive=True))
+    paths = sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/slot/**/*.webp', recursive=True) + glob.glob(pub + 'assets/scratch/*.webp') + glob.glob(pub + 'assets/furniture/cyber_yukirobo.webp'))
 elif MJ:
     paths = sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/mahjong/*.webp'))
     # 左右の キャラ(勇者 ZIPP・ボス RIOT・子分 SNEK／GRIT【仮】)
@@ -70,7 +70,7 @@ else:
     paths = ['assets/title/title_v2.webp', 'assets/bunk/reference/bunk_hires_cutout.png', 'assets/bunk/reference/bunk_down_cutout.png']
     for d in ['parts', 'down', 'faces']:
         paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + f'assets/bunk/{d}/*.png'))
-    paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/birth/*.webp') + glob.glob(pub + 'assets/home/*.webp') + glob.glob(pub + 'assets/home/icons/*.webp') + glob.glob(pub + 'assets/home/rooms/*.webp') + glob.glob(pub + 'assets/furniture/*.webp') + glob.glob(pub + 'assets/bunk/poses/*.webp') + glob.glob(pub + 'assets/minigame/*.webp') + glob.glob(pub + 'assets/mofu/*.webp') + glob.glob(pub + 'assets/mofu/parts/*.webp'))
+    paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/birth/*.webp') + glob.glob(pub + 'assets/home/*.webp') + glob.glob(pub + 'assets/home/icons/*.webp') + glob.glob(pub + 'assets/home/rooms/*.webp') + glob.glob(pub + 'assets/furniture/*.webp') + glob.glob(pub + 'assets/bunk/poses/*.webp') + glob.glob(pub + 'assets/minigame/*.webp') + glob.glob(pub + 'assets/mofu/*.webp') + glob.glob(pub + 'assets/mofu/parts/*.webp') + glob.glob(pub + 'assets/scratch/*.webp') + glob.glob(pub + 'assets/slot/sym_*.webp'))
     # 2026-11-15 お世話の 姿の 絵(BUNK 以外)は お世話の ページ(--care)だけ。そのページには ミニゲームの 絵を 入れない
     # (15MB に 入れるため MYTHCLASH の 絵は MYTHCLASH の ページ(--myth)だけに)
     if CARE:
