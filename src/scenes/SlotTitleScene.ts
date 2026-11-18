@@ -240,11 +240,14 @@ export class SlotTitleScene extends Phaser.Scene {
         name.setX(name.x + 84);
         sub.setX(sub.x + 84);
       }
-      // 名前と 説明は 左を そろえて 少し はなす(2026-11-17 企画者「名前と 説明 少し 離して・左側 合わせて 綺麗に」)
-      if (item.ready && item.text) {
-        const left = sub.x;
+      // 名前と 説明(もっている 数)は 左を そろえて 少し はなす(2026-11-17 企画者「名前と 説明 少し 離して・左側 合わせて 綺麗に」「スクラッチの 文字 ずれてる」)
+      if (item.ready) {
+        const left = 84 + (item.art && this.textures.exists(artKey) ? 84 : 0);
         name.setOrigin(0, 0.5).setPosition(left, y - 14);
-        sub.setY(y + 26);
+        sub.setOrigin(0, 0.5).setPosition(left, y + 26);
+        // 名前が 長い 時は 値段に かからない ように 小さく
+        const room = price.x - price.displayWidth / 2 - 16 - left;
+        if (name.displayWidth > room) name.setScale(room / name.displayWidth);
       }
       if (item.ready) {
         row.setInteractive({ useHandCursor: true });
