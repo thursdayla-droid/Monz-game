@@ -225,10 +225,10 @@ export class SlotTitleScene extends Phaser.Scene {
       const artKey = `slot:shop:${item.id}`;
       if (item.ready && item.art && this.textures.exists(artKey)) {
         const img = this.add.image(110, y, artKey);
-        img.setScale(Math.min((step - 26) / img.height, 90 / img.width));
+        img.setScale(Math.min((step - 26) / img.height, 84 / img.width));
         c.add(img);
-        name.setX(name.x + 70);
-        sub.setX(sub.x + 70);
+        name.setX(name.x + 84);
+        sub.setX(sub.x + 84);
       }
       // 名前と 説明は 左を そろえて 少し はなす(2026-11-17 企画者「名前と 説明 少し 離して・左側 合わせて 綺麗に」)
       if (item.ready && item.text) {

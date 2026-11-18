@@ -71,6 +71,8 @@ export class ShopScene extends Phaser.Scene {
     }
     if (this.mode === 'shop' && !this.textures.exists(MYTH_PACK_IMAGE)) this.load.image(MYTH_PACK_IMAGE, assetUrl(MYTH_PACK_FILE));
     // スクラッチの マーク(ROYAL JACKPOT の 図柄の 絵)
+    // スクラッチ券の 絵(2026-11-17 企画者。元は design/scratch/)
+    for (const k of Object.values(SCRATCH_ITEMS)) if (!this.textures.exists(`scratch:art:${k}`)) this.load.image(`scratch:art:${k}`, assetUrl(`assets/scratch/${k}.webp`));
     for (const m of SCRATCH_MARKS) if (!this.textures.exists(`scratch:${m}`)) this.load.image(`scratch:${m}`, assetUrl(`assets/slot/sym_${m}.webp`));
   }
 
@@ -207,7 +209,18 @@ export class ShopScene extends Phaser.Scene {
       g.fillStyle(0xffd23a, 1).fillRoundedRect(24, 40, 170, 120, 14);
       g.lineStyle(4, 0x16101c, 1).strokeRoundedRect(24, 40, 170, 120, 14);
       const scratch = scratchKindOf(o.id);
-      c.add([g, this.t(109, 100, scratch ? 'SCRATCH' : 'TICKET', 28), this.t(220, 40, o.name, 36, INK, 0, 0), this.t(220, 96, scratch ? 'さわって けずろう' : o.text, 24, '#5a4a66', 0, 0)]);
+      const artKey = `scratch:art:${o.id}`;
+      let icon: Phaser.GameObjects.GameObject = this.t(109, 100, scratch ? 'SCRATCH' : 'TICKET', 28);
+      if (scratch && this.textures.exists(artKey)) {
+        // 企画者の 券の 絵(黄色い 券の 形は かくす)
+        g.clear();
+        g.fillStyle(0xfbf1dc, 1).fillRoundedRect(0, 0, W - 60, 220, 20);
+        g.lineStyle(6, 0x16101c, 1).strokeRoundedRect(0, 0, W - 60, 220, 20);
+        const img = this.add.image(109, 110, artKey);
+        img.setScale(Math.min(190 / img.height, 180 / img.width));
+        icon = img;
+      }
+      c.add([g, icon, this.t(220, 40, o.name, 36, INK, 0, 0), this.t(220, 96, scratch ? 'さわって けずろう' : o.text, 24, '#5a4a66', 0, 0)]);
       if (this.mode === 'shop') {
         c.add(this.priceRow(220, 160, o.price));
         c.add(this.t(W - 90, 176, `持っている：${record.owns(o.id)}`, 22, '#5a4a66', 1, 0.5));
