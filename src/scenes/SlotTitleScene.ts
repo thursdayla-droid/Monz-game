@@ -296,8 +296,30 @@ export class SlotTitleScene extends Phaser.Scene {
     const owned = this.wallet.itemCount(item.id);
     const info = this.text(W / 2, y + 6, `${SLOT_COIN_NAME} ${this.wallet.coins.toLocaleString()}${owned ? `   もっている ${owned}` : ''}`, 20, '#c8bcd8', 3);
     c.add(info);
-    const buy = this.button(W / 2, Math.max(y + 70, top + H * 0.72 - 150), `${item.price.toLocaleString()} RC で 交換`, 0xb02ad0, 30, () => {
-      if (item.price >= 100_000 && item.price <= this.wallet.coins && !window.confirm(`${item.name}を ${item.price.toLocaleString()} ${SLOT_COIN_NAME}で 交換しますか？`)) return;
+    // 2026-11-17 企画者「交換 できない」: 確認用ページ(アプリの 中)では window.confirm が 出ずに いつも「いいえ」に なって いた
+    // → ゲームの 中で たしかめる(1回目で「もう一度 押すと 交換」・2回目で 交換)
+    let armed = false;
+    const label = `${item.price.toLocaleString()} RC で 交換`;
+    const buy = this.button(W / 2, Math.max(y + 70, top + H * 0.72 - 150), label, 0xb02ad0, 30, () => {
+      const t = buy.list[2] as Phaser.GameObjects.Text;
+      if (item.price > this.wallet.coins) {
+        audio.se('tap', { pitch: 0.7 });
+        this.cameras.main.shake(100, 0.003);
+        info.setText(`${SLOT_COIN_NAME}が たりないよ`);
+        return;
+      }
+      if (item.price >= 100_000 && !armed) {
+        armed = true;
+        audio.se('select');
+        t.setText('もう一度 押すと 交換');
+        this.time.delayedCall(3000, () => {
+          armed = false;
+          if (t.active) t.setText(label);
+        });
+        return;
+      }
+      armed = false;
+      t.setText(label);
       if (this.wallet.buy(item)) {
         // 家具・スクラッチは お世話の アイテムへ
         if (item.furniture) this.life.receiveItem(item.furniture);
