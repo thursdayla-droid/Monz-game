@@ -4,7 +4,7 @@ import { assetUrl } from '../assetUrl';
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { EXCHANGE_PACKS, EXCHANGE_RATE, exchangeCoins, SLOT_COIN_NAME, SLOT_SHOP_ITEMS, SlotWallet } from '../core/slot/wallet';
 import { UI_FONT } from '../ui/paint';
-import { SCRATCH_ITEMS, SCRATCH_TABLE, type ScratchKind } from '../core/scratch';
+import { SCRATCH_ITEMS, SCRATCH_TABLE, scratchMarkFile, type ScratchKind } from '../core/scratch';
 import { fillSize, safeInsets } from '../ui/viewport';
 import { COIN_ART_FILE, COIN_ART_KEY } from './slotFx';
 
@@ -44,7 +44,7 @@ export class SlotTitleScene extends Phaser.Scene {
     // 2026-11-12 企画者の タイトル画面の 背景(元は design/slot/title_bg.png)
     if (!this.textures.exists(TITLE_BG_KEY)) this.load.image(TITLE_BG_KEY, assetUrl('assets/slot/title_bg.webp'));
     // ショップの 商品の 絵(2026-11-17 企画者「ゆうきロボは ショップの 家具 みたいに 絵を 出して」)
-    for (const p of [...SCRATCH_TABLE.coin, ...SCRATCH_TABLE.exp]) if (p.mark && !this.textures.exists(`slot:symart:${p.mark}`)) this.load.image(`slot:symart:${p.mark}`, assetUrl(`assets/slot/sym_${p.mark}.webp`));
+    for (const p of [...SCRATCH_TABLE.coin, ...SCRATCH_TABLE.exp]) if (p.mark && !this.textures.exists(`scratch:${p.mark}`)) this.load.image(`scratch:${p.mark}`, assetUrl(scratchMarkFile(p.mark)));
     for (const it of SLOT_SHOP_ITEMS) if (it.art && !this.textures.exists(`slot:shop:${it.id}`)) this.load.image(`slot:shop:${it.id}`, assetUrl(it.art));
   }
 
@@ -280,7 +280,7 @@ export class SlotTitleScene extends Phaser.Scene {
       for (const p of SCRATCH_TABLE[kind]) {
         if (!p.mark) continue;
         for (const dx of [-190, -136]) {
-          const key = `slot:symart:${p.mark}`;
+          const key = `scratch:${p.mark}`;
           if (this.textures.exists(key)) {
             const ic = this.add.image(W / 2 + dx, y, key);
             ic.setScale(48 / Math.max(ic.width, ic.height));

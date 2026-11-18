@@ -6,7 +6,13 @@ import type { Rng } from './rng';
  * 【確定】下の 表は 企画者の 数字
  */
 export type ScratchKind = 'coin' | 'exp';
-export type ScratchMark = 'cherry' | 'clover' | 'star' | 'bell' | 'diamond' | 'gold7' | 'rainbow7' | 'crown';
+export type ScratchMark = 'cherry' | 'clover' | 'star' | 'bell' | 'diamond' | 'gold7' | 'rainbow7' | 'crown' | 'bronze' | 'gclover' | 'thunder' | 'pstar' | 'rcrown';
+/**
+ * マークの 絵。コインスクラッチは 企画者の 専用の 絵(2026-11-17「スロットと 一緒に なっちゃう から 絵柄 変える」。元は design/scratch/marks/)、
+ * EXPスクラッチは ROYAL JACKPOT の 図柄の 絵
+ */
+const OWN_MARKS: Partial<Record<ScratchMark, string>> = { bronze: 'bronze', gclover: 'clover', thunder: 'thunder', pstar: 'star', rcrown: 'crown' };
+export const scratchMarkFile = (m: ScratchMark): string => (OWN_MARKS[m] ? `assets/scratch/mark_${OWN_MARKS[m]}.webp` : `assets/slot/sym_${m}.webp`);
 
 export const SCRATCH_ITEMS: Record<ScratchKind, string> = { coin: 'scratch_coin', exp: 'scratch_exp' };
 export const SCRATCH_NAMES: Record<ScratchKind, string> = { coin: 'コインスクラッチ', exp: 'EXPスクラッチ' };
@@ -24,13 +30,14 @@ export interface ScratchPrize {
 
 export const SCRATCH_TABLE: Record<ScratchKind, readonly ScratchPrize[]> = {
   // 10% ハズレ・19% 1,000・20% 2,000・40% 5,000・10% 10,000・1% 50,000(MONZ コイン)
+  // マーク(2026-11-17 企画者「下から ブロンズコイン・グリーンクローバー・ブルーサンダー・パープルスター・(ゴールデンダイヤは 外す)・レインボークラウン」)
   coin: [
     { mark: null, amount: 0, rate: 10 },
-    { mark: 'cherry', amount: 1000, rate: 19 },
-    { mark: 'clover', amount: 2000, rate: 20 },
-    { mark: 'bell', amount: 5000, rate: 40 },
-    { mark: 'diamond', amount: 10000, rate: 10 },
-    { mark: 'gold7', amount: 50000, rate: 1 },
+    { mark: 'bronze', amount: 1000, rate: 19 },
+    { mark: 'gclover', amount: 2000, rate: 20 },
+    { mark: 'thunder', amount: 5000, rate: 40 },
+    { mark: 'pstar', amount: 10000, rate: 10 },
+    { mark: 'rcrown', amount: 50000, rate: 1 },
   ],
   // 10% ハズレ・16% 100・20% 200・40% 500・10% 1,000・3% 5,000・1% 10,000(経験値)
   exp: [

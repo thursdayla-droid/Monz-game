@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { COIN_ART_FILE, COIN_ART_KEY } from './slotFx';
-import { drawScratch, SCRATCH_ITEMS, SCRATCH_NAMES, SCRATCH_TABLE, type ScratchKind } from '../core/scratch';
+import { drawScratch, scratchMarkFile, SCRATCH_ITEMS, SCRATCH_NAMES, SCRATCH_TABLE, type ScratchKind } from '../core/scratch';
 import { FURNITURE, FURNITURE_ART_READY, FURNITURE_SERIES, furnitureKey, KIND_RULES, MOVE_TICKET, MYSTERY_ITEMS, OTHER_ITEMS, SERIES_LABELS, type FurnitureDef, type FurnitureSeries } from '../core/furniture';
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { drawCoin, drawPanel } from '../ui/homeArt';
@@ -75,7 +75,7 @@ export class ShopScene extends Phaser.Scene {
     if (!this.textures.exists(COIN_ART_KEY)) this.load.image(COIN_ART_KEY, assetUrl(COIN_ART_FILE));
     // スクラッチ券の 絵(2026-11-17 企画者。元は design/scratch/)
     for (const k of Object.values(SCRATCH_ITEMS)) if (!this.textures.exists(`scratch:art:${k}`)) this.load.image(`scratch:art:${k}`, assetUrl(`assets/scratch/${k}.webp`));
-    for (const m of SCRATCH_MARKS) if (!this.textures.exists(`scratch:${m}`)) this.load.image(`scratch:${m}`, assetUrl(`assets/slot/sym_${m}.webp`));
+    for (const m of SCRATCH_MARKS) if (!this.textures.exists(`scratch:${m}`)) this.load.image(`scratch:${m}`, assetUrl(scratchMarkFile(m)));
   }
 
   create(): void {
