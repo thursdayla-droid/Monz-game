@@ -123,34 +123,40 @@ export class CardTitleScene extends Phaser.Scene {
     audio.se('tap');
     const box = this.add.container(0, 0).setDepth(20);
     const dim = this.add.rectangle(0, -400, W, H + 800, 0x000000, 0.7).setOrigin(0, 0).setInteractive();
-    canvasTextureOnce(this, 'card:howpanel', 640, 900, (ctx) => drawPanel(ctx, 640, 900, 98));
-    const panel = this.add.image(W / 2, H / 2, 'card:howpanel');
-    const logo = this.textures.exists('cardimg:logo') ? this.add.image(W / 2, H / 2 - 470, 'cardimg:logo').setScale(0.6) : null;
-    const text = [
-      '遊び方',
-      '',
-      '・場札と「同じ数字」か「同じマーク」の',
-      '  カードを、手札からタップして出そう',
-      '・出したら、山札から1枚補充されるよ',
-      `・1枚出すまでの時間は${TURN_SECONDS}秒`,
-      '・時間切れか、出せるカードがなくなったら',
-      '  ゲームオーバー',
-      '・ジョーカーはいつでも出せて、上に何でも出せる',
-      '・手札の5枚でポーカーの役ができると',
-      '  ボーナス！（スリーカードから）',
-      '  ロイヤルストレートフラッシュはジョーカーなし',
-      '・54枚ぜんぶ出しきったらラウンドクリア！',
-      '  次のラウンドに進めるよ',
-      '・上の CARD TRACKER で、まだ出ていない',
-      '  カードがわかるよ（タップで大きく）',
-    ].join('\n');
-    const t = this.add.text(W / 2, H / 2 - 30, text, { fontFamily: UI_FONT, fontSize: '27px', fontStyle: '800', color: INK, lineSpacing: 8 }).setOrigin(0.5);
-    const close = this.add.text(W / 2, H / 2 + 380, '  とじる  ', { fontFamily: UI_FONT, fontSize: '36px', fontStyle: '900', color: INK, backgroundColor: '#ffd23a', padding: { x: 18, y: 8 } }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    // 2026-11-19 企画者「窮屈 だな。もう少し 綺麗に」→ 番号 つきの 項目に 分けて、行の 間を あける
+    const PW = 660;
+    const PH = 1060;
+    canvasTextureOnce(this, 'card:howpanel2', PW, PH, (ctx) => drawPanel(ctx, PW, PH, 98));
+    const top = H / 2 - PH / 2;
+    const panel = this.add.image(W / 2, H / 2, 'card:howpanel2');
+    const logo = this.textures.exists('cardimg:logo') ? this.add.image(W / 2, top + 5, 'cardimg:logo').setScale(0.5) : null;
+    const title = this.add.text(W / 2, top + 150, '遊び方', { fontFamily: UI_FONT, fontSize: '40px', fontStyle: '900', color: INK }).setOrigin(0.5);
+    const items: string[][] = [
+      ['場札と「同じ数字」か「同じマーク」の', 'カードを、手札からタップして出そう'],
+      ['出したら、山札から1枚補充されるよ'],
+      [`1枚出すまでの時間は${TURN_SECONDS}秒`, '時間切れか、出せるカードがなくなったら', 'ゲームオーバー'],
+      ['ジョーカーはいつでも出せて、', '上に何でも出せるよ'],
+      ['手札の5枚でポーカーの役ができると', 'ボーナス！（スリーカードから）', 'ロイヤルストレートフラッシュは', 'ジョーカーなしのときだけ'],
+      ['54枚ぜんぶ出しきったらラウンドクリア！', '次のラウンドに進めるよ'],
+      ['上の CARD TRACKER で、まだ出ていない', 'カードがわかるよ（タップで大きく）'],
+    ];
+    const parts: Phaser.GameObjects.GameObject[] = [];
+    const left = W / 2 - PW / 2 + 56;
+    let y = top + 205;
+    items.forEach((lines, i) => {
+      const g = this.add.graphics();
+      g.fillStyle(0x8a35e0, 1).fillCircle(left + 18, y + 18, 18);
+      const n = this.add.text(left + 18, y + 18, String(i + 1), { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '22px', color: '#ffffff' }).setOrigin(0.5);
+      const t = this.add.text(left + 50, y, lines.join('\n'), { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '800', color: INK, lineSpacing: 6 }).setOrigin(0, 0);
+      parts.push(g, n, t);
+      y += t.height + 22;
+    });
+    const close = this.add.text(W / 2, top + PH - 70, '  とじる  ', { fontFamily: UI_FONT, fontSize: '36px', fontStyle: '900', color: INK, backgroundColor: '#ffd23a', padding: { x: 18, y: 8 } }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     close.on('pointerdown', () => {
       audio.se('back');
       box.destroy();
     });
-    box.add([dim, panel, t, close]);
+    box.add([dim, panel, title, ...parts, close]);
     if (logo) box.add(logo);
   }
 }
