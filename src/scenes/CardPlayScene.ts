@@ -465,14 +465,38 @@ export class CardPlayScene extends Phaser.Scene {
       const room = right - left - v.width - 8;
       if (t.width > room) t.setScale(room / t.width, 1);
     });
-    this.add.text(x0 + pw - 14, top + 4 + rowH * (rows - 1) + rowH / 2, '👑ジョーカー＝好きな カード', { fontFamily: UI_FONT, fontSize: `${Math.round(fs * 0.8)}px`, fontStyle: '700', color: '#bbbbbb' }).setOrigin(1, 0.5);
+    this.add.text(x0 + pw - 14, top + 4 + rowH * (rows - 1) + rowH / 2, 'タップで 役の 例 ▶', { fontFamily: UI_FONT, fontSize: `${Math.round(fs * 0.85)}px`, fontStyle: '900', color: '#7fd8ff' }).setOrigin(1, 0.5);
+    this.add.zone(x0, top, pw, bottom - top).setOrigin(0, 0).setInteractive({ useHandCursor: true }).on('pointerdown', () => this.openHandTable());
   }
 
-  private buildHandTable(): void {
-    const top = HAND.y + CARD_H * HAND.scale / 2 + 18;
-    const bottom = this.scale.height - 14;
+  /** 役の 例の 表を 大きく 出す(短い 画面用)。見ている 間は 時間を 止めて 手札を かくす */
+  private openHandTable(): void {
+    if (this.phase !== 'play') return;
+    this.phase = 'paused';
+    audio.se('select');
+    this.closeBigTracker();
+    this.hand.forEach((h) => h?.setVisible(false));
+    const before = new Set(this.children.list);
+    const dim = this.add.rectangle(0, -400, W, this.scale.height + 800, 0x000000, 0.8).setOrigin(0, 0).setInteractive();
+    const mid = this.scale.height / 2;
+    this.buildHandTable({ top: mid - 240, bottom: mid - 240 + 4 * 110 + 26 });
+    this.add.text(W / 2, mid + 270, 'タップで もどる', { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '900', color: '#ffffff' }).setOrigin(0.5);
+    const box = this.add.container(0, 0).setDepth(50);
+    box.add(this.children.list.filter((o) => o !== box && !before.has(o)));
+    box.sendToBack(dim);
+    dim.on('pointerdown', () => {
+      audio.se('select');
+      box.destroy();
+      this.hand.forEach((h) => h?.setVisible(true));
+      this.phase = 'play';
+    });
+  }
+
+  private buildHandTable(area?: { top: number; bottom: number }): void {
+    const top = area?.top ?? HAND.y + CARD_H * HAND.scale / 2 + 18;
+    const bottom = area?.bottom ?? this.scale.height - 14;
     const avail = bottom - top;
-    // 画面が 短い 時(確認用ページ など)は 例の カード なしの 小さい 表
+    // 画面が 短い 時(確認用ページ など)は 小さい 表。タップで 例の カードの 表を 大きく 出す
     if (avail < 150) {
       this.buildHandTableSmall();
       return;
