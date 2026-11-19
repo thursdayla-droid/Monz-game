@@ -90,7 +90,8 @@ export class CardPlayScene extends Phaser.Scene {
     this.clears = 0;
     this.hand = [];
     this.big = undefined;
-    for (let c = 0; c < DECK_SIZE; c++) canvasTextureOnce(this, cardKey(c), CARD_W, CARD_H, (ctx) => drawCardFace(ctx, c));
+    const jokerImg = this.textures.exists('cardimg:joker') ? (this.textures.get('cardimg:joker').getSourceImage() as HTMLImageElement) : undefined;
+    for (let c = 0; c < DECK_SIZE; c++) canvasTextureOnce(this, cardKey(c), CARD_W, CARD_H, (ctx) => drawCardFace(ctx, c, jokerImg));
     const backImg = this.textures.exists('cardimg:back') ? (this.textures.get('cardimg:back').getSourceImage() as HTMLImageElement) : undefined;
     canvasTextureOnce(this, backImg ? 'card:backimg' : 'card:back', CARD_W, CARD_H, (ctx) => drawCardBack(ctx, backImg));
     this.backKey = backImg ? 'card:backimg' : 'card:back';
@@ -478,6 +479,10 @@ export class CardPlayScene extends Phaser.Scene {
       g.fillStyle(0xfbf3e2, 1).fillRoundedRect(x, y, cw, ch, 5);
       g.lineStyle(2, 0x1a1a1a, 1).strokeRoundedRect(x, y, cw, ch, 5);
       const color = joker ? '#8a35e0' : red ? RED_CARD : '#1a1a1a';
+      if (joker && this.textures.exists('cardimg:joker')) {
+        this.add.image(x + cw / 2, y + ch / 2, 'cardimg:joker').setDisplaySize(cw + 2, ch + 2);
+        return;
+      }
       if (joker) {
         this.add.text(x + cw / 2, y + ch / 2, '👑', { fontFamily: UI_FONT, fontSize: `${Math.round(ch * 0.42)}px` }).setOrigin(0.5);
         return;

@@ -15,6 +15,8 @@ export const CARD_IMAGES = {
   'cardimg:bg': 'card_bg_v2.webp',
   'cardimg:clearMonz': 'card_clear_monz.webp',
   'cardimg:overMonz': 'card_over_monz.webp',
+  // ジョーカー(2026-11-19 企画者の 絵。元は design/minigame/card_joker.png)
+  'cardimg:joker': 'card_joker.webp',
 } as const;
 
 export const CARD_W = 220;
@@ -22,9 +24,14 @@ export const CARD_H = 310;
 const RED = '#e8243c';
 
 /** カードの表(古い紙のような白に、太い黒の輪郭) */
-export function drawCardFace(ctx: CanvasRenderingContext2D, c: CardId): void {
+export function drawCardFace(ctx: CanvasRenderingContext2D, c: CardId, jokerImg?: CanvasImageSource & { width: number; height: number }): void {
   const w = CARD_W;
   const h = CARD_H;
+  if (isJoker(c) && jokerImg) {
+    // ほかの カードと 同じ 大きさに(絵は 少し 細いので 横に 少し のばす)
+    ctx.drawImage(jokerImg, 2, 2, w - 4, h - 4);
+    return;
+  }
   const rng = mulberry32(c + 3);
   roundRectPath(ctx, 6, 6, w - 12, h - 12, 22);
   ctx.fillStyle = '#fbf3e2';
