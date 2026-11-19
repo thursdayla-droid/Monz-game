@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canPlayOn, cardReward, DECK_SIZE, isCleared, isStuck, newRound, placeOf, play, playableSlots, remainingCount, topCard, type Round } from '../src/core/monzCard';
+import { bestHand, canPlayOn, cardReward, checkHand, DECK_SIZE, isCleared, isStuck, newRound, placeOf, play, playableSlots, remainingCount, topCard, type Round } from '../src/core/monzCard';
 
 /** 52枚が必ず1か所ずつにある */
 function checkInvariant(r: Round) {
@@ -17,8 +17,9 @@ describe('MONZ CARD rules', () => {
     const r = newRound(1, 42);
     expect(r.played.length).toBe(0);
     expect(r.hand.length).toBe(5);
-    expect(r.deck.length).toBe(47);
-    expect(remainingCount(r)).toBe(52);
+    // 2026-11-19 ジョーカー 2枚 → 54枚
+    expect(r.deck.length).toBe(49);
+    expect(remainingCount(r)).toBe(54);
     expect(playableSlots(r)).toEqual([0, 1, 2, 3, 4]);
     checkInvariant(r);
   });
@@ -74,5 +75,33 @@ describe('MONZ CARD rules', () => {
     expect(cardReward(51, 1)).toEqual({ coins: 550, exp: 110 });
     expect(cardReward(102, 2).coins).toBe(1000);
     expect(cardReward(200, 5)).toEqual({ coins: 1000, exp: 500 });
+  });
+});
+
+describe('ジョーカーと 場の 役(2026-11-19 企画者)', () => {
+  // 番号: ♠=0〜12 ♥=13〜25 ♦=26〜38 ♣=39〜51(A=0)・ジョーカー 52・53
+  it('ジョーカーは いつでも 出せる・上に 何でも 出せる', () => {
+    expect(canPlayOn(52, 5)).toBe(true);
+    expect(canPlayOn(14, 53)).toBe(true);
+  });
+  it('役の 判定(ジョーカーは 万能)', () => {
+    expect(bestHand([0, 13, 26])?.name).toBe('three');
+    expect(bestHand([0, 13, 52])?.name).toBe('three');
+    expect(bestHand([0, 13, 26, 39])?.name).toBe('four');
+    expect(bestHand([0, 1, 2, 3, 4])?.name).toBe('straightflush');
+    expect(bestHand([0, 9, 10, 11, 12])?.name).toBe('royal');
+    expect(bestHand([0, 9, 10, 11, 53])?.name).toBe('royal');
+    expect(bestHand([0, 14, 2, 3, 4])?.name).toBe('straight');
+    expect(bestHand([0, 2, 4, 6, 8])?.name).toBe('flush');
+    expect(bestHand([0, 13, 26, 1, 14])?.name).toBe('fullhouse');
+    expect(bestHand([0, 1])).toBeNull();
+  });
+  it('同じ カードで 2回 もらわない・強く なったら もらえる', () => {
+    const a = checkHand([0, 13, 26], null)!;
+    expect(a.name).toBe('three');
+    // 関係 ない カード → なし
+    expect(checkHand([0, 13, 26, 5], a)).toBeNull();
+    // 4枚目 → フォーカード
+    expect(checkHand([0, 13, 26, 39], a)?.name).toBe('four');
   });
 });

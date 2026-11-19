@@ -1,4 +1,4 @@
-import { cardRank, cardSuit, isRed, RANK_LABELS, SUIT_MARKS, type CardId } from '../core/monzCard';
+import { cardRank, cardSuit, isJoker, isRed, RANK_LABELS, SUIT_MARKS, type CardId } from '../core/monzCard';
 import { mulberry32, range } from '../core/rng';
 import { COLORS, INK, roundRectPath, speckle, splat, UI_FONT } from './paint';
 
@@ -43,6 +43,23 @@ export function drawCardFace(ctx: CanvasRenderingContext2D, c: CardId): void {
   ctx.lineWidth = 9;
   ctx.strokeStyle = INK;
   ctx.stroke();
+  if (isJoker(c)) {
+    // ジョーカー(2026-11-19 企画者)【仮の 絵】: 王冠と JOKER の 文字
+    ctx.fillStyle = c === 52 ? '#8a35e0' : RED;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `900 40px "Arial Black", Impact, sans-serif`;
+    ctx.save();
+    ctx.translate(30, h / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('JOKER', 0, 0);
+    ctx.restore();
+    ctx.font = `900 120px ${UI_FONT}`;
+    ctx.fillText('👑', w / 2 + 16, h * 0.42);
+    ctx.font = `900 46px "Arial Black", Impact, sans-serif`;
+    ctx.fillText('JOKER', w / 2 + 16, h * 0.78);
+    return;
+  }
   const color = isRed(c) ? RED : INK;
   const label = RANK_LABELS[cardRank(c) - 1];
   const mark = SUIT_MARKS[cardSuit(c)];

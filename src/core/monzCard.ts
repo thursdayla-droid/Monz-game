@@ -15,22 +15,28 @@ export type Suit = (typeof SUITS)[number];
 export const SUIT_MARKS: Record<Suit, string> = { spade: '♠', heart: '♥', diamond: '♦', club: '♣' };
 export const RANK_LABELS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'] as const;
 
-/** カードの番号 0〜51(マーク×13 + 数字-1) */
+/** カードの番号 0〜51(マーク×13 + 数字-1)。52・53 は ジョーカー(2026-11-19 企画者「すぐ 終わって つまらない ので ジョーカー 2枚」) */
 export type CardId = number;
-export const cardSuit = (c: CardId): Suit => SUITS[Math.floor(c / 13)];
+export const JOKERS: readonly CardId[] = [52, 53];
+export const isJoker = (c: CardId): boolean => c >= 52;
+/** ジョーカーは マークなし(spade を 返すが 使わない) */
+export const cardSuit = (c: CardId): Suit => SUITS[Math.min(3, Math.floor(c / 13))];
 /** 1(A)〜13(K) */
 export const cardRank = (c: CardId): number => (c % 13) + 1;
-export const cardLabel = (c: CardId): string => `${SUIT_MARKS[cardSuit(c)]}${RANK_LABELS[c % 13]}`;
-export const isRed = (c: CardId): boolean => cardSuit(c) === 'heart' || cardSuit(c) === 'diamond';
+export const cardLabel = (c: CardId): string => (isJoker(c) ? 'JOKER' : `${SUIT_MARKS[cardSuit(c)]}${RANK_LABELS[c % 13]}`);
+export const isRed = (c: CardId): boolean => !isJoker(c) && (cardSuit(c) === 'heart' || cardSuit(c) === 'diamond');
 
 export const HAND_SIZE = 5;
-export const DECK_SIZE = 52;
+/** 52枚 + ジョーカー 2枚 */
+export const DECK_SIZE = 54;
 /** 1手の制限時間(秒) */
 export const TURN_SECONDS = 10;
 
 /** 場札と同じ数字、または同じマークなら出せる */
 /** top がない(まだ1枚も出していない)ときは、どのカードでも出せる */
-export const canPlayOn = (card: CardId, top: CardId | undefined): boolean => top === undefined || cardRank(card) === cardRank(top) || cardSuit(card) === cardSuit(top);
+/** ジョーカーは いつでも 出せる・ジョーカーの 上には 何でも 出せる(企画者「万能」) */
+export const canPlayOn = (card: CardId, top: CardId | undefined): boolean =>
+  top === undefined || isJoker(card) || isJoker(top) || cardRank(card) === cardRank(top) || cardSuit(card) === cardSuit(top);
 
 export type CardPlace = 'deck' | 'hand' | 'used';
 
@@ -116,4 +122,75 @@ export function cardReward(cards: number, clears: number): { coins: number; exp:
   const coins = clears * R.clearCoins + (enough ? Math.floor(cards / R.cardsPerCoin) * MINIGAME_REWARD_MULT : 0);
   const exp = clears * R.clearExp + (enough ? Math.floor(cards / R.cardsPerExp) * MINIGAME_REWARD_MULT : 0);
   return capReward({ coins, exp });
+}
+
+// ---------------- 場の 役(2026-11-19 企画者「場の カードに 役が ついた 時 報酬」) ----------------
+/**
+ * 直前に 出した 5枚(前の 役の あとに 出した カードだけ)で ポーカーの 役を 見る。ジョーカーは どの カードの かわりにも なる。
+ * スリーカード・フォーカードは 3枚・4枚から。ほかは 5枚 そろったら。
+ * 同じ カードで 2回 もらわない: 前の 役の カードが まだ 5枚の 中に あって、役が 強く なって いない 時は もらえない。
+ * 報酬は 企画者「これで いい」(MONZ コイン)。ロイヤルストレートフラッシュは 特別な アイテム(【未確定】あとで 決める)
+ */
+export type HandName = 'three' | 'straight' | 'flush' | 'fullhouse' | 'four' | 'straightflush' | 'royal';
+export const HAND_INFO: Record<HandName, { label: string; coins: number; rank: number }> = {
+  three: { label: 'スリーカード', coins: 50, rank: 1 },
+  straight: { label: 'ストレート', coins: 100, rank: 2 },
+  flush: { label: 'フラッシュ', coins: 150, rank: 3 },
+  fullhouse: { label: 'フルハウス', coins: 300, rank: 4 },
+  four: { label: 'フォーカード', coins: 500, rank: 5 },
+  straightflush: { label: 'ストレートフラッシュ', coins: 1000, rank: 6 },
+  royal: { label: 'ロイヤルストレートフラッシュ', coins: 3000, rank: 7 },
+};
+export const HAND_WINDOW = 5;
+
+/** ジョーカー なしの 5枚以下で いちばん 強い 役(と 使った カード) */
+function bestPlain(cards: CardId[]): { name: HandName; used: CardId[] } | null {
+  const ranks = cards.map(cardRank);
+  const byRank = new Map<number, CardId[]>();
+  cards.forEach((c, i) => byRank.set(ranks[i], [...(byRank.get(ranks[i]) ?? []), c]));
+  const groups = [...byRank.values()].sort((a, b) => b.length - a.length);
+  if (cards.length === 5) {
+    const flush = cards.every((c) => cardSuit(c) === cardSuit(cards[0]));
+    const set = [...new Set(ranks)].sort((a, b) => a - b);
+    const straight = set.length === 5 && (set[4] - set[0] === 4 || set.join() === '1,10,11,12,13');
+    const royal = straight && set.join() === '1,10,11,12,13';
+    if (straight && flush) return { name: royal ? 'royal' : 'straightflush', used: cards };
+    if (groups[0].length === 4) return { name: 'four', used: groups[0] };
+    if (groups[0].length === 3 && groups[1]?.length === 2) return { name: 'fullhouse', used: cards };
+    if (flush) return { name: 'flush', used: cards };
+    if (straight) return { name: 'straight', used: cards };
+  } else if (groups[0]?.length === 4) return { name: 'four', used: groups[0] };
+  if (groups[0]?.length >= 3) return { name: 'three', used: groups[0].slice(0, 3) };
+  return null;
+}
+
+/** ジョーカー 入りの カードで いちばん 強い 役(ジョーカーは 使った カードに ふくめる) */
+export function bestHand(cards: CardId[]): { name: HandName; used: CardId[] } | null {
+  const jokers = cards.filter(isJoker);
+  const plain = cards.filter((c) => !isJoker(c));
+  if (!jokers.length) return bestPlain(plain);
+  let best: { name: HandName; used: CardId[] } | null = null;
+  const tryWith = (subs: CardId[]) => {
+    const h = bestPlain([...plain, ...subs]);
+    if (h && (!best || HAND_INFO[h.name].rank > HAND_INFO[best.name].rank)) best = { name: h.name, used: [...h.used.filter((c) => plain.includes(c)), ...jokers] };
+  };
+  for (let a = 0; a < 52; a++) {
+    if (jokers.length === 1) tryWith([a]);
+    else for (let b = a; b < 52; b++) tryWith([a, b]);
+  }
+  return best;
+}
+
+export interface HandAward {
+  name: HandName;
+  used: CardId[];
+}
+
+/** 1枚 出した あと: 新しい 役が できたら その 役(もらえない 時は null) */
+export function checkHand(played: CardId[], last: HandAward | null): HandAward | null {
+  const win = played.slice(-HAND_WINDOW);
+  const h = bestHand(win);
+  if (!h || !h.used.includes(played[played.length - 1])) return null;
+  if (last && last.used.every((c) => win.includes(c)) && HAND_INFO[h.name].rank <= HAND_INFO[last.name].rank) return null;
+  return h;
 }

@@ -5,7 +5,11 @@ import { MINIGAME_REWARD_MAX } from '../core/modes';
 import {
   CARD_REWARD,
   cardReward,
+  checkHand,
   DECK_SIZE,
+  HAND_INFO,
+  JOKERS as JOKER_IDS,
+  type HandAward,
   isCleared,
   newRound,
   placeOf,
@@ -203,7 +207,7 @@ export class CardPlayScene extends Phaser.Scene {
     c.add(g);
     const rem = remainingCount(this.r);
     c.add(this.add.text(TRACKER.x + 18, TRACKER.y + 10, 'CARD TRACKER', { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '22px', color: '#ffffff' }));
-    c.add(this.add.text(TRACKER.x + TRACKER.w - 18, TRACKER.y + 8, `残り ${rem} / 52  🔍`, { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '900', color: '#ffd23a' }).setOrigin(1, 0));
+    c.add(this.add.text(TRACKER.x + TRACKER.w - 18, TRACKER.y + 8, `JOKER ${JOKER_IDS.filter((j) => placeOf(this.r, j) !== 'used').length}  残り ${rem} / ${DECK_SIZE}  🔍`, { fontFamily: UI_FONT, fontSize: '22px', fontStyle: '900', color: '#ffd23a' }).setOrigin(1, 0));
     const cell = { w: 40, h: 40, gap: 3 };
     const x0 = TRACKER.x + 92;
     SUITS.forEach((suit, si) => {
@@ -242,7 +246,7 @@ export class CardPlayScene extends Phaser.Scene {
     const draw = () => {
       box.list.slice(2).forEach((o) => o.destroy());
       box.add(this.add.text(48, 268, '残りカード', { fontFamily: UI_FONT, fontSize: '40px', fontStyle: '900', color: '#ffffff' }));
-      box.add(this.add.text(W - 48, 264, `${remainingCount(this.r)} / 52`, { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '44px', color: '#ffd23a' }).setOrigin(1, 0));
+      box.add(this.add.text(W - 48, 264, `${remainingCount(this.r)} / ${DECK_SIZE}`, { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '44px', color: '#ffd23a' }).setOrigin(1, 0));
       SUITS.forEach((suit, si) => {
         const red = suit === 'heart' || suit === 'diamond';
         const y = 350 + si * 140;
@@ -280,6 +284,7 @@ export class CardPlayScene extends Phaser.Scene {
 
   private startRound(n: number): void {
     this.r = newRound(n, newSeed());
+    this.lastHand = null;
     this.phase = 'dealing';
     this.timeLeft = TURN_SECONDS;
     this.roundLabel?.destroy();
@@ -386,6 +391,7 @@ export class CardPlayScene extends Phaser.Scene {
 
   /** 出したあと: 山札から補充して、10秒に戻す */
   private afterPlay(slot: number, _played: CardId): void {
+    this.checkFieldHand();
     const add = this.r.hand[slot];
     this.updateCounts();
     const resume = () => {
@@ -403,6 +409,31 @@ export class CardPlayScene extends Phaser.Scene {
     img.on('pointerdown', () => this.tapHand(slot));
     this.hand[slot] = img;
     this.tweens.add({ targets: img, x: this.handX(slot), y: HAND.y, scale: HAND.scale, duration: 180, ease: 'Cubic.easeOut', onComplete: resume });
+  }
+
+  /** 場の 役(2026-11-19 企画者): 直前の 5枚で 役が できたら その場で MONZ コイン(1回の 上限とは べつ) */
+  private lastHand: HandAward | null = null;
+  private handCount = 0;
+  private checkFieldHand(): void {
+    const h = checkHand(this.r.played, this.lastHand);
+    if (!h) return;
+    this.lastHand = h;
+    const info = HAND_INFO[h.name];
+    this.handCount++;
+    this.record.grant({ runId: `${this.playId}:hand${this.handCount}`, source: 'card', coins: info.coins, exp: 0 });
+    (this.children.getByName('coins') as Phaser.GameObjects.Text | null)?.setText(this.record.coins.toLocaleString());
+    const big = info.rank >= 4;
+    const royal = h.name === 'royal';
+    audio.se(big ? 'cheer' : 'sting');
+    const c = this.add.container(W / 2, FIELD.y - 170).setDepth(30);
+    const label = this.add.text(0, 0, info.label, { fontFamily: UI_FONT, fontSize: royal ? '40px' : '48px', fontStyle: '900', color: '#ffd23a', stroke: INK, strokeThickness: 10 }).setOrigin(0.5);
+    // 特別な アイテム(ロイヤルストレートフラッシュ)は【未確定】企画者「あとで 決める」
+    const sub = this.add.text(0, 52, `+${info.coins.toLocaleString()} コイン${royal ? '\n特別な アイテムは じゅんび中' : ''}`, { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '900', color: '#ffffff', stroke: INK, strokeThickness: 8, align: 'center' }).setOrigin(0.5, 0);
+    c.add([label, sub]);
+    c.setScale(0.3);
+    this.tweens.add({ targets: c, scale: 1, duration: 260, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: c, alpha: 0, y: c.y - 40, delay: big ? 1800 : 1100, duration: 300, onComplete: () => c.destroy() });
+    if (big) this.cameras.main.flash(250, 255, 230, 120);
   }
 
   // ---------------- 一時停止 ----------------
@@ -463,7 +494,7 @@ export class CardPlayScene extends Phaser.Scene {
     const monz = this.textures.exists('cardimg:clearMonz') ? this.add.image(W / 2, 475, 'cardimg:clearMonz').setScale(0.6) : null;
     if (monz) this.tweens.add({ targets: monz, y: monz.y - 18, duration: 420, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     const txt = this.add
-      .text(W / 2, 760, `52枚すべて出しました！\n\nコイン  +${gotC}\nEXP  +${gotE}\n\n今回の累計コイン  ${Math.min(MINIGAME_REWARD_MAX, this.clears * CARD_REWARD.clearCoins)}`, { fontFamily: UI_FONT, fontSize: '32px', fontStyle: '900', color: INK, align: 'center' })
+      .text(W / 2, 760, `${DECK_SIZE}枚すべて出しました！\n\nコイン  +${gotC}\nEXP  +${gotE}\n\n今回の累計コイン  ${Math.min(MINIGAME_REWARD_MAX, this.clears * CARD_REWARD.clearCoins)}`, { fontFamily: UI_FONT, fontSize: '32px', fontStyle: '900', color: INK, align: 'center' })
       .setOrigin(0.5);
     const next = this.add.text(W / 2, 1000, '  次のラウンドへ ▶  ', { fontFamily: UI_FONT, fontSize: '40px', fontStyle: '900', color: INK, backgroundColor: '#ffd23a', padding: { x: 20, y: 12 } }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     box.add([dim, t1, t2, panel, txt, next]);
