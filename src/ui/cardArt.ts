@@ -17,6 +17,8 @@ export const CARD_IMAGES = {
   'cardimg:overMonz': 'card_over_monz.webp',
   // ジョーカー(2026-11-19 企画者の 絵。元は design/minigame/card_joker.png)
   'cardimg:joker': 'card_joker.webp',
+  // ダイヤモンドキャット(ロイヤルの 景品。家具の 絵を 小さく した もの)
+  'cardimg:cat': 'card_diamondcat.webp',
 } as const;
 
 export const CARD_W = 220;

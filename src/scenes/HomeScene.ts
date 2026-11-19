@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { DIAMOND_CAT } from '../core/furniture';
 import { isSpecies, speciesName } from '../core/species';
 import { audio } from '../audio/engine';
 import { BunkBrain } from '../core/bunkBehavior';
@@ -1277,6 +1278,41 @@ export class HomeScene extends Phaser.Scene {
     }
   }
 
+  /** ダイヤモンドキャットから EXP(2026-11-19 企画者「お世話画面の 時に ダイヤモンドから EXP 出そう」) */
+  private catExpFx(amount: number): void {
+    // 画面が 明るく なってから
+    if (this.t < 1.5) {
+      this.time.delayedCall((1.5 - this.t) * 1000, () => this.catExpFx(amount));
+      return;
+    }
+    const at = this.furniture?.topOf(DIAMOND_CAT);
+    if (!at) return;
+    audio.se('happy');
+    const x = at.x;
+    const y = at.y + 30;
+    // キラキラが はじける
+    canvasTextureOnce(this, 'fx:spark', 48, 48, (ctx) => {
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(24, 0);
+      ctx.quadraticCurveTo(27, 21, 48, 24);
+      ctx.quadraticCurveTo(27, 27, 24, 48);
+      ctx.quadraticCurveTo(21, 27, 0, 24);
+      ctx.quadraticCurveTo(21, 21, 24, 0);
+      ctx.fill();
+    });
+    for (let i = 0; i < 14; i++) {
+      const a = (Math.PI * 2 * i) / 14;
+      const s = this.add.image(x, y + 40, 'fx:spark').setDepth(DEPTH.effect).setScale(0.6 + (i % 3) * 0.25).setTint([0xffffff, 0xbff4ff, 0xffd6f5][i % 3]);
+      this.tweens.add({ targets: s, x: x + Math.cos(a) * 110, y: y + 40 + Math.sin(a) * 90, duration: 1100, ease: 'Cubic.easeOut' });
+      this.tweens.add({ targets: s, alpha: 0, angle: 90, delay: 800, duration: 700, onComplete: () => s.destroy() });
+    }
+    // ダイヤから 文字が 上がって くる
+    const t = this.text(x, y + 60, `+${amount.toLocaleString()} EXP`, 40, '#7ff0ff').setScale(0.3);
+    this.tweens.add({ targets: t, scale: 1, y, duration: 450, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: t, y: y - 110, alpha: 0, delay: 2400, duration: 800, onComplete: () => t.destroy() });
+  }
+
   private text(x: number, y: number, s: string, size: number, color: string): Phaser.GameObjects.Text {
     return this.add
       .text(x, y, s, { fontFamily: UI_FONT, fontSize: `${size}px`, fontStyle: '900', color, stroke: '#16101c', strokeThickness: Math.round(size * 0.2), align: 'center' })
@@ -1298,6 +1334,11 @@ export class HomeScene extends Phaser.Scene {
       const save = this.saveTimer > 30;
       if (save) this.saveTimer = 0;
       record.tick(dt, Date.now(), save);
+      // 家具が 出て から(開いた 時に 入った ぶんも ここで 見せる)
+      if (this.furniture) {
+        const catExp = record.takeCatExp();
+        if (catExp > 0) this.catExpFx(catExp);
+      }
       const word = moodWord(record.needs);
       if (this.moodText && this.moodText.text !== word) this.moodText.setText(word);
     }

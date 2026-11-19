@@ -139,7 +139,8 @@ export const HAND_INFO: Record<HandName, { label: string; coins: number; rank: n
   fullhouse: { label: 'フルハウス', coins: 300, rank: 4 },
   four: { label: 'フォーカード', coins: 500, rank: 5 },
   straightflush: { label: 'ストレートフラッシュ', coins: 1000, rank: 6 },
-  royal: { label: 'ロイヤルストレートフラッシュ', coins: 3000, rank: 7 },
+  // ロイヤルは コインなし・ダイヤモンドキャットだけ(2026-11-19 企画者「3000 コイン あげないで 猫の 置物だけ」)
+  royal: { label: 'ロイヤルストレートフラッシュ', coins: 0, rank: 7 },
 };
 export const HAND_WINDOW = 5;
 

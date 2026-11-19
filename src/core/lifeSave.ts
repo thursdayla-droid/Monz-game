@@ -752,7 +752,19 @@ export class LifeRecord {
     if (from === today) return 0;
     const days = from ? daysBetween(from, today) : 0;
     this.update({ catDay: today });
-    return days > 0 ? this.gainExp(DIAMOND_CAT_EXP * days, now, 'other') : 0;
+    if (days <= 0) return 0;
+    const amount = DIAMOND_CAT_EXP * days;
+    this.gainExp(amount, now, 'other');
+    this.catGain += amount;
+    return amount;
+  }
+
+  /** ダイヤモンドキャットから 入った 経験値(画面で 演出する ため。読むと 0 に もどる) */
+  private catGain = 0;
+  takeCatExp(): number {
+    const n = this.catGain;
+    this.catGain = 0;
+    return n;
   }
 
   /** 【テスト用】時間を hours 時間進めたことにする */

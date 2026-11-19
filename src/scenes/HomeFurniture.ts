@@ -78,6 +78,14 @@ function textureFor(scene: Phaser.Scene, id: string): string {
  */
 export class HomeFurniture {
   private items: Placed[] = [];
+
+  /** 置いて ある 家具の 上の はしの 場所(なければ null) */
+  topOf(item: string): { x: number; y: number } | null {
+    const it = this.items.find((p) => p.item === item);
+    if (!it) return null;
+    const b = it.img.getBounds();
+    return { x: b.centerX, y: b.top };
+  }
   editing = false;
   private selected?: Placed;
   private drag?: { dx: number; dy: number; lastX: number; lastY: number };

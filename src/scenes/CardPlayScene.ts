@@ -456,8 +456,13 @@ export class CardPlayScene extends Phaser.Scene {
     audio.se(big ? 'cheer' : 'sting');
     const c = this.add.container(FIELD.x, Math.max(FIELD.y - 170, TRACKER.y + TRACKER.h + 50)).setDepth(30);
     const label = this.add.text(0, 0, info.label, { fontFamily: UI_FONT, fontSize: royal ? '40px' : '48px', fontStyle: '900', color: '#ffd23a', stroke: INK, strokeThickness: 10 }).setOrigin(0.5);
-    const sub = this.add.text(0, 52, `+${info.coins.toLocaleString()} コイン${royal ? '\nダイヤモンドキャット GET！' : ''}`, { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '900', color: '#ffffff', stroke: INK, strokeThickness: 8, align: 'center' }).setOrigin(0.5, 0);
+    const sub = this.add.text(0, 52, royal ? 'ダイヤモンドキャット GET！' : `+${info.coins.toLocaleString()} コイン`, { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '900', color: '#ffffff', stroke: INK, strokeThickness: 8, align: 'center' }).setOrigin(0.5, 0);
     c.add([label, sub]);
+    if (royal && this.textures.exists('cardimg:cat')) {
+      const cat = this.add.image(0, 100, 'cardimg:cat').setOrigin(0.5, 0);
+      cat.setScale(180 / cat.height);
+      c.add(cat);
+    }
     c.setScale(0.3);
     this.tweens.add({ targets: c, scale: 1, duration: 260, ease: 'Back.easeOut' });
     this.tweens.add({ targets: c, alpha: 0, y: c.y - 40, delay: big ? 1800 : 1100, duration: 300, onComplete: () => c.destroy() });
@@ -500,7 +505,12 @@ export class CardPlayScene extends Phaser.Scene {
       const left = x0 + 10;
       const right = x0 + pw - 10;
       const info = HAND_INFO[n];
-      const v = this.add.text(right, y + 2, info.coins.toLocaleString(), { fontFamily: UI_FONT, fontSize: `${fs}px`, fontStyle: '900', color: '#ffd23a' }).setOrigin(1, 0);
+      // ロイヤルは コインの かわりに ダイヤモンドキャットの 絵
+      if (n === 'royal' && this.textures.exists('cardimg:cat')) {
+        const cat = this.add.image(right, y + fs + 6 + ch / 2, 'cardimg:cat').setOrigin(1, 0.5);
+        cat.setScale(44 / cat.height);
+      }
+      const v = this.add.text(right, y + 2, n === 'royal' ? '' : info.coins.toLocaleString(), { fontFamily: UI_FONT, fontSize: `${fs}px`, fontStyle: '900', color: '#ffd23a' }).setOrigin(1, 0);
       const t = this.add.text(left, y + 2, info.label, { fontFamily: UI_FONT, fontSize: `${fs - 1}px`, fontStyle: '700', color: '#ffffff' }).setOrigin(0, 0);
       const room = right - left - v.width - 6;
       if (t.width > room) t.setScale(room / t.width, 1);
