@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { LifeRecord, loadLife } from '../core/lifeSave';
-import { DIAMOND_CAT } from '../core/furniture';
+import { savePending, settlePending } from '../core/cardPending';
 import { MINIGAME_REWARD_MAX } from '../core/modes';
 import {
   CARD_REWARD,
@@ -105,6 +105,8 @@ export class CardPlayScene extends Phaser.Scene {
     this.playId = `card-${Date.now().toString(36)}-${newSeed().toString(36)}`;
     this.cardsPlayed = 0;
     this.handBank = [];
+    // 前の プレイで もらって いない 役が あれば ここで もらう
+    settlePending(this.record);
     this.clears = 0;
     this.hand = [];
     this.big = undefined;
@@ -148,6 +150,8 @@ export class CardPlayScene extends Phaser.Scene {
     };
     document.addEventListener('visibilitychange', this.onHide);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      // ゲームオーバーに ならずに 出た 時も、そろえた 役は もらう
+      settlePending(this.record);
       if (this.onHide) document.removeEventListener('visibilitychange', this.onHide);
     });
   }
@@ -445,6 +449,8 @@ export class CardPlayScene extends Phaser.Scene {
     this.lastHand = h;
     const info = HAND_INFO[h.name];
     this.handBank.push(h.name);
+    // 途中で 閉じても もらえる ように 書いて おく(2026-11-19 企画者)
+    savePending({ playId: this.playId, hands: this.handBank });
     const big = info.rank >= 4;
     const royal = h.name === 'royal';
     audio.se(big ? 'cheer' : 'sting');
@@ -590,7 +596,7 @@ export class CardPlayScene extends Phaser.Scene {
     // 途中で そろった 役の ぶんを まとめて(1回の 上限とは べつ)。ロイヤルストレートフラッシュは ダイヤモンドキャット → お世話画面の アイテム(家具)
     const handCoins = this.handBank.reduce((a, n) => a + HAND_INFO[n].coins, 0);
     const cats = this.handBank.filter((n) => n === 'royal').length;
-    if (handCoins > 0 && this.record.grant({ runId: `${this.playId}:hands`, source: 'card', coins: handCoins, exp: 0 })) for (let i = 0; i < cats; i++) this.record.receiveItem(DIAMOND_CAT);
+    settlePending(this.record);
     const best = this.record.record('card', this.cardsPlayed, this.r.round);
     const total = cardReward(this.cardsPlayed, this.clears);
     audio.se('slam');

@@ -36,12 +36,15 @@ import { MahjongQuestScene } from './scenes/MahjongQuestScene';
 import { SlotScene } from './scenes/SlotScene';
 import { SlotTitleScene } from './scenes/SlotTitleScene';
 import { applyCoinGifts } from './core/coinGift';
+import { settlePendingOnBoot } from './core/cardPending';
 import { fillTall, watchViewport } from './ui/viewport';
 import { installTextureBudget, trimTextures } from './render/texBudget';
 import { addHomeButton, HOME_BUTTON_SCENES } from './ui/homeButton';
 
 // 2026-11-09 企画者「公開してる ゲーム 友達たち やってるんだけど 100,000 コイン 追加できる？」→ 遊んでいる 人に 1回だけ
 applyCoinGifts();
+// MONZ CARD の 途中で 閉じた プレイの 役(2026-11-19 企画者「途中で 閉じても 揃えた やつは あげて」)
+settlePendingOnBoot();
 
 const game = new Phaser.Game({
   // ?canvas を付けるとCanvas描画で動かす(表示がおかしいときの確認用)
