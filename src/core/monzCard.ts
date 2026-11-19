@@ -172,7 +172,9 @@ export function bestHand(cards: CardId[]): { name: HandName; used: CardId[] } | 
   if (!jokers.length) return bestPlain(plain);
   let best: { name: HandName; used: CardId[] } | null = null;
   const tryWith = (subs: CardId[]) => {
-    const h = bestPlain([...plain, ...subs]);
+    const found = bestPlain([...plain, ...subs]);
+    // ロイヤルストレートフラッシュは ジョーカー なしの 時だけ(2026-11-19 企画者)。ジョーカーで できた 時は ストレートフラッシュ
+    const h = found && found.name === 'royal' ? { ...found, name: 'straightflush' as HandName } : found;
     if (h && (!best || HAND_INFO[h.name].rank > HAND_INFO[best.name].rank)) best = { name: h.name, used: [...h.used.filter((c) => plain.includes(c)), ...jokers] };
   };
   for (let a = 0; a < 52; a++) {

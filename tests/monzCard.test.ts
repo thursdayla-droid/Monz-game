@@ -90,7 +90,8 @@ describe('ジョーカーと 場の 役(2026-11-19 企画者)', () => {
     expect(bestHand([0, 13, 26, 39])?.name).toBe('four');
     expect(bestHand([0, 1, 2, 3, 4])?.name).toBe('straightflush');
     expect(bestHand([0, 9, 10, 11, 12])?.name).toBe('royal');
-    expect(bestHand([0, 9, 10, 11, 53])?.name).toBe('royal');
+    // ジョーカーで できた ロイヤルは ストレートフラッシュ(2026-11-19 企画者「ジョーカー 無しじゃ ないと カウント しない」)
+    expect(bestHand([0, 9, 10, 11, 53])?.name).toBe('straightflush');
     expect(bestHand([0, 14, 2, 3, 4])?.name).toBe('straight');
     expect(bestHand([0, 2, 4, 6, 8])?.name).toBe('flush');
     expect(bestHand([0, 13, 26, 1, 14])?.name).toBe('fullhouse');
