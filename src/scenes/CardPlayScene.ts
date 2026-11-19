@@ -117,6 +117,8 @@ export class CardPlayScene extends Phaser.Scene {
     this.bigBar = this.add.graphics().setDepth(2);
     this.scoreText = this.add.text(W / 2, 838, '', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '900', color: '#ffd23a', stroke: INK, strokeThickness: 7 }).setOrigin(0.5);
 
+    // 役と 配当の 表(2026-11-19 企画者「役と 配当は 表示してて 欲しい」)。画面が のびた あとに 手札の 下へ
+    this.time.delayedCall(0, () => this.buildHandTable());
     this.startRound(1);
     audio.playBgm('card');
 
@@ -436,6 +438,40 @@ export class CardPlayScene extends Phaser.Scene {
     this.tweens.add({ targets: c, scale: 1, duration: 260, ease: 'Back.easeOut' });
     this.tweens.add({ targets: c, alpha: 0, y: c.y - 40, delay: big ? 1800 : 1100, duration: 300, onComplete: () => c.destroy() });
     if (big) this.cameras.main.flash(250, 255, 230, 120);
+  }
+
+  private buildHandTable(): void {
+    const top = HAND.y + CARD_H * HAND.scale / 2 + 22;
+    const bottom = this.scale.height - 16;
+    const avail = bottom - top;
+    if (avail < 120) return;
+    const rows = 4;
+    const titleH = 40;
+    const rowH = Math.min(46, (avail - titleH - 16) / rows);
+    const h = titleH + rowH * rows + 14;
+    const x0 = 24;
+    const pw = W - 48;
+    const g = this.add.graphics();
+    g.fillStyle(0x000000, 0.62).fillRoundedRect(x0, top, pw, h, 18);
+    g.lineStyle(3, 0xffd23a, 0.8).strokeRoundedRect(x0, top, pw, h, 18);
+    this.add.text(W / 2, top + 8, 'HAND BONUS', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '900', color: '#ffd23a' }).setOrigin(0.5, 0);
+    const names = Object.keys(HAND_INFO) as (keyof typeof HAND_INFO)[];
+    const colW = pw / 2;
+    const fs = Math.round(Math.min(23, rowH * 0.55));
+    names.forEach((n, i) => {
+      const col = i < rows ? 0 : 1;
+      const row = i % rows;
+      const y = top + titleH + rowH * row + rowH / 2;
+      const left = x0 + col * colW + 18;
+      const right = x0 + (col + 1) * colW - 18;
+      const info = HAND_INFO[n];
+      const v = this.add.text(right, y, info.coins.toLocaleString(), { fontFamily: UI_FONT, fontSize: `${fs}px`, fontStyle: '900', color: '#ffd23a' }).setOrigin(1, 0.5);
+      const t = this.add.text(left, y, info.label, { fontFamily: UI_FONT, fontSize: `${fs}px`, fontStyle: '700', color: '#ffffff' }).setOrigin(0, 0.5);
+      const room = right - left - v.width - 12;
+      if (t.width > room) t.setScale(room / t.width, 1);
+    });
+    // あまった 右下の 1マス: 単位
+    this.add.text(x0 + pw - 18, top + titleH + rowH * (rows - 1) + rowH / 2, 'MONZ コイン', { fontFamily: UI_FONT, fontSize: `${Math.round(fs * 0.85)}px`, fontStyle: '700', color: '#bbbbbb' }).setOrigin(1, 0.5);
   }
 
   // ---------------- 一時停止 ----------------
