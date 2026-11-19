@@ -170,7 +170,8 @@ for p in paths:
         elif len(data) > (60_000 if MYTH else 30_000):
             bb = io.BytesIO()
             # 2026-11-03: MOFU の絵を足して15MBをこえたので、ゲームの確認用ページは quality 34 に
-            Image.open(pub + p).save(bb, 'WEBP', quality=55 if MYTH else 34, method=6)
+            # 2026-11-19: MONZ CARD の ジョーカーの 絵と 役の 表で 15MB を こえたので 32 に
+            Image.open(pub + p).save(bb, 'WEBP', quality=55 if MYTH else 32, method=6)
             data = bb.getvalue()
         assets[p] = 'data:image/webp;base64,' + base64.b64encode(data).decode()
         continue
