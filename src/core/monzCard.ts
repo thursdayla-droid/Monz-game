@@ -126,9 +126,9 @@ export function cardReward(cards: number, clears: number): { coins: number; exp:
 
 // ---------------- 場の 役(2026-11-19 企画者「場の カードに 役が ついた 時 報酬」) ----------------
 /**
- * 直前に 出した 5枚(前の 役の あとに 出した カードだけ)で ポーカーの 役を 見る。ジョーカーは どの カードの かわりにも なる。
- * スリーカード・フォーカードは 3枚・4枚から。ほかは 5枚 そろったら。
- * 同じ カードで 2回 もらわない: 前の 役の カードが まだ 5枚の 中に あって、役が 強く なって いない 時は もらえない。
+ * 手札(出す 前に 表示されて いる 5枚)で ポーカーの 役を 見る(2026-11-19 企画者「出した カードじゃ なくて 出す 前に 表示されてる カード」)。
+ * ジョーカーは どの カードの かわりにも なる。スリーカード・フォーカードは 3枚・4枚から(山札が 少ない 時)。
+ * 同じ カードで 2回 もらわない: 前の 役の カードが まだ 手札に あって、役が 強く なって いない 時は もらえない。
  * 報酬は 企画者「これで いい」(MONZ コイン)。ロイヤルストレートフラッシュは 特別な アイテム(【未確定】あとで 決める)
  */
 export type HandName = 'three' | 'straight' | 'flush' | 'fullhouse' | 'four' | 'straightflush' | 'royal';
@@ -186,11 +186,11 @@ export interface HandAward {
   used: CardId[];
 }
 
-/** 1枚 出した あと: 新しい 役が できたら その 役(もらえない 時は null) */
-export function checkHand(played: CardId[], last: HandAward | null): HandAward | null {
-  const win = played.slice(-HAND_WINDOW);
-  const h = bestHand(win);
-  if (!h || !h.used.includes(played[played.length - 1])) return null;
-  if (last && last.used.every((c) => win.includes(c)) && HAND_INFO[h.name].rank <= HAND_INFO[last.name].rank) return null;
+/** 手札が かわった 時: 新しい 役が できたら その 役(もらえない 時は null) */
+export function checkHand(hand: (CardId | null)[], last: HandAward | null): HandAward | null {
+  const cards = hand.filter((c): c is CardId => c !== null);
+  const h = bestHand(cards);
+  if (!h) return null;
+  if (last && last.used.every((c) => cards.includes(c)) && HAND_INFO[h.name].rank <= HAND_INFO[last.name].rank) return null;
   return h;
 }

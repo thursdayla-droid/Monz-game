@@ -96,12 +96,14 @@ describe('ジョーカーと 場の 役(2026-11-19 企画者)', () => {
     expect(bestHand([0, 13, 26, 1, 14])?.name).toBe('fullhouse');
     expect(bestHand([0, 1])).toBeNull();
   });
-  it('同じ カードで 2回 もらわない・強く なったら もらえる', () => {
-    const a = checkHand([0, 13, 26], null)!;
+  it('手札の 役: 同じ カードで 2回 もらわない・強く なったら もらえる・出したら また もらえる', () => {
+    const a = checkHand([0, 13, 26, 5, 7], null)!;
     expect(a.name).toBe('three');
-    // 関係 ない カード → なし
-    expect(checkHand([0, 13, 26, 5], a)).toBeNull();
-    // 4枚目 → フォーカード
-    expect(checkHand([0, 13, 26, 39], a)?.name).toBe('four');
+    // 関係 ない カードを 出して 補充 → 同じ スリーカード は なし
+    expect(checkHand([0, 13, 26, 9, 7], a)).toBeNull();
+    // 4枚目が 来た → フォーカード
+    expect(checkHand([0, 13, 26, 39, 7], a)?.name).toBe('four');
+    // スリーカードの 1枚を 出して 別の 組が できた → もらえる
+    expect(checkHand([0, 13, 2, 15, 28], a)?.name).toBe('fullhouse');
   });
 });

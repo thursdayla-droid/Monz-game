@@ -310,6 +310,7 @@ export class CardPlayScene extends Phaser.Scene {
       this.phase = 'play';
       this.timeLeft = TURN_SECONDS;
       this.refreshHand();
+      this.checkFieldHand();
     });
   }
 
@@ -391,7 +392,6 @@ export class CardPlayScene extends Phaser.Scene {
 
   /** 出したあと: 山札から補充して、10秒に戻す */
   private afterPlay(slot: number, _played: CardId): void {
-    this.checkFieldHand();
     const add = this.r.hand[slot];
     this.updateCounts();
     const resume = () => {
@@ -400,6 +400,7 @@ export class CardPlayScene extends Phaser.Scene {
       this.timeLeft = TURN_SECONDS;
       this.drawTimer();
       this.refreshHand();
+      this.checkFieldHand();
     };
     if (add === null || add === undefined) {
       resume();
@@ -411,11 +412,12 @@ export class CardPlayScene extends Phaser.Scene {
     this.tweens.add({ targets: img, x: this.handX(slot), y: HAND.y, scale: HAND.scale, duration: 180, ease: 'Cubic.easeOut', onComplete: resume });
   }
 
-  /** 場の 役(2026-11-19 企画者): 直前の 5枚で 役が できたら その場で MONZ コイン(1回の 上限とは べつ) */
+  /** 手札の 役(2026-11-19 企画者「出す 前に 表示されてる カード」): 手札で 役が できたら その場で MONZ コイン(1回の 上限とは べつ) */
   private lastHand: HandAward | null = null;
   private handCount = 0;
   private checkFieldHand(): void {
-    const h = checkHand(this.r.played, this.lastHand);
+    if (this.phase !== 'play') return;
+    const h = checkHand(this.r.hand, this.lastHand);
     if (!h) return;
     this.lastHand = h;
     const info = HAND_INFO[h.name];
