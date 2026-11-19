@@ -442,11 +442,41 @@ export class CardPlayScene extends Phaser.Scene {
     if (big) this.cameras.main.flash(250, 255, 230, 120);
   }
 
+  private buildHandTableSmall(): void {
+    const top = HAND.y + CARD_H * HAND.scale / 2 + 6;
+    const bottom = this.scale.height - 6;
+    const rows = 4;
+    const rowH = (bottom - top - 8) / rows;
+    const x0 = 16;
+    const pw = W - 32;
+    const g = this.add.graphics();
+    g.fillStyle(0x000000, 0.62).fillRoundedRect(x0, top, pw, bottom - top, 14);
+    g.lineStyle(2, 0xffd23a, 0.8).strokeRoundedRect(x0, top, pw, bottom - top, 14);
+    const fs = Math.round(Math.min(20, rowH * 0.72));
+    const colW = pw / 2;
+    const names = Object.keys(HAND_INFO) as (keyof typeof HAND_INFO)[];
+    names.forEach((n, i) => {
+      const col = i < rows ? 0 : 1;
+      const y = top + 4 + rowH * (i % rows) + rowH / 2;
+      const left = x0 + col * colW + 14;
+      const right = x0 + (col + 1) * colW - 14;
+      const v = this.add.text(right, y, HAND_INFO[n].coins.toLocaleString(), { fontFamily: UI_FONT, fontSize: `${fs}px`, fontStyle: '900', color: '#ffd23a' }).setOrigin(1, 0.5);
+      const t = this.add.text(left, y, HAND_INFO[n].label, { fontFamily: UI_FONT, fontSize: `${fs}px`, fontStyle: '700', color: '#ffffff' }).setOrigin(0, 0.5);
+      const room = right - left - v.width - 8;
+      if (t.width > room) t.setScale(room / t.width, 1);
+    });
+    this.add.text(x0 + pw - 14, top + 4 + rowH * (rows - 1) + rowH / 2, '👑ジョーカー＝好きな カード', { fontFamily: UI_FONT, fontSize: `${Math.round(fs * 0.8)}px`, fontStyle: '700', color: '#bbbbbb' }).setOrigin(1, 0.5);
+  }
+
   private buildHandTable(): void {
     const top = HAND.y + CARD_H * HAND.scale / 2 + 18;
     const bottom = this.scale.height - 14;
     const avail = bottom - top;
-    if (avail < 150) return;
+    // 画面が 短い 時(確認用ページ など)は 例の カード なしの 小さい 表
+    if (avail < 150) {
+      this.buildHandTableSmall();
+      return;
+    }
     const rows = 4;
     const cellH = Math.min(110, (avail - 12) / rows);
     const h = cellH * rows + 12;
