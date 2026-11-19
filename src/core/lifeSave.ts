@@ -6,7 +6,7 @@
  * 【仮】コインの最初の枚数(0)。コインはレベルが上がったとき・ミニゲームでもらえる(企画者決定)。
  */
 import { ALL_PLACES, SECRET_PLACE, type HomePlace } from './home';
-import { drawPrize, furniture, isFurniture, itemPrice, MOVE_TICKET, MYSTERY_ITEMS, OTHER_ITEMS, YUKIROBO, YUKIROBO_EXP } from './furniture';
+import { DIAMOND_CAT, DIAMOND_CAT_EXP, drawPrize, furniture, isFurniture, itemPrice, MOVE_TICKET, MYSTERY_ITEMS, OTHER_ITEMS, YUKIROBO, YUKIROBO_EXP } from './furniture';
 import { catchUp, dayKey, expToNext, levelUpCoins, newNeeds, NEEDS_RULES, stepNeeds, isNight, type Needs } from './needs';
 import type { KeyValueStore } from './save';
 import { isSpecies, RENAMED_SPECIES, type SpeciesId } from './species';
@@ -115,6 +115,17 @@ export interface LifeData {
   /** MONZ RUMBLE のストーリーモード: クリアした いちばん先のマス(2026-11-03。古いデータには無い = 0) */
   /** cpuWon: バトルモードで 勝ったことのある CPU の強さ(CPU_LEVELS の id。2026-11-07 ごほうびの 2回目からを 分けるため) */
   rumble?: { cleared: number; cpuWon?: number[] };
+  /** ダイヤモンドキャットを 部屋に 置いて 数え はじめた 日(または 最後に 経験値を 入れた 日)。置いて いない 時は 無い(2026-11-19) */
+  catDay?: string;
+}
+
+/** dayKey どうしの 日数(0時を こえた 回数) */
+function daysBetween(a: string, b: string): number {
+  const d = (k: string) => {
+    const [y, m, dd] = k.split('-').map(Number);
+    return new Date(y, m - 1, dd).getTime();
+  };
+  return Math.round((d(b) - d(a)) / 86_400_000);
 }
 
 function fixRumble(r: { cleared?: unknown; cpuWon?: unknown }): { cleared: number; cpuWon?: number[] } {
@@ -263,6 +274,7 @@ export function migrateLife(raw: unknown, now = Date.now()): LifeData | null {
     records: d.records && typeof d.records === 'object' ? (d.records as Record<string, MinigameRecord>) : {},
     ...(d.mythclash ? { mythclash: fixCollection(d.mythclash) } : {}),
     ...(d.rumble && typeof d.rumble === 'object' ? { rumble: fixRumble(d.rumble as { cleared?: unknown; cpuWon?: unknown }) } : {}),
+    ...(typeof d.catDay === 'string' && /^\d+-\d+-\d+$/.test(d.catDay) ? { catDay: d.catDay } : {}),
   };
 }
 
@@ -721,6 +733,26 @@ export class LifeRecord {
   catchUp(now = Date.now()): void {
     this.update({ lastSeen: now }, { needs: catchUp(this.needs, this.data.lastSeen, now) });
     this.applyNeglect();
+    this.diamondCat(now);
+  }
+
+  /**
+   * ダイヤモンドキャット(2026-11-19 企画者「置いて おくと 1日の 0時に 経験値 1000 が 毎日 入る」)。
+   * 置いた 日は 数え はじめるだけ。0時を こえる たびに +1,000(閉じて いた 間の 日数ぶんも)。しまうと 数え なおし。
+   * 経験値は その時 お世話して いる MONZ に 入る。入った 量を 返す
+   */
+  diamondCat(now = Date.now()): number {
+    const placed = this.data.inventory.placed.some((p) => p.item === DIAMOND_CAT);
+    const today = dayKey(new Date(now));
+    if (!placed) {
+      if (this.data.catDay !== undefined) this.update({ catDay: undefined });
+      return 0;
+    }
+    const from = this.data.catDay;
+    if (from === today) return 0;
+    const days = from ? daysBetween(from, today) : 0;
+    this.update({ catDay: today });
+    return days > 0 ? this.gainExp(DIAMOND_CAT_EXP * days, now, 'other') : 0;
   }
 
   /** 【テスト用】時間を hours 時間進めたことにする */
@@ -733,6 +765,7 @@ export class LifeRecord {
   tick(seconds: number, now = Date.now(), save = false): void {
     this.update({ lastSeen: now }, { needs: stepNeeds(this.needs, seconds, isNight(new Date(now))) }, save);
     this.applyNeglect(save);
+    this.diamondCat(now);
   }
 
   /** お腹・なでるのゲージが 0 のまま続いた時間のぶん、愛をへらす(企画者決定 2026-10-21。0 より下にはならない) */

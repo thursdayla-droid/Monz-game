@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { LifeRecord, loadLife } from '../core/lifeSave';
+import { DIAMOND_CAT } from '../core/furniture';
 import { MINIGAME_REWARD_MAX } from '../core/modes';
 import {
   CARD_REWARD,
@@ -446,11 +447,12 @@ export class CardPlayScene extends Phaser.Scene {
     (this.children.getByName('coins') as Phaser.GameObjects.Text | null)?.setText(this.record.coins.toLocaleString());
     const big = info.rank >= 4;
     const royal = h.name === 'royal';
+    // ロイヤルストレートフラッシュの 景品(2026-11-19 企画者): ダイヤモンドキャット → お世話画面の アイテム(家具)に 入る
+    if (royal) this.record.receiveItem(DIAMOND_CAT);
     audio.se(big ? 'cheer' : 'sting');
     const c = this.add.container(FIELD.x, Math.max(FIELD.y - 170, TRACKER.y + TRACKER.h + 50)).setDepth(30);
     const label = this.add.text(0, 0, info.label, { fontFamily: UI_FONT, fontSize: royal ? '40px' : '48px', fontStyle: '900', color: '#ffd23a', stroke: INK, strokeThickness: 10 }).setOrigin(0.5);
-    // 特別な アイテム(ロイヤルストレートフラッシュ)は【未確定】企画者「あとで 決める」
-    const sub = this.add.text(0, 52, `+${info.coins.toLocaleString()} コイン${royal ? '\n特別な アイテムは じゅんび中' : ''}`, { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '900', color: '#ffffff', stroke: INK, strokeThickness: 8, align: 'center' }).setOrigin(0.5, 0);
+    const sub = this.add.text(0, 52, `+${info.coins.toLocaleString()} コイン${royal ? '\nダイヤモンドキャット GET！' : ''}`, { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '900', color: '#ffffff', stroke: INK, strokeThickness: 8, align: 'center' }).setOrigin(0.5, 0);
     c.add([label, sub]);
     c.setScale(0.3);
     this.tweens.add({ targets: c, scale: 1, duration: 260, ease: 'Back.easeOut' });

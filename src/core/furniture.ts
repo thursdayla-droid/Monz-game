@@ -69,6 +69,10 @@ export interface FurnitureDef {
 export const YUKIROBO = 'cyber_yukirobo';
 /** ゆうきロボを 部屋に 置いた 時の かくし 効果: ごはん・なでる 1回ごとに 足す 経験値 */
 export const YUKIROBO_EXP = 10;
+/** ダイヤモンドキャット(2026-11-19 企画者): MONZ CARD の ロイヤルストレートフラッシュの 景品。ストリートの 家具 */
+export const DIAMOND_CAT = 'street_diamondcat';
+/** 部屋に 置いて おくと 毎日 0時に 入る 経験値 */
+export const DIAMOND_CAT_EXP = 1000;
 
 export const furnitureId = (series: FurnitureSeries, kind: FurnitureKind) => `${series}_${kind}`;
 
@@ -111,6 +115,9 @@ export const FURNITURE: FurnitureDef[] = [
   // 2026-11-17 企画者「ゆうきロボ」: ROYAL JACKPOT の ショップで 5,000,000 ロイヤルコインと 交換 → サイバーの 家具。ショップ(MONZ コイン)には 出さない
   // 部屋に 置くと、ごはん・なでる 1回ごとに 経験値 +10(かくし 効果。YUKIROBO_EXP)
   { id: YUKIROBO, series: 'cyber', kind: 'toy', name: 'ゆうきロボ', price: 0, file: `assets/furniture/${YUKIROBO}.webp`, prize: true },
+  // 2026-11-19 企画者「ダイヤモンドキャット」: MONZ CARD の ロイヤルストレートフラッシュで もらえる → アイテム(家具)に 入る。ストリートの 家具。
+  // 部屋に 置いて おくと 毎日 0時に 経験値 +1,000(DIAMOND_CAT_EXP)。絵は【仮】(企画者の 絵 待ち)
+  { id: DIAMOND_CAT, series: 'street', kind: 'toy', name: 'ダイヤモンドキャット', price: 0, file: `assets/furniture/${DIAMOND_CAT}.webp`, prize: true },
 ];
 
 /** ふくびきの家具を買ったときに当たる家具を選ぶ(r: 0以上1未満の乱数)。ふくびきでなければ、そのまま */
