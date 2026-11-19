@@ -24,6 +24,7 @@ import {
   type Round,
 } from '../core/monzCard';
 import { newSeed } from '../core/rng';
+import { fillSize } from '../ui/viewport';
 import { CARD_H, CARD_W, drawCardBack, drawCardFace, drawCardTable, drawGraffitiText } from '../ui/cardArt';
 import { drawPanel } from '../ui/homeArt';
 import { canvasTextureOnce, UI_FONT } from '../ui/paint';
@@ -41,6 +42,10 @@ const FIELD = { x: 430, y: 610, scale: 0.92 };
 const DECK = { x: 165, y: 600, scale: 0.6 };
 /** 手札5枚 */
 const HAND = { y: 1050, scale: 0.6, gap: 136 };
+/** 画面が 短い 時に 役の 表の 場所を あけるため、場札・手札などを 上へ ずらす 量(create で 決める) */
+let UP = 0;
+const SCORE_Y = 838;
+const BAR_Y = 878;
 const cardKey = (c: CardId) => `card:${c}`;
 
 type Phase = 'dealing' | 'play' | 'moving' | 'paused' | 'over' | 'clear';
@@ -84,6 +89,12 @@ export class CardPlayScene extends Phaser.Scene {
   }
 
   create(): void {
+    // 役の 表(2026-11-19 企画者「常に 表示してて」)の 場所を あける: 画面が 短い 時は 場札・手札を 上へ
+    const tall = Math.max(H, fillSize(this, { w: W, h: H }, { minRatio: 0.4, maxRatio: W / H }).h);
+    UP = Math.round(Math.min(100, Math.max(0, 215 - (tall - 14 - 18 - (1050 + CARD_H * 0.6 / 2)))));
+    FIELD.y = 610 - Math.round(UP * 0.7);
+    DECK.y = 600 - Math.round(UP * 0.7);
+    HAND.y = 1050 - UP;
     this.record = new LifeRecord(loadLife());
     this.playId = `card-${Date.now().toString(36)}-${newSeed().toString(36)}`;
     this.cardsPlayed = 0;
@@ -117,7 +128,7 @@ export class CardPlayScene extends Phaser.Scene {
     this.deckLabel = this.add.text(DECK.x, DECK.y + 120, '', { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '900', color: '#ffffff', stroke: INK, strokeThickness: 7 }).setOrigin(0.5, 0);
     // 大きなタイマーのゲージ(手札のすぐ上)。緑 → 黄 → 赤
     this.bigBar = this.add.graphics().setDepth(2);
-    this.scoreText = this.add.text(W / 2, 838, '', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '900', color: '#ffd23a', stroke: INK, strokeThickness: 7 }).setOrigin(0.5);
+    this.scoreText = this.add.text(W / 2, SCORE_Y - UP, '', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '900', color: '#ffd23a', stroke: INK, strokeThickness: 7 }).setOrigin(0.5);
 
     // 役と 配当の 表(2026-11-19 企画者「役と 配当は 表示してて 欲しい」)。画面が のびた あとに 手札の 下へ
     this.time.delayedCall(0, () => this.buildHandTable());
@@ -186,7 +197,7 @@ export class CardPlayScene extends Phaser.Scene {
       const k = t / TURN_SECONDS;
       const color = k > 0.5 ? 0x4fd65a : k > 0.3 ? 0xffd23a : 0xff4f5e;
       const bx = 40;
-      const by = 878;
+      const by = BAR_Y - UP;
       const bw = W - 80;
       bb.clear();
       bb.fillStyle(0x16101c, 0.95).fillRoundedRect(bx - 6, by - 6, bw + 12, 40, 20);
@@ -431,7 +442,7 @@ export class CardPlayScene extends Phaser.Scene {
     const big = info.rank >= 4;
     const royal = h.name === 'royal';
     audio.se(big ? 'cheer' : 'sting');
-    const c = this.add.container(W / 2, FIELD.y - 170).setDepth(30);
+    const c = this.add.container(W / 2, Math.max(FIELD.y - 170, TRACKER.y + TRACKER.h + 50)).setDepth(30);
     const label = this.add.text(0, 0, info.label, { fontFamily: UI_FONT, fontSize: royal ? '40px' : '48px', fontStyle: '900', color: '#ffd23a', stroke: INK, strokeThickness: 10 }).setOrigin(0.5);
     // 特別な アイテム(ロイヤルストレートフラッシュ)は【未確定】企画者「あとで 決める」
     const sub = this.add.text(0, 52, `+${info.coins.toLocaleString()} コイン${royal ? '\n特別な アイテムは じゅんび中' : ''}`, { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '900', color: '#ffffff', stroke: INK, strokeThickness: 8, align: 'center' }).setOrigin(0.5, 0);
@@ -465,38 +476,14 @@ export class CardPlayScene extends Phaser.Scene {
       const room = right - left - v.width - 8;
       if (t.width > room) t.setScale(room / t.width, 1);
     });
-    this.add.text(x0 + pw - 14, top + 4 + rowH * (rows - 1) + rowH / 2, 'タップで 役の 例 ▶', { fontFamily: UI_FONT, fontSize: `${Math.round(fs * 0.85)}px`, fontStyle: '900', color: '#7fd8ff' }).setOrigin(1, 0.5);
-    this.add.zone(x0, top, pw, bottom - top).setOrigin(0, 0).setInteractive({ useHandCursor: true }).on('pointerdown', () => this.openHandTable());
+    this.add.text(x0 + pw - 14, top + 4 + rowH * (rows - 1) + rowH / 2, '👑ジョーカー＝好きな カード', { fontFamily: UI_FONT, fontSize: `${Math.round(fs * 0.8)}px`, fontStyle: '700', color: '#bbbbbb' }).setOrigin(1, 0.5);
   }
 
-  /** 役の 例の 表を 大きく 出す(短い 画面用)。見ている 間は 時間を 止めて 手札を かくす */
-  private openHandTable(): void {
-    if (this.phase !== 'play') return;
-    this.phase = 'paused';
-    audio.se('select');
-    this.closeBigTracker();
-    this.hand.forEach((h) => h?.setVisible(false));
-    const before = new Set(this.children.list);
-    const dim = this.add.rectangle(0, -400, W, this.scale.height + 800, 0x000000, 0.8).setOrigin(0, 0).setInteractive();
-    const mid = this.scale.height / 2;
-    this.buildHandTable({ top: mid - 240, bottom: mid - 240 + 4 * 110 + 26 });
-    this.add.text(W / 2, mid + 270, 'タップで もどる', { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '900', color: '#ffffff' }).setOrigin(0.5);
-    const box = this.add.container(0, 0).setDepth(50);
-    box.add(this.children.list.filter((o) => o !== box && !before.has(o)));
-    box.sendToBack(dim);
-    dim.on('pointerdown', () => {
-      audio.se('select');
-      box.destroy();
-      this.hand.forEach((h) => h?.setVisible(true));
-      this.phase = 'play';
-    });
-  }
-
-  private buildHandTable(area?: { top: number; bottom: number }): void {
-    const top = area?.top ?? HAND.y + CARD_H * HAND.scale / 2 + 18;
-    const bottom = area?.bottom ?? this.scale.height - 14;
+  private buildHandTable(): void {
+    const top = HAND.y + CARD_H * HAND.scale / 2 + 18;
+    const bottom = this.scale.height - 14;
     const avail = bottom - top;
-    // 画面が 短い 時(確認用ページ など)は 小さい 表。タップで 例の カードの 表を 大きく 出す
+    // 場所が たりない 時(ふつうは ない)は カード なしの 小さい 表
     if (avail < 150) {
       this.buildHandTableSmall();
       return;
@@ -515,7 +502,7 @@ export class CardPlayScene extends Phaser.Scene {
     const fs = inline ? Math.round(Math.min(17, cellH * 0.3)) : Math.round(Math.min(22, cellH * 0.3));
     const ch = inline ? Math.min(46, cellH - 8) : Math.min(56, cellH - fs - 18);
     const cw = Math.round(ch * 0.72);
-    // 例の カード(【仮】企画者「例みたいな 仮の カード 表示」)。S=♠ H=♥ D=♦ C=♣ ・ J=ジョーカー
+    // 役の カード(【仮】企画者「例みたいな 仮の カード 表示」)。S=♠ H=♥ D=♦ C=♣ ・ J=ジョーカー
     const EX: Record<keyof typeof HAND_INFO, string[]> = {
       three: ['7S', '7H', '7D'],
       straight: ['5C', '6D', '7S', '8H', '9C'],
