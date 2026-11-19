@@ -38,12 +38,16 @@ const INK = '#16101c';
 /** CARD TRACKER(小): 画面の上の帯 */
 const TRACKER = { x: 20, y: 150, w: 680, h: 236 };
 /** 場札・山札 */
-const FIELD = { x: 430, y: 610, scale: 0.92 };
-const DECK = { x: 165, y: 600, scale: 0.6 };
+// 2026-11-19 企画者「真ん中に 山札・出す カード・役の 表」→ 山札と 場札を 左へ、右に 役の 表
+const FIELD = { x: 330, y: 610, scale: 0.92 };
+const DECK = { x: 108, y: 600, scale: 0.6 };
+/** 役の 表(真ん中の 右) */
+const TABLE = { x: 452, w: 256, rowH: 56 };
 /** 手札5枚 */
 const HAND = { y: 1050, scale: 0.6, gap: 136 };
-/** 画面が 短い 時に 役の 表の 場所を あけるため、場札・手札などを 上へ ずらす 量(create で 決める) */
-let UP = 0;
+/** 画面が 長い 時に 手札を 下へ(いちばん 下)・真ん中を 少し 下へ ずらす 量(create で 決める) */
+let DOWN = 0;
+let MID = 0;
 const SCORE_Y = 838;
 const BAR_Y = 878;
 const cardKey = (c: CardId) => `card:${c}`;
@@ -89,12 +93,13 @@ export class CardPlayScene extends Phaser.Scene {
   }
 
   create(): void {
-    // 役の 表(2026-11-19 企画者「常に 表示してて」)の 場所を あける: 画面が 短い 時は 場札・手札を 上へ
+    // 手札は いちばん 下(2026-11-19 企画者)。画面が 長い 時は 手札を 下へ・真ん中は その 半分 下へ
     const tall = Math.max(H, fillSize(this, { w: W, h: H }, { minRatio: 0.4, maxRatio: W / H }).h);
-    UP = Math.round(Math.min(100, Math.max(0, 215 - (tall - 14 - 18 - (1050 + CARD_H * 0.6 / 2)))));
-    FIELD.y = 610 - Math.round(UP * 0.7);
-    DECK.y = 600 - Math.round(UP * 0.7);
-    HAND.y = 1050 - UP;
+    DOWN = Math.round(Math.max(0, tall - H - 30));
+    MID = Math.round(DOWN * 0.5);
+    FIELD.y = 610 + MID;
+    DECK.y = 600 + MID;
+    HAND.y = 1050 + DOWN;
     this.record = new LifeRecord(loadLife());
     this.playId = `card-${Date.now().toString(36)}-${newSeed().toString(36)}`;
     this.cardsPlayed = 0;
@@ -128,10 +133,10 @@ export class CardPlayScene extends Phaser.Scene {
     this.deckLabel = this.add.text(DECK.x, DECK.y + 120, '', { fontFamily: UI_FONT, fontSize: '28px', fontStyle: '900', color: '#ffffff', stroke: INK, strokeThickness: 7 }).setOrigin(0.5, 0);
     // 大きなタイマーのゲージ(手札のすぐ上)。緑 → 黄 → 赤
     this.bigBar = this.add.graphics().setDepth(2);
-    this.scoreText = this.add.text(W / 2, SCORE_Y - UP, '', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '900', color: '#ffd23a', stroke: INK, strokeThickness: 7 }).setOrigin(0.5);
+    this.scoreText = this.add.text((DECK.x + FIELD.x) / 2 + 20, SCORE_Y + MID + 6, '', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '900', color: '#ffd23a', stroke: INK, strokeThickness: 7 }).setOrigin(0.5);
 
     // 役と 配当の 表(2026-11-19 企画者「役と 配当は 表示してて 欲しい」)。画面が のびた あとに 手札の 下へ
-    this.time.delayedCall(0, () => this.buildHandTable());
+    this.buildHandTable();
     this.startRound(1);
     audio.playBgm('card');
 
@@ -197,7 +202,7 @@ export class CardPlayScene extends Phaser.Scene {
       const k = t / TURN_SECONDS;
       const color = k > 0.5 ? 0x4fd65a : k > 0.3 ? 0xffd23a : 0xff4f5e;
       const bx = 40;
-      const by = BAR_Y - UP;
+      const by = BAR_Y + DOWN;
       const bw = W - 80;
       bb.clear();
       bb.fillStyle(0x16101c, 0.95).fillRoundedRect(bx - 6, by - 6, bw + 12, 40, 20);
@@ -442,7 +447,7 @@ export class CardPlayScene extends Phaser.Scene {
     const big = info.rank >= 4;
     const royal = h.name === 'royal';
     audio.se(big ? 'cheer' : 'sting');
-    const c = this.add.container(W / 2, Math.max(FIELD.y - 170, TRACKER.y + TRACKER.h + 50)).setDepth(30);
+    const c = this.add.container(FIELD.x, Math.max(FIELD.y - 170, TRACKER.y + TRACKER.h + 50)).setDepth(30);
     const label = this.add.text(0, 0, info.label, { fontFamily: UI_FONT, fontSize: royal ? '40px' : '48px', fontStyle: '900', color: '#ffd23a', stroke: INK, strokeThickness: 10 }).setOrigin(0.5);
     // 特別な アイテム(ロイヤルストレートフラッシュ)は【未確定】企画者「あとで 決める」
     const sub = this.add.text(0, 52, `+${info.coins.toLocaleString()} コイン${royal ? '\n特別な アイテムは じゅんび中' : ''}`, { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '900', color: '#ffffff', stroke: INK, strokeThickness: 8, align: 'center' }).setOrigin(0.5, 0);
@@ -453,56 +458,8 @@ export class CardPlayScene extends Phaser.Scene {
     if (big) this.cameras.main.flash(250, 255, 230, 120);
   }
 
-  private buildHandTableSmall(): void {
-    const top = HAND.y + CARD_H * HAND.scale / 2 + 6;
-    const bottom = this.scale.height - 6;
-    const rows = 4;
-    const rowH = (bottom - top - 8) / rows;
-    const x0 = 16;
-    const pw = W - 32;
-    const g = this.add.graphics();
-    g.fillStyle(0x000000, 0.62).fillRoundedRect(x0, top, pw, bottom - top, 14);
-    g.lineStyle(2, 0xffd23a, 0.8).strokeRoundedRect(x0, top, pw, bottom - top, 14);
-    const fs = Math.round(Math.min(20, rowH * 0.72));
-    const colW = pw / 2;
-    const names = Object.keys(HAND_INFO) as (keyof typeof HAND_INFO)[];
-    names.forEach((n, i) => {
-      const col = i < rows ? 0 : 1;
-      const y = top + 4 + rowH * (i % rows) + rowH / 2;
-      const left = x0 + col * colW + 14;
-      const right = x0 + (col + 1) * colW - 14;
-      const v = this.add.text(right, y, HAND_INFO[n].coins.toLocaleString(), { fontFamily: UI_FONT, fontSize: `${fs}px`, fontStyle: '900', color: '#ffd23a' }).setOrigin(1, 0.5);
-      const t = this.add.text(left, y, HAND_INFO[n].label, { fontFamily: UI_FONT, fontSize: `${fs}px`, fontStyle: '700', color: '#ffffff' }).setOrigin(0, 0.5);
-      const room = right - left - v.width - 8;
-      if (t.width > room) t.setScale(room / t.width, 1);
-    });
-    this.add.text(x0 + pw - 14, top + 4 + rowH * (rows - 1) + rowH / 2, '👑ジョーカー＝好きな カード', { fontFamily: UI_FONT, fontSize: `${Math.round(fs * 0.8)}px`, fontStyle: '700', color: '#bbbbbb' }).setOrigin(1, 0.5);
-  }
-
+  /** 役と 配当の 表(2026-11-19 企画者「1列で 上が ロイヤルストレートフラッシュ」「あくまで 補助」)。カードは【仮】 */
   private buildHandTable(): void {
-    const top = HAND.y + CARD_H * HAND.scale / 2 + 18;
-    const bottom = this.scale.height - 14;
-    const avail = bottom - top;
-    // 場所が たりない 時(ふつうは ない)は カード なしの 小さい 表
-    if (avail < 150) {
-      this.buildHandTableSmall();
-      return;
-    }
-    const rows = 4;
-    const cellH = Math.min(110, (avail - 12) / rows);
-    const h = cellH * rows + 12;
-    const x0 = 16;
-    const pw = W - 32;
-    const g = this.add.graphics();
-    g.fillStyle(0x000000, 0.62).fillRoundedRect(x0, top, pw, h, 18);
-    g.lineStyle(3, 0xffd23a, 0.8).strokeRoundedRect(x0, top, pw, h, 18);
-    const colW = pw / 2;
-    // 画面が 短い 時は カードを 左・役の 名前と 配当を 右に ならべる
-    const inline = cellH < 85;
-    const fs = inline ? Math.round(Math.min(17, cellH * 0.3)) : Math.round(Math.min(22, cellH * 0.3));
-    const ch = inline ? Math.min(46, cellH - 8) : Math.min(56, cellH - fs - 18);
-    const cw = Math.round(ch * 0.72);
-    // 役の カード(【仮】企画者「例みたいな 仮の カード 表示」)。S=♠ H=♥ D=♦ C=♣ ・ J=ジョーカー
     const EX: Record<keyof typeof HAND_INFO, string[]> = {
       three: ['7S', '7H', '7D'],
       straight: ['5C', '6D', '7S', '8H', '9C'],
@@ -513,51 +470,36 @@ export class CardPlayScene extends Phaser.Scene {
       royal: ['10H', 'JH', 'QH', 'KH', 'AH'],
     };
     const MARK: Record<string, string> = { S: '♠', H: '♥', D: '♦', C: '♣' };
+    const names = (Object.keys(HAND_INFO) as (keyof typeof HAND_INFO)[]).sort((a, b) => HAND_INFO[b].rank - HAND_INFO[a].rank);
+    const { x: x0, w: pw, rowH } = TABLE;
+    const h = rowH * names.length + 10;
+    const top = FIELD.y - h / 2 + 10;
+    const g = this.add.graphics();
+    g.fillStyle(0x000000, 0.55).fillRoundedRect(x0, top, pw, h, 14);
+    g.lineStyle(2, 0xffd23a, 0.6).strokeRoundedRect(x0, top, pw, h, 14);
+    const fs = 16;
+    const ch = 30;
+    const cw = 22;
     const mini = (x: number, y: number, code: string) => {
-      const joker = code === 'J';
       const suit = code.slice(-1);
-      const red = suit === 'H' || suit === 'D';
-      g.fillStyle(0xfbf3e2, 1).fillRoundedRect(x, y, cw, ch, 5);
-      g.lineStyle(2, 0x1a1a1a, 1).strokeRoundedRect(x, y, cw, ch, 5);
-      const color = joker ? '#8a35e0' : red ? RED_CARD : '#1a1a1a';
-      if (joker && this.textures.exists('cardimg:joker')) {
-        this.add.image(x + cw / 2, y + ch / 2, 'cardimg:joker').setDisplaySize(cw + 2, ch + 2);
-        return;
-      }
-      if (joker) {
-        this.add.text(x + cw / 2, y + ch / 2, '👑', { fontFamily: UI_FONT, fontSize: `${Math.round(ch * 0.42)}px` }).setOrigin(0.5);
-        return;
-      }
-      const r = this.add.text(x + cw / 2, y + ch * 0.32, code.slice(0, -1), { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: `${Math.round(ch * 0.38)}px`, color }).setOrigin(0.5);
-      if (r.width > cw - 4) r.setScale((cw - 4) / r.width, 1);
-      this.add.text(x + cw / 2, y + ch * 0.72, MARK[suit], { fontFamily: UI_FONT, fontSize: `${Math.round(ch * 0.36)}px`, color }).setOrigin(0.5);
+      const color = suit === 'H' || suit === 'D' ? RED_CARD : '#1a1a1a';
+      g.fillStyle(0xfbf3e2, 1).fillRoundedRect(x, y, cw, ch, 4);
+      g.lineStyle(1.5, 0x1a1a1a, 1).strokeRoundedRect(x, y, cw, ch, 4);
+      const r = this.add.text(x + cw / 2, y + ch * 0.32, code.slice(0, -1), { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '12px', color }).setOrigin(0.5);
+      if (r.width > cw - 3) r.setScale((cw - 3) / r.width, 1);
+      this.add.text(x + cw / 2, y + ch * 0.72, MARK[suit], { fontFamily: UI_FONT, fontSize: '12px', color }).setOrigin(0.5);
     };
-    const names = Object.keys(HAND_INFO) as (keyof typeof HAND_INFO)[];
-    const cell = (i: number) => ({ left: x0 + (i < rows ? 0 : 1) * colW + 16, right: x0 + ((i < rows ? 0 : 1) + 1) * colW - 16, y: top + 6 + cellH * (i % rows) });
     names.forEach((n, i) => {
-      const { left, right, y } = cell(i);
+      const y = top + 6 + rowH * i;
+      const left = x0 + 10;
+      const right = x0 + pw - 10;
       const info = HAND_INFO[n];
-      if (inline) {
-        const cy = y + (cellH - 8) / 2;
-        EX[n].forEach((code, k) => mini(left + k * (cw + 3), cy - ch / 2, code));
-        const tx = left + 5 * (cw + 3) + 6;
-        const t = this.add.text(tx, cy - 2, info.label, { fontFamily: UI_FONT, fontSize: `${fs}px`, fontStyle: '700', color: '#ffffff' }).setOrigin(0, 1);
-        if (t.width > right - tx) t.setScale((right - tx) / t.width, 1);
-        this.add.text(right, cy + 2, info.coins.toLocaleString(), { fontFamily: UI_FONT, fontSize: `${fs + 2}px`, fontStyle: '900', color: '#ffd23a' }).setOrigin(1, 0);
-        return;
-      }
-      const v = this.add.text(right, y + 6, info.coins.toLocaleString(), { fontFamily: UI_FONT, fontSize: `${fs}px`, fontStyle: '900', color: '#ffd23a' }).setOrigin(1, 0);
-      const t = this.add.text(left, y + 6, info.label, { fontFamily: UI_FONT, fontSize: `${fs}px`, fontStyle: '700', color: '#ffffff' }).setOrigin(0, 0);
-      const room = right - left - v.width - 10;
+      const v = this.add.text(right, y + 2, info.coins.toLocaleString(), { fontFamily: UI_FONT, fontSize: `${fs}px`, fontStyle: '900', color: '#ffd23a' }).setOrigin(1, 0);
+      const t = this.add.text(left, y + 2, info.label, { fontFamily: UI_FONT, fontSize: `${fs - 1}px`, fontStyle: '700', color: '#ffffff' }).setOrigin(0, 0);
+      const room = right - left - v.width - 6;
       if (t.width > room) t.setScale(room / t.width, 1);
-      EX[n].forEach((code, k) => mini(left + k * (cw + 5), y + fs + 12, code));
+      EX[n].forEach((code, k) => mini(left + k * (cw + 3), y + fs + 6, code));
     });
-    // あまった 右下の 1マス: ジョーカーの 説明と 単位
-    const { left, right, y } = cell(rows * 2 - 1);
-    const jy = inline ? y + (cellH - 8) / 2 - ch / 2 : y + fs + 12;
-    this.add.text(right, inline ? jy + ch : y + 6, 'MONZ コイン', { fontFamily: UI_FONT, fontSize: `${Math.round(fs * 0.8)}px`, fontStyle: '700', color: '#bbbbbb' }).setOrigin(1, inline ? 1 : 0);
-    mini(left, jy, 'J');
-    this.add.text(left + cw + 10, inline ? jy + ch * 0.3 : jy + ch / 2, '＝ 好きな カード', { fontFamily: UI_FONT, fontSize: `${Math.round(fs * 0.85)}px`, fontStyle: '700', color: '#ffffff' }).setOrigin(0, 0.5);
   }
 
   // ---------------- 一時停止 ----------------
