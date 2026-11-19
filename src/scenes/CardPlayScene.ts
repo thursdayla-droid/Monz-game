@@ -510,9 +510,10 @@ export class CardPlayScene extends Phaser.Scene {
         const cat = this.add.image(right, y + fs + 6 + ch / 2, 'cardimg:cat').setOrigin(1, 0.5);
         cat.setScale(44 / cat.height);
       }
-      const v = this.add.text(right, y + 2, n === 'royal' ? '' : info.coins.toLocaleString(), { fontFamily: UI_FONT, fontSize: `${fs}px`, fontStyle: '900', color: '#ffd23a' }).setOrigin(1, 0);
+      // 配当の 数字は カードの 段の 右に(2026-11-19 企画者「数字 もう少し 下に して バランス よく」)
+      if (n !== 'royal') this.add.text(right, y + fs + 6 + ch / 2, info.coins.toLocaleString(), { fontFamily: UI_FONT, fontSize: `${fs + 3}px`, fontStyle: '900', color: '#ffd23a' }).setOrigin(1, 0.5);
       const t = this.add.text(left, y + 2, info.label, { fontFamily: UI_FONT, fontSize: `${fs - 1}px`, fontStyle: '700', color: '#ffffff' }).setOrigin(0, 0);
-      const room = right - left - v.width - 6;
+      const room = right - left;
       if (t.width > room) t.setScale(room / t.width, 1);
       EX[n].forEach((code, k) => mini(left + k * (cw + 3), y + fs + 6, code));
     });
