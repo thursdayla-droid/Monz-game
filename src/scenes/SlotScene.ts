@@ -9,6 +9,8 @@ import { fillSize, safeInsets } from '../ui/viewport';
 import { BIG_REACHES, planShow, STEP_ORDER, type SpinShow } from '../core/slot/reach';
 import { finalGrid, isFinalRound, jackpotGrid, roundsOf, jackpotOver, jackpotWin, newJackpot, nextJackpot, payNowWithJackpot, playRound, type JackpotState } from '../core/slot/jackpot';
 import { pinTextures } from '../render/texBudget';
+import { bossSpin, fixRush, newRush, rollDie, rollHit, rushMove, type RushState } from '../core/slot/crownRush';
+import { RushView } from './slotRush';
 import { buildLineScript, type LineMsg, lineScriptMs, playLineReach } from './slotLine';
 import { CAB_FILE, CAB_KEY, cabinetLayout, cabinetTexture, type Rect } from './slotCabinet';
 import { COIN_ART_FILE, COIN_ART_KEY, coinFountain, cutIn, fitArt, STEP_FILES, idleAnim, LAMP_FILES, lcdRays, NoticeLamp, PUSH_FILE, PUSH_KEY, pushButton, stepUp, tierText } from './slotFx';
@@ -402,6 +404,11 @@ export class SlotScene extends Phaser.Scene {
   private autoNow = false;
   private picker?: Phaser.GameObjects.Container;
   private bonus?: BonusState;
+  /** CROWN RUSH(2026-11-19 企画者)の とちゅう */
+  private rush?: RushState;
+  private rushView?: RushView;
+  /** 演出中は SPIN を 受けつけない */
+  private rushLock = false;
   private lastShow?: SpinShow;
   private countTween?: Phaser.Tweens.Tween;
   private lamp!: NoticeLamp;
@@ -458,6 +465,9 @@ export class SlotScene extends Phaser.Scene {
     this.autoNow = false;
     this.picker = undefined;
     this.bonus = undefined;
+    this.rush = undefined;
+    this.rushView = undefined;
+    this.rushLock = false;
     this.free = undefined;
     this.jp = undefined;
     this.jpNext = undefined;
@@ -503,6 +513,15 @@ export class SlotScene extends Phaser.Scene {
         audio.playBgm('slotBonus');
         this.freeLoop(900);
       });
+      return;
+    }
+    // CROWN RUSH の とちゅうで 閉じていたら 続きから(報酬は 終わりに 1回だけ)
+    const savedRush = loadSave().rush;
+    if (savedRush) {
+      this.busy = true;
+      this.rush = savedRush;
+      audio.playBgm('slotBonus');
+      this.time.delayedCall(400, () => this.rushShow('つづきから！'));
       return;
     }
     // ボーナスの とちゅうで 閉じていたら 続きから
@@ -583,6 +602,14 @@ export class SlotScene extends Phaser.Scene {
         this.busy = true;
         audio.unlock();
         this.startBonus();
+      });
+      // CROWN RUSH を すぐ ためす(2026-11-19)
+      const cr = this.text(W - 150, 272, 'CROWN RUSH を ためす（確認用）', 18, '#16101c').setBackgroundColor('#ff4ad8').setPadding(10, 6, 10, 8).setDepth(30).setInteractive({ useHandCursor: true });
+      cr.on('pointerdown', () => {
+        if (this.busy || this.autoLeft > 0) return;
+        this.busy = true;
+        audio.unlock();
+        this.startRush();
       });
       // 特別フリーゲームを すぐ ためす(2026-11-11)
       const fg = this.text(W - 150, 188, 'フリーゲームを ためす（確認用）', 18, '#16101c').setBackgroundColor('#ff8a1f').setPadding(10, 6, 10, 8).setDepth(30).setInteractive({ useHandCursor: true });
@@ -1002,6 +1029,8 @@ export class SlotScene extends Phaser.Scene {
   private doSpin(auto = false): void {
     // 7の 大当たり中は SPIN で すぐ 次の 回へ(待たなくて よい)
     if (this.jp) return this.jpTap();
+    // CROWN RUSH 中は 同じ SPIN ボタンで ルーレット(ふつうの 抽選は しない)
+    if (this.rush) return this.rushTap();
     if (this.busy || this.picker) return;
     if (!auto) this.tweens.add({ targets: this.spinBtn, scale: 0.94, duration: 70, yoyo: true });
     if (this.record.coins < this.bet) {
@@ -1710,13 +1739,15 @@ export class SlotScene extends Phaser.Scene {
     const h = this.lcdBox.h;
     const t = this.text(0, -h * 0.14, 'BONUS!!', Math.min(120, h * 0.32), '#ffd23a', 12);
     t.setShadow(0, 8, '#ff4ad8', 0, true, true);
-    const s = this.text(0, h * 0.2, 'TREASURE CHALLENGE', Math.min(40, h * 0.11), '#ffffff', 8);
+    // 2026-11-19 企画者「宝箱ボーナスと 半々」→ 王冠 3個で 宝箱ボーナスか CROWN RUSH
+    const rushNext = this.rng() < 0.5;
+    const s = this.text(0, h * 0.2, rushNext ? 'CROWN RUSH' : 'TREASURE CHALLENGE', Math.min(40, h * 0.11), rushNext ? '#ffd23a' : '#ffffff', 8);
     this.lcdShow([t, s]);
     t.setScale(2.6);
     this.tweens.add({ targets: t, scale: 1, duration: 360, ease: 'Back.easeOut' });
     this.cameras.main.flash(300, 255, 220, 80);
     audio.se('koBlast');
-    this.time.delayedCall(big ? 2200 : 1700, () => this.startBonus());
+    this.time.delayedCall(big ? 2200 : 1700, () => (rushNext ? this.startRush() : this.startBonus()));
   }
 
   // ---------------- 特別フリーゲーム(2026-11-11 企画者) ----------------
@@ -2388,6 +2419,167 @@ export class SlotScene extends Phaser.Scene {
 
   // ---------------- 宝箱ボーナス ----------------
 
+  // ---------------- CROWN RUSH(2026-11-19 企画者) ----------------
+
+  private startRush(): void {
+    this.rush = newRush(this.rng, this.bet);
+    // 先に 保存(閉じても 続きから)
+    saveRush(this.rush);
+    this.autoLeft = 0;
+    this.paintAuto();
+    this.clearGlow();
+    this.winText.setText('0').setColor('#ffd23a');
+    audio.playBgm('slotBonus');
+    this.rushShow('SPIN で ルーレット！');
+  }
+
+  /** 液晶に 今の 場面(すごろく / ボス戦)を 出す */
+  private rushShow(msg?: string): void {
+    const r = this.rush;
+    if (!r) return;
+    if (r.phase === 'done') return this.rushEnd();
+    this.setLcdBg('gold', 0.55);
+    this.lamp?.show(false);
+    const keys = {
+      coin: this.textures.exists(COIN_ART_KEY) ? COIN_ART_KEY : undefined,
+      chest: chestKey('purple', false),
+      diamond: symKey('diamond'),
+      crown: symKey('crown'),
+      chara: 'slot:chara:araigumar',
+      boss: this.textures.exists('slot:rush:boss') ? 'slot:rush:boss' : undefined,
+    };
+    const v = new RushView(this, { w: this.lcdBox.w, h: this.lcdBox.h }, keys, (o) => this.lcd.add(o));
+    this.rushView = v;
+    this.lcdShow(r.phase === 'boss' ? v.boss(r) : v.board(r));
+    this.winText.setText(r.total.toLocaleString()).setColor('#ffd23a');
+    if (msg) v.banner(msg, '#ffffff', Math.min(44, this.lcdBox.h * 0.13), 1100);
+    this.rushLock = false;
+  }
+
+  /** SPIN ボタン(CROWN RUSH 中) */
+  private rushTap(): void {
+    const r = this.rush;
+    const v = this.rushView;
+    if (!r || !v || this.rushLock) return;
+    this.tweens.add({ targets: this.spinBtn, scale: 0.94, duration: 70, yoyo: true });
+    if (r.phase === 'board') {
+      if (r.spins <= 0) return;
+      this.rushLock = true;
+      audio.se('tap');
+      // 先に 決めて 保存(表示と 同じ 目)
+      const die = rollDie(this.rng);
+      const step = rushMove(r, die, this.rng);
+      saveRush(r);
+      v.rollDie(die, () => {
+        audio.se('select');
+        v.walk(step.from, step.to, () => {
+          if (step.boss) {
+            v.setInfo(r);
+            audio.se('koBlast');
+            this.cameras.main.shake(300, 0.006);
+            v.banner('BOSS!!', '#ff4f5e', Math.min(90, this.lcdBox.h * 0.28), 1200);
+            this.time.delayedCall(1600, () => this.rushShow('KING GORO 登場！'));
+            return;
+          }
+          if (step.coins > 0) {
+            v.pop(step.to, `+${step.coins.toLocaleString()}`, '#ffd23a');
+            audio.se('happy');
+          }
+          if (step.extra > 0) this.time.delayedCall(step.coins > 0 ? 450 : 0, () => {
+            v.pop(step.to, '+1回！', '#7de8ff');
+            audio.se('cheer');
+          });
+          if (step.back !== undefined) {
+            v.pop(step.to, 'TRAP!', '#ff4f5e');
+            audio.se('back');
+            this.cameras.main.shake(160, 0.004);
+          }
+          if (!step.coins && !step.extra && step.back === undefined) audio.se('tap', { pitch: 0.8 });
+          v.setInfo(r);
+          this.winText.setText(r.total.toLocaleString());
+          const after = () => {
+            if (r.phase === 'done') this.time.delayedCall(700, () => this.rushEnd());
+            else this.rushLock = false;
+          };
+          if (step.back !== undefined) this.time.delayedCall(700, () => v.walk(step.to, step.back!, after));
+          else this.time.delayedCall(step.extra ? 900 : 500, after);
+        });
+      });
+      return;
+    }
+    if (r.phase === 'boss') {
+      const bo = r.boss;
+      if (!bo || bo.left <= 0) return;
+      this.rushLock = true;
+      audio.se('tap');
+      const hit = rollHit(this.rng);
+      const res = bossSpin(r, hit, this.rng);
+      saveRush(r);
+      v.rollHit(hit, () => {
+        if (hit) {
+          audio.se('koBlast');
+          this.cameras.main.flash(200, 255, 255, 255);
+          v.hit(r);
+        } else {
+          audio.se('back');
+          v.setBossInfo(r);
+          v.banner('MISS', '#b8a8c8', Math.min(70, this.lcdBox.h * 0.22), 600);
+        }
+        this.winText.setText(r.total.toLocaleString());
+        if (!res.over) {
+          this.time.delayedCall(700, () => (this.rushLock = false));
+          return;
+        }
+        this.time.delayedCall(900, () => {
+          if (res.defeated) {
+            audio.se('cheer');
+            this.cameras.main.flash(400, 255, 215, 80);
+            this.setLcdBg('gold', 0.2);
+            this.lcd.addAt(lcdRays(this, this.lcdBox, 0xffd23a, 0.35, 14, 0, 0, 5000), 0);
+            v.banner('BOSS DEFEAT!', '#ffd23a', Math.min(80, this.lcdBox.h * 0.24), 0);
+            this.time.delayedCall(700, () => v.pop2(`BET ×${res.mult}  +${(r.bet * (res.mult ?? 0)).toLocaleString()}`));
+            coinFountain(this, W / 2, this.reelY + 200, 60);
+          } else {
+            audio.se('back');
+            v.banner('FAILED', '#9a8aaa', Math.min(80, this.lcdBox.h * 0.24), 0);
+          }
+          this.time.delayedCall(2600, () => this.rushEnd());
+        });
+      });
+    }
+  }
+
+  /** CROWN RUSH の 終わり: 合計を まとめて もらう(1回だけ) → ふつうの スロットへ */
+  private rushEnd(): void {
+    const r = this.rush;
+    if (!r) return;
+    this.rushLock = true;
+    // もらって すぐ 保存を 消す(二重に もらわない)
+    if (r.total > 0) this.record.add(r.total);
+    saveRush(undefined);
+    this.rush = undefined;
+    this.shown = this.record.coins;
+    this.credit.setText(this.shown.toLocaleString());
+    const h = this.lcdBox.h;
+    this.setLcdBg('gold', 0.3);
+    const t = this.text(0, -h * 0.16, 'CROWN RUSH 終了', Math.min(56, h * 0.15), '#ffffff', 10);
+    const n = this.text(0, h * 0.12, `+${r.total.toLocaleString()} GET!`, Math.min(80, h * 0.21), '#ffd23a', 12);
+    n.setShadow(0, 6, '#ff4ad8', 0, true, true);
+    this.lcdShow([t, n]);
+    n.setScale(2);
+    this.tweens.add({ targets: n, scale: 1, duration: 340, ease: 'Back.easeOut' });
+    audio.se(r.total > 0 ? 'cheer' : 'back');
+    this.winText.setText(r.total.toLocaleString()).setColor('#ffd23a');
+    this.time.delayedCall(2200, () => {
+      this.rushView = undefined;
+      this.rushLock = false;
+      audio.playBgm('slot');
+      this.busy = false;
+      this.lcdIdle();
+      this.lamp?.show(true);
+    });
+  }
+
   private startBonus(): void {
     this.bonus = newBonus(this.rng, this.bet);
     // 先に 保存(説明の 間に 閉じても 続きから)
@@ -2683,6 +2875,8 @@ interface SlotSave {
   free?: FreeState;
   /** 7の 大当たりの とちゅう(2026-11-17) */
   jp?: JackpotState;
+  /** CROWN RUSH の とちゅう(2026-11-19) */
+  rush?: RushState;
 }
 
 function loadSave(): SlotSave {
@@ -2699,7 +2893,8 @@ function loadSave(): SlotSave {
     const jp: JackpotState | undefined = jok
       ? { bet: Number(j.bet), symbol: j.symbol, length: Number(j.length) as 3 | 4 | 5, total: Math.floor(Number(j.total)), rounds: Number(j.rounds) > 0 ? Math.floor(Number(j.rounds)) : roundsOf(Number(j.length) as 3 | 4 | 5), round: Math.floor(Number(j.round)), paid: Math.max(0, Math.floor(Number(j.paid) || 0)), chain: Math.max(1, Math.floor(Number(j.chain) || 1)), chainTotal: Math.max(0, Math.floor(Number(j.chainTotal) || 0)), reach: typeof j.reach === 'string' ? j.reach : 'kyon', cont: j.cont === true, contSym: j.contSym === 'rainbow7' ? 'rainbow7' : 'gold7' }
       : undefined;
-    return { jp, free, bet: (BETS as readonly number[]).includes(bet) ? bet : undefined, bonus: ok ? { bet: Number(b.bet), round: Math.max(1, Math.floor(Number(b.round))), total: Math.max(0, Math.floor(Number(b.total))), history: Array.isArray(b.history) ? b.history : [] } : undefined };
+    const rush = fixRush(d.rush, BETS);
+    return { rush, jp, free, bet: (BETS as readonly number[]).includes(bet) ? bet : undefined, bonus: ok ? { bet: Number(b.bet), round: Math.max(1, Math.floor(Number(b.round))), total: Math.max(0, Math.floor(Number(b.total))), history: Array.isArray(b.history) ? b.history : [] } : undefined };
   } catch {
     return {};
   }
@@ -2724,6 +2919,10 @@ function saveBet(bet: number): void {
 
 function saveFree(f: FreeState | undefined): void {
   writeSave({ ...loadSave(), free: f ? { ...f, sticky: f.sticky.map((c) => [...c]) } : undefined });
+}
+
+function saveRush(r: RushState | undefined): void {
+  writeSave({ ...loadSave(), rush: r ? { ...r, board: [...r.board], boss: r.boss ? { ...r.boss } : undefined } : undefined });
 }
 
 function saveJp(j: JackpotState | undefined): void {
