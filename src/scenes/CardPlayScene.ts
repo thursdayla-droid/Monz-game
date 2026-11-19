@@ -104,6 +104,7 @@ export class CardPlayScene extends Phaser.Scene {
     this.record = new LifeRecord(loadLife());
     this.playId = `card-${Date.now().toString(36)}-${newSeed().toString(36)}`;
     this.cardsPlayed = 0;
+    this.handBank = [];
     this.clears = 0;
     this.hand = [];
     this.big = undefined;
@@ -435,20 +436,17 @@ export class CardPlayScene extends Phaser.Scene {
 
   /** 手札の 役(2026-11-19 企画者「出す 前に 表示されてる カード」): 手札で 役が できたら その場で MONZ コイン(1回の 上限とは べつ) */
   private lastHand: HandAward | null = null;
-  private handCount = 0;
+  /** その プレイで そろった 役(2026-11-19 企画者「途中で 揃った 役は 最後に まとめて もらえる」) */
+  private handBank: HandAward['name'][] = [];
   private checkFieldHand(): void {
     if (this.phase !== 'play') return;
     const h = checkHand(this.r.hand, this.lastHand);
     if (!h) return;
     this.lastHand = h;
     const info = HAND_INFO[h.name];
-    this.handCount++;
-    this.record.grant({ runId: `${this.playId}:hand${this.handCount}`, source: 'card', coins: info.coins, exp: 0 });
-    (this.children.getByName('coins') as Phaser.GameObjects.Text | null)?.setText(this.record.coins.toLocaleString());
+    this.handBank.push(h.name);
     const big = info.rank >= 4;
     const royal = h.name === 'royal';
-    // ロイヤルストレートフラッシュの 景品(2026-11-19 企画者): ダイヤモンドキャット → お世話画面の アイテム(家具)に 入る
-    if (royal) this.record.receiveItem(DIAMOND_CAT);
     audio.se(big ? 'cheer' : 'sting');
     const c = this.add.container(FIELD.x, Math.max(FIELD.y - 170, TRACKER.y + TRACKER.h + 50)).setDepth(30);
     const label = this.add.text(0, 0, info.label, { fontFamily: UI_FONT, fontSize: royal ? '40px' : '48px', fontStyle: '900', color: '#ffd23a', stroke: INK, strokeThickness: 10 }).setOrigin(0.5);
@@ -589,6 +587,10 @@ export class CardPlayScene extends Phaser.Scene {
     const before = { coins: Math.min(MINIGAME_REWARD_MAX, this.clears * CARD_REWARD.clearCoins), exp: Math.min(MINIGAME_REWARD_MAX, this.clears * CARD_REWARD.clearExp) };
     const part = { coins: Math.max(0, total0.coins - before.coins), exp: Math.max(0, total0.exp - before.exp) };
     this.record.grant({ runId: `${this.playId}:end`, source: 'card', coins: part.coins, exp: part.exp });
+    // 途中で そろった 役の ぶんを まとめて(1回の 上限とは べつ)。ロイヤルストレートフラッシュは ダイヤモンドキャット → お世話画面の アイテム(家具)
+    const handCoins = this.handBank.reduce((a, n) => a + HAND_INFO[n].coins, 0);
+    const cats = this.handBank.filter((n) => n === 'royal').length;
+    if (handCoins > 0 && this.record.grant({ runId: `${this.playId}:hands`, source: 'card', coins: handCoins, exp: 0 })) for (let i = 0; i < cats; i++) this.record.receiveItem(DIAMOND_CAT);
     const best = this.record.record('card', this.cardsPlayed, this.r.round);
     const total = cardReward(this.cardsPlayed, this.clears);
     audio.se('slam');
@@ -601,10 +603,11 @@ export class CardPlayScene extends Phaser.Scene {
       // 倒れたキャラクター(企画者の絵)
       const monz = this.textures.exists('cardimg:overMonz') ? this.add.image(W / 2, 395, 'cardimg:overMonz').setScale(0.62) : null;
       const why = this.add.text(W / 2, 555, reason, { fontFamily: UI_FONT, fontSize: '30px', fontStyle: '900', color: '#ff8a9a' }).setOrigin(0.5);
-      canvasTextureOnce(this, 'card:overpanel', 560, 360, (ctx) => drawPanel(ctx, 560, 360, 96));
-      const panel = this.add.image(W / 2, 780, 'card:overpanel');
-      const lines = [`到達ラウンド   ${this.r.round}`, `出した枚数   ${this.cardsPlayed}`, `獲得コイン   ${total.coins}`, `獲得EXP   ${total.exp}`];
-      const txt = this.add.text(W / 2, 780, lines.join('\n'), { fontFamily: UI_FONT, fontSize: '34px', fontStyle: '900', color: INK, align: 'center', lineSpacing: 16 }).setOrigin(0.5);
+      canvasTextureOnce(this, 'card:overpanel2', 600, 400, (ctx) => drawPanel(ctx, 600, 400, 96));
+      const panel = this.add.image(W / 2, 780, 'card:overpanel2');
+      const lines = [`到達ラウンド   ${this.r.round}`, `出した枚数   ${this.cardsPlayed}`, `獲得コイン   ${total.coins}`, `役ボーナス   ${handCoins.toLocaleString()}`, `獲得EXP   ${total.exp}`];
+      if (cats > 0) lines.push(`ダイヤモンドキャット ×${cats}`);
+      const txt = this.add.text(W / 2, 780, lines.join('\n'), { fontFamily: UI_FONT, fontSize: cats > 0 ? '28px' : '31px', fontStyle: '900', color: INK, align: 'center', lineSpacing: cats > 0 ? 8 : 12 }).setOrigin(0.5);
       const note = this.add
         .text(W / 2, 985, best ? '★ 自己ベスト！' : '', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '900', color: '#ffd23a' })
         .setOrigin(0.5);
