@@ -32,6 +32,7 @@ import { preloadPacks } from '../render/packs';
 
 const W = 720;
 const H = 1280;
+const RED_CARD = '#e8243c';
 const INK = '#16101c';
 /** CARD TRACKER(小): 画面の上の帯 */
 const TRACKER = { x: 20, y: 150, w: 680, h: 236 };
@@ -441,37 +442,76 @@ export class CardPlayScene extends Phaser.Scene {
   }
 
   private buildHandTable(): void {
-    const top = HAND.y + CARD_H * HAND.scale / 2 + 22;
-    const bottom = this.scale.height - 16;
+    const top = HAND.y + CARD_H * HAND.scale / 2 + 18;
+    const bottom = this.scale.height - 14;
     const avail = bottom - top;
-    if (avail < 120) return;
+    if (avail < 150) return;
     const rows = 4;
-    const titleH = 40;
-    const rowH = Math.min(46, (avail - titleH - 16) / rows);
-    const h = titleH + rowH * rows + 14;
-    const x0 = 24;
-    const pw = W - 48;
+    const cellH = Math.min(110, (avail - 12) / rows);
+    const h = cellH * rows + 12;
+    const x0 = 16;
+    const pw = W - 32;
     const g = this.add.graphics();
     g.fillStyle(0x000000, 0.62).fillRoundedRect(x0, top, pw, h, 18);
     g.lineStyle(3, 0xffd23a, 0.8).strokeRoundedRect(x0, top, pw, h, 18);
-    this.add.text(W / 2, top + 8, 'HAND BONUS', { fontFamily: UI_FONT, fontSize: '26px', fontStyle: '900', color: '#ffd23a' }).setOrigin(0.5, 0);
-    const names = Object.keys(HAND_INFO) as (keyof typeof HAND_INFO)[];
     const colW = pw / 2;
-    const fs = Math.round(Math.min(23, rowH * 0.55));
+    // 画面が 短い 時は カードを 左・役の 名前と 配当を 右に ならべる
+    const inline = cellH < 85;
+    const fs = inline ? Math.round(Math.min(17, cellH * 0.3)) : Math.round(Math.min(22, cellH * 0.3));
+    const ch = inline ? Math.min(46, cellH - 8) : Math.min(56, cellH - fs - 18);
+    const cw = Math.round(ch * 0.72);
+    // 例の カード(【仮】企画者「例みたいな 仮の カード 表示」)。S=♠ H=♥ D=♦ C=♣ ・ J=ジョーカー
+    const EX: Record<keyof typeof HAND_INFO, string[]> = {
+      three: ['7S', '7H', '7D'],
+      straight: ['5C', '6D', '7S', '8H', '9C'],
+      flush: ['2H', '5H', '8H', 'JH', 'KH'],
+      fullhouse: ['QS', 'QD', 'QC', '4H', '4S'],
+      four: ['AS', 'AH', 'AD', 'AC'],
+      straightflush: ['5S', '6S', '7S', '8S', '9S'],
+      royal: ['10H', 'JH', 'QH', 'KH', 'AH'],
+    };
+    const MARK: Record<string, string> = { S: '♠', H: '♥', D: '♦', C: '♣' };
+    const mini = (x: number, y: number, code: string) => {
+      const joker = code === 'J';
+      const suit = code.slice(-1);
+      const red = suit === 'H' || suit === 'D';
+      g.fillStyle(0xfbf3e2, 1).fillRoundedRect(x, y, cw, ch, 5);
+      g.lineStyle(2, 0x1a1a1a, 1).strokeRoundedRect(x, y, cw, ch, 5);
+      const color = joker ? '#8a35e0' : red ? RED_CARD : '#1a1a1a';
+      if (joker) {
+        this.add.text(x + cw / 2, y + ch / 2, '👑', { fontFamily: UI_FONT, fontSize: `${Math.round(ch * 0.42)}px` }).setOrigin(0.5);
+        return;
+      }
+      const r = this.add.text(x + cw / 2, y + ch * 0.32, code.slice(0, -1), { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: `${Math.round(ch * 0.38)}px`, color }).setOrigin(0.5);
+      if (r.width > cw - 4) r.setScale((cw - 4) / r.width, 1);
+      this.add.text(x + cw / 2, y + ch * 0.72, MARK[suit], { fontFamily: UI_FONT, fontSize: `${Math.round(ch * 0.36)}px`, color }).setOrigin(0.5);
+    };
+    const names = Object.keys(HAND_INFO) as (keyof typeof HAND_INFO)[];
+    const cell = (i: number) => ({ left: x0 + (i < rows ? 0 : 1) * colW + 16, right: x0 + ((i < rows ? 0 : 1) + 1) * colW - 16, y: top + 6 + cellH * (i % rows) });
     names.forEach((n, i) => {
-      const col = i < rows ? 0 : 1;
-      const row = i % rows;
-      const y = top + titleH + rowH * row + rowH / 2;
-      const left = x0 + col * colW + 18;
-      const right = x0 + (col + 1) * colW - 18;
+      const { left, right, y } = cell(i);
       const info = HAND_INFO[n];
-      const v = this.add.text(right, y, info.coins.toLocaleString(), { fontFamily: UI_FONT, fontSize: `${fs}px`, fontStyle: '900', color: '#ffd23a' }).setOrigin(1, 0.5);
-      const t = this.add.text(left, y, info.label, { fontFamily: UI_FONT, fontSize: `${fs}px`, fontStyle: '700', color: '#ffffff' }).setOrigin(0, 0.5);
-      const room = right - left - v.width - 12;
+      if (inline) {
+        const cy = y + (cellH - 8) / 2;
+        EX[n].forEach((code, k) => mini(left + k * (cw + 3), cy - ch / 2, code));
+        const tx = left + 5 * (cw + 3) + 6;
+        const t = this.add.text(tx, cy - 2, info.label, { fontFamily: UI_FONT, fontSize: `${fs}px`, fontStyle: '700', color: '#ffffff' }).setOrigin(0, 1);
+        if (t.width > right - tx) t.setScale((right - tx) / t.width, 1);
+        this.add.text(right, cy + 2, info.coins.toLocaleString(), { fontFamily: UI_FONT, fontSize: `${fs + 2}px`, fontStyle: '900', color: '#ffd23a' }).setOrigin(1, 0);
+        return;
+      }
+      const v = this.add.text(right, y + 6, info.coins.toLocaleString(), { fontFamily: UI_FONT, fontSize: `${fs}px`, fontStyle: '900', color: '#ffd23a' }).setOrigin(1, 0);
+      const t = this.add.text(left, y + 6, info.label, { fontFamily: UI_FONT, fontSize: `${fs}px`, fontStyle: '700', color: '#ffffff' }).setOrigin(0, 0);
+      const room = right - left - v.width - 10;
       if (t.width > room) t.setScale(room / t.width, 1);
+      EX[n].forEach((code, k) => mini(left + k * (cw + 5), y + fs + 12, code));
     });
-    // あまった 右下の 1マス: 単位
-    this.add.text(x0 + pw - 18, top + titleH + rowH * (rows - 1) + rowH / 2, 'MONZ コイン', { fontFamily: UI_FONT, fontSize: `${Math.round(fs * 0.85)}px`, fontStyle: '700', color: '#bbbbbb' }).setOrigin(1, 0.5);
+    // あまった 右下の 1マス: ジョーカーの 説明と 単位
+    const { left, right, y } = cell(rows * 2 - 1);
+    const jy = inline ? y + (cellH - 8) / 2 - ch / 2 : y + fs + 12;
+    this.add.text(right, inline ? jy + ch : y + 6, 'MONZ コイン', { fontFamily: UI_FONT, fontSize: `${Math.round(fs * 0.8)}px`, fontStyle: '700', color: '#bbbbbb' }).setOrigin(1, inline ? 1 : 0);
+    mini(left, jy, 'J');
+    this.add.text(left + cw + 10, inline ? jy + ch * 0.3 : jy + ch / 2, '＝ 好きな カード', { fontFamily: UI_FONT, fontSize: `${Math.round(fs * 0.85)}px`, fontStyle: '700', color: '#ffffff' }).setOrigin(0, 0.5);
   }
 
   // ---------------- 一時停止 ----------------
