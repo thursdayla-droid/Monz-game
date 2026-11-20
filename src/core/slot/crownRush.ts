@@ -12,8 +12,7 @@ import type { Rng } from '../rng';
  * - ボス KING GORO: HP 3・ルーレット 最大 5回・HIT 50%・3 HIT で 撃破(3 MISS で 終わり)。撃破の 確率は 50%
  * - 撃破の 報酬: BET の 10倍 50%・20倍 30%・50倍 15%・100倍 4%・500倍 1%
  * - すごろくの 報酬と ボスの 報酬を 足して、ボーナスの 終わりに まとめて もらう(ボスに 負けても すごろくの ぶんは もらえる)
- * 【仮】(企画者「仮で 決めて OK」): コイン BET×0.5/1/1.5/2・宝箱 BET×1〜5(10回に 1回 さらに +1回)・
- *   ミステリー 半分 BET×1〜3/半分 +1回・ダイヤ BET×3・王冠 BET×5・トラップ 1〜3マス(同じ 確率)
+ * - 2026-11-20 企画者: コイン BET×5〜10・宝箱 BET×10〜20・ダイヤ 15・王冠 25・ミステリー(MYSTERY_KINDS)・トラップ 1〜3マス・並びは 3パターン
  */
 export type RushSquare = 'coin' | 'chest' | 'extra' | 'mystery' | 'diamond' | 'crown' | 'trap' | 'boss';
 
@@ -39,8 +38,32 @@ export interface RushBoss {
   misses: number;
 }
 
+/**
+ * マスの 並び 3パターン(2026-11-20 企画者「毎回 一緒だと つまらない から 3種類 ぐらい」)。毎回 どれか 1つ。15マス目は ボス
+ * A ふつう・B 前半ラッキー(前半に コインと +1・後半に トラップと ダイヤ・王冠)・C 一発勝負(王冠と ダイヤが 多い・+1 少ない・トラップが ボスの 手前)
+ */
+export const RUSH_PATTERNS: readonly (readonly Exclude<RushSquare, 'boss'>[])[] = [
+  ['coin', 'extra', 'chest', 'mystery', 'coin', 'diamond', 'chest', 'trap', 'coin', 'extra', 'mystery', 'chest', 'diamond', 'crown'],
+  ['coin', 'extra', 'coin', 'coin', 'extra', 'chest', 'mystery', 'chest', 'trap', 'diamond', 'mystery', 'chest', 'diamond', 'crown'],
+  ['coin', 'mystery', 'diamond', 'chest', 'crown', 'coin', 'extra', 'diamond', 'chest', 'crown', 'mystery', 'diamond', 'crown', 'trap'],
+];
+export const RUSH_PATTERN_NAMES = ['A', 'B', 'C'] as const;
+
+/** マスの 中身(2026-11-20 企画者。BET の 何倍) */
+export const COIN_RANGE = [5, 10] as const;
+export const CHEST_RANGE = [10, 20] as const;
+export const DIAMOND_MULT = 15;
+export const CROWN_MULT = 25;
+/** ミステリー: コイン BET×5〜10 / 次の ルーレットの 目 +1 / −1 / 1〜3マス もどる / 1〜3マス 進む(同じ 確率)。進んだ・もどった 先の 効果は 出ない【仮】 */
+export type MysteryKind = 'coin' | 'plus' | 'minus' | 'back' | 'forward';
+export const MYSTERY_KINDS: readonly MysteryKind[] = ['coin', 'plus', 'minus', 'back', 'forward'];
+
 export interface RushState {
   bet: number;
+  /** マスの 並びの パターン(0 A・1 B・2 C) */
+  pattern?: number;
+  /** 次の ルーレットの 目に 足す 数(ミステリーの +1 / −1) */
+  mod?: number;
   /** 1〜20マス目(board[0] が 1マス目。board[19] は ボス) */
   board: RushSquare[];
   /** 今 いる マス(0 = スタート) */
@@ -70,7 +93,10 @@ export function makeBoard(rng: Rng): RushSquare[] {
   return [...shuffle(rng, list), 'boss'];
 }
 
-export const newRush = (rng: Rng, bet: number): RushState => ({ bet, board: makeBoard(rng), pos: 0, spins: RUSH_START_SPINS, total: 0, phase: 'board' });
+export function newRush(rng: Rng, bet: number): RushState {
+  const pattern = Math.floor(rng() * RUSH_PATTERNS.length);
+  return { bet, pattern, board: [...RUSH_PATTERNS[pattern], 'boss'], pos: 0, spins: RUSH_START_SPINS, total: 0, phase: 'board', mod: 0 };
+}
 
 export const rollDie = (rng: Rng): number => randInt(rng, 1, 6);
 
@@ -82,8 +108,13 @@ export interface RushStep {
   square: RushSquare | null;
   coins: number;
   extra: number;
-  /** トラップで もどった 先(もどらない 時は undefined) */
+  /** トラップ・ミステリーで もどった / 進んだ 先(動かない 時は undefined) */
   back?: number;
+  /** ミステリーの 中身 */
+  mystery?: MysteryKind;
+  /** ルーレットの 目に 足した 数(前の ミステリー) と 実際に 進んだ 数 */
+  mod: number;
+  move: number;
   /** ボス戦へ */
   boss: boolean;
 }
@@ -93,14 +124,25 @@ export function rushMove(s: RushState, die: number, rng: Rng): RushStep {
   if (s.phase !== 'board' || s.spins <= 0) throw new Error('rush: cannot move');
   s.spins--;
   const from = s.pos;
-  const to = Math.min(RUSH_GOAL, from + die);
+  const mod = s.mod ?? 0;
+  s.mod = 0;
+  const move = Math.max(0, die + mod);
+  const to = Math.min(RUSH_GOAL, from + move);
   s.pos = to;
-  const step: RushStep = { die, from, to, square: null, coins: 0, extra: 0, boss: false };
-  if (to >= RUSH_GOAL) {
-    step.square = 'boss';
+  const step: RushStep = { die, from, to, square: null, coins: 0, extra: 0, boss: false, mod, move };
+  const toBoss = () => {
     step.boss = true;
     s.phase = 'boss';
     s.boss = { hp: BOSS_HP, left: BOSS_SPINS, hits: 0, misses: 0 };
+  };
+  if (to >= RUSH_GOAL) {
+    step.square = 'boss';
+    toBoss();
+    return step;
+  }
+  if (to === from) {
+    // −1 で 0 マス(その場)。効果は 出ない
+    if (s.spins <= 0) s.phase = 'done';
     return step;
   }
   const sq = s.board[to - 1];
@@ -108,24 +150,38 @@ export function rushMove(s: RushState, die: number, rng: Rng): RushStep {
   const b = s.bet;
   switch (sq) {
     case 'coin':
-      step.coins = Math.round(b * COIN_MULTS[Math.floor(rng() * COIN_MULTS.length)]);
+      step.coins = b * randInt(rng, COIN_RANGE[0], COIN_RANGE[1]);
       break;
     case 'chest':
-      step.coins = b * randInt(rng, 1, 5);
-      if (CHEST_EXTRA > 0 && rng() < CHEST_EXTRA) step.extra = 1;
+      step.coins = b * randInt(rng, CHEST_RANGE[0], CHEST_RANGE[1]);
       break;
     case 'extra':
       step.extra = 1;
       break;
-    case 'mystery':
-      // 【仮】BET×1〜5(2026-11-20 から +1回は なし)
-      step.coins = b * randInt(rng, 1, 5);
+    case 'mystery': {
+      const m = MYSTERY_KINDS[Math.floor(rng() * MYSTERY_KINDS.length)];
+      step.mystery = m;
+      if (m === 'coin') step.coins = b * randInt(rng, COIN_RANGE[0], COIN_RANGE[1]);
+      else if (m === 'plus') s.mod = 1;
+      else if (m === 'minus') s.mod = -1;
+      else if (m === 'back') {
+        step.back = Math.max(0, to - randInt(rng, 1, 3));
+        s.pos = step.back;
+      } else {
+        step.back = Math.min(RUSH_GOAL, to + randInt(rng, 1, 3));
+        s.pos = step.back;
+        if (s.pos >= RUSH_GOAL) {
+          toBoss();
+          return step;
+        }
+      }
       break;
+    }
     case 'diamond':
-      step.coins = b * 3;
+      step.coins = b * DIAMOND_MULT;
       break;
     case 'crown':
-      step.coins = b * 5;
+      step.coins = b * CROWN_MULT;
       break;
     case 'trap':
       step.back = Math.max(0, to - randInt(rng, 1, 3));
@@ -176,6 +232,8 @@ export function fixRush(raw: unknown, bets: readonly number[]): RushState | unde
   const phase = d.phase === 'boss' || d.phase === 'done' ? d.phase : 'board';
   const n = (v: unknown, lo: number, hi: number) => Math.max(lo, Math.min(hi, Math.floor(Number(v) || 0)));
   const s: RushState = { bet: Number(d.bet), board: d.board, pos: n(d.pos, 0, RUSH_GOAL), spins: n(d.spins, 0, 99), total: n(d.total, 0, 1e12), phase };
+  if (d.pattern !== undefined) s.pattern = n(d.pattern, 0, RUSH_PATTERNS.length - 1);
+  if (d.mod !== undefined) s.mod = Math.max(-1, Math.min(1, Math.round(Number(d.mod) || 0)));
   if (phase === 'boss') {
     const b = (d.boss ?? {}) as Partial<RushBoss>;
     s.boss = { hp: n(b.hp, 0, BOSS_HP), left: n(b.left, 0, BOSS_SPINS), hits: n(b.hits, 0, BOSS_HP), misses: n(b.misses, 0, BOSS_SPINS) };

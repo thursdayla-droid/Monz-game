@@ -2477,6 +2477,8 @@ export class SlotScene extends Phaser.Scene {
       boss: this.textures.exists('slot:rush:boss') ? 'slot:rush:boss' : undefined,
       bossKo: 'slot:rush:bossKo',
       logo: RUSH_LOGO,
+      wheel: this.textures.exists('slot:rush:wheel') ? 'slot:rush:wheel' : undefined,
+      wheelBoss: this.textures.exists('slot:rush:wheelBoss') ? 'slot:rush:wheelBoss' : undefined,
       tiles: Object.fromEntries(RUSH_TILES.map((n) => [n, `slot:rush:tile:${n}`]).filter(([, k]) => this.textures.exists(k))),
     };
     const v = new RushView(this, { w: this.lcdBox.w, h: this.lcdBox.h }, keys, (o) => this.lcd.add(o));
@@ -2501,39 +2503,50 @@ export class SlotScene extends Phaser.Scene {
       const die = rollDie(this.rng);
       const step = rushMove(r, die, this.rng);
       saveRush(r);
-      v.rollDie(die, () => {
+      v.rollDie(die, step.mod, () => {
         audio.se('select');
-        v.walk(step.from, step.to, () => {
-          if (step.boss) {
-            v.setInfo(r);
-            audio.se('koBlast');
-            this.cameras.main.shake(300, 0.006);
-            v.banner('BOSS!!', '#ff4f5e', Math.min(90, this.lcdBox.h * 0.28), 1200);
-            this.time.delayedCall(1600, () => this.rushShow('KING GORO 登場！'));
-            return;
-          }
-          if (step.coins > 0) {
-            v.pop(step.to, `+${step.coins.toLocaleString()}`, '#ffd23a');
-            audio.se('happy');
-          }
-          if (step.extra > 0) this.time.delayedCall(step.coins > 0 ? 450 : 0, () => {
-            v.pop(step.to, '+1回！', '#7de8ff');
-            audio.se('cheer');
-          });
-          if (step.back !== undefined) {
-            v.pop(step.to, 'TRAP!', '#ff4f5e');
-            audio.se('back');
-            this.cameras.main.shake(160, 0.004);
-          }
-          if (!step.coins && !step.extra && step.back === undefined) audio.se('tap', { pitch: 0.8 });
+        const bossGo = () => {
           v.setInfo(r);
-          this.winText.setText(r.total.toLocaleString());
-          const after = () => {
-            if (r.phase === 'done') this.time.delayedCall(700, () => this.rushEnd());
-            else this.rushLock = false;
-          };
-          if (step.back !== undefined) this.time.delayedCall(700, () => v.walk(step.to, step.back!, after));
-          else this.time.delayedCall(step.extra ? 900 : 500, after);
+          audio.se('koBlast');
+          this.cameras.main.shake(300, 0.006);
+          v.banner('BOSS!!', '#ff4f5e', Math.min(90, this.lcdBox.h * 0.28), 1200);
+          this.time.delayedCall(1600, () => this.rushShow('KING GORO 登場！'));
+        };
+        v.walk(step.from, step.to, () => {
+          if (step.boss && step.mystery !== 'forward') return bossGo();
+          const m = step.mystery;
+          // ミステリー(2026-11-20 企画者): まず「？」→ 中身
+          if (m) v.pop(step.to, '？', '#ff8ae0');
+          const showAt = m ? 650 : 0;
+          this.time.delayedCall(showAt, () => {
+            if (step.coins > 0) {
+              v.pop(step.to, `+${step.coins.toLocaleString()}`, '#ffd23a');
+              audio.se('happy');
+            }
+            if (step.extra > 0) {
+              v.pop(step.to, '+1回！', '#7de8ff');
+              audio.se('cheer');
+            }
+            if (m === 'plus') (v.pop(step.to, '次の 目 +1！', '#7de8ff'), audio.se('cheer'));
+            if (m === 'minus') (v.pop(step.to, '次の 目 −1…', '#c8b8d8'), audio.se('back'));
+            if (m === 'forward') (v.pop(step.to, 'すすむ！', '#7de8ff'), audio.se('cheer'));
+            if (m === 'back') (v.pop(step.to, 'もどる…', '#c8b8d8'), audio.se('back'));
+            if (!m && step.back !== undefined) {
+              v.pop(step.to, 'TRAP!', '#ff4f5e');
+              audio.se('back');
+              this.cameras.main.shake(160, 0.004);
+            }
+            if (!m && !step.coins && !step.extra && step.back === undefined) audio.se('tap', { pitch: 0.8 });
+            v.setInfo(r);
+            this.winText.setText(r.total.toLocaleString());
+            const after = () => {
+              if (step.boss) return bossGo();
+              if (r.phase === 'done') this.time.delayedCall(700, () => this.rushEnd());
+              else this.rushLock = false;
+            };
+            if (step.back !== undefined) this.time.delayedCall(700, () => v.walk(step.to, step.back!, after));
+            else this.time.delayedCall(step.extra || m ? 900 : 500, after);
+          });
         });
       });
       return;

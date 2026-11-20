@@ -16,6 +16,9 @@ export interface RushKeys {
   boss?: string;
   /** 企画者の ロゴ(2026-11-20) */
   logo?: string;
+  /** ルーレットの 円盤(企画者の 絵。1 が 上・時計回りに 1〜6)。ボス用は HIT が 上・時計回りに HIT/MISS 交互 */
+  wheel?: string;
+  wheelBoss?: string;
   /** マスの 絵(2026-11-20 企画者)。ない マスは 色の 四角 */
   tiles?: Partial<Record<RushSquare, string>>;
   /** やられた 顔 */
@@ -38,7 +41,6 @@ type Obj = Phaser.GameObjects.GameObject;
 
 export class RushView {
   private chara?: Phaser.GameObjects.Image | Phaser.GameObjects.Text;
-  private die?: Phaser.GameObjects.Text;
   private info?: Phaser.GameObjects.Text;
   private cells: { x: number; y: number }[] = [];
   private s = 40;
@@ -159,17 +161,13 @@ export class RushView {
     }
     this.info = this.text(w / 2 - 14, -h / 2 + head / 2 + 2, '', Math.min(22, head * 0.42), '#ffffff', 4).setOrigin(1, 0.5);
     out.push(logo, this.info);
-    // 右: ルーレット(1〜6)
+    // 右: ルーレット(1〜6 の 円盤。2026-11-20 企画者)
     const dx = w / 2 - dieW / 2 - 10;
-    const dy = by0 + (by1 - by0) / 2;
-    const dg = this.scene.add.graphics();
-    const dh = Math.min(by1 - by0, dieW * 1.15);
-    dg.fillStyle(0x16101c, 1).fillRoundedRect(dx - dieW / 2, dy - dh / 2, dieW, dh, 18);
-    dg.lineStyle(5, 0xffd23a, 1).strokeRoundedRect(dx - dieW / 2 + 4, dy - dh / 2 + 4, dieW - 8, dh - 8, 14);
-    out.push(dg);
-    out.push(this.text(dx, dy - dh / 2 + 20, 'ROULETTE', Math.min(18, dieW * 0.13), '#ff8ae0', 3));
-    this.die = this.text(dx, dy + 8, '?', Math.min(dh * 0.55, dieW * 0.62), '#ffffff', 8);
-    out.push(this.die);
+    const dy = by0 + (by1 - by0) / 2 + 6;
+    const wr = Math.min(dieW / 2, (by1 - by0) / 2 - 6);
+    out.push(...this.makeWheel(dx, dy, wr, ['1', '2', '3', '4', '5', '6'], [0x9b5cff, 0xff4ad8, 0xffb21a, 0x2bd4ff, 0x7a2ad0, 0xff3b4f], this.keys.wheel));
+    this.modText = this.text(dx, dy + wr + 2, '', Math.min(20, wr * 0.3), '#7de8ff', 5).setOrigin(0.5, 0);
+    out.push(this.modText);
     // アライグマR
     const cp = this.cells[st.pos];
     const ch = this.img(this.keys.chara, cp.x, cp.y - s * 0.2, s * 1.15);
@@ -182,26 +180,78 @@ export class RushView {
 
   setInfo(st: RushState): void {
     this.info?.setText(`のこり ${st.spins}回　+${st.total.toLocaleString()}`);
+    const m = st.mod ?? 0;
+    this.modText?.setText(m > 0 ? '次の 目 +1' : m < 0 ? '次の 目 −1' : '');
   }
 
-  /** ルーレットが 回って 止まる(n = 先に 決めた 目) */
-  rollDie(n: number, done: () => void): void {
-    const t = this.die;
-    if (!t) return done();
-    let k = 0;
-    const steps = 14;
-    const tick = () => {
-      k++;
-      if (k >= steps) {
-        t.setText(String(n)).setColor('#ffd23a');
-        this.scene.tweens.add({ targets: t, scale: { from: 1.6, to: 1 }, duration: 260, ease: 'Back.easeOut' });
-        this.scene.time.delayedCall(380, done);
-        return;
-      }
-      t.setText(String(1 + ((k * 5 + n) % 6))).setColor('#ffffff');
-      this.scene.time.delayedCall(40 + k * 9, tick);
-    };
-    tick();
+  private wheel?: Phaser.GameObjects.Container;
+  private modText?: Phaser.GameObjects.Text;
+
+  /** 円盤(6つに 分けた・上に 矢印)。art が ある 時は 企画者の 絵 */
+  private makeWheel(x: number, y: number, r: number, labels: string[], colors: number[], art?: string): Obj[] {
+    const c = this.scene.add.container(x, y);
+    const n = labels.length;
+    const step = (Math.PI * 2) / n;
+    const im = this.img(art, 0, 0, r * 2);
+    if (im) c.add(im);
+    else {
+      const g = this.scene.add.graphics();
+      g.fillStyle(0x16101c, 1).fillCircle(0, 0, r + 4);
+      labels.forEach((_, k) => {
+        const a0 = -Math.PI / 2 + (k - 0.5) * step;
+        g.fillStyle(colors[k % colors.length], 1).slice(0, 0, r, a0, a0 + step, false).fillPath();
+        g.lineStyle(2, 0x16101c, 1).slice(0, 0, r, a0, a0 + step, false).strokePath();
+      });
+      g.fillStyle(0xffd23a, 1).fillCircle(0, 0, r * 0.16);
+      g.lineStyle(3, 0x16101c, 1).strokeCircle(0, 0, r * 0.16);
+      c.add(g);
+      labels.forEach((t, k) => {
+        const a = -Math.PI / 2 + k * step;
+        const long = t.length > 2;
+        const tx = this.text(Math.cos(a) * r * (long ? 0.6 : 0.64), Math.sin(a) * r * (long ? 0.6 : 0.64), t, r * (long ? 0.2 : 0.36), '#ffffff', long ? 4 : 5);
+        tx.setRotation(a + Math.PI / 2);
+        c.add(tx);
+      });
+    }
+    this.wheel = c;
+    // 上の 矢印(止まった 所)
+    const p = this.scene.add.graphics();
+    p.fillStyle(0x16101c, 1).fillTriangle(x - r * 0.24, y - r - 10, x + r * 0.24, y - r - 10, x, y - r + r * 0.26);
+    p.fillStyle(0xffd23a, 1).fillTriangle(x - r * 0.16, y - r - 6, x + r * 0.16, y - r - 6, x, y - r + r * 0.16);
+    return [c, p];
+  }
+
+  /** 円盤を 回して k 番目(0〜5)を 上で 止める */
+  private spinWheel(k: number, n: number, done: () => void): void {
+    const c = this.wheel;
+    if (!c) return done();
+    const stepDeg = 360 / n;
+    const now = c.angle;
+    const jitter = (Math.random() - 0.5) * stepDeg * 0.5;
+    let target = -k * stepDeg + jitter;
+    while (target > now - 360 * 4) target -= 360;
+    this.scene.tweens.addCounter({
+      from: now,
+      to: target,
+      duration: 1500,
+      ease: 'Cubic.easeOut',
+      onUpdate: (tw) => c.setAngle(tw.getValue() ?? 0),
+      onComplete: () => this.scene.time.delayedCall(250, done),
+    });
+  }
+
+  /** ルーレットが 回って 止まる(n = 先に 決めた 目・mod = ミステリーの +1/−1) */
+  rollDie(n: number, mod: number, done: () => void): void {
+    this.spinWheel(n - 1, 6, () => {
+      if (!mod) return done();
+      const m = this.modText;
+      m?.setText(`${n} ${mod > 0 ? '+' : '−'} 1 = ${Math.max(0, n + mod)}`).setColor('#ffd23a');
+      if (m) this.scene.tweens.add({ targets: m, scale: { from: 1.5, to: 1 }, duration: 260, ease: 'Back.easeOut' });
+      this.scene.time.delayedCall(700, () => {
+        m?.setColor('#7de8ff');
+        done();
+      });
+    });
   }
 
   /** 1マスずつ 進む(とちゅうの マスの 効果は なし) */
@@ -291,15 +341,13 @@ export class RushView {
       this.hpIcons.push(ic);
       out.push(ic);
     }
-    const rg = this.scene.add.graphics();
-    const rw = Math.min(260, w * 0.38);
-    const rhh = Math.min(90, h * 0.26);
-    rg.fillStyle(0x16101c, 1).fillRoundedRect(rx - rw / 2, h * 0.02, rw, rhh, 16);
-    rg.lineStyle(5, 0xff4ad8, 1).strokeRoundedRect(rx - rw / 2 + 4, h * 0.02 + 4, rw - 8, rhh - 8, 12);
-    out.push(rg);
-    this.roll = this.text(rx, h * 0.02 + rhh / 2, 'SPIN!', Math.min(48, rhh * 0.6), '#ffffff', 6);
+    // HIT / MISS の 円盤(当たり 3・ハズレ 3 が 交互。2026-11-20 企画者)
+    const wr = Math.min(h * 0.17, w * 0.11);
+    const wy = h * 0.14;
+    out.push(...this.makeWheel(rx, wy, wr, ['HIT', 'MISS', 'HIT', 'MISS', 'HIT', 'MISS'], [0xffd23a, 0x3a2a4a], this.keys.wheelBoss));
+    this.roll = this.text(rx + wr + 14, wy, '', Math.min(28, h * 0.085), '#ffffff', 6).setOrigin(0, 0.5);
     out.push(this.roll);
-    this.info = this.text(rx, h * 0.4, '', Math.min(22, h * 0.07), '#ffffff', 4);
+    this.info = this.text(rx, h * 0.44, '', Math.min(20, h * 0.06), '#ffffff', 4);
     out.push(this.info);
     this.setBossInfo(st);
     return out;
@@ -313,22 +361,14 @@ export class RushView {
   /** HIT / MISS の ルーレット(hit = 先に 決めた 結果) */
   rollHit(hit: boolean, done: () => void): void {
     const t = this.roll;
-    if (!t) return done();
-    let k = 0;
-    const steps = 12;
-    const tick = () => {
-      k++;
-      if (k >= steps) {
-        t.setText(hit ? 'HIT!' : 'MISS').setColor(hit ? '#ffd23a' : '#9a8aaa');
-        this.scene.tweens.add({ targets: t, scale: { from: 1.7, to: 1 }, duration: 260, ease: 'Back.easeOut' });
-        this.scene.time.delayedCall(300, done);
-        return;
-      }
-      const on = (k + (hit ? 0 : 1)) % 2 === 0;
-      t.setText(on ? 'HIT' : 'MISS').setColor(on ? '#ffffff' : '#c8b8d8');
-      this.scene.time.delayedCall(50 + k * 12, tick);
-    };
-    tick();
+    // HIT は 0・2・4、MISS は 1・3・5 の どれか
+    const k = (hit ? 0 : 1) + 2 * Math.floor(Math.random() * 3);
+    t?.setText('');
+    this.spinWheel(k, 6, () => {
+      t?.setText(hit ? 'HIT!' : 'MISS').setColor(hit ? '#ffd23a' : '#9a8aaa');
+      if (t) this.scene.tweens.add({ targets: t, scale: { from: 1.7, to: 1 }, duration: 260, ease: 'Back.easeOut' });
+      this.scene.time.delayedCall(300, done);
+    });
   }
 
   /** HIT: ボスが ゆれて HP が へる */

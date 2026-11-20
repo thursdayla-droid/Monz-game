@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../rng';
-import { bossSpin, fixRush, makeBoard, newRush, rollDie, rollHit, rushMove, RUSH_SQUARES, type RushState } from './crownRush';
+import { bossSpin, fixRush, newRush, rollDie, rollHit, rushMove, RUSH_PATTERNS, type RushState } from './crownRush';
 
 const play = (s: RushState, rng: () => number) => {
   while (s.phase === 'board') rushMove(s, rollDie(rng), rng);
@@ -9,14 +9,54 @@ const play = (s: RushState, rng: () => number) => {
 };
 
 describe('CROWN RUSH(2026-11-19 企画者)', () => {
-  it('15マス: 1〜14 に 決まった 数・15マス目は ボス・毎回 ちがう(2026-11-20)', () => {
+  it('マスの 並びは 3パターン(A・B・C)から 1つ・15マス目は ボス', () => {
     const rng = mulberry32(1);
-    const b = makeBoard(rng);
-    expect(b).toHaveLength(15);
-    expect(b[14]).toBe('boss');
-    expect(b.filter((x) => x === 'extra')).toHaveLength(2);
-    for (const [k, n] of Object.entries(RUSH_SQUARES)) expect(b.filter((x) => x === k)).toHaveLength(n);
-    expect(makeBoard(rng).join()).not.toBe(b.join());
+    const seen = new Set<number>();
+    for (let i = 0; i < 60; i++) {
+      const r = newRush(rng, 10);
+      expect(r.board).toHaveLength(15);
+      expect(r.board[14]).toBe('boss');
+      expect(r.board.slice(0, 14)).toEqual(RUSH_PATTERNS[r.pattern!]);
+      seen.add(r.pattern!);
+    }
+    expect(seen.size).toBe(3);
+    // C は トラップが ボスの 手前
+    expect(RUSH_PATTERNS[2][13]).toBe('trap');
+  });
+
+  it('マスの 中身(BET 10): コイン 50〜100・宝箱 100〜200・ダイヤ 150・王冠 250', () => {
+    const rng = mulberry32(9);
+    for (const [sq, lo, hi] of [['coin', 50, 100], ['chest', 100, 200], ['diamond', 150, 150], ['crown', 250, 250]] as const) {
+      for (let i = 0; i < 50; i++) {
+        const s = newRush(rng, 10);
+        s.board = [...Array(14).fill(sq), 'boss'];
+        const st = rushMove(s, 1, rng);
+        expect(st.coins).toBeGreaterThanOrEqual(lo);
+        expect(st.coins).toBeLessThanOrEqual(hi);
+      }
+    }
+  });
+
+  it('ミステリー: 5つの どれか・+1/−1 は 次の 目に 足す', () => {
+    const rng = mulberry32(10);
+    const kinds = new Set<string>();
+    for (let i = 0; i < 300; i++) {
+      const s = newRush(rng, 10);
+      s.board = [...Array(14).fill('coin'), 'boss'];
+      s.board[4] = 'mystery';
+      const st = rushMove(s, 5, rng);
+      kinds.add(st.mystery!);
+      if (st.mystery === 'plus' || st.mystery === 'minus') {
+        const d = st.mystery === 'plus' ? 1 : -1;
+        const n = rushMove(s, 3, rng);
+        expect(n.move).toBe(3 + d);
+        expect(n.to).toBe(5 + 3 + d);
+      }
+      if (st.mystery === 'back') expect(s.pos).toBeGreaterThanOrEqual(2);
+      if (st.mystery === 'forward') expect(s.pos).toBeLessThanOrEqual(8);
+      if (st.mystery === 'coin') expect(st.coins).toBeGreaterThanOrEqual(50);
+    }
+    expect(kinds.size).toBe(5);
   });
 
   it('ルーレットは ちょうど 3回・出た 目だけ 進む・トラップは もどって 効果なし', () => {
