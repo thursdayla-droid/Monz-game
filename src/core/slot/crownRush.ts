@@ -20,7 +20,8 @@ export type RushSquare = 'coin' | 'chest' | 'extra' | 'mystery' | 'diamond' | 'c
 export const RUSH_GOAL = 15;
 export const RUSH_START_SPINS = 3;
 /** 1〜14マス目(2026-11-20。+1回の マスは なし)【仮】の 数 */
-export const RUSH_SQUARES: Record<Exclude<RushSquare, 'boss'>, number> = { coin: 5, chest: 3, extra: 0, mystery: 2, diamond: 2, crown: 1, trap: 1 };
+// 2026-11-20 企画者「ルーレット +1 マス 2個 ぐらい 置いて いいよ」→ +1 を 2つ(コインを 5 → 3)
+export const RUSH_SQUARES: Record<Exclude<RushSquare, 'boss'>, number> = { coin: 3, chest: 3, extra: 2, mystery: 2, diamond: 2, crown: 1, trap: 1 };
 export const BOSS_HP = 3;
 export const BOSS_SPINS = 5;
 export const BOSS_HIT = 0.5;

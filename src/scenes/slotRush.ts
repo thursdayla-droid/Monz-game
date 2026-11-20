@@ -83,7 +83,8 @@ export class RushView {
     const startW = Math.min(46, (bx1 - bx0) * 0.1);
     const cw = (bx1 - bx0 - startW) / cols;
     const rh = (by1 - by0) / rows;
-    this.s = Math.min(cw, rh) * 0.88;
+    // 2026-11-20 企画者「どっちに 進むか 分かりづらい」→ マスを 少し 小さく して 間に 道と 矢印
+    this.s = Math.min(cw * 0.74, rh * 0.8);
     this.cells = [];
     // 0 = スタート(1マス目の 左)
     this.cells.push({ x: bx0 + startW / 2, y: by0 + rh / 2 });
@@ -95,12 +96,12 @@ export class RushView {
     }
     // 道
     const g = this.scene.add.graphics();
-    g.lineStyle(Math.max(4, this.s * 0.14), 0x16101c, 0.9);
+    g.lineStyle(Math.max(8, this.s * 0.34), 0x16101c, 0.95);
     g.beginPath();
     g.moveTo(this.cells[0].x, this.cells[0].y);
     for (const p of this.cells.slice(1)) g.lineTo(p.x, p.y);
     g.strokePath();
-    g.lineStyle(Math.max(2, this.s * 0.06), 0xffd23a, 0.7);
+    g.lineStyle(Math.max(5, this.s * 0.22), 0xffd23a, 0.95);
     g.beginPath();
     g.moveTo(this.cells[0].x, this.cells[0].y);
     for (const p of this.cells.slice(1)) g.lineTo(p.x, p.y);
@@ -113,9 +114,10 @@ export class RushView {
     st.board.forEach((k, i) => {
       const p = this.cells[i + 1];
       const big = k === 'boss' ? 1.18 : 1;
-      const tile = this.img(this.keys.tiles?.[k], p.x, p.y, s * big * 1.12);
+      const tile = this.img(this.keys.tiles?.[k], p.x, p.y, s * big * 1.05);
       if (tile) {
         out.push(tile);
+        if (k !== 'boss') out.push(this.text(p.x - s * 0.36, p.y - s * 0.38, String(i + 1), s * 0.26, '#ffffff', 4));
         return;
       }
       sq.fillStyle(0x16101c, 1).fillRoundedRect(p.x - (s * big) / 2 - 3, p.y - (s * big) / 2 - 3, s * big + 6, s * big + 6, s * 0.22);
@@ -128,6 +130,24 @@ export class RushView {
       // マスの 番号(小さく)
       out.push(this.text(p.x - s * 0.32, p.y - s * 0.34, String(i + 1), s * 0.2, '#ffffff', 3));
     });
+    // マスと マスの 間に 進む 向きの 矢印(マスより 前)
+    const ar = this.scene.add.graphics();
+    for (let i = 0; i < this.cells.length - 1; i++) {
+      const p0 = this.cells[i];
+      const p1 = this.cells[i + 1];
+      const mx = (p0.x + p1.x) / 2;
+      const my = (p0.y + p1.y) / 2;
+      const ang = Math.atan2(p1.y - p0.y, p1.x - p0.x);
+      const L = Math.max(9, s * 0.2);
+      const pt = (dx: number, dy: number) => ({ x: mx + Math.cos(ang) * dx - Math.sin(ang) * dy, y: my + Math.sin(ang) * dx + Math.cos(ang) * dy });
+      const a1 = pt(L, 0);
+      const a2 = pt(-L * 0.7, -L * 0.85);
+      const a3 = pt(-L * 0.7, L * 0.85);
+      ar.fillStyle(0x16101c, 1).fillTriangle(pt(L + 4, 0).x, pt(L + 4, 0).y, pt(-L * 0.7 - 3, -L * 0.85 - 4).x, pt(-L * 0.7 - 3, -L * 0.85 - 4).y, pt(-L * 0.7 - 3, L * 0.85 + 4).x, pt(-L * 0.7 - 3, L * 0.85 + 4).y);
+      ar.fillStyle(0xff4ad8, 1).fillTriangle(a1.x, a1.y, a2.x, a2.y, a3.x, a3.y);
+    }
+    out.push(ar);
+    this.scene.tweens.add({ targets: ar, alpha: { from: 1, to: 0.55 }, duration: 600, yoyo: true, repeat: -1 });
     // 上: ロゴ・のこり 回数・獲得コイン
     let logo: Phaser.GameObjects.Image | Phaser.GameObjects.Text;
     if (this.keys.logo && this.scene.textures.exists(this.keys.logo)) {

@@ -14,7 +14,7 @@ describe('CROWN RUSH(2026-11-19 企画者)', () => {
     const b = makeBoard(rng);
     expect(b).toHaveLength(15);
     expect(b[14]).toBe('boss');
-    expect(b).not.toContain('extra');
+    expect(b.filter((x) => x === 'extra')).toHaveLength(2);
     for (const [k, n] of Object.entries(RUSH_SQUARES)) expect(b.filter((x) => x === k)).toHaveLength(n);
     expect(makeBoard(rng).join()).not.toBe(b.join());
   });
