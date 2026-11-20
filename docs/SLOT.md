@@ -444,4 +444,4 @@
 - ボス KING GORO：HP 3（王冠 3個）・最大 5回・HIT 50%・3 HIT で 撃破（撃破 50%）。報酬 BET×10（50%）・20（30%）・50（15%）・100（4%）・500（1%）。
 - 報酬は 終わりに まとめて もらう（ボスに 負けても すごろくの ぶんは もらえる）。とちゅうで 閉じても 続きから（`monz:slot` の rush）。もらったら すぐ 消す（二重に もらわない）。
 - 平均 BET の 約14倍・ボス戦まで 約41%（宝箱ボーナスは 約25倍。半々なので ボーナスの 平均は 約19倍に 下がる → 全体の もどりが 少し 下がる）。
-- 絵は 仮：マス＝色の 四角と 図柄・KING GORO＝企画者の 絵（2026-11-20。ふだん・やられた 顔。`public/assets/slot/rush_boss*.webp`・元は `design/slot/rush/`）。計算 `src/core/slot/crownRush.ts`、液晶の 表示 `src/scenes/slotRush.ts`。確認用ボタン「CROWN RUSH を ためす（確認用）」。
+- 絵は 仮：マス＝色の 四角と 図柄・ロゴ＝企画者の 絵（2026-11-20。BONUS!! の 下・はじめに 大きく・すごろくの 左上・終わりの 画面）。KING GORO＝企画者の 絵（2026-11-20。ふだん・やられた 顔。`public/assets/slot/rush_boss*.webp`・元は `design/slot/rush/`）。計算 `src/core/slot/crownRush.ts`、液晶の 表示 `src/scenes/slotRush.ts`。確認用ボタン「CROWN RUSH を ためす（確認用）」。

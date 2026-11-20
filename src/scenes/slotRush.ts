@@ -14,6 +14,8 @@ export interface RushKeys {
   crown?: string;
   chara?: string;
   boss?: string;
+  /** 企画者の ロゴ(2026-11-20) */
+  logo?: string;
   /** やられた 顔 */
   bossKo?: string;
 }
@@ -120,8 +122,14 @@ export class RushView {
       out.push(this.text(p.x - s * 0.32, p.y - s * 0.34, String(i + 1), s * 0.2, '#ffffff', 3));
     });
     // 上: ロゴ・のこり 回数・獲得コイン
-    const logo = this.text(-w / 2 + 16, -h / 2 + head / 2 + 2, 'CROWN RUSH', Math.min(34, head * 0.62), '#ffd23a', 6).setOrigin(0, 0.5);
-    logo.setShadow(0, 3, '#ff4ad8', 0, true, true);
+    let logo: Phaser.GameObjects.Image | Phaser.GameObjects.Text;
+    if (this.keys.logo && this.scene.textures.exists(this.keys.logo)) {
+      logo = this.scene.add.image(-w / 2 + 10, -h / 2 + head / 2 + 2, this.keys.logo).setOrigin(0, 0.5);
+      logo.setScale((head * 1.5) / logo.height);
+    } else {
+      logo = this.text(-w / 2 + 16, -h / 2 + head / 2 + 2, 'CROWN RUSH', Math.min(34, head * 0.62), '#ffd23a', 6).setOrigin(0, 0.5);
+      logo.setShadow(0, 3, '#ff4ad8', 0, true, true);
+    }
     this.info = this.text(w / 2 - 14, -h / 2 + head / 2 + 2, '', Math.min(22, head * 0.42), '#ffffff', 4).setOrigin(1, 0.5);
     out.push(logo, this.info);
     // 右: ルーレット(1〜6)

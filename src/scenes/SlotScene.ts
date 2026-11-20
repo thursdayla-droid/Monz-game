@@ -31,6 +31,8 @@ const BASE_H = 1280;
 const CELL_MAX = 124;
 const GAP = 8;
 const SAVE_KEY = 'monz:slot';
+/** CROWN RUSH の ロゴ(2026-11-20 企画者。元は design/slot/rush/logo.png) */
+const RUSH_LOGO = 'slot:rush:logo';
 /** 企画者の ROYAL JACKPOT の ロゴ */
 const LOGO_KEY = 'slot:logo';
 /** ブラックアウト復活の 金の ROYAL JACKPOT の 絵(企画者が 作る。届いたら public/assets/slot/revive.webp。なければ ロゴで 仮) */
@@ -452,7 +454,7 @@ export class SlotScene extends Phaser.Scene {
     for (const g of GUIDE_ART) if (!this.textures.exists(`slot:guide:${g}`)) this.load.image(`slot:guide:${g}`, assetUrl(`assets/slot/guide_${g}.webp`));
     for (const n of JP_ART) if (!this.textures.exists(jpArtKey(n))) this.load.image(jpArtKey(n), assetUrl(`assets/slot/jackpot/jp_${n}.webp`));
     // CROWN RUSH の KING GORO(2026-11-20 企画者の 絵。元は design/slot/rush/)
-    for (const [k, f] of [['slot:rush:boss', 'rush_boss'], ['slot:rush:bossKo', 'rush_boss_ko']]) if (!this.textures.exists(k)) this.load.image(k, assetUrl(`assets/slot/${f}.webp`));
+    for (const [k, f] of [['slot:rush:boss', 'rush_boss'], ['slot:rush:bossKo', 'rush_boss_ko'], [RUSH_LOGO, 'rush_logo']]) if (!this.textures.exists(k)) this.load.image(k, assetUrl(`assets/slot/${f}.webp`));
     // 企画者の 液晶の 背景(ふだん・赤・金。2026-11-10)
     for (const n of LCD_BGS) if (!this.textures.exists(lcdBgKey(n))) this.load.image(lcdBgKey(n), assetUrl(`assets/slot/lcd_${n}.webp`));
   }
@@ -1743,7 +1745,13 @@ export class SlotScene extends Phaser.Scene {
     t.setShadow(0, 8, '#ff4ad8', 0, true, true);
     // 2026-11-19 企画者「宝箱ボーナスと 半々」→ 王冠 3個で 宝箱ボーナスか CROWN RUSH
     const rushNext = this.rng() < 0.5;
-    const s = this.text(0, h * 0.2, rushNext ? 'CROWN RUSH' : 'TREASURE CHALLENGE', Math.min(40, h * 0.11), rushNext ? '#ffd23a' : '#ffffff', 8);
+    let s: Phaser.GameObjects.Text | Phaser.GameObjects.Image = this.text(0, h * 0.2, rushNext ? 'CROWN RUSH' : 'TREASURE CHALLENGE', Math.min(40, h * 0.11), rushNext ? '#ffd23a' : '#ffffff', 8);
+    // CROWN RUSH は 企画者の ロゴ(2026-11-20)
+    if (rushNext && this.textures.exists(RUSH_LOGO)) {
+      s.destroy();
+      s = this.add.image(0, h * 0.24, RUSH_LOGO);
+      s.setScale(Math.min((h * 0.42) / s.height, (this.lcdBox.w * 0.7) / s.width));
+    }
     this.lcdShow([t, s]);
     t.setScale(2.6);
     this.tweens.add({ targets: t, scale: 1, duration: 360, ease: 'Back.easeOut' });
@@ -2432,6 +2440,20 @@ export class SlotScene extends Phaser.Scene {
     this.clearGlow();
     this.winText.setText('0').setColor('#ffd23a');
     audio.playBgm('slotBonus');
+    // はじめに ロゴを 大きく
+    if (this.textures.exists(RUSH_LOGO)) {
+      this.setLcdBg('gold', 0.3);
+      const lg = this.add.image(0, 0, RUSH_LOGO);
+      const k = Math.min((this.lcdBox.h * 0.85) / lg.height, (this.lcdBox.w * 0.88) / lg.width);
+      lg.setScale(k * 2.2);
+      this.lcdShow([lcdRays(this, this.lcdBox, 0xffd23a, 0.3, 14, 0, 0, 3000), lg]);
+      this.tweens.add({ targets: lg, scale: k, duration: 380, ease: 'Back.easeOut' });
+      this.cameras.main.flash(250, 255, 220, 120);
+      audio.se('koBlast');
+      this.rushLock = true;
+      this.time.delayedCall(1900, () => this.rushShow('SPIN で ルーレット！'));
+      return;
+    }
     this.rushShow('SPIN で ルーレット！');
   }
 
@@ -2450,6 +2472,7 @@ export class SlotScene extends Phaser.Scene {
       chara: 'slot:chara:araigumar',
       boss: this.textures.exists('slot:rush:boss') ? 'slot:rush:boss' : undefined,
       bossKo: 'slot:rush:bossKo',
+      logo: RUSH_LOGO,
     };
     const v = new RushView(this, { w: this.lcdBox.w, h: this.lcdBox.h }, keys, (o) => this.lcd.add(o));
     this.rushView = v;
@@ -2567,8 +2590,13 @@ export class SlotScene extends Phaser.Scene {
     this.credit.setText(this.shown.toLocaleString());
     const h = this.lcdBox.h;
     this.setLcdBg('gold', 0.3);
-    const t = this.text(0, -h * 0.16, 'CROWN RUSH 終了', Math.min(56, h * 0.15), '#ffffff', 10);
-    const n = this.text(0, h * 0.12, `+${r.total.toLocaleString()} GET!`, Math.min(80, h * 0.21), '#ffd23a', 12);
+    let t: Phaser.GameObjects.Text | Phaser.GameObjects.Image = this.text(0, -h * 0.16, 'CROWN RUSH 終了', Math.min(56, h * 0.15), '#ffffff', 10);
+    if (this.textures.exists(RUSH_LOGO)) {
+      t.destroy();
+      t = this.add.image(0, -h * 0.2, RUSH_LOGO);
+      t.setScale(Math.min((h * 0.48) / t.height, (this.lcdBox.w * 0.6) / t.width));
+    }
+    const n = this.text(0, h * 0.24, `+${r.total.toLocaleString()} GET!`, Math.min(72, h * 0.19), '#ffd23a', 12);
     n.setShadow(0, 6, '#ff4ad8', 0, true, true);
     this.lcdShow([t, n]);
     n.setScale(2);
