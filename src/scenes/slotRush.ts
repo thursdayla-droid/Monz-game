@@ -16,6 +16,8 @@ export interface RushKeys {
   boss?: string;
   /** 企画者の ロゴ(2026-11-20) */
   logo?: string;
+  /** マスの 絵(2026-11-20 企画者)。ない マスは 色の 四角 */
+  tiles?: Partial<Record<RushSquare, string>>;
   /** やられた 顔 */
   bossKo?: string;
 }
@@ -81,7 +83,7 @@ export class RushView {
     const startW = Math.min(46, (bx1 - bx0) * 0.1);
     const cw = (bx1 - bx0 - startW) / cols;
     const rh = (by1 - by0) / rows;
-    this.s = Math.min(cw, rh) * 0.78;
+    this.s = Math.min(cw, rh) * 0.88;
     this.cells = [];
     // 0 = スタート(1マス目の 左)
     this.cells.push({ x: bx0 + startW / 2, y: by0 + rh / 2 });
@@ -111,6 +113,11 @@ export class RushView {
     st.board.forEach((k, i) => {
       const p = this.cells[i + 1];
       const big = k === 'boss' ? 1.18 : 1;
+      const tile = this.img(this.keys.tiles?.[k], p.x, p.y, s * big * 1.12);
+      if (tile) {
+        out.push(tile);
+        return;
+      }
       sq.fillStyle(0x16101c, 1).fillRoundedRect(p.x - (s * big) / 2 - 3, p.y - (s * big) / 2 - 3, s * big + 6, s * big + 6, s * 0.22);
       sq.fillStyle(SQ_COLOR[k], 1).fillRoundedRect(p.x - (s * big) / 2, p.y - (s * big) / 2, s * big, s * big, s * 0.2);
       const icon = k === 'coin' ? this.keys.coin : k === 'chest' ? this.keys.chest : k === 'diamond' ? this.keys.diamond : k === 'crown' ? this.keys.crown : k === 'boss' ? this.keys.boss : undefined;

@@ -33,6 +33,8 @@ const GAP = 8;
 const SAVE_KEY = 'monz:slot';
 /** CROWN RUSH の ロゴ(2026-11-20 企画者。元は design/slot/rush/logo.png) */
 const RUSH_LOGO = 'slot:rush:logo';
+/** CROWN RUSH の マスの 絵(2026-11-20 企画者。元は design/slot/rush/tiles/) */
+const RUSH_TILES = ['coin', 'chest', 'extra', 'mystery', 'diamond', 'crown', 'trap', 'boss'] as const;
 /** 企画者の ROYAL JACKPOT の ロゴ */
 const LOGO_KEY = 'slot:logo';
 /** ブラックアウト復活の 金の ROYAL JACKPOT の 絵(企画者が 作る。届いたら public/assets/slot/revive.webp。なければ ロゴで 仮) */
@@ -454,7 +456,7 @@ export class SlotScene extends Phaser.Scene {
     for (const g of GUIDE_ART) if (!this.textures.exists(`slot:guide:${g}`)) this.load.image(`slot:guide:${g}`, assetUrl(`assets/slot/guide_${g}.webp`));
     for (const n of JP_ART) if (!this.textures.exists(jpArtKey(n))) this.load.image(jpArtKey(n), assetUrl(`assets/slot/jackpot/jp_${n}.webp`));
     // CROWN RUSH の KING GORO(2026-11-20 企画者の 絵。元は design/slot/rush/)
-    for (const [k, f] of [['slot:rush:boss', 'rush_boss'], ['slot:rush:bossKo', 'rush_boss_ko'], [RUSH_LOGO, 'rush_logo']]) if (!this.textures.exists(k)) this.load.image(k, assetUrl(`assets/slot/${f}.webp`));
+    for (const [k, f] of [['slot:rush:boss', 'rush_boss'], ['slot:rush:bossKo', 'rush_boss_ko'], [RUSH_LOGO, 'rush_logo'], ...RUSH_TILES.map((n) => [`slot:rush:tile:${n}`, `rush_tile_${n}`])]) if (!this.textures.exists(k)) this.load.image(k, assetUrl(`assets/slot/${f}.webp`));
     // 企画者の 液晶の 背景(ふだん・赤・金。2026-11-10)
     for (const n of LCD_BGS) if (!this.textures.exists(lcdBgKey(n))) this.load.image(lcdBgKey(n), assetUrl(`assets/slot/lcd_${n}.webp`));
   }
@@ -2473,6 +2475,7 @@ export class SlotScene extends Phaser.Scene {
       boss: this.textures.exists('slot:rush:boss') ? 'slot:rush:boss' : undefined,
       bossKo: 'slot:rush:bossKo',
       logo: RUSH_LOGO,
+      tiles: Object.fromEntries(RUSH_TILES.map((n) => [n, `slot:rush:tile:${n}`]).filter(([, k]) => this.textures.exists(k))),
     };
     const v = new RushView(this, { w: this.lcdBox.w, h: this.lcdBox.h }, keys, (o) => this.lcd.add(o));
     this.rushView = v;
