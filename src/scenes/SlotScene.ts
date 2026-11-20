@@ -2691,6 +2691,11 @@ export class SlotScene extends Phaser.Scene {
       box = this.add.rectangle(W / 2, bodyY, W - 60, bh + 24, 0x0d0614, 0.6);
       c.add(box);
     }
+    // CROWN RUSH の ロゴと 説明を 重ねない(2026-11-20 企画者)
+    if (kind === 'rush' && !art && this.textures.exists(RUSH_LOGO)) {
+      const lh = Math.min((W * 0.75) / this.textures.getFrame(RUSH_LOGO).width, (H * 0.2) / this.textures.getFrame(RUSH_LOGO).height) * this.textures.getFrame(RUSH_LOGO).height;
+      bodyY = Math.max(bodyY, titleY + lh / 2 + 30 + bh / 2);
+    }
     body.setY(bodyY);
     // CROWN RUSH の 題は 企画者の ロゴ
     let t: Phaser.GameObjects.Text | Phaser.GameObjects.Image;

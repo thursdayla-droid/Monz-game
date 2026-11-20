@@ -154,7 +154,9 @@ export class RushView {
     let logo: Phaser.GameObjects.Image | Phaser.GameObjects.Text;
     if (this.keys.logo && this.scene.textures.exists(this.keys.logo)) {
       logo = this.scene.add.image(-w / 2 + 10, -h / 2 + head / 2 + 2, this.keys.logo).setOrigin(0, 0.5);
-      logo.setScale((head * 1.5) / logo.height);
+      // 2026-11-20 企画者「ロゴと 重ねないで」→ 上の 帯の 中に おさめる
+      logo.setScale((head * 1.02) / logo.height);
+      logo.setY(-h / 2 + head / 2 + 1);
     } else {
       logo = this.text(-w / 2 + 16, -h / 2 + head / 2 + 2, 'CROWN RUSH', Math.min(34, head * 0.62), '#ffd23a', 6).setOrigin(0, 0.5);
       logo.setShadow(0, 3, '#ff4ad8', 0, true, true);
