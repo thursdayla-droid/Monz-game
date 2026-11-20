@@ -128,7 +128,8 @@ for p in paths:
             # 2026-11-17 大当たりの 絵(液晶に 出す): 確認用ページでは 横 800 に(15MB に 入れるため。ゲーム本体は そのまま)
             bb = io.BytesIO()
             im = Image.open(pub + p)
-            im.resize((800, round(im.height * 800 / im.width)), Image.LANCZOS).save(bb, 'WEBP', quality=40, method=6)
+            # 2026-11-20 CROWN RUSH の マスの 絵で スロットの ページが こえた → スロットの ページは 34
+            im.resize((800, round(im.height * 800 / im.width)), Image.LANCZOS).save(bb, 'WEBP', quality=34 if SLOT else 40, method=6)
             data = bb.getvalue()
         elif SLOT and p.startswith('assets/slot/reach/'):
             # 2026-11-17 リーチの 絵が ふえて 15MB を こえた: スロットの 確認用ページでは 横 800 に(ゲーム本体は そのまま)
