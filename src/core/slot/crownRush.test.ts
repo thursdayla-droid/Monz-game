@@ -9,37 +9,38 @@ const play = (s: RushState, rng: () => number) => {
 };
 
 describe('CROWN RUSH(2026-11-19 企画者)', () => {
-  it('20マス: 1〜19 に 決まった 数・20マス目は ボス・毎回 ちがう', () => {
+  it('15マス: 1〜14 に 決まった 数・15マス目は ボス・毎回 ちがう(2026-11-20)', () => {
     const rng = mulberry32(1);
     const b = makeBoard(rng);
-    expect(b).toHaveLength(20);
-    expect(b[19]).toBe('boss');
+    expect(b).toHaveLength(15);
+    expect(b[14]).toBe('boss');
+    expect(b).not.toContain('extra');
     for (const [k, n] of Object.entries(RUSH_SQUARES)) expect(b.filter((x) => x === k)).toHaveLength(n);
     expect(makeBoard(rng).join()).not.toBe(b.join());
   });
 
-  it('はじめは 4回・出た 目だけ 進む・トラップは もどって 効果なし', () => {
+  it('ルーレットは ちょうど 3回・出た 目だけ 進む・トラップは もどって 効果なし', () => {
     const rng = mulberry32(2);
     const s = newRush(rng, 10);
-    expect(s.spins).toBe(4);
-    s.board = [...Array(19).fill('extra'), 'boss'];
+    expect(s.spins).toBe(3);
+    s.board = [...Array(14).fill('coin'), 'boss'];
     s.board[2] = 'trap';
     const st = rushMove(s, 3, rng);
     expect(st.square).toBe('trap');
     expect(st.back).toBeGreaterThanOrEqual(0);
     expect(st.back).toBeLessThanOrEqual(2);
     expect(s.pos).toBe(st.back);
-    expect(s.spins).toBe(3);
+    expect(s.spins).toBe(2);
     expect(s.total).toBe(0);
   });
 
-  it('20マス目に 着くか こえたら ボス戦', () => {
+  it('15マス目に 着くか こえたら ボス戦', () => {
     const rng = mulberry32(3);
     const s = newRush(rng, 10);
-    s.pos = 17;
+    s.pos = 12;
     const st = rushMove(s, 6, rng);
     expect(st.boss).toBe(true);
-    expect(s.pos).toBe(20);
+    expect(s.pos).toBe(15);
     expect(s.phase).toBe('boss');
     expect(s.boss).toEqual({ hp: 3, left: 5, hits: 0, misses: 0 });
   });
@@ -56,7 +57,7 @@ describe('CROWN RUSH(2026-11-19 企画者)', () => {
       if (s.defeated) {
         win++;
         expect(s.boss!.hits).toBe(3);
-        expect([100, 200, 500, 1000, 5000]).toContain(s.total);
+        expect(s.total).toBe(1000);
       } else expect(s.boss!.misses).toBe(3);
     }
     expect(Math.abs(win / N - 0.5)).toBeLessThan(0.01);

@@ -3,8 +3,9 @@ import type { Rng } from '../rng';
 /**
  * CROWN RUSH(クラウンラッシュ。2026-11-19 企画者)。ROYAL JACKPOT の 新しい ボーナス。画面には 依存しない。
  * 【確定】
+ * - 2026-11-20 企画者「15マス」「ルーレットは 3回のみ 1-6」「ボスは 倒したら 100倍」→ 15マス・ちょうど 3回(+1回は なし)・撃破は BET×100
  * - 王冠 3個(今の 宝箱ボーナスの 入り口)で、宝箱ボーナスか CROWN RUSH の どちらかが 半分ずつ(企画者「宝箱ボーナスと 半々」)
- * - 20マスの 一本道の すごろく。キャラは アライグマR。はじめは ルーレット 4回。1〜6 が 同じ 確率
+ * - (はじめ 20マス・4回 → 2026-11-20 に 15マス・3回)一本道の すごろく。1〜6 が 同じ 確率
  * - 止まった マスの 効果。20マス目(ボス)に 着く か こえたら ボス戦。回数が 0 で ゴール できなければ 終わり
  * - マス(1〜19 に ランダムに 置く・毎回 ちがう): コイン5・宝箱3・追加ルーレット4・ミステリー2・ダイヤ2・王冠2・トラップ1。20マス目は ボス
  * - トラップは 1〜3マス もどる。もどった 先の 効果は 出ない
@@ -16,24 +17,19 @@ import type { Rng } from '../rng';
  */
 export type RushSquare = 'coin' | 'chest' | 'extra' | 'mystery' | 'diamond' | 'crown' | 'trap' | 'boss';
 
-export const RUSH_GOAL = 20;
-export const RUSH_START_SPINS = 4;
-export const RUSH_SQUARES: Record<Exclude<RushSquare, 'boss'>, number> = { coin: 5, chest: 3, extra: 4, mystery: 2, diamond: 2, crown: 2, trap: 1 };
+export const RUSH_GOAL = 15;
+export const RUSH_START_SPINS = 3;
+/** 1〜14マス目(2026-11-20。+1回の マスは なし)【仮】の 数 */
+export const RUSH_SQUARES: Record<Exclude<RushSquare, 'boss'>, number> = { coin: 5, chest: 3, extra: 0, mystery: 2, diamond: 2, crown: 1, trap: 1 };
 export const BOSS_HP = 3;
 export const BOSS_SPINS = 5;
 export const BOSS_HIT = 0.5;
-/** 撃破の 報酬(BET の 何倍・確率 %) */
-export const BOSS_PAY: readonly { mult: number; rate: number }[] = [
-  { mult: 10, rate: 50 },
-  { mult: 20, rate: 30 },
-  { mult: 50, rate: 15 },
-  { mult: 100, rate: 4 },
-  { mult: 500, rate: 1 },
-];
+/** 撃破の 報酬(BET の 何倍。2026-11-20 企画者「倒したら 100倍」) */
+export const BOSS_MULT = 100;
 /** コインの マスの 倍率【仮】 */
 export const COIN_MULTS = [0.5, 1, 1.5, 2] as const;
-/** 宝箱の マスで さらに +1回 の 割合【仮】 */
-export const CHEST_EXTRA = 0.1;
+/** 宝箱の マスで さらに +1回 の 割合(2026-11-20 から 0。ルーレットは ちょうど 3回) */
+export const CHEST_EXTRA = 0;
 
 export interface RushBoss {
   hp: number;
@@ -115,14 +111,14 @@ export function rushMove(s: RushState, die: number, rng: Rng): RushStep {
       break;
     case 'chest':
       step.coins = b * randInt(rng, 1, 5);
-      if (rng() < CHEST_EXTRA) step.extra = 1;
+      if (CHEST_EXTRA > 0 && rng() < CHEST_EXTRA) step.extra = 1;
       break;
     case 'extra':
       step.extra = 1;
       break;
     case 'mystery':
-      if (rng() < 0.5) step.coins = b * randInt(rng, 1, 3);
-      else step.extra = 1;
+      // 【仮】BET×1〜5(2026-11-20 から +1回は なし)
+      step.coins = b * randInt(rng, 1, 5);
       break;
     case 'diamond':
       step.coins = b * 3;
@@ -151,12 +147,8 @@ export function bossSpin(s: RushState, hit: boolean, rng: Rng): { hit: boolean; 
     bo.hp--;
   } else bo.misses++;
   if (bo.hp <= 0) {
-    let r = rng() * 100;
-    let mult = BOSS_PAY[0].mult;
-    for (const p of BOSS_PAY) if ((r -= p.rate) < 0) {
-      mult = p.mult;
-      break;
-    }
+    void rng;
+    const mult = BOSS_MULT;
     s.defeated = true;
     s.bossMult = mult;
     s.total += s.bet * mult;

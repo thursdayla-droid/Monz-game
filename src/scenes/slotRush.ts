@@ -66,7 +66,7 @@ export class RushView {
 
   // ---------------- すごろく ----------------
 
-  /** 20マスの ジグザグ(4段 × 5マス)。左上が 1マス目、右下 or 左下が 20マス目 */
+  /** 15マスの ジグザグ(3段 × 5マス。2026-11-20)。左上が 1マス目、右下が 15マス目 */
   board(st: RushState): Obj[] {
     const { w, h } = this.box;
     const out: Obj[] = [];
@@ -78,7 +78,7 @@ export class RushView {
     const by0 = -h / 2 + head + 6;
     const by1 = h / 2 - 10;
     const cols = 5;
-    const rows = 4;
+    const rows = 3;
     // スタートの ぶん 左を 少し あける
     const startW = Math.min(46, (bx1 - bx0) * 0.1);
     const cw = (bx1 - bx0 - startW) / cols;
