@@ -152,7 +152,7 @@ export class RushView {
     out.push(this.die);
     // アライグマR
     const cp = this.cells[st.pos];
-    const ch = this.img(this.keys.chara, cp.x, cp.y - s * 0.35, s * 1.6);
+    const ch = this.img(this.keys.chara, cp.x, cp.y - s * 0.2, s * 1.15);
     this.chara = ch ?? this.text(cp.x, cp.y - s * 0.3, '🦝', s * 0.8);
     out.push(this.chara);
     this.scene.tweens.add({ targets: this.chara, scaleY: this.chara.scaleY * 1.05, duration: 420, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
@@ -194,7 +194,7 @@ export class RushView {
       if (i === to) return done();
       i += dir;
       const p = this.cells[i];
-      this.scene.tweens.add({ targets: c, x: p.x, y: p.y - this.s * 0.35, duration: dir > 0 ? 170 : 230, ease: 'Quad.easeOut', onComplete: next });
+      this.scene.tweens.add({ targets: c, x: p.x, y: p.y - this.s * 0.2, duration: dir > 0 ? 170 : 230, ease: 'Quad.easeOut', onComplete: next });
       this.scene.tweens.add({ targets: c, angle: { from: -8, to: 8 }, duration: 85, yoyo: true });
     };
     next();
