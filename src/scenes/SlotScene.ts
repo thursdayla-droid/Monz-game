@@ -2445,6 +2445,12 @@ export class SlotScene extends Phaser.Scene {
     this.clearGlow();
     this.winText.setText('0').setColor('#ffd23a');
     audio.playBgm('slotBonus');
+    // 2026-11-20 企画者「宝箱ボーナス みたいに 説明」→ 説明の あとに ロゴ
+    this.rushLock = true;
+    this.guide('rush', () => this.rushIntro());
+  }
+
+  private rushIntro(): void {
     // はじめに ロゴを 大きく
     if (this.textures.exists(RUSH_LOGO)) {
       this.setLcdBg('gold', 0.3);
@@ -2649,19 +2655,22 @@ export class SlotScene extends Phaser.Scene {
    * 始まる 前の 説明(2026-11-12 企画者。絵は 企画者が 用意する → slot:guide:bonus / slot:guide:free。それまで 仮の 文字)。
    * 画面 いっぱい・タップで 始まる(オートの 時は 少し 待って 自動で)。遊び方の 説明に 報酬は 書かない【確定】
    */
-  private guide(kind: 'bonus' | 'free', then: () => void): void {
+  private guide(kind: 'bonus' | 'free' | 'rush', then: () => void): void {
     const H = this.H;
     const c = this.add.container(0, 0).setDepth(60);
     const dim = this.add.rectangle(W / 2, H / 2, W, H, 0x0d0614, 0.92).setInteractive();
     c.add(dim);
     const key = `slot:guide:${kind}`;
-    const title = kind === 'bonus' ? 'TREASURE CHALLENGE' : 'FREE GAME';
+    const title = kind === 'bonus' ? 'TREASURE CHALLENGE' : kind === 'rush' ? 'CROWN RUSH' : 'FREE GAME';
     const lines =
-      kind === 'bonus'
+      kind === 'rush'
+        ? ['SPIN で ルーレットを 回して', 'すごろくを 進もう', '', 'ルーレットは 3回', '止まった マスで いろいろ 起きるよ', '+1 の マスで ルーレットが ふえる', '', 'ゴールの BOSS に 着いたら', 'KING GORO と 対決！', 'HIT を 3回 出せば 撃破']
+        : kind === 'bonus'
         ? ['宝箱を 1つ えらぼう', '', '大当たり・あたり → つぎの ラウンドへ', '終了の 宝箱が 出たら おしまい', '', 'どの 宝箱に 何が 入っているかは', '毎回 かわるよ']
         : ['5×5 の 大きな リールで 回るよ', '', 'WILD は ほかの 図柄の かわりに なる', 'WILD は おわりまで その場に のこる', 'WILD が 出たら +1 SPIN', '', '王冠 3つで 回数が ふえる'];
-    let titleY = H * 0.28;
-    let bodyY = H * 0.48;
+    // CROWN RUSH は ロゴ(大きい)の ぶん 上へ
+    let titleY = kind === 'rush' ? H * 0.17 : H * 0.28;
+    let bodyY = kind === 'rush' ? H * 0.5 : H * 0.48;
     // 説明の 文字(大きさを 先に はかる)
     const art = this.textures.exists(key);
     const body = this.text(W / 2, 0, (art ? lines.filter((l) => l) : lines).join('\n'), 26, '#ffffff', 5).setLineSpacing(art ? 6 : 10);
@@ -2683,8 +2692,15 @@ export class SlotScene extends Phaser.Scene {
       c.add(box);
     }
     body.setY(bodyY);
-    const t = this.text(W / 2, titleY, title, 50, '#ffd23a', 10);
-    t.setShadow(0, 6, '#ff4ad8', 0, true, true);
+    // CROWN RUSH の 題は 企画者の ロゴ
+    let t: Phaser.GameObjects.Text | Phaser.GameObjects.Image;
+    if (kind === 'rush' && this.textures.exists(RUSH_LOGO)) {
+      t = this.add.image(W / 2, titleY, RUSH_LOGO);
+      t.setScale(Math.min((W * 0.75) / t.width, (H * 0.2) / t.height));
+    } else {
+      t = this.text(W / 2, titleY, title, 50, '#ffd23a', 10);
+      t.setShadow(0, 6, '#ff4ad8', 0, true, true);
+    }
     c.add([t, body]);
     const tap = this.text(W / 2, Math.min(H - 30, bodyY + bh / 2 + 44), this.autoNow ? '' : 'タップで スタート', 34, '#ffd23a', 8);
     c.add(tap);
