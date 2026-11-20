@@ -457,7 +457,7 @@ export class SlotScene extends Phaser.Scene {
     for (const g of GUIDE_ART) if (!this.textures.exists(`slot:guide:${g}`)) this.load.image(`slot:guide:${g}`, assetUrl(`assets/slot/guide_${g}.webp`));
     for (const n of JP_ART) if (!this.textures.exists(jpArtKey(n))) this.load.image(jpArtKey(n), assetUrl(`assets/slot/jackpot/jp_${n}.webp`));
     // CROWN RUSH の KING GORO(2026-11-20 企画者の 絵。元は design/slot/rush/)
-    for (const [k, f] of [['slot:rush:boss', 'rush_boss'], ['slot:rush:bossKo', 'rush_boss_ko'], [RUSH_LOGO, 'rush_logo'], [RUSH_PIECE, 'rush_piece'], ...RUSH_TILES.map((n) => [`slot:rush:tile:${n}`, `rush_tile_${n}`])]) if (!this.textures.exists(k)) this.load.image(k, assetUrl(`assets/slot/${f}.webp`));
+    for (const [k, f] of [['slot:rush:boss', 'rush_boss'], ['slot:rush:bossKo', 'rush_boss_ko'], [RUSH_LOGO, 'rush_logo'], [RUSH_PIECE, 'rush_piece'], ['slot:rush:wheel', 'rush_wheel'], ['slot:rush:wheelBoss', 'rush_wheel_boss'], ...RUSH_TILES.map((n) => [`slot:rush:tile:${n}`, `rush_tile_${n}`])]) if (!this.textures.exists(k)) this.load.image(k, assetUrl(`assets/slot/${f}.webp`));
     // 企画者の 液晶の 背景(ふだん・赤・金。2026-11-10)
     for (const n of LCD_BGS) if (!this.textures.exists(lcdBgKey(n))) this.load.image(lcdBgKey(n), assetUrl(`assets/slot/lcd_${n}.webp`));
   }

@@ -342,8 +342,8 @@ export class RushView {
       out.push(ic);
     }
     // HIT / MISS の 円盤(当たり 3・ハズレ 3 が 交互。2026-11-20 企画者)
-    const wr = Math.min(h * 0.17, w * 0.11);
-    const wy = h * 0.14;
+    const wr = Math.min(h * 0.2, w * 0.13);
+    const wy = h * 0.15;
     out.push(...this.makeWheel(rx, wy, wr, ['HIT', 'MISS', 'HIT', 'MISS', 'HIT', 'MISS'], [0xffd23a, 0x3a2a4a], this.keys.wheelBoss));
     this.roll = this.text(rx + wr + 14, wy, '', Math.min(28, h * 0.085), '#ffffff', 6).setOrigin(0, 0.5);
     out.push(this.roll);
