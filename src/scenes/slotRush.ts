@@ -332,22 +332,24 @@ export class RushView {
     out.push(name);
     // 右: HP(王冠 3個)・のこり・HIT/MISS
     const rx = w * 0.24;
-    out.push(this.text(rx, -h * 0.4, 'BOSS BATTLE', Math.min(30, h * 0.09), '#ffd23a', 6));
+    out.push(this.text(rx, -h * 0.42, 'BOSS BATTLE', Math.min(28, h * 0.085), '#ffd23a', 6));
     this.hpIcons = [];
     for (let i = 0; i < BOSS_HP; i++) {
-      const x = rx + (i - 1) * Math.min(70, w * 0.1);
-      const ic = this.img(this.keys.crown, x, -h * 0.2, Math.min(60, h * 0.18)) ?? this.text(x, -h * 0.2, '♛', Math.min(50, h * 0.16), '#ffd23a', 4);
+      const x = rx + (i - 1) * Math.min(56, w * 0.08);
+      const ic = this.img(this.keys.crown, x, -h * 0.28, Math.min(48, h * 0.13)) ?? this.text(x, -h * 0.28, '♛', Math.min(40, h * 0.12), '#ffd23a', 4);
       if (i >= bo.hp) ic.setAlpha(0.2);
       this.hpIcons.push(ic);
       out.push(ic);
     }
     // HIT / MISS の 円盤(当たり 3・ハズレ 3 が 交互。2026-11-20 企画者)
-    const wr = Math.min(h * 0.2, w * 0.13);
-    const wy = h * 0.15;
+    // 2026-11-20 企画者「ボスの 時の ルーレット もう少し 大きく」
+    const wr = Math.min(h * 0.28, w * 0.17);
+    const wy = h * 0.11;
     out.push(...this.makeWheel(rx, wy, wr, ['HIT', 'MISS', 'HIT', 'MISS', 'HIT', 'MISS'], [0xffd23a, 0x3a2a4a], this.keys.wheelBoss));
-    this.roll = this.text(rx + wr + 14, wy, '', Math.min(28, h * 0.085), '#ffffff', 6).setOrigin(0, 0.5);
+    // 結果は 円盤の 上に 大きく
+    this.roll = this.text(rx, wy, '', Math.min(44, h * 0.14), '#ffffff', 8);
     out.push(this.roll);
-    this.info = this.text(rx, h * 0.44, '', Math.min(20, h * 0.06), '#ffffff', 4);
+    this.info = this.text(rx, h * 0.455, '', Math.min(18, h * 0.055), '#ffffff', 4);
     out.push(this.info);
     this.setBossInfo(st);
     return out;
