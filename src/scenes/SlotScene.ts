@@ -451,6 +451,8 @@ export class SlotScene extends Phaser.Scene {
     // 企画者の 説明の 絵(2026-11-12〜。届いたら public/assets/slot/guide_bonus.webp・guide_free.webp)
     for (const g of GUIDE_ART) if (!this.textures.exists(`slot:guide:${g}`)) this.load.image(`slot:guide:${g}`, assetUrl(`assets/slot/guide_${g}.webp`));
     for (const n of JP_ART) if (!this.textures.exists(jpArtKey(n))) this.load.image(jpArtKey(n), assetUrl(`assets/slot/jackpot/jp_${n}.webp`));
+    // CROWN RUSH の KING GORO(2026-11-20 企画者の 絵。元は design/slot/rush/)
+    for (const [k, f] of [['slot:rush:boss', 'rush_boss'], ['slot:rush:bossKo', 'rush_boss_ko']]) if (!this.textures.exists(k)) this.load.image(k, assetUrl(`assets/slot/${f}.webp`));
     // 企画者の 液晶の 背景(ふだん・赤・金。2026-11-10)
     for (const n of LCD_BGS) if (!this.textures.exists(lcdBgKey(n))) this.load.image(lcdBgKey(n), assetUrl(`assets/slot/lcd_${n}.webp`));
   }
@@ -2447,6 +2449,7 @@ export class SlotScene extends Phaser.Scene {
       crown: symKey('crown'),
       chara: 'slot:chara:araigumar',
       boss: this.textures.exists('slot:rush:boss') ? 'slot:rush:boss' : undefined,
+      bossKo: 'slot:rush:bossKo',
     };
     const v = new RushView(this, { w: this.lcdBox.w, h: this.lcdBox.h }, keys, (o) => this.lcd.add(o));
     this.rushView = v;
@@ -2536,7 +2539,9 @@ export class SlotScene extends Phaser.Scene {
             this.cameras.main.flash(400, 255, 215, 80);
             this.setLcdBg('gold', 0.2);
             this.lcd.addAt(lcdRays(this, this.lcdBox, 0xffd23a, 0.35, 14, 0, 0, 5000), 0);
-            v.banner('BOSS DEFEAT!', '#ffd23a', Math.min(80, this.lcdBox.h * 0.24), 0);
+            v.ko();
+            // やられた 顔(左)が 見える ように 右に
+            v.banner('BOSS\nDEFEAT!', '#ffd23a', Math.min(64, this.lcdBox.h * 0.2), 0, this.lcdBox.w * 0.22, -this.lcdBox.h * 0.12);
             this.time.delayedCall(700, () => v.pop2(`BET ×${res.mult}  +${(r.bet * (res.mult ?? 0)).toLocaleString()}`));
             coinFountain(this, W / 2, this.reelY + 200, 60);
           } else {

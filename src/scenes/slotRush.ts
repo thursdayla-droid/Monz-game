@@ -14,6 +14,8 @@ export interface RushKeys {
   crown?: string;
   chara?: string;
   boss?: string;
+  /** やられた 顔 */
+  bossKo?: string;
 }
 
 const SQ_COLOR: Record<RushSquare, number> = {
@@ -194,8 +196,8 @@ export class RushView {
   }
 
   /** 液晶の まん中に 大きな 文字 */
-  banner(msg: string, color: string, size: number, ms = 1200): Phaser.GameObjects.Text {
-    const t = this.text(0, 0, msg, size, color, 10);
+  banner(msg: string, color: string, size: number, ms = 1200, x = 0, y = 0): Phaser.GameObjects.Text {
+    const t = this.text(x, y, msg, size, color, 10);
     t.setShadow(0, 5, '#ff4ad8', 0, true, true);
     this.add(t);
     t.setScale(2.2);
@@ -206,7 +208,8 @@ export class RushView {
 
   /** 下に 小さな 帯(ボスの 報酬) */
   pop2(msg: string): void {
-    const t = this.text(0, this.box.h * 0.3, msg, Math.min(40, this.box.h * 0.12), '#ffffff', 8);
+    // やられた 顔(左)が 見える ように 右に
+    const t = this.text(this.box.w * 0.22, this.box.h * 0.2, msg, Math.min(34, this.box.h * 0.11), '#ffffff', 8);
     this.add(t);
     t.setScale(0.4);
     this.scene.tweens.add({ targets: t, scale: 1, duration: 260, ease: 'Back.easeOut' });
@@ -221,7 +224,7 @@ export class RushView {
     // 左: KING GORO(仮の 絵)
     const bx = -w * 0.2;
     const size = Math.min(h * 0.7, w * 0.42);
-    const im = this.img(this.keys.boss, bx, h * 0.04, size);
+    const im = this.img(this.keys.boss, bx, h * 0.02, size * 1.15);
     if (im) this.bossImg = im;
     else {
       // 仮: 黒い ゴリラの 顔(丸) + 王冠
@@ -294,6 +297,16 @@ export class RushView {
   }
 
   /** HIT: ボスが ゆれて HP が へる */
+  /** 撃破: やられた 顔に かえる */
+  ko(): void {
+    const b = this.bossImg;
+    if (!(b instanceof Phaser.GameObjects.Image) || !this.keys.bossKo || !this.scene.textures.exists(this.keys.bossKo)) return;
+    const size = Math.max(b.displayWidth, b.displayHeight);
+    b.setTexture(this.keys.bossKo);
+    b.setScale(size / Math.max(b.width, b.height));
+    this.scene.tweens.add({ targets: b, angle: { from: -10, to: 10 }, duration: 160, yoyo: true, repeat: 3 });
+  }
+
   hit(st: RushState): void {
     const b = this.bossImg;
     if (b) this.scene.tweens.add({ targets: b, x: { from: b.x - 14, to: b.x }, duration: 60, repeat: 4, yoyo: true });
