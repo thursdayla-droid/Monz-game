@@ -32,6 +32,8 @@ const CELL_MAX = 124;
 const GAP = 8;
 const SAVE_KEY = 'monz:slot';
 /** CROWN RUSH の ロゴ(2026-11-20 企画者。元は design/slot/rush/logo.png) */
+/** 王冠 3個で CROWN RUSH に なる 割合(のこりは 宝箱ボーナス。2026-11-20 企画者「60%」) */
+const RUSH_RATE = 0.6;
 const RUSH_LOGO = 'slot:rush:logo';
 const RUSH_PIECE = 'slot:rush:piece';
 /** CROWN RUSH の マスの 絵(2026-11-20 企画者。元は design/slot/rush/tiles/) */
@@ -1747,7 +1749,7 @@ export class SlotScene extends Phaser.Scene {
     const t = this.text(0, -h * 0.14, 'BONUS!!', Math.min(120, h * 0.32), '#ffd23a', 12);
     t.setShadow(0, 8, '#ff4ad8', 0, true, true);
     // 2026-11-19 企画者「宝箱ボーナスと 半々」→ 王冠 3個で 宝箱ボーナスか CROWN RUSH
-    const rushNext = this.rng() < 0.5;
+    const rushNext = this.rng() < RUSH_RATE;
     let s: Phaser.GameObjects.Text | Phaser.GameObjects.Image = this.text(0, h * 0.2, rushNext ? 'CROWN RUSH' : 'TREASURE CHALLENGE', Math.min(40, h * 0.11), rushNext ? '#ffd23a' : '#ffffff', 8);
     // CROWN RUSH は 企画者の ロゴ(2026-11-20)
     if (rushNext && this.textures.exists(RUSH_LOGO)) {
