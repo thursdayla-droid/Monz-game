@@ -438,8 +438,10 @@ export class AnimeField {
   /** species: 2体の種族(モデルを選ぶ。モデルのない種族は仮のモンスター) */
   /** models: 2体の3Dモデル(roster.ts の modelFor。null なら仮のモンスター) */
   constructor(canvas: HTMLCanvasElement, private models: [ModelPick, ModelPick] = [null, null], private arena: ArenaMap | null = null) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    // 2026-11-20 企画者「モンズランブル やってると たまに 最初に 戻っちゃう」: iPhone で メモリが 足りず ページが 読み直される →
+    // 3D の 描く 細かさを 少し 下げる(細かい 画面では なめらか処理なし・最大 1.5倍)。見た目の 大きさは 同じ
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: (window.devicePixelRatio || 1) < 2 });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     // ステージごとの 空・光・霧(2026-11-05 STREET KING の ステージ)

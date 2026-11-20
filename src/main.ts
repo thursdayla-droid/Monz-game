@@ -70,6 +70,8 @@ const game = new Phaser.Game({
 
 // 2026-11-08 企画者「全画面がいい」: たての 画面を スマホの 形まで のばす(背景を 広げる)
 /** 向きが 変わったら 作り直す 画面(作り直しても 遊んでいる 中身が 消えない メニュー・お世話画面) */
+/** 3D を 使う 画面 */
+const HEAVY_3D = new Set(['Battle3D', 'Battle3DFight', 'Adventure']);
 const RELAYOUT_ON_ROTATE = new Set(['Title', 'Home', 'BattleMenu', 'MinigameSelect', 'CardTitle', 'RoomSelect', 'Shop', 'MythMode']);
 
 game.events.once(Phaser.Core.Events.READY, () => {
@@ -79,7 +81,9 @@ game.events.once(Phaser.Core.Events.READY, () => {
   for (const s of game.scene.scenes) {
     s.events.on(Phaser.Scenes.Events.CREATE, () => {
       clearTimeout(trimT);
-      trimT = setTimeout(() => trimTextures(game), 1000);
+      // 3D の 画面(MONZ RUMBLE・冒険)は 3D に メモリを 使うので、ゲームの 絵は すぐ 少なめに(2026-11-20 iPhone で 読み直される 対策)
+      if (HEAVY_3D.has(s.scene.key)) trimTextures(game, 60 * 1024 * 1024);
+      else trimT = setTimeout(() => trimTextures(game), 1000);
       fillTall(s);
       // 2026-11-13 企画者「1発で お世話画面に 戻る ホームボタン」(メニュー画面だけ・右上)
       // 確認用ページ(スロットだけ などの 一部だけ 入った ページ)には お世話画面が ないので 出さない
