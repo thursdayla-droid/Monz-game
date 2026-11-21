@@ -106,6 +106,10 @@ export interface DashState {
   picked: number;
   /** 次に コインを 置く 距離(m) */
   nextCoinM: number;
+  /** その 100m で まだ 置く 枚数 */
+  coinLeft?: number;
+  /** さいごに 置いた コインの x */
+  lastCoinX?: number;
 }
 
 /**
@@ -117,7 +121,44 @@ export interface DashCoin {
   y: number;
   taken: boolean;
 }
-export const DASH_COINS = { fromM: 300, everyM: 100, perGroup: 5, size: 44, gap: 60 } as const;
+// 2026-11-21 企画者「もっと 大きく」「5枚 連続 じゃ なくて 連続は 3枚 ぐらい・バランス よく 散りばめて」→ 100m に 5枚を 1〜3枚の 小さな 組に 分けて 置く
+export const DASH_COINS = { fromM: 300, everyM: 100, perGroup: 5, maxRun: 3, size: 64, gap: 76 } as const;
+
+/** その 100m で まだ 置く 枚数(1〜3枚の 組に する) */
+function coinBatch(s: DashState, x: number): number {
+  if (x < s.nextCoinM * DASH.pxPerMeter) return 0;
+  // コースの 乱数は 使わない(コースが かわらない ように)。場所から 決まる 乱数
+  const rng = mulberry32((Math.imul(s.seed, 2654435761) ^ Math.floor(x)) >>> 0);
+  // 前の 組から 少し はなす(続けて 並ばない ように)
+  if (x < (s.lastCoinX ?? -1e9) + 360) return 0;
+  // 100m の 区切りを こえたら、のこりを 新しい 5枚に
+  const seg = Math.floor(x / DASH.pxPerMeter / DASH_COINS.everyM) * DASH_COINS.everyM;
+  if (seg >= s.nextCoinM + DASH_COINS.everyM || s.coinLeft === undefined) {
+    s.nextCoinM = Math.max(s.nextCoinM, seg);
+    s.coinLeft = DASH_COINS.perGroup;
+  }
+  if (s.coinLeft <= 0) return 0;
+  // 1〜3枚(のこりが 少ない 時は のこり ぜんぶ)。足場 2つに 1つ くらいに 置く(散らばる ように)
+  if (rng() < 0.35) return 0;
+  return Math.min(s.coinLeft, 1 + Math.floor(rng() * DASH_COINS.maxRun));
+}
+function coinTaken(s: DashState, n: number): void {
+  s.lastCoinX = Math.max(...s.coins.slice(-n).map((c) => c.x));
+  s.coinLeft = (s.coinLeft ?? DASH_COINS.perGroup) - n;
+  if (s.coinLeft <= 0) {
+    s.nextCoinM += DASH_COINS.everyM;
+    s.coinLeft = DASH_COINS.perGroup;
+  }
+}
+/** ジャンプの 弧(cx の まわり)に n 枚 */
+function coinArc(s: DashState, cx: number, baseY: number, n: number, reach: number): void {
+  for (let k = 0; k < n; k++) {
+    const u = (k - (n - 1) / 2) * 0.18;
+    const hh = jumpHeight() * (1 - (2 * u) ** 2) * 0.8;
+    s.coins.push({ x: cx + u * reach, y: baseY - DASH.runnerH / 2 - hh, taken: false });
+  }
+  coinTaken(s, n);
+}
 export const DASH_COIN_VALUE = 1;
 
 /** 空中にいられる時間(秒) */
@@ -194,15 +235,8 @@ function fill(s: DashState): void {
         const y = Math.max(DASH.minY, Math.min(DASH.maxY, s.lastY + (i === 0 ? range(rng, -40, 40) : range(rng, -25, 25))));
         s.platforms.push({ x, w, y });
         // コイン: 短い 足場の 間の すき間の 上に ジャンプの 弧(2つめの 足場へ 跳ぶ 時)
-        if (i === 1 && x >= s.nextCoinM * DASH.pxPerMeter) {
-          const cx = x - g / 2;
-          for (let k = 0; k < DASH_COINS.perGroup; k++) {
-            const u = (k - (DASH_COINS.perGroup - 1) / 2) * 0.17;
-            const hh = jumpHeight() * (1 - (2 * u) ** 2) * 0.8;
-            s.coins.push({ x: cx + u * reach, y: Math.min(s.lastY, y) - DASH.runnerH / 2 - hh, taken: false });
-          }
-          s.nextCoinM += DASH_COINS.everyM;
-        }
+        const nc = i >= 1 ? coinBatch(s, x) : 0;
+        if (nc) coinArc(s, x - g / 2, Math.min(s.lastY, y), nc, reach);
         s.nextX = x + w;
         s.lastY = y;
       }
@@ -245,23 +279,17 @@ function fill(s: DashState): void {
       }
       s.things.push({ x: hx, y: y - 56, w: 54, h: 56, kind: 'danger', bounce: b });
       // コイン: 動かない トゲの 上に ジャンプの 弧(跳び越えると 取れる)
-      if (!bounce && x >= s.nextCoinM * DASH.pxPerMeter) {
-        const cx = hx + 27;
-        for (let i = 0; i < DASH_COINS.perGroup; i++) {
-          const u = (i - (DASH_COINS.perGroup - 1) / 2) * 0.17;
-          const hh = jumpHeight() * (1 - (2 * u) ** 2) * 0.8;
-          s.coins.push({ x: cx + u * reach, y: y - DASH.runnerH / 2 - hh, taken: false });
-        }
-        s.nextCoinM += DASH_COINS.everyM;
+      const nc = !bounce ? coinBatch(s, x) : 0;
+      if (nc) coinArc(s, hx + 27, y, nc, reach);
+    } else {
+      // コイン: トゲの ない 足場の 上に 1〜3枚(走って いると 取れる)。足場の 後ろの ほうに
+      const nc = coinBatch(s, x);
+      if (nc && w > reach * 0.5 + DASH_COINS.gap * nc) {
+        const x0 = x + w - DASH_COINS.gap * nc - 30;
+        for (let i = 0; i < nc; i++) s.coins.push({ x: x0 + i * DASH_COINS.gap, y: y - DASH.runnerH / 2, taken: false });
+        coinTaken(s, nc);
       }
-    } else if (x >= s.nextCoinM * DASH.pxPerMeter && w > reach * 0.5 + DASH_COINS.gap * DASH_COINS.perGroup) {
-      // コイン: トゲの ない 足場の 上に 1列(走って いると 取れる)。足場の 後ろの ほうに
-      const x0 = x + w - DASH_COINS.gap * DASH_COINS.perGroup - 20;
-      for (let i = 0; i < DASH_COINS.perGroup; i++) s.coins.push({ x: x0 + i * DASH_COINS.gap, y: y - DASH.runnerH / 2, taken: false });
-      s.nextCoinM += DASH_COINS.everyM;
     }
-    // 置けない 足場が 続いて おくれたら、おくれを ためない(100m ごとの まま)
-    if (x > (s.nextCoinM + DASH_COINS.everyM) * DASH.pxPerMeter) s.nextCoinM = Math.floor(x / DASH.pxPerMeter / DASH_COINS.everyM) * DASH_COINS.everyM;
     // さわっても大丈夫な物(星)は 2026-10-20 企画者の指示で廃止(まぎらわしいため)
     s.nextX = x + w;
     s.lastY = y;

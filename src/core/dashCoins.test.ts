@@ -2,25 +2,30 @@ import { describe, expect, it } from 'vitest';
 import { DASH, DASH_COINS, newDash, step } from './dash';
 
 describe('MONZ DASH の コイン(2026-11-21 企画者)', () => {
-  it('300m より 前には ない・あとは 5枚ずつ・100m ごとに 1組くらい', () => {
+  it('300m より 前には ない・100m に 約5枚・1つの 組は 3枚まで(散らばる)', () => {
     for (const seed of [1, 2, 3]) {
       const s = newDash(seed);
-      const seen = new Map<number, { x: number; y: number }>();
+      const seen = new Map<string, { x: number; y: number }>();
       for (let i = 0; i < 400; i++) {
         s.over = false;
         s.y = -2000;
         s.vy = 0;
         s.dist += 400;
         step(s, 0.0001);
-        for (const c of s.coins) seen.set(c.x * 1e4 + c.y, c);
+        for (const c of s.coins) seen.set(`${c.x},${c.y}`, c);
       }
       const xs = [...seen.values()].map((c) => c.x).sort((a, b) => a - b);
-      expect(xs.length % DASH_COINS.perGroup).toBe(0);
       expect(xs[0]).toBeGreaterThanOrEqual(DASH_COINS.fromM * DASH.pxPerMeter);
-      const groups = xs.length / DASH_COINS.perGroup;
       const meters = (s.dist - DASH_COINS.fromM * DASH.pxPerMeter) / DASH.pxPerMeter;
-      expect(groups).toBeGreaterThan(meters / DASH_COINS.everyM - 3);
-      expect(groups).toBeLessThanOrEqual(meters / DASH_COINS.everyM + 2);
+      const per100 = xs.length / (meters / DASH_COINS.everyM);
+      expect(per100).toBeGreaterThan(3.5);
+      expect(per100).toBeLessThan(6);
+      // 近くに 並ぶ コインは 3枚まで
+      let run = 1;
+      for (let i = 1; i < xs.length; i++) {
+        run = xs[i] - xs[i - 1] < 200 ? run + 1 : 1;
+        expect(run).toBeLessThanOrEqual(DASH_COINS.maxRun);
+      }
     }
   });
 
