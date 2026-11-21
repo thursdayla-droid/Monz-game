@@ -132,13 +132,14 @@ export function cardReward(cards: number, clears: number): { coins: number; exp:
  * 報酬は 企画者「これで いい」(MONZ コイン)。ロイヤルストレートフラッシュは 特別な アイテム(【未確定】あとで 決める)
  */
 export type HandName = 'three' | 'straight' | 'flush' | 'fullhouse' | 'four' | 'straightflush' | 'royal';
+// 2026-11-21 企画者「役の 報酬を 5分の1」→ 10・20・30・60・100・200
 export const HAND_INFO: Record<HandName, { label: string; coins: number; rank: number }> = {
-  three: { label: 'スリーカード', coins: 50, rank: 1 },
-  straight: { label: 'ストレート', coins: 100, rank: 2 },
-  flush: { label: 'フラッシュ', coins: 150, rank: 3 },
-  fullhouse: { label: 'フルハウス', coins: 300, rank: 4 },
-  four: { label: 'フォーカード', coins: 500, rank: 5 },
-  straightflush: { label: 'ストレートフラッシュ', coins: 1000, rank: 6 },
+  three: { label: 'スリーカード', coins: 10, rank: 1 },
+  straight: { label: 'ストレート', coins: 20, rank: 2 },
+  flush: { label: 'フラッシュ', coins: 30, rank: 3 },
+  fullhouse: { label: 'フルハウス', coins: 60, rank: 4 },
+  four: { label: 'フォーカード', coins: 100, rank: 5 },
+  straightflush: { label: 'ストレートフラッシュ', coins: 200, rank: 6 },
   // ロイヤルは コインなし・ダイヤモンドキャットだけ(2026-11-19 企画者「3000 コイン あげないで 猫の 置物だけ」)
   royal: { label: 'ロイヤルストレートフラッシュ', coins: 0, rank: 7 },
 };
