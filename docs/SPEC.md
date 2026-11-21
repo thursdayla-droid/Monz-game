@@ -149,7 +149,7 @@
 | 種類 | 元の絵（企画者の絵） | ゲームで使う形 |
 |---|---|---|
 | BUNK | `design/bunk/`（`reference/` に元の絵） | `public/assets/bunk/`（parts・down・faces・poses・reference） |
-| お世話の 姿の 絵（BUNK 以外の 1段階め。座る・寝る・伸び・見渡す・おなかすいた・ねむい。2026-11-15〜 MOFU・KLAK・SNEK・CROWNIE・ZIPP・PUNI・RIOT・GRIT・VYBE・SHELLZ。進化した 姿は 2026-11-16〜 BUNKER（`bunk_f2`）・BUNKLORD（`bunk_f3`）・MOFUGARD（`mofu_f3`。2026-11-20）・KLAK の 第2形態（`klak_f2`。2026-11-20。おなかすいた は まだ）・最終形態（`klak_f3`。2026-11-20）喜ぶ・怒る・泣く・びっくり も） | `design/species/<種族>/poses/`（`tools/make_care_poses.py <種族> <基準の姿> <高さ>` で 切り抜く） | `public/assets/poses/<種族>/` |
+| お世話の 姿の 絵（BUNK 以外の 1段階め。座る・寝る・伸び・見渡す・おなかすいた・ねむい。2026-11-15〜 MOFU・KLAK・SNEK・CROWNIE・ZIPP・PUNI・RIOT・GRIT・VYBE・SHELLZ。進化した 姿は 2026-11-16〜 BUNKER（`bunk_f2`）・BUNKLORD（`bunk_f3`）・MOFUGARD（`mofu_f3`。2026-11-20）・KLAK の 第2形態（`klak_f2`。2026-11-20。おなかすいた は まだ）・最終形態（`klak_f3`。2026-11-20）・PUNI の 第2形態（`puni_f2`。2026-11-21）喜ぶ・怒る・泣く・びっくり も） | `design/species/<種族>/poses/`（`tools/make_care_poses.py <種族> <基準の姿> <高さ>` で 切り抜く） | `public/assets/poses/<種族>/` |
 | タイトル | `design/title/` | `public/assets/title/` |
 | 誕生 | `design/birth/` | `public/assets/birth/` |
 | 部屋 | `design/home/rooms/` | `public/assets/home/rooms/`（`*_thumb` は部屋選びの小さい絵。`room4_thumb` は黒いシルエット） |
