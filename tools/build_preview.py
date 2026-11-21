@@ -138,7 +138,9 @@ for p in paths:
             if im.width > 800:
                 im = im.resize((800, round(im.height * 800 / im.width)), Image.LANCZOS)
             # 2026-11-20 CROWN RUSH の 絵で また こえた → 33
-            im.convert('RGB').save(bb, 'WEBP', quality=31, method=6)
+            # 2026-11-21 ナンパリーチの 絵で こえた → 横 720・25
+            if im.width > 720: im = im.resize((720, round(im.height * 720 / im.width)), Image.LANCZOS)
+            im.convert('RGB').save(bb, 'WEBP', quality=25, method=6)
             data = bb.getvalue()
         elif p.startswith('assets/scratch/board_'):
             # スクラッチの 板: 確認用ページでは 横 300 に
