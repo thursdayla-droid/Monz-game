@@ -100,7 +100,25 @@ export interface DashState {
   rngState: number;
   /** ゲームが始まってからの時間(秒)。はねるトゲの動きに使う */
   time: number;
+  /** 拾える コイン(2026-11-21 企画者「300m から コイン」) */
+  coins: DashCoin[];
+  /** 拾った コインの 数 */
+  picked: number;
+  /** 次に コインを 置く 距離(m) */
+  nextCoinM: number;
 }
+
+/**
+ * コイン(2026-11-21 企画者「300m から 100m ごとに 5枚」「ジャンプ したり 走って いると 取れる」「デカすぎない」)。
+ * 走って 取る 列(足場の 上)か、トゲの 上の ジャンプの 弧。1枚 = MONZ コイン DASH_COIN_VALUE 枚【仮】
+ */
+export interface DashCoin {
+  x: number;
+  y: number;
+  taken: boolean;
+}
+export const DASH_COINS = { fromM: 300, everyM: 100, perGroup: 5, size: 44, gap: 60 } as const;
+export const DASH_COIN_VALUE = 1;
 
 /** 空中にいられる時間(秒) */
 export const airtime = (): number => (2 * DASH.jumpVelocity) / DASH.gravity;
@@ -133,6 +151,9 @@ export function newDash(seed: number): DashState {
     over: false,
     rngState: seed >>> 0,
     time: 0,
+    coins: [],
+    picked: 0,
+    nextCoinM: DASH_COINS.fromM,
   };
   fill(s);
   return s;
@@ -172,6 +193,16 @@ function fill(s: DashState): void {
         const x = s.nextX + g;
         const y = Math.max(DASH.minY, Math.min(DASH.maxY, s.lastY + (i === 0 ? range(rng, -40, 40) : range(rng, -25, 25))));
         s.platforms.push({ x, w, y });
+        // コイン: 短い 足場の 間の すき間の 上に ジャンプの 弧(2つめの 足場へ 跳ぶ 時)
+        if (i === 1 && x >= s.nextCoinM * DASH.pxPerMeter) {
+          const cx = x - g / 2;
+          for (let k = 0; k < DASH_COINS.perGroup; k++) {
+            const u = (k - (DASH_COINS.perGroup - 1) / 2) * 0.17;
+            const hh = jumpHeight() * (1 - (2 * u) ** 2) * 0.8;
+            s.coins.push({ x: cx + u * reach, y: Math.min(s.lastY, y) - DASH.runnerH / 2 - hh, taken: false });
+          }
+          s.nextCoinM += DASH_COINS.everyM;
+        }
         s.nextX = x + w;
         s.lastY = y;
       }
@@ -213,7 +244,24 @@ function fill(s: DashState): void {
         b.phase = target * DASH.bouncePeriod - (meet - s.time);
       }
       s.things.push({ x: hx, y: y - 56, w: 54, h: 56, kind: 'danger', bounce: b });
+      // コイン: 動かない トゲの 上に ジャンプの 弧(跳び越えると 取れる)
+      if (!bounce && x >= s.nextCoinM * DASH.pxPerMeter) {
+        const cx = hx + 27;
+        for (let i = 0; i < DASH_COINS.perGroup; i++) {
+          const u = (i - (DASH_COINS.perGroup - 1) / 2) * 0.17;
+          const hh = jumpHeight() * (1 - (2 * u) ** 2) * 0.8;
+          s.coins.push({ x: cx + u * reach, y: y - DASH.runnerH / 2 - hh, taken: false });
+        }
+        s.nextCoinM += DASH_COINS.everyM;
+      }
+    } else if (x >= s.nextCoinM * DASH.pxPerMeter && w > reach * 0.5 + DASH_COINS.gap * DASH_COINS.perGroup) {
+      // コイン: トゲの ない 足場の 上に 1列(走って いると 取れる)。足場の 後ろの ほうに
+      const x0 = x + w - DASH_COINS.gap * DASH_COINS.perGroup - 20;
+      for (let i = 0; i < DASH_COINS.perGroup; i++) s.coins.push({ x: x0 + i * DASH_COINS.gap, y: y - DASH.runnerH / 2, taken: false });
+      s.nextCoinM += DASH_COINS.everyM;
     }
+    // 置けない 足場が 続いて おくれたら、おくれを ためない(100m ごとの まま)
+    if (x > (s.nextCoinM + DASH_COINS.everyM) * DASH.pxPerMeter) s.nextCoinM = Math.floor(x / DASH.pxPerMeter / DASH_COINS.everyM) * DASH_COINS.everyM;
     // さわっても大丈夫な物(星)は 2026-10-20 企画者の指示で廃止(まぎらわしいため)
     s.nextX = x + w;
     s.lastY = y;
@@ -221,6 +269,7 @@ function fill(s: DashState): void {
   // 通りすぎたものは片付ける
   s.platforms = s.platforms.filter((p) => p.x + p.w > s.dist - 400);
   s.things = s.things.filter((t) => t.x + t.w > s.dist - 400);
+  s.coins = s.coins.filter((c) => c.x > s.dist - 400);
 }
 
 /** タップ: 足場の上(か、離れた直後)ならジャンプ */
@@ -302,6 +351,15 @@ export function step(s: DashState, dt: number): void {
     if (fx + half - 8 > tl && fx - half + 8 < tr && s.y - 4 > t.y + vin && top < t.y + t.h - vin) {
       s.over = 'hit';
       return;
+    }
+  }
+  // コインを 拾う(体の 四角と コインの 丸)
+  const r = DASH_COINS.size / 2;
+  for (const c of s.coins) {
+    if (c.taken) continue;
+    if (c.x + r > fx - half && c.x - r < fx + half && c.y + r > top && c.y - r < s.y) {
+      c.taken = true;
+      s.picked++;
     }
   }
   if (s.y > DASH.fallY) {

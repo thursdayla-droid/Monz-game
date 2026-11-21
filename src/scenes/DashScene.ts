@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
-import { DASH, dashReward, jump, meters, newDash, step, type DashState, type Platform, type Thing } from '../core/dash';
+import { DASH, DASH_COIN_VALUE, DASH_COINS, dashReward, jump, meters, newDash, step, type DashCoin, type DashState, type Platform, type Thing } from '../core/dash';
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { newSeed } from '../core/rng';
 import { preloadPacks } from '../render/packs';
@@ -58,6 +58,9 @@ export class DashScene extends Phaser.Scene {
   private t = 0;
   private onHide?: () => void;
   private spikeViews = new Map<Thing, Phaser.GameObjects.Image>();
+  /** コイン(2026-11-21 企画者) */
+  private coinViews = new Map<DashCoin, Phaser.GameObjects.Image | Phaser.GameObjects.Arc>();
+  private pickedShown = 0;
   private platViews = new Map<Platform, { img: Phaser.GameObjects.Image | Phaser.GameObjects.Rectangle; dx: number; dy?: number }[]>();
 
   constructor() {
@@ -83,9 +86,13 @@ export class DashScene extends Phaser.Scene {
     this.platViews = new Map();
     this.pose = '';
     this.spikeViews = new Map();
+    this.coinViews = new Map();
+    this.pickedShown = 0;
     this.runner = this.add.image(DASH.runnerX, 900, DASH_RUN_KEY).setDepth(3);
     this.setPose('run');
 
+    // 拾った コイン(距離の 下に 小さく)
+    this.add.text(W / 2, 112, '', { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '26px', color: '#ffd23a', stroke: INK, strokeThickness: 6 }).setOrigin(0.5, 0).setDepth(10).setName('picked');
     this.distText = this.add.text(W / 2, 40, '', { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '52px', color: '#ffffff', stroke: INK, strokeThickness: 10 }).setOrigin(0.5, 0).setDepth(10);
     const pause = this.add.text(24, 30, 'Ⅱ', { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '34px', color: '#ffffff', backgroundColor: '#16101ccc', padding: { x: 16, y: 6 } }).setDepth(10).setInteractive({ useHandCursor: true }).setName('pause');
     pause.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
@@ -180,6 +187,10 @@ export class DashScene extends Phaser.Scene {
     this.s = newDash(newSeed());
     this.runId = `dash-${Date.now().toString(36)}-${newSeed().toString(36)}`;
     this.phase = 'run';
+    for (const v of this.coinViews.values()) v.destroy();
+    this.coinViews = new Map();
+    this.pickedShown = 0;
+    (this.children.getByName('picked') as Phaser.GameObjects.Text | null)?.setText('');
     audio.playBgm('dash');
   }
 
@@ -209,7 +220,9 @@ export class DashScene extends Phaser.Scene {
   private gameOver(): void {
     this.phase = 'over';
     const m = meters(this.s);
-    const r = dashReward(m);
+    const base = dashReward(m);
+    // 拾った コイン(1回の 上限とは べつ)
+    const r = { ...base, coins: base.coins + this.s.picked * DASH_COIN_VALUE };
     this.record.grant({ runId: this.runId, source: 'dash', coins: r.coins, exp: r.exp });
     const best = this.record.record('dash', m, 0);
     (this.children.getByName('coins') as Phaser.GameObjects.Text | null)?.setText(this.record.coins.toLocaleString());
@@ -329,6 +342,40 @@ export class DashScene extends Phaser.Scene {
       img.setPosition(Math.round(x + t.w / 2), t.y + t.h - SPIKE_SIZE / 2 + 6).setVisible(visible);
       // はねるトゲは、転がっているように回す
       if (t.bounce) img.setAngle(-(s.time - t.bounce.t0) * 240);
+    }
+    // コイン
+    for (const [c, v] of this.coinViews) {
+      if (s.coins.includes(c) && !c.taken) continue;
+      if (c.taken && v.active) {
+        // 拾った: 上へ ふわっと 消える
+        this.coinViews.delete(c);
+        this.tweens.add({ targets: v, y: v.y - 60, alpha: 0, scale: v.scale * 1.4, duration: 260, onComplete: () => v.destroy() });
+      } else {
+        v.destroy();
+        this.coinViews.delete(c);
+      }
+    }
+    for (const c of s.coins) {
+      if (c.taken) continue;
+      const x = c.x + ox;
+      if (x < -40 || x > W + 40) {
+        this.coinViews.get(c)?.setVisible(false);
+        continue;
+      }
+      let v = this.coinViews.get(c);
+      if (!v) {
+        v = this.textures.exists(homeIconKey('coin')) ? this.add.image(0, 0, homeIconKey('coin')).setDisplaySize(DASH_COINS.size, DASH_COINS.size) : this.add.circle(0, 0, DASH_COINS.size / 2, 0xffd23a).setStrokeStyle(3, 0x16101c);
+        v.setDepth(2.5);
+        this.coinViews.set(c, v);
+      }
+      // くるくる(横に 細く なる)
+      v.setPosition(Math.round(x), c.y).setVisible(true);
+      if (v instanceof Phaser.GameObjects.Image) v.setDisplaySize(DASH_COINS.size * Math.abs(Math.cos(this.t * 4 + c.x * 0.01)) + 4, DASH_COINS.size);
+    }
+    if (s.picked !== this.pickedShown) {
+      this.pickedShown = s.picked;
+      audio.se('tap', { pitch: 1.6 });
+      (this.children.getByName('picked') as Phaser.GameObjects.Text | null)?.setText(`🪙 ${s.picked * DASH_COIN_VALUE}`);
     }
     const runner = this.runner!;
     const bob = s.grounded ? Math.abs(Math.sin(this.t * 14)) * 6 : 0;
