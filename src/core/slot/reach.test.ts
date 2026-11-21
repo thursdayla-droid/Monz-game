@@ -177,7 +177,7 @@ describe('キャラの リーチの 当たる 確率(企画者 2026-11-11)', () 
     expect(Math.abs(rate('panda') - 0.2)).toBeLessThan(0.04);
     // チーターS は めったに 出ない(100万回転で 約200回)ので ぶれが 大きい(2026-11-17 リーチが ふえて 乱数の 順が かわり 0.07 → 0.1)
     expect(Math.abs(rate('kanojo') - 0.8)).toBeLessThan(0.1);
-    // カンガルーH・ヒヨコJ は 今の 数字(約40%)で 決定
+    // カンガルーH・ヒヨコG は 今の 数字(約40%)で 決定
     expect(Math.abs(rate('ramen') - 0.4)).toBeLessThan(0.05);
     expect(Math.abs(rate('golf') - 0.4)).toBeLessThan(0.05);
     expect(n.panda / n.kyon).toBeGreaterThan(0.85);
@@ -198,7 +198,7 @@ describe('キャラの リーチの 当たる 確率(企画者 2026-11-11)', () 
     expect(Math.abs(rate('tenbai') - 0.1)).toBeLessThan(0.04);
     expect(n.tenbai / n.kyon).toBeGreaterThan(0.85);
     expect(n.tenbai / n.kyon).toBeLessThan(1.15);
-    // ヒヨコJの ナンパリーチ(2026-11-21): 野球リーチと 同じ くらい 出て、約35%(カワセミ 20%・イノ子 50%)
+    // ヒヨコGの ナンパリーチ(2026-11-21): 野球リーチと 同じ くらい 出て、約35%(カワセミ 20%・イノ子 50%)
     expect(Math.abs(rate('nanpa') - 0.35)).toBeLessThan(0.05);
     expect(n.nanpa / n.usagi).toBeGreaterThan(0.85);
     expect(n.nanpa / n.usagi).toBeLessThan(1.15);

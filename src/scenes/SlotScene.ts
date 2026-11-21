@@ -294,7 +294,7 @@ const STORY_REACHES: StoryReach[] = [
         { title: 'イノ子', color: '#ff8ab3' },
       ],
     },
-    win: { text: '一緒に タクシーへ… 当たり！', icon: '🚕💕🐥' },
+    win: { text: '勝った…', icon: '🚕💕🐥' },
     lose: { text: '彼氏が いた… ボコられた…', icon: '🦅💢🐥', show: true },
   },
   {
@@ -1015,7 +1015,7 @@ export class SlotScene extends Phaser.Scene {
       paintRv();
     });
     box.add(rv);
-    const names: Record<string, string> = { kyon: 'キョンK', chikoku: 'キョンK 遅刻', yakyu: 'リスザルJ', tenbai: 'うさぎK 転売', panda: 'パンダY', usagi: 'うさぎK', ramen: 'カンガルーH', golf: 'ヒヨコJ', nanpa: 'ヒヨコJ ナンパ', kanojo: 'チーターS', premium: 'アライグマR' };
+    const names: Record<string, string> = { kyon: 'キョンK', chikoku: 'キョンK 遅刻', yakyu: 'リスザルJ', tenbai: 'うさぎK 転売', panda: 'パンダY', usagi: 'うさぎK', ramen: 'カンガルーH', golf: 'ヒヨコG', nanpa: 'ヒヨコG ナンパ', kanojo: 'チーターS', premium: 'アライグマR' };
     const rows: { label: string; id: string; variant: number; lose: boolean }[] = [];
     for (const d of STORY_REACHES) {
       const n = d.variants?.list.length ?? 1;
@@ -1506,7 +1506,7 @@ export class SlotScene extends Phaser.Scene {
     return out;
   }
 
-  /** ステップアップに 使う 白黒の 1枚目(段の 数だけ)。順番は キョンK・パンダY・カンガルーH・ヒヨコJ・チーターS(企画者 2026-11-12) */
+  /** ステップアップに 使う 白黒の 1枚目(段の 数だけ)。順番は キョンK・パンダY・カンガルーH・ヒヨコG・チーターS(企画者 2026-11-12) */
   private stepFaces(): string[] | undefined {
     const all = STEP_ORDER.map((id) => this.grayFirst(id));
     // 段の 数の 目もりは 全部の キャラぶん(6つ)。出すのは 今の 段まで

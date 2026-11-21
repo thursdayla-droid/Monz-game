@@ -51,7 +51,7 @@ export interface BigReachType {
  * 2026-11-12 企画者「7が 2個 出て リーチの 方が いい。3個 そろってから ハズレは 微妙」
  * → 7(レインボー・ゴールド)が 左から 2リール そろったら キャラの リーチ。3リール目に 7が 来たら 当たり。
  * 重み: winWeight = 当たる 時の 出やすさ・loseWeight = ハズレの 時の 出やすさ(100回 当たる あいだに 何回 ハズレで 出るか)。
- * 当たる 確率(企画者 2026-11-11): キョンK 10%・パンダY 20%(キョンK と 同じくらい よく 出る)・うさぎK 30%・カンガルーH 約40%・ヒヨコJ 約40%・チーターS 80%。
+ * 当たる 確率(企画者 2026-11-11): キョンK 10%・パンダY 20%(キョンK と 同じくらい よく 出る)・うさぎK 30%・カンガルーH 約40%・ヒヨコG 約40%・チーターS 80%。
  * 7が 2個で ハズレの 時、キャラの リーチが 出ない 分(NO_STORY_LOSE)は ふつうの 小さい リーチ。重みを かえたら reach.test.ts で たしかめる
  */
 export const BIG_REACHES: readonly BigReachType[] = [
@@ -74,10 +74,10 @@ export const BIG_REACHES: readonly BigReachType[] = [
       { name: '特製とんこつラーメン', winWeight: 3, loseWeight: 0.6 },
     ],
   },
-  // リーチ⑤「ヒヨコJの ゴルフリーチ」(パターが 入れば 当たり)。芝生 3種類で 当たりやすさが ちがう
+  // リーチ⑤「ヒヨコGの ゴルフリーチ」(パターが 入れば 当たり)。芝生 3種類で 当たりやすさが ちがう
   {
     id: 'golf',
-    name: 'ヒヨコJの ゴルフリーチ',
+    name: 'ヒヨコGの ゴルフリーチ',
     winWeight: 16,
     loseWeight: 24,
     variants: [
@@ -129,7 +129,7 @@ export const BIG_REACHES: readonly BigReachType[] = [
   // 女の子は 2人(半分ずつ): カワセミ 20%・イノシシの イノ子 50%。出やすさは 野球リーチ(うさぎK)と 同じ【仮】
   {
     id: 'nanpa',
-    name: 'ヒヨコJの ナンパリーチ',
+    name: 'ヒヨコGの ナンパリーチ',
     winWeight: 28,
     loseWeight: 47.5,
     variants: [
@@ -312,7 +312,7 @@ export function planShow(res: SpinResult, bet: number, rng: Rng): SpinShow {
   // (当たる 回数は 変わらない。見せ方だけ。プレミアは いつも 当たりなので 出さない)
   const storyWin = out.big ? out.bigSuccess : !!out.crownBig && (res.bonus || res.free > 0);
   out.revive = !!story && story.id !== 'premium' && story.id !== 'line' && storyWin && rng() < REVIVE_RATE;
-  // キャラの リーチが ない 時は 5段目(ヒヨコJ)まで。6段目(チーターS)まで 進めば 必ず チーターの リーチ
+  // キャラの リーチが ない 時は 5段目(ヒヨコG)まで。6段目(チーターS)まで 進めば 必ず チーターの リーチ
   return out;
 }
 
