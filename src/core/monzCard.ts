@@ -110,8 +110,8 @@ export function play(r: Round, slot: number): Round | null {
 export const CARD_REWARD = {
   clearCoins: 500,
   clearExp: 50,
-  // 2026-11-21 企画者「出した 枚数の もらえる 経験値は 半分」→ 4枚ごと → 8枚ごと
-  cardsPerExp: 8,
+  // 2026-11-21 企画者「出した 枚数の EXP は 3分の2」(半分は やりすぎ)→ 4枚ごと → 6枚ごと
+  cardsPerExp: 6,
   minCardsForReward: 10,
   cardsPerCoin: 5,
 } as const;
