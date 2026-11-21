@@ -275,6 +275,29 @@ const STORY_REACHES: StoryReach[] = [
     lose: { text: '空振り… みんな キレてる…', icon: '⚾💢', show: true },
   },
   {
+    // 2026-11-21 企画者「ヒヨコの ナンパリーチ」: ナイトクラブで 女の子に 話しかける → 当たり = 一緒に タクシー・ハズレ = 彼氏が いて ボコられる
+    // 女の子は カワセミ(20%)か イノシシの イノ子(50%)。絵は 種類ごと(2-1・2-2・win-1・win-2・lose-1・lose-2)
+    id: 'nanpa',
+    chara: 'slot:chara:hiyokoj',
+    charaFile: 'assets/slot/chara_hiyokoj.webp',
+    art: ['1', '2-1', '2-2', '3', 'win-1', 'win-2', 'lose-1', 'lose-2'],
+    color: '#ff4ad8',
+    panels: [
+      { title: 'ナイトクラブ', line: '今夜は キメるぜ…', chara: true },
+      { line: 'ねぇ、ひとり？', prop: '🍸', bg: 0x2a0a30 },
+      { title: 'いけるか…！？', line: 'このあと どう？', prop: '💦', bg: 0x2a0a30 },
+    ],
+    variants: {
+      panel: 1,
+      list: [
+        { title: 'カワセミちゃん', color: '#7de8ff' },
+        { title: 'イノ子', color: '#ff8ab3' },
+      ],
+    },
+    win: { text: '一緒に タクシーへ… 当たり！', icon: '🚕💕🐥' },
+    lose: { text: '彼氏が いた… ボコられた…', icon: '🦅💢🐥', show: true },
+  },
+  {
     // 2026-11-11 企画者 リーチ⑥: 彼女に 質問されて 答える。彼女が 喜べば 当たり
     id: 'kanojo',
     chara: 'slot:chara:cheetahs',
@@ -992,7 +1015,7 @@ export class SlotScene extends Phaser.Scene {
       paintRv();
     });
     box.add(rv);
-    const names: Record<string, string> = { kyon: 'キョンK', chikoku: 'キョンK 遅刻', yakyu: 'リスザルJ', tenbai: 'うさぎK 転売', panda: 'パンダY', usagi: 'うさぎK', ramen: 'カンガルーH', golf: 'ヒヨコJ', kanojo: 'チーターS', premium: 'アライグマR' };
+    const names: Record<string, string> = { kyon: 'キョンK', chikoku: 'キョンK 遅刻', yakyu: 'リスザルJ', tenbai: 'うさぎK 転売', panda: 'パンダY', usagi: 'うさぎK', ramen: 'カンガルーH', golf: 'ヒヨコJ', nanpa: 'ヒヨコJ ナンパ', kanojo: 'チーターS', premium: 'アライグマR' };
     const rows: { label: string; id: string; variant: number; lose: boolean }[] = [];
     for (const d of STORY_REACHES) {
       const n = d.variants?.list.length ?? 1;
@@ -1545,7 +1568,10 @@ export class SlotScene extends Phaser.Scene {
     const r = ok ? def.win : def.lose;
     const items: Phaser.GameObjects.GameObject[] = [];
     if (ok) this.setLcdBg('gold', 0.1);
-    const artKey = `slot:reach:${def.id}:${ok ? 'win' : 'lose'}`;
+    // 種類ごとの 結果の 絵(<win|lose>-<種類>。2026-11-21 ナンパリーチ)が あれば それ
+    const vi = def.variants ? (this.lastShow?.bigVariant ?? -1) : -1;
+    const vRes = vi >= 0 ? `slot:reach:${def.id}:${ok ? 'win' : 'lose'}-${vi + 1}` : '';
+    const artKey = vRes && this.textures.exists(vRes) ? vRes : `slot:reach:${def.id}:${ok ? 'win' : 'lose'}`;
     const ab = this.artBox();
     if (this.textures.exists(artKey)) items.push(...this.reachArt(artKey, ab));
     else {

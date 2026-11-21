@@ -125,6 +125,18 @@ export const BIG_REACHES: readonly BigReachType[] = [
       { name: 'へんな ポーズ', winWeight: 5, loseWeight: 5 },
     ],
   },
+  // 2026-11-21 企画者「ヒヨコの ナンパリーチ」: ナイトクラブで 女の子に 話しかける。当たり = 一緒に タクシー・ハズレ = 彼氏が いて ボコられる。
+  // 女の子は 2人(半分ずつ): カワセミ 20%・イノシシの イノ子 50%。出やすさは 野球リーチ(うさぎK)と 同じ【仮】
+  {
+    id: 'nanpa',
+    name: 'ヒヨコJの ナンパリーチ',
+    winWeight: 28,
+    loseWeight: 47.5,
+    variants: [
+      { name: 'カワセミ', winWeight: 2, loseWeight: 8 },
+      { name: 'イノ子', winWeight: 5, loseWeight: 5 },
+    ],
+  },
 ];
 /** 7が 2個で ハズレの 時に キャラの リーチを 出さない(小さい リーチ だけ)重み */
 // 2026-11-12 7の 出やすさを かえた ので 合わせ直した(キャラごとの 当たる 確率を そのままに)
@@ -133,7 +145,8 @@ export const BIG_REACHES: readonly BigReachType[] = [
 // 2026-11-13 グループLINE(当たりだけ)を 足した ぶん 365 → 403(ほかの キャラの 当たる 確率を そのままに)
 // 2026-11-14 グループLINEを キョンKと 同じ 重み(当たり 20・ハズレ 180)に した ぶん 403 → 312
 // 2026-11-17 遅刻・野球・転売リーチを 足した ので 312 → 209(キャラごとの 当たる 確率を そのままに)
-export const NO_STORY_LOSE = 209;
+// 2026-11-21 ナンパリーチを 足した ので 209 → 322.6(キャラごとの 当たる 確率を そのままに)
+export const NO_STORY_LOSE = 322.6;
 /**
  * 王冠が 2つ 出た 時(さいごの リールより 前)の BONUS リーチで、キャラの リーチを 出す 割合(企画者 2026-11-12「2」)。
  * 当たり = 王冠が 3つ 以上(宝箱・フリーゲーム)。王冠の リーチは 約16回転に 1回。キャラごとの 割合は CROWN_PICK(全体で 約46%)。
@@ -313,4 +326,4 @@ export const STORY_STEP_RATE = 0.5;
 // 2026-11-12 企画者「2」→ うさぎK を パンダY と カンガルーH の 間に(6段)
 export const STEP_ORDER: readonly string[] = ['kyon', 'panda', 'usagi', 'ramen', 'golf', 'kanojo'];
 /** 同じ キャラの べつの リーチ(ステップアップは その キャラの 段) */
-export const STEP_ALIAS: Readonly<Record<string, string>> = { chikoku: 'kyon', tenbai: 'usagi' };
+export const STEP_ALIAS: Readonly<Record<string, string>> = { chikoku: 'kyon', tenbai: 'usagi', nanpa: 'golf' };

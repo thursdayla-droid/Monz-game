@@ -57,7 +57,7 @@ describe('MONZ SLOT リーチ', () => {
     expect(N / big).toBeGreaterThan(35);
     expect(N / big).toBeLessThan(62);
     const rate = (id: string) => byType[id].win / byType[id].n;
-    expect(BIG_REACHES.map((t) => t.id)).toEqual(['kyon', 'panda', 'usagi', 'ramen', 'golf', 'kanojo', 'premium', 'line', 'chikoku', 'tenbai', 'yakyu']);
+    expect(BIG_REACHES.map((t) => t.id)).toEqual(['kyon', 'panda', 'usagi', 'ramen', 'golf', 'kanojo', 'premium', 'line', 'chikoku', 'tenbai', 'yakyu', 'nanpa']);
     // 予告は ときどき(ハズレでも 少し)
     expect(notice / N).toBeGreaterThan(0.02);
     expect(notice / N).toBeLessThan(0.15);
@@ -117,10 +117,10 @@ describe('MONZ SLOT 演出(色・ステップアップ・告知ランプ・PUSH�
 
 describe('種類が ある リーチ(企画者 2026-11-11: ラーメン 3種類・ゴルフの 芝生 3種類で 当たりやすさが ちがう)', () => {
   it('種類は 種類が ある リーチの 時だけ・3番目 > 2番目 > 1番目 の 順に 当たりやすい', () => {
-    expect(BIG_REACHES.filter((t) => t.variants).map((t) => t.id)).toEqual(['ramen', 'golf', 'kanojo', 'tenbai', 'yakyu']);
+    expect(BIG_REACHES.filter((t) => t.variants).map((t) => t.id)).toEqual(['ramen', 'golf', 'kanojo', 'tenbai', 'yakyu', 'nanpa']);
     const ids = ['ramen', 'golf'];
-    const n: Record<string, number[]> = { kanojo: [0, 0, 0, 0, 0], yakyu: [0, 0], tenbai: [0, 0] };
-    const win: Record<string, number[]> = { kanojo: [0, 0, 0, 0, 0], yakyu: [0, 0], tenbai: [0, 0] };
+    const n: Record<string, number[]> = { kanojo: [0, 0, 0, 0, 0], yakyu: [0, 0], tenbai: [0, 0], nanpa: [0, 0] };
+    const win: Record<string, number[]> = { kanojo: [0, 0, 0, 0, 0], yakyu: [0, 0], tenbai: [0, 0], nanpa: [0, 0] };
     for (const id of ids) {
       n[id] = [0, 0, 0];
       win[id] = [0, 0, 0];
@@ -143,11 +143,18 @@ describe('種類が ある リーチ(企画者 2026-11-11: ラーメン 3種類�
       expect(rate[1]).toBeLessThan(rate[2]);
     }
     // 彼女の 質問は 5つ どれも 出る(当たりやすさは 同じ。2026-11-12 仕事と 私を やめた)
-    expect(n.kanojo.every((x) => x > 15)).toBe(true);
+    // 2026-11-21 ナンパリーチを 足して 乱数の 順が かわった(めったに 出ない ので ぶれる) 15 → 8
+    expect(n.kanojo.every((x) => x > 8)).toBe(true);
     // 野球(2026-11-17): ふつう 約20%・へんな ポーズ 約50%・半分ずつ 出る
     const yr = n.yakyu.map((x, i) => win.yakyu[i] / x);
     expect(Math.abs(yr[0] - 0.2)).toBeLessThan(0.07);
     expect(Math.abs(yr[1] - 0.5)).toBeLessThan(0.08);
+    // ナンパ(2026-11-21): カワセミ 約20%・イノ子 約50%・半分ずつ 出る
+    const nr = n.nanpa.map((x, i) => win.nanpa[i] / x);
+    expect(Math.abs(nr[0] - 0.2)).toBeLessThan(0.07);
+    expect(Math.abs(nr[1] - 0.5)).toBeLessThan(0.08);
+    expect(n.nanpa[0] / n.nanpa[1]).toBeGreaterThan(0.75);
+    expect(n.nanpa[0] / n.nanpa[1]).toBeLessThan(1.3);
     expect(n.yakyu[0] / n.yakyu[1]).toBeGreaterThan(0.75);
     expect(n.yakyu[0] / n.yakyu[1]).toBeLessThan(1.3);
   }, 60_000);
@@ -191,6 +198,10 @@ describe('キャラの リーチの 当たる 確率(企画者 2026-11-11)', () 
     expect(Math.abs(rate('tenbai') - 0.1)).toBeLessThan(0.04);
     expect(n.tenbai / n.kyon).toBeGreaterThan(0.85);
     expect(n.tenbai / n.kyon).toBeLessThan(1.15);
+    // ヒヨコJの ナンパリーチ(2026-11-21): 野球リーチと 同じ くらい 出て、約35%(カワセミ 20%・イノ子 50%)
+    expect(Math.abs(rate('nanpa') - 0.35)).toBeLessThan(0.05);
+    expect(n.nanpa / n.usagi).toBeGreaterThan(0.85);
+    expect(n.nanpa / n.usagi).toBeLessThan(1.15);
   }, 60_000);
 });
 
