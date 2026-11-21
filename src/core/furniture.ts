@@ -90,6 +90,8 @@ export const ITEM_WIDTH_SCALE: Record<string, number> = { vip_toy_a: (1140 / 640
 export const itemWidthScale = (id: string): number => ITEM_WIDTH_SCALE[id] ?? 1;
 /** 家具の名前を、シリーズ＋種類の名前から変えるもの */
 const SPECIAL_NAMES: Record<string, string> = { vip_toy: '金マッチョ' };
+/** 値段を 決めて ある 家具(2026-11-21 企画者「金マッチョ 300 コイン だから 10,000 に」) */
+const SPECIAL_PRICES: Record<string, number> = { vip_toy: 10000 };
 
 const BASE_FURNITURE: FurnitureDef[] = FURNITURE_SERIES.flatMap((series) =>
   FURNITURE_KINDS.map((kind) => {
@@ -99,7 +101,7 @@ const BASE_FURNITURE: FurnitureDef[] = FURNITURE_SERIES.flatMap((series) =>
       series,
       kind,
       name: SPECIAL_NAMES[id] ?? `${SERIES_LABELS[series]} ${KIND_RULES[kind].name}`,
-      price: KIND_RULES[kind].price * (series === 'vip' ? VIP_PRICE : 1),
+      price: SPECIAL_PRICES[id] ?? KIND_RULES[kind].price * (series === 'vip' ? VIP_PRICE : 1),
       file: `assets/furniture/${series}_${kind}.webp`,
     };
   }),
