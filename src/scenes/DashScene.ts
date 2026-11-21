@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { assetUrl } from '../assetUrl';
 import { audio } from '../audio/engine';
 import { DASH, DASH_COIN_VALUE, DASH_COINS, dashReward, jump, meters, newDash, step, type DashCoin, type DashState, type Platform, type Thing } from '../core/dash';
 import { LifeRecord, loadLife } from '../core/lifeSave';
@@ -47,6 +48,8 @@ type Phase = 'ready' | 'run' | 'paused' | 'over';
  * 【仮】見た目: 背景・足場・危険物・さわっても大丈夫な物は仮の形(企画者が決めたら差しかえる)。
  * 走るのは黒いモンズ(企画者の絵。今はMONZ CARDのクリアの絵を使う。走る絵が届いたら差しかえる)。
  */
+const DASH_COIN_KEY = 'dash:coin';
+
 export class DashScene extends Phaser.Scene {
   private s!: DashState;
   private phase: Phase = 'ready';
@@ -69,6 +72,8 @@ export class DashScene extends Phaser.Scene {
 
   preload(): void {
     preloadPacks(this, ['card', 'home', 'dash']);
+    // 拾う コインの 絵(2026-11-21 企画者「虹の 模様は いらない・コインだけ」)。企画者の 新しい 絵が 届いたら 差しかえ(assets/dash/coin.webp)
+    if (!this.textures.exists(DASH_COIN_KEY)) this.load.image(DASH_COIN_KEY, assetUrl('assets/slot/coin.webp'));
   }
 
   create(): void {
@@ -364,7 +369,7 @@ export class DashScene extends Phaser.Scene {
       }
       let v = this.coinViews.get(c);
       if (!v) {
-        v = this.textures.exists(homeIconKey('coin')) ? this.add.image(0, 0, homeIconKey('coin')).setDisplaySize(DASH_COINS.size, DASH_COINS.size) : this.add.circle(0, 0, DASH_COINS.size / 2, 0xffd23a).setStrokeStyle(3, 0x16101c);
+        v = this.textures.exists(DASH_COIN_KEY) ? this.add.image(0, 0, DASH_COIN_KEY).setDisplaySize(DASH_COINS.size, DASH_COINS.size) : this.add.circle(0, 0, DASH_COINS.size / 2, 0xffd23a).setStrokeStyle(3, 0x16101c);
         v.setDepth(2.5);
         this.coinViews.set(c, v);
       }
