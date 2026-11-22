@@ -49,6 +49,8 @@ type Phase = 'ready' | 'run' | 'paused' | 'over';
  * 走るのは黒いモンズ(企画者の絵。今はMONZ CARDのクリアの絵を使う。走る絵が届いたら差しかえる)。
  */
 const DASH_COIN_KEY = 'dash:coin';
+/** 鳥の 絵(企画者の 絵が 届いたら assets/dash/bird.webp を 読む) */
+const DASH_BIRD_ART = 'dash:birdArt';
 
 export class DashScene extends Phaser.Scene {
   private s!: DashState;
@@ -275,6 +277,50 @@ export class DashScene extends Phaser.Scene {
    * 足場1つ分の絵を作る。左はし・まん中(くり返し)・右はし を並べる。短い足場は はしを半分ずつ使う。
    * 【仮】マグマの足場: 同じ絵を赤くして、上の面に光るマグマを重ねる(企画者の絵が来たら差しかえる)
    */
+  /** 仮の 鳥(左向き・2コマ) */
+  private makeBirdTextures(): void {
+    for (const k of [0, 1]) {
+      canvasTextureOnce(this, `dash:bird${k}`, 120, 90, (ctx) => {
+        ctx.lineWidth = 6;
+        ctx.strokeStyle = '#16101c';
+        // つばさ(上 / 下)
+        ctx.fillStyle = '#7a2ad0';
+        ctx.beginPath();
+        ctx.moveTo(60, 45);
+        ctx.quadraticCurveTo(80, k ? 80 : 6, 104, k ? 74 : 12);
+        ctx.quadraticCurveTo(88, 46, 72, 50);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        // からだ
+        ctx.fillStyle = '#9b5cff';
+        ctx.beginPath();
+        ctx.ellipse(58, 50, 38, 22, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        // くちばし(左)
+        ctx.fillStyle = '#ffd23a';
+        ctx.beginPath();
+        ctx.moveTo(22, 44);
+        ctx.lineTo(4, 52);
+        ctx.lineTo(24, 58);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        // 目
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(36, 42, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#16101c';
+        ctx.beginPath();
+        ctx.arc(34, 42, 3, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+  }
+
   private buildPlatform(width: number, magma = false): { img: Phaser.GameObjects.Image | Phaser.GameObjects.Rectangle; dx: number; dy?: number }[] {
     const parts = this.platformPieces(width);
     if (!magma) return parts;
@@ -340,9 +386,22 @@ export class DashScene extends Phaser.Scene {
       let img = this.spikeViews.get(t);
       if (!img) {
         if (!visible) continue;
-        // 当たり判定より少し大きく描く(とがった先は当たらない)
-        img = this.add.image(0, 0, DASH_SPIKE_KEY).setDisplaySize(SPIKE_SIZE, SPIKE_SIZE).setDepth(2);
+        if (t.fly) {
+          // 鳥(2026-11-22)。企画者の 絵が 届いたら dash:bird に 差しかえ【仮の 絵】
+          this.makeBirdTextures();
+          img = this.add.image(0, 0, this.textures.exists(DASH_BIRD_ART) ? DASH_BIRD_ART : 'dash:bird0').setDepth(2);
+          img.setDisplaySize(t.w * 1.35, t.w * 1.35 * (img.height / img.width));
+        } else {
+          // 当たり判定より少し大きく描く(とがった先は当たらない)
+          img = this.add.image(0, 0, DASH_SPIKE_KEY).setDisplaySize(SPIKE_SIZE, SPIKE_SIZE).setDepth(2);
+        }
         this.spikeViews.set(t, img);
+      }
+      if (t.fly) {
+        img.setPosition(Math.round(x + t.w / 2), t.y + t.h / 2 + Math.sin(this.t * 10 + t.fly.x0) * 3).setVisible(visible);
+        // はばたき(仮の 絵の 時だけ 絵を 入れかえ)
+        if (!this.textures.exists(DASH_BIRD_ART)) img.setTexture(Math.floor(this.t * 8) % 2 ? 'dash:bird1' : 'dash:bird0');
+        continue;
       }
       img.setPosition(Math.round(x + t.w / 2), t.y + t.h - SPIKE_SIZE / 2 + 6).setVisible(visible);
       // はねるトゲは、転がっているように回す

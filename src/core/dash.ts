@@ -56,6 +56,15 @@ export const DASH = {
   hardRamp: 130000,
   /** さらに難しくなったときの最高速 */
   topSpeed: 1250,
+  /**
+   * 鳥(2026-11-22 企画者「700m 過ぎてから 画面 右から 鳥が 1匹〜2匹 飛んで くる」「平行に 飛んで いき、そのまま 走り 続けるか ジャンプするか 判断」)。
+   * 低い 鳥は 跳んで よける・高い 鳥は 走り ぬける(跳ぶと 当たる)。2匹の 時は 高→低・低→低・低→高 の どれか。出る 割合・速さは【仮】
+   */
+  birdFrom: 70000,
+  birdChance: 0.3,
+  birdSpeed: 260,
+  /** 2匹の 間(秒)。1匹目を 跳んで 着地してから 2匹目に 間に 合う */
+  birdGap: 1.05,
 } as const;
 
 /** 700mから先の、さらに難しくなる度合い(0〜1) */
@@ -79,6 +88,8 @@ export interface Thing {
   kind: 'danger' | 'safe';
   /** はねるトゲ(2026-10-20 企画者の指示)。はねながら手前へ転がってくる。下をくぐるか、跳び越えてかわす */
   bounce?: { baseY: number; x0: number; minX: number; t0: number; phase: number };
+  /** 飛んで くる 鳥(2026-11-22 企画者)。右から まっすぐ 飛んで くる。low = 跳んで よける・high = 走り ぬける(跳ぶと 当たる) */
+  fly?: { x0: number; t0: number; low: boolean };
 }
 
 export interface DashState {
@@ -259,13 +270,30 @@ function fill(s: DashState): void {
     const landing = reach * (1.15 + (drop / jumpHeight()) * 0.5);
     // トゲを置く足場は、跳び越えたあと同じ足場に着地できる長さにする(2026-10-20 トゲが出ないことがあったため)
     const spike = rng() < 0.45 + 0.3 * level + 0.15 * extra;
+    // 鳥(700m から)。トゲの ない 足場だけ。足場は 鳥を よけて 着地できる 長さに する
+    const birds: boolean[] = !spike && x >= DASH.birdFrom && rng() < DASH.birdChance + 0.15 * extra
+      ? rng() < 0.5
+        ? [rng() < 0.5]
+        : [[false, true], [true, true], [true, false]][Math.floor(rng() * 3)]
+      : [];
     // 進むと、トゲの一部がはねるトゲになる。転がってきても、着地する所から少し先までは来ない(着地してから見てよけられるように)
     const bouncy = Math.min(1, Math.max(0, (x - DASH.bounceFrom) / DASH.shortRamp));
     const bounce = spike && bouncy > 0 && rng() < 0.25 + 0.35 * bouncy + 0.2 * extra;
     const start = landing + (bounce ? reach * 0.6 : 0);
     let w = range(rng, 0.9, 2.4 - 1.0 * level - 0.4 * extra) * reach;
     if (spike) w = Math.max(w, start + reach * range(rng, 1.4, 1.9));
+    const birdGapPx = speed * DASH.birdGap;
+    if (birds.length) w = Math.max(w, landing + reach * 0.3 + birdGapPx * (birds.length - 1) + reach * 1.6);
     s.platforms.push({ x, w, y });
+    birds.forEach((low, i) => {
+      const meetX = x + landing + reach * 0.3 + birdGapPx * i;
+      const arrive = arriveTime(s, meetX);
+      const bw = 60;
+      const bh = 40;
+      // 低い 鳥: 体の 高さ(跳ばないと 当たる)。高い 鳥: 立って いる 頭より 少し 上(跳ぶと 当たる)
+      const by = low ? y - 62 : y - 160;
+      s.things.push({ x: meetX + DASH.birdSpeed * (arrive - s.time), y: by, w: bw, h: bh, kind: 'danger', fly: { x0: meetX + DASH.birdSpeed * (arrive - s.time), t0: s.time, low } });
+    });
     if (spike) {
       const hx = x + range(rng, start, w - reach * 1.15);
       let b: Thing['bounce'];
@@ -326,6 +354,19 @@ function meetTime(s: DashState, b: NonNullable<Thing['bounce']>): number {
   return time;
 }
 
+/** キャラクターの 足もとが コースの x に 来る 時間(ゲームの 時間) */
+function arriveTime(s: DashState, x: number): number {
+  let { time, speed, dist } = s;
+  const dt = 1 / 120;
+  for (let i = 0; i < 120 * 30; i++) {
+    if (dist + DASH.runnerX >= x) return time;
+    speed = Math.min(speedCap(dist), speed + DASH.accel * dt);
+    dist += speed * dt;
+    time += dt;
+  }
+  return time;
+}
+
 /** はねるトゲの位置: 手前へ転がりながら、放物線ではねる */
 function moveBounce(t: Thing, time: number): void {
   const b = t.bounce!;
@@ -342,6 +383,7 @@ export function step(s: DashState, dt: number): void {
   s.dist += s.speed * dt;
   s.time += dt;
   for (const t of s.things) if (t.bounce) moveBounce(t, s.time);
+  for (const t of s.things) if (t.fly) t.x = t.fly.x0 - DASH.birdSpeed * (s.time - t.fly.t0);
   const prevY = s.y;
   s.vy += DASH.gravity * dt;
   s.y += s.vy * dt;

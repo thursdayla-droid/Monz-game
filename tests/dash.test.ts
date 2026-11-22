@@ -7,7 +7,7 @@ type State = ReturnType<typeof newDash>;
 function simpleWants(s: State): boolean {
   const fx = s.dist + DASH.runnerX;
   const cur = s.platforms.find((p) => fx >= p.x && fx <= p.x + p.w);
-  const danger = s.things.find((th) => th.kind === 'danger' && !th.bounce && th.x > fx && th.x - fx < s.speed * 0.22);
+  const danger = s.things.find((th) => th.kind === 'danger' && !th.bounce && !th.fly && th.x > fx && th.x - fx < s.speed * 0.22);
   // 足場の端から落ちはじめた直後(少しのあいだはまだ跳べる)
   const justLeft = !s.grounded && s.vy >= 0 && s.airTime < DASH.coyote * 0.8;
   return justLeft || (s.grounded && ((!!cur && cur.x + cur.w - fx < s.speed * 0.06) || !!danger));
@@ -34,7 +34,7 @@ function autoplay(seed: number, seconds: number, onStep?: (s: State) => void) {
   for (let t = 0; t < seconds && !s.over; t += dt) {
     const fx = s.dist + DASH.runnerX;
     if (simpleWants(s)) jump(s);
-    else if (s.grounded && s.things.some((th) => th.bounce && th.x + th.w > fx - 40 && th.x - fx < s.speed)) {
+    else if (s.grounded && s.things.some((th) => (th.bounce || th.fly) && th.x + th.w > fx - 40 && th.x - fx < s.speed + (th.fly ? DASH.birdSpeed : 0))) {
       // 何もしなくて大丈夫なら何もしない。だめなら、いちばん早く跳べばよけられるタイミングを探す
       if (!survives(s, -1, 90)) {
         for (let k = 0; k < 40; k++) {
@@ -132,6 +132,23 @@ describe('DASH MONZ', () => {
     }
     expect(chains).toBeGreaterThan(5);
   }, 30000);
+
+  it('鳥(2026-11-22 企画者): 700m から・1匹か 2匹・低い 鳥は 跳ぶ・高い 鳥は 走り ぬける・よけられる', () => {
+    const seen = new Set<object>();
+    let groups2 = 0;
+    for (let seed = 1; seed <= 6; seed++) {
+      const s = autoplay(seed, 240, (st) => st.things.forEach((th) => th.fly && seen.add(th)));
+      expect(s.over === false || meters(s) > 1500).toBe(true);
+    }
+    const birds = [...seen] as { x: number; fly?: { x0: number; low: boolean } }[];
+    expect(birds.length).toBeGreaterThan(10);
+    expect(birds.every((b) => b.fly!.x0 >= DASH.birdFrom)).toBe(true);
+    expect(birds.some((b) => b.fly!.low)).toBe(true);
+    expect(birds.some((b) => !b.fly!.low)).toBe(true);
+    const xs = birds.map((b) => b.fly!.x0).sort((a, b) => a - b);
+    for (let i = 1; i < xs.length; i++) if (xs[i] - xs[i - 1] < 2500) groups2++;
+    expect(groups2).toBeGreaterThan(0);
+  }, 120_000);
 
   it('keeps getting harder after 700m (faster, up to 2000m) and is still passable', () => {
     for (let seed = 1; seed <= 12; seed++) {
