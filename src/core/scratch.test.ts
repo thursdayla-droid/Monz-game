@@ -24,7 +24,8 @@ describe('スクラッチ(2026-11-17 企画者)', () => {
       }
       for (const p of SCRATCH_TABLE[k]) expect(Math.abs((n.get(p.amount) ?? 0) / N - p.rate / 100)).toBeLessThan(0.006);
     }
-  });
+    // 20万回 ためすので、公開の 自動テスト(混んでいると 遅い)でも 時間切れに ならない ように 30秒(2026-11-22 公開で 5秒を こえた)
+  }, 30_000);
 });
 
 import { LifeRecord, newLife } from './lifeSave';
