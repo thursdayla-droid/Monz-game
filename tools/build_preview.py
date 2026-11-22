@@ -160,7 +160,8 @@ for p in paths:
             # 2026-11-15 お世話の 姿の 絵(10種族×6枚): 確認用ページでは 高さ 260 に(画面では 小さく 出すので 見た目の 大きさは 同じ。ゲーム本体は そのまま)
             bb = io.BytesIO()
             im = Image.open(pub + p)
-            im.resize((round(im.width * 260 / im.height), 260), Image.LANCZOS).save(bb, 'WEBP', quality=42, method=6)
+            # 2026-11-22 姿が ふえて 15MB を こえた → 38
+            im.resize((round(im.width * 260 / im.height), 260), Image.LANCZOS).save(bb, 'WEBP', quality=38, method=6)
             data = bb.getvalue()
         elif p.startswith('assets/mythclash/opponents/'):
             # 対戦相手の顔(33人分)は、確認用ページでは 160×160 に小さくする(画面では丸く小さく出すので見た目はほぼ同じ)
