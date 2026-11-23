@@ -327,4 +327,6 @@ export const SLUG_REWARD = { hitsPerCoin: 10, expFrom: 20, hitsPerExp: 10, maxEx
 /** 経験値(企画者決定 2026-10-21): 20本で1、そこから10本ごとに1(19本までは0) */
 const sluggerExp = (hits: number) => (hits < SLUG_REWARD.expFrom ? 0 : Math.min(SLUG_REWARD.maxExp, 1 + Math.floor((hits - SLUG_REWARD.expFrom) / SLUG_REWARD.hitsPerExp)));
 // 2026-11-09 企画者「5倍に」(1回で 最大 1,000)
-export const sluggerReward = (s: Pick<SluggerState, 'hits'>) => capReward({ coins: Math.floor(s.hits / SLUG_REWARD.hitsPerCoin) * MINIGAME_REWARD_MULT, exp: sluggerExp(s.hits) * MINIGAME_REWARD_MULT });
+// 2026-11-23 企画者「モンズスラッガー もらえる 報酬 倍に」→ コイン・EXP を 2倍(1回の 上限 1,000 は そのまま)
+export const SLUG_REWARD_BOOST = 2;
+export const sluggerReward = (s: Pick<SluggerState, 'hits'>) => capReward({ coins: Math.floor(s.hits / SLUG_REWARD.hitsPerCoin) * MINIGAME_REWARD_MULT * SLUG_REWARD_BOOST, exp: sluggerExp(s.hits) * MINIGAME_REWARD_MULT * SLUG_REWARD_BOOST });

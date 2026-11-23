@@ -205,11 +205,12 @@ describe('MONZ SLUGGER', () => {
 
   it('reward is based on hits (2026-11-09 5倍)', () => {
     expect(sluggerReward({ hits: 0 })).toEqual({ coins: 0, exp: 0 });
-    expect(sluggerReward({ hits: 19 })).toEqual({ coins: 5, exp: 0 });
-    expect(sluggerReward({ hits: 20 })).toEqual({ coins: 10, exp: 5 });
-    expect(sluggerReward({ hits: 29 })).toEqual({ coins: 10, exp: 5 });
-    expect(sluggerReward({ hits: 30 })).toEqual({ coins: 15, exp: 10 });
-    expect(sluggerReward({ hits: 210 })).toEqual({ coins: 105, exp: 100 });
-    expect(sluggerReward({ hits: 300 })).toEqual({ coins: 150, exp: 100 });
+    expect(sluggerReward({ hits: 19 })).toEqual({ coins: 10, exp: 0 });
+    expect(sluggerReward({ hits: 20 })).toEqual({ coins: 20, exp: 10 });
+    expect(sluggerReward({ hits: 29 })).toEqual({ coins: 20, exp: 10 });
+    expect(sluggerReward({ hits: 30 })).toEqual({ coins: 30, exp: 20 });
+    expect(sluggerReward({ hits: 210 })).toEqual({ coins: 210, exp: 200 });
+    // 2026-11-23 2倍
+    expect(sluggerReward({ hits: 300 })).toEqual({ coins: 300, exp: 200 });
   });
 });
