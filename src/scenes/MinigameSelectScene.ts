@@ -28,6 +28,13 @@ const ART_CARDS = [
   [33, 1165, 822, 1353],
   [33, 1375, 822, 1562],
 ];
+/**
+ * 看板を 同じ 高さ・同じ すき間に そろえた 場所(2026-11-23 企画者「バランス よく 全部 一緒の サイズ」)。
+ * 背景の 絵の 枠(ART_CARDS)は 少しずつ 大きさと 間が ちがうので、上から 下まで(494〜1562)を 5等分
+ */
+const EVEN_GAP = 24;
+const EVEN_H = (ART_CARDS[4][3] - ART_CARDS[0][1] - EVEN_GAP * 4) / 5;
+const EVEN_CARDS = ART_CARDS.map(([x0, , x1], i) => [x0, ART_CARDS[0][1] + i * (EVEN_H + EVEN_GAP), x1, ART_CARDS[0][1] + i * (EVEN_H + EVEN_GAP) + EVEN_H]);
 /** 企画者の絵に名前まで描いてあるゲームの数(これより後のゲームは、？？？の上に名前を重ねて出す) */
 const ART_PAINTED = 2;
 /** 看板の中の「？？？・説明」と「SOON」の場所(看板の左上からの位置) */
@@ -99,7 +106,29 @@ export class MinigameSelectScene extends Phaser.Scene {
       flash(z);
       this.leave();
     });
+    // 看板を そろえた 場所に 置きなおす(背景の 枠は かくす)
+    const place = (art: { key: string; srcW: number; frame: number[] }, box: number[]) => {
+      const [ax0, ay0, ax1, ay1] = box;
+      const [fx0, fy0, fx1, fy1] = art.frame;
+      const kx = ((ax1 - ax0) * sx) / (fx1 - fx0);
+      const ky = ((ay1 - ay0) * sy) / (fy1 - fy0);
+      const img = this.add.image(0, 0, art.key).setOrigin(0, 0);
+      img.setScale((kx * art.srcW) / img.width, (ky * art.srcW) / img.width);
+      img.setPosition(ax0 * sx - fx0 * kx, ay0 * sy - fy0 * ky);
+      const r = img.width / art.srcW;
+      const glow = 14;
+      img.setCrop((fx0 - glow) * r, (fy0 - glow) * r, (fx1 - fx0 + glow * 2) * r, (fy1 - fy0 + glow * 2) * r);
+    };
+    const hide = ([x0, y0, x1, y1]: number[]) => this.add.rectangle((x0 - 10) * sx, (y0 - 10) * sy, (x1 - x0 + 20) * sx, (y1 - y0 + 20) * sy, 0x0b0a12, 1).setOrigin(0, 0);
     ART_CARDS.forEach((box, i) => {
+      const g = MINIGAMES[i];
+      const art = g && SELECT_CARD_ART[g.id];
+      if (i < ART_PAINTED || (art && this.textures.exists(art.key))) hide(box);
+    });
+    ART_CARDS.forEach((box, i) => {
+      if (i < ART_PAINTED) place({ key: SELECT_IMAGE, srcW: ART.w, frame: box }, EVEN_CARDS[i]);
+    });
+    EVEN_CARDS.forEach((box, i) => {
       const g = MINIGAMES[i];
       zone(box, (z) => {
         flash(z);
@@ -119,20 +148,8 @@ export class MinigameSelectScene extends Phaser.Scene {
       if (i < ART_PAINTED || !g) return;
       const art = SELECT_CARD_ART[g.id];
       if (art && this.textures.exists(art.key)) {
-        // 企画者の看板の絵: 下の「？？？」の看板を隠して、黄色い枠が同じ所にくるように置く
-        const [ax0, ay0, ax1, ay1] = ART_CARDS[i];
-        this.add.rectangle((ax0 - 6) * sx, (ay0 - 6) * sy, (ax1 - ax0 + 12) * sx, (ay1 - ay0 + 12) * sy, 0x0b0a12, 1).setOrigin(0, 0);
-        const [fx0, fy0, fx1, fy1] = art.frame;
-        // 横と縦を別々に合わせて、ほかの看板と同じ幅・高さにする(縦横の比が少しちがうので、少しだけ縦を縮める)
-        const kx = ((ax1 - ax0) * sx) / (fx1 - fx0);
-        const ky = ((ay1 - ay0) * sy) / (fy1 - fy0);
-        const img = this.add.image(0, 0, art.key).setOrigin(0, 0);
-        img.setScale((kx * art.srcW) / img.width, (ky * art.srcW) / img.width);
-        img.setPosition(ax0 * sx - fx0 * kx, ay0 * sy - fy0 * ky);
-        // 枠の外に飛び出した所(バットなど)は切る。枠の光のぶんだけ少し残す(2026-10-21 企画者の指示)
-        const r = img.width / art.srcW;
-        const glow = 14;
-        img.setCrop((fx0 - glow) * r, (fy0 - glow) * r, (fx1 - fx0 + glow * 2) * r, (fy1 - fy0 + glow * 2) * r);
+        // 企画者の看板の絵: そろえた 枠に ぴったり(横と縦を別々に合わせる)。枠の外に飛び出した所(バットなど)は切る(2026-10-21 企画者の指示)
+        place(art, EVEN_CARDS[i]);
         return;
       }
       const cover = ([x0, y0, x1, y1]: number[]) => this.add.rectangle((bx0 + x0) * sx, (by0 + y0) * sy, (x1 - x0) * sx, (y1 - y0) * sy, 0x0b0a12, 0.96).setOrigin(0, 0);
