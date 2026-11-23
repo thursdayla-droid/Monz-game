@@ -49,8 +49,10 @@ type Phase = 'ready' | 'run' | 'paused' | 'over';
  * 走るのは黒いモンズ(企画者の絵。今はMONZ CARDのクリアの絵を使う。走る絵が届いたら差しかえる)。
  */
 const DASH_COIN_KEY = 'dash:coin';
-/** 鳥の 絵(企画者の 絵が 届いたら assets/dash/bird.webp を 読む) */
-const DASH_BIRD_ART = 'dash:birdArt';
+/** 鳥の 絵 */
+export const DASH_BIRD_ART = 'dash:birdArt';
+/** 2026-11-23 企画者の 鳥の 絵(元は design/minigame/dash/bird_original.png) */
+export const DASH_BIRD_FILE = 'assets/minigame/dash_bird.webp';
 
 export class DashScene extends Phaser.Scene {
   private s!: DashState;
@@ -390,7 +392,7 @@ export class DashScene extends Phaser.Scene {
           // 鳥(2026-11-22)。企画者の 絵が 届いたら dash:bird に 差しかえ【仮の 絵】
           this.makeBirdTextures();
           img = this.add.image(0, 0, this.textures.exists(DASH_BIRD_ART) ? DASH_BIRD_ART : 'dash:bird0').setDepth(2);
-          img.setDisplaySize(t.w * 1.35, t.w * 1.35 * (img.height / img.width));
+          img.setDisplaySize(t.w * 1.7, t.w * 1.7 * (img.height / img.width));
         } else {
           // 当たり判定より少し大きく描く(とがった先は当たらない)
           img = this.add.image(0, 0, DASH_SPIKE_KEY).setDisplaySize(SPIKE_SIZE, SPIKE_SIZE).setDepth(2);

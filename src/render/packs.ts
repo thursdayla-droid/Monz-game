@@ -13,7 +13,7 @@ import { MYTH_PACK_FILE, MYTH_PACK_IMAGE, MYTH_CARD_BACK, MYTH_CARD_BACK_FILE } 
 import { SELECT_CARD_ART, SELECT_IMAGE, SELECT_LOGO_ART } from '../scenes/MinigameSelectScene';
 import { CARD_IMAGES } from '../ui/cardArt';
 import { SLUG_BATTER_ART, slugBatterKey, SLUG_PITCHER_ART, slugPitcherKey, SLUGGER_BG_FILE, SLUGGER_BG_KEY, SLUGGER_LOGO_FILE, SLUGGER_LOGO_KEY } from '../scenes/SluggerScene';
-import { DASH_BG_FILE, DASH_BG_KEY, DASH_LOGO_FILE, DASH_LOGO_KEY, DASH_JUMP_FILE, DASH_JUMP_KEY, DASH_RUN_FILE, DASH_RUN_KEY, DASH_PLAT_FILE, DASH_PLAT_KEY, DASH_SPIKE_FILE, DASH_SPIKE_KEY } from '../scenes/DashScene';
+import { DASH_BG_FILE, DASH_BG_KEY, DASH_LOGO_FILE, DASH_LOGO_KEY, DASH_JUMP_FILE, DASH_JUMP_KEY, DASH_RUN_FILE, DASH_RUN_KEY, DASH_PLAT_FILE, DASH_PLAT_KEY, DASH_SPIKE_FILE, DASH_SPIKE_KEY, DASH_BIRD_ART, DASH_BIRD_FILE } from '../scenes/DashScene';
 import { MYTH_CPU_FILE, MYTH_CPU_IMAGE, MYTH_MODE_FILE, MYTH_MODE_IMAGE } from '../scenes/MythModeScene';
 import { BATTLE_MENU_FILE, BATTLE_MENU_IMAGE, BATTLE_MENU_SIGNS } from '../scenes/BattleMenuScene';
 import { loadBunk } from './bunkView';
@@ -97,6 +97,7 @@ function packFiles(name: Exclude<PackName, 'bunk'>): PackFile[] {
         { key: DASH_RUN_KEY, url: DASH_RUN_FILE },
         { key: DASH_JUMP_KEY, url: DASH_JUMP_FILE },
         { key: DASH_LOGO_KEY, url: DASH_LOGO_FILE },
+        { key: DASH_BIRD_ART, url: DASH_BIRD_FILE },
       ];
     case 'slugger':
       return [
