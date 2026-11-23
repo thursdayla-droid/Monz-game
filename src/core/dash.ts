@@ -61,9 +61,10 @@ export const DASH = {
    * 低い 鳥は 跳んで よける・高い 鳥は 走り ぬける(跳ぶと 当たる)。2匹の 時は 高→低・低→低・低→高 の どれか。出る 割合・速さは【仮】
    */
   birdFrom: 70000,
-  /** 次の 鳥までの 距離(px。80〜150m)【仮】 */
-  birdEveryMin: 8000,
-  birdEveryMax: 15000,
+  /** 次の 鳥までの 距離(px)【仮】 */
+  // 2026-11-23 企画者「そんな 頻繁に 出なくて いい」→ 150〜300m ごと
+  birdEveryMin: 15000,
+  birdEveryMax: 30000,
   birdSpeed: 260,
   /** 2匹の 間(秒)。1匹目を 跳んで 着地してから 2匹目に 間に 合う */
   birdGap: 1.05,
@@ -278,9 +279,10 @@ function fill(s: DashState): void {
     const spike = !birdDue && rng() < 0.45 + 0.3 * level + 0.15 * extra;
     // 足場は 鳥を よけて 着地できる 長さに する
     const birds: boolean[] = birdDue
-      ? rng() < 0.5
-        ? [rng() < 0.5]
-        : [[false, true], [true, true], [true, false]][Math.floor(rng() * 3)]
+      ? // 2026-11-23 企画者「ジャンプしたら 当たる 位置にも」「連続で 2匹」→ 2匹が 7割。高い 鳥(跳ぶと 当たる)を 多めに
+        rng() < 0.3
+        ? [rng() < 0.4]
+        : [[false, true], [true, true], [true, false], [false, false]][Math.floor(rng() * 4)]
       : [];
     // 進むと、トゲの一部がはねるトゲになる。転がってきても、着地する所から少し先までは来ない(着地してから見てよけられるように)
     const bouncy = Math.min(1, Math.max(0, (x - DASH.bounceFrom) / DASH.shortRamp));
