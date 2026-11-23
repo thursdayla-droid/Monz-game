@@ -61,7 +61,9 @@ export const DASH = {
    * 低い 鳥は 跳んで よける・高い 鳥は 走り ぬける(跳ぶと 当たる)。2匹の 時は 高→低・低→低・低→高 の どれか。出る 割合・速さは【仮】
    */
   birdFrom: 70000,
-  birdChance: 0.3,
+  /** 次の 鳥までの 距離(px。80〜150m)【仮】 */
+  birdEveryMin: 8000,
+  birdEveryMax: 15000,
   birdSpeed: 260,
   /** 2匹の 間(秒)。1匹目を 跳んで 着地してから 2匹目に 間に 合う */
   birdGap: 1.05,
@@ -115,6 +117,8 @@ export interface DashState {
   coins: DashCoin[];
   /** 拾った コインの 数 */
   picked: number;
+  /** 次に 鳥を 出す 場所(コースの x) */
+  nextBirdX?: number;
   /** 次に コインを 置く 距離(m) */
   nextCoinM: number;
   /** その 100m で まだ 置く 枚数 */
@@ -269,9 +273,11 @@ function fill(s: DashState): void {
     const drop = Math.max(0, y - s.lastY);
     const landing = reach * (1.15 + (drop / jumpHeight()) * 0.5);
     // トゲを置く足場は、跳び越えたあと同じ足場に着地できる長さにする(2026-10-20 トゲが出ないことがあったため)
-    const spike = rng() < 0.45 + 0.3 * level + 0.15 * extra;
-    // 鳥(700m から)。トゲの ない 足場だけ。足場は 鳥を よけて 着地できる 長さに する
-    const birds: boolean[] = !spike && x >= DASH.birdFrom && rng() < DASH.birdChance + 0.15 * extra
+    // 鳥(700m から)。2026-11-23 企画者「鳥 出て こなかった」→ 700m を こえたら すぐ 1回・あとは 約 80〜150m ごとに 必ず 出す(その 足場は トゲなし)
+    const birdDue = x >= DASH.birdFrom && x >= (s.nextBirdX ?? DASH.birdFrom);
+    const spike = !birdDue && rng() < 0.45 + 0.3 * level + 0.15 * extra;
+    // 足場は 鳥を よけて 着地できる 長さに する
+    const birds: boolean[] = birdDue
       ? rng() < 0.5
         ? [rng() < 0.5]
         : [[false, true], [true, true], [true, false]][Math.floor(rng() * 3)]
@@ -285,6 +291,7 @@ function fill(s: DashState): void {
     const birdGapPx = speed * DASH.birdGap;
     if (birds.length) w = Math.max(w, landing + reach * 0.3 + birdGapPx * (birds.length - 1) + reach * 1.6);
     s.platforms.push({ x, w, y });
+    if (birds.length) s.nextBirdX = x + w + range(rng, DASH.birdEveryMin, DASH.birdEveryMax);
     birds.forEach((low, i) => {
       const meetX = x + landing + reach * 0.3 + birdGapPx * i;
       const arrive = arriveTime(s, meetX);
