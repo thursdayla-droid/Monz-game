@@ -148,6 +148,17 @@ interface Pop {
 }
 
 /** 【仮】モブ: まるい 体に 角と 目(企画者の モブが できたら 入れかえ) */
+/** 敵の 絵(種類ごと)。h: 絵の 高さ・fly: 宙に 浮く */
+interface MobArt {
+  tex: THREE.Texture;
+  h: number;
+  fly: boolean;
+}
+/** 絵の ある 敵(2026-11-24 PIGE: 金の チェーンの ハト。飛ぶ) */
+const MOB_ART: Record<string, { file: string; h: number; fly: boolean }> = {
+  pige: { file: 'assets/adventure/mob_pige.webp', h: 1.9, fly: true },
+};
+
 class MobView {
   readonly root = new THREE.Group();
   private body: THREE.Mesh;
@@ -155,7 +166,13 @@ class MobView {
   private bar: THREE.Mesh;
   private barBg: THREE.Mesh;
   private deadT = 0;
-  constructor(grad: THREE.Texture) {
+  /** 敵の 絵(2026-11-24〜 企画者の 絵が ある 種類だけ。カメラの ほうを 向く 板) */
+  private art: THREE.Sprite | null = null;
+  private artMat: THREE.SpriteMaterial | null = null;
+  private artH = 1.7;
+  private fly = false;
+  private shadow: THREE.Mesh | null = null;
+  constructor(grad: THREE.Texture, art: MobArt | null = null) {
     this.mat = new THREE.MeshToonMaterial({ color: 0x8a3ac8, gradientMap: grad });
     this.body = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 12), this.mat);
     this.body.position.y = 0.5;
@@ -182,6 +199,37 @@ class MobView {
     this.barBg.position.y = 1.75;
     this.bar.position.y = 1.75;
     this.root.add(this.barBg, this.bar);
+    if (art) {
+      this.body.visible = false;
+      this.artMat = new THREE.SpriteMaterial({ map: art.tex, transparent: true, alphaTest: 0.1 });
+      this.art = new THREE.Sprite(this.artMat);
+      this.art.center.set(0.5, 0);
+      this.artH = art.h;
+      this.fly = art.fly;
+      this.root.add(this.art);
+      // 床の 影(飛ぶ 敵が どこに いるか わかるように)
+      this.shadow = new THREE.Mesh(new THREE.CircleGeometry(0.45, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false }));
+      this.shadow.rotation.x = -Math.PI / 2;
+      this.shadow.position.y = 0.04;
+      this.root.add(this.shadow);
+      const top = (this.fly ? 0.7 : 0) + this.artH + 0.15;
+      this.barBg.position.y = this.bar.position.y = top;
+    }
+  }
+  private updateArt(m: Actor, now: number, sx: number, sy: number): void {
+    const sp = this.art!;
+    const mat = this.artMat!;
+    const tex = mat.map!;
+    const img = tex.image as { width?: number; height?: number } | null;
+    const aspect = img?.width && img?.height ? img.width / img.height : 1;
+    // 絵は 右向き。左へ 動く ときは 左右を 反転
+    const dir = Math.cos(m.face) < 0 ? -1 : 1;
+    sp.scale.set(this.artH * aspect * sx * dir, this.artH * (sy / 0.85), 1);
+    sp.position.y = this.fly ? 0.7 + Math.sin(now * 5 + m.id) * 0.12 : 0;
+    mat.color.setHex(0xffffff);
+    if (m.act === 'attack' && !m.struck && m.actT / ADV.mob.windup > 0.5) mat.color.setHex(0xff6a7a);
+    if (m.act === 'hurt') mat.color.setHex(0xff9a9a);
+    mat.opacity = m.act === 'hurt' && Math.floor(now * 20) % 2 ? 0.55 : 1;
   }
   update(m: Actor, dt: number, cam: THREE.Camera, now: number): void {
     this.root.position.set(m.x, 0, m.z);
@@ -210,6 +258,7 @@ class MobView {
       this.root.visible = k > 0;
     }
     this.body.scale.set(sx, sy, sx);
+    if (this.art) this.updateArt(m, now, sx, sy);
     const r = Math.max(0, m.hp / m.maxHp);
     this.bar.scale.x = r;
     this.bar.position.x = 0;
@@ -232,6 +281,7 @@ export class DungeonView {
   private rig: MonsterRig;
   private puppet: AnimeMon;
   private mobs: MobView[] = [];
+  private mobTex = new Map<string, MobArt>();
   private moon!: THREE.DirectionalLight;
   private exit: THREE.Mesh;
   private exitMat: THREE.MeshBasicMaterial;
@@ -295,7 +345,7 @@ export class DungeonView {
     this.scene.add(this.rig.root);
     this.puppet = newAnimeBattle(entrant, entrant, 1).f[0];
     for (let i = 0; i < s.mobs.length; i++) {
-      const v = new MobView(this.grad);
+      const v = new MobView(this.grad, this.mobArt(s.mobs[i].mobKind));
       this.mobs.push(v);
       this.scene.add(v.root);
     }
@@ -690,6 +740,19 @@ export class DungeonView {
     } catch {
       fail();
     }
+  }
+
+  private mobArt(kind: string | undefined): MobArt | null {
+    const a = kind ? MOB_ART[kind] : undefined;
+    if (!a) return null;
+    let art = this.mobTex.get(kind!);
+    if (!art) {
+      const tex = new THREE.TextureLoader().load(assetUrl(a.file));
+      tex.colorSpace = THREE.SRGBColorSpace;
+      art = { tex, h: a.h, fly: a.fly };
+      this.mobTex.set(kind!, art);
+    }
+    return art;
   }
 
   resize(w: number, h: number): void {

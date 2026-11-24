@@ -46,6 +46,8 @@ if B3D:
         # 1〜2章(第1形態)の 10体 + 一枚絵。3章から(第2・最終形態)の モデルは 入らないので 仮の人形
         paths = [p for p in paths if p.endswith('.webp') or os.path.basename(p)[:-4] in FORM1]
         paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/story/*.webp'))
+        # 2026-11-24 冒険の 敵の 絵(PIGE など)
+        paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/adventure/*.webp'))
     else:
         paths = [p for p in paths if (is_new(p) or is_bunk(p) or p.endswith(('crownie.glb', 'crownix.glb')))] if B3D2 else [p for p in paths if not is_new(p)]
         # 2026-11-06 CROWNOR は 15MB に 入らないので STREET KING の ページ(--story)だけ

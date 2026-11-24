@@ -125,6 +125,8 @@ export interface Actor {
   coolUntil: number;
   /** モブが 気づいたか */
   awake: boolean;
+  /** 敵の 種類(2026-11-24 路地裏: pige など。絵が ない 種類は 仮の 形) */
+  mobKind?: string;
   /** 状態(時刻) */
   stunUntil?: number;
   slowUntil?: number;
@@ -319,6 +321,8 @@ export function newAdventure(seed: number, stats: StatBlock, level = 1, techs: (
     m.tough = 4 * level;
     m.speed = M.speed;
     m.face = rng() * Math.PI * 2;
+    // 【仮】絵が そろうまで 路地裏の 敵は 全部 PIGE(2026-11-24 企画者の 絵)。動き(飛ぶ・羽を 撃つ)は まだ ふつうの 敵と 同じ
+    m.mobKind = 'pige';
     mobs.push(m);
     mobRoom.push(room);
   };
