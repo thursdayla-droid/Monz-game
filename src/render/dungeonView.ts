@@ -155,7 +155,9 @@ interface MobArt {
   fly: boolean;
 }
 /** 絵の ある 敵(企画者の 絵が とどいたら ここに 足す。2026-11-24 前の PIGE の 絵は 方針が 変わったので 使わない) */
-const MOB_ART: Record<string, { file: string; h: number; fly: boolean }> = {};
+const MOB_ART: Record<string, { file: string; h: number; fly: boolean }> = {
+  slime: { file: 'assets/adventure/mob_slime.webp', h: 1.5, fly: false },
+};
 /** 【仮】絵が とどくまでの 仮の 形(色・大きさ・形) */
 const MOB_LOOK: Record<MobKind, { color: number; size: number; shape: 'ball' | 'flat' | 'can' | 'block' | 'cap'; ghost?: boolean }> = {
   slime: { color: 0x9a4ae0, size: 1, shape: 'flat' },
@@ -221,7 +223,7 @@ class MobView {
       cap.position.y = 0.3;
       this.body.add(cap);
     }
-    if (this.flyLook) {
+    if (this.flyLook && !art) {
       // 床の 影(浮いて いる 敵)
       const sh = new THREE.Mesh(new THREE.CircleGeometry(0.4 * L.size, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false }));
       sh.rotation.x = -Math.PI / 2;
@@ -253,6 +255,7 @@ class MobView {
       this.shadow.rotation.x = -Math.PI / 2;
       this.shadow.position.y = 0.04;
       this.root.add(this.shadow);
+      tag.visible = false;
       const top = (this.fly ? 0.7 : 0) + this.artH + 0.15;
       this.barBg.position.y = this.bar.position.y = top;
     }
