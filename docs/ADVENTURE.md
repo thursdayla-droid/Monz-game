@@ -156,3 +156,4 @@
 - 強さの 目安（自動で 遊ぶ プログラムで 調べた。ボスの 赤い 印は よける）: 10階は Lv20 で 半分くらい クリア・のこり HP 1〜2割 / Lv15 では クリアできない。5階は Lv15〜20
 - 確認用ページ: 「確認 NF」ボタンで 階を えらべる
 - 2026-11-24 冒険だけの 確認用ページ（9つめ・`--adv`）: https://claude.ai/artifact/NAUqpMvP5MNTiRm6vdW3vN 。敵の 絵は こちらだけ（STREET KING の ページは 15MB に 入らないため）
+- 3体目: PIGE（描きなおし。前の 絵は `unused/adventure/pige_old.png`）
