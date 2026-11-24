@@ -76,7 +76,7 @@ const CSS = `
 `;
 
 /** 確認用ページかどうか(MONZ RUMBLE から 入った) */
-const isPreview = () => ['Battle3D', 'RumbleMode'].includes((window as { __MONZ_START?: string }).__MONZ_START ?? '');
+const isPreview = () => ['Battle3D', 'RumbleMode', 'Adventure'].includes((window as { __MONZ_START?: string }).__MONZ_START ?? '');
 /** 確認用: ためす レベルと 型 */
 const advDev: { level: number; type: string; species: string | null } = { level: 1, type: 'power', species: null };
 const DEV_SPECIES = ['bunk', 'mofu', 'zipp', 'puni', 'klak', 'riot', 'snek', 'grit', 'vybe', 'shellz', 'crownie'];
@@ -517,8 +517,10 @@ export class AdventureScene extends Phaser.Scene {
     audio.se('back');
     advRun.floor = 1;
     advRun.carry = null;
-    // 確認用ページ(MONZ RUMBLE から 入った)は MONZ RUMBLE へ もどる
-    this.scene.start(isPreview() ? 'RumbleMode' : 'Home');
+    // 確認用ページ(MONZ RUMBLE から 入った)は MONZ RUMBLE へ もどる。冒険の 確認用ページは 1階から やりなおし
+    const start = (window as { __MONZ_START?: string }).__MONZ_START;
+    if (start === 'Adventure') this.scene.restart();
+    else this.scene.start(isPreview() ? 'RumbleMode' : 'Home');
   }
 
   private cleanup(): void {
