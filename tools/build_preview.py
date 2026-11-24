@@ -97,7 +97,8 @@ for p in paths:
                     if max(pim.size) > lim:
                         pim.thumbnail((lim, lim), Image.LANCZOS)
                         bb = io.BytesIO()
-                        pim.save(bb, 'WEBP', quality=70 if B3D2 else 82, method=6)
+                        # 2026-11-24 STREET KING の ページが 冒険の しかけで 15MB を こえた → 74
+                        pim.save(bb, 'WEBP', quality=70 if B3D2 else 74 if STORY else 82, method=6)
                         data = bb.getvalue()
                         im['mimeType'] = 'image/webp'
                 except Exception:
