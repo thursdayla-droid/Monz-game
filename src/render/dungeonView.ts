@@ -157,6 +157,7 @@ interface MobArt {
 /** 絵の ある 敵(企画者の 絵が とどいたら ここに 足す。2026-11-24 前の PIGE の 絵は 方針が 変わったので 使わない) */
 const MOB_ART: Record<string, { file: string; h: number; fly: boolean }> = {
   slime: { file: 'assets/adventure/mob_slime.webp', h: 1.5, fly: false },
+  ratz: { file: 'assets/adventure/mob_ratz.webp', h: 1.2, fly: false },
 };
 /** 【仮】絵が とどくまでの 仮の 形(色・大きさ・形) */
 const MOB_LOOK: Record<MobKind, { color: number; size: number; shape: 'ball' | 'flat' | 'can' | 'block' | 'cap'; ghost?: boolean }> = {

@@ -144,3 +144,4 @@
 - 絵は 右向き・透明背景・正方形で 頼む（命令文は 会話で わたした）
 - 1体目: SLIME（`design/adventure/mobs/slime.png` → `public/assets/adventure/mob_slime.webp`）。前の PIGE の webp は `unused/adventure/` へ
 - 2026-11-24 企画者「そんな カラフルじゃなくて いい。ちゃんと RPG 感 あって、少し スパイス 足すぐらい」→ 敵の 色は 王道RPGの 落ち着いた 色。ネオン色は ほんの 少し（目・小さな 模様 1か所 ていど）
+- 2体目: RATZ（`design/adventure/mobs/ratz.png` → `public/assets/adventure/mob_ratz.webp`）
