@@ -242,7 +242,7 @@ export class DashScene extends Phaser.Scene {
       const dim = this.add.rectangle(0, -400, W, H + 800, 0x000000, 0.7).setOrigin(0, 0).setInteractive();
       const title = this.add.text(W / 2, 200, 'GAME OVER', { fontFamily: '"Arial Black", Impact, sans-serif', fontSize: '96px', color: '#c9c4d6', stroke: INK, strokeThickness: 16 }).setOrigin(0.5);
       const monz = this.textures.exists('cardimg:overMonz') ? this.add.image(W / 2, 420, 'cardimg:overMonz').setScale(0.6) : null;
-      const why = this.add.text(W / 2, 575, this.s.over === 'hit' ? 'トゲに当たった！' : this.s.over === 'magma' ? 'マグマをふんだ！' : '落ちちゃった！', { fontFamily: UI_FONT, fontSize: '32px', fontStyle: '900', color: '#ff8a9a' }).setOrigin(0.5);
+      const why = this.add.text(W / 2, 575, this.s.over === 'hit' ? 'トゲに当たった！' : this.s.over === 'bird' ? '鳥に当たった！' : this.s.over === 'magma' ? 'マグマをふんだ！' : '落ちちゃった！', { fontFamily: UI_FONT, fontSize: '32px', fontStyle: '900', color: '#ff8a9a' }).setOrigin(0.5);
       canvasTextureOnce(this, 'dash:overpanel', 560, 300, (ctx) => drawPanel(ctx, 560, 300, 96));
       const panel = this.add.image(W / 2, 780, 'dash:overpanel');
       const txt = this.add.text(W / 2, 780, [`走った距離   ${m}m`, `獲得コイン   ${r.coins}`, `獲得EXP   ${r.exp}`].join('\n'), { fontFamily: UI_FONT, fontSize: '36px', fontStyle: '900', color: INK, align: 'center', lineSpacing: 18 }).setOrigin(0.5);

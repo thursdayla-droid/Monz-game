@@ -110,7 +110,7 @@ export interface DashState {
   /** 次に足場を置く場所(コースの座標) */
   nextX: number;
   lastY: number;
-  over: false | 'fall' | 'hit' | 'magma';
+  over: false | 'fall' | 'hit' | 'magma' | 'bird';
   rngState: number;
   /** ゲームが始まってからの時間(秒)。はねるトゲの動きに使う */
   time: number;
@@ -428,7 +428,7 @@ export function step(s: DashState, dt: number): void {
     const tl = t.x + inset;
     const tr = t.x + t.w - inset;
     if (fx + half - 8 > tl && fx - half + 8 < tr && s.y - 4 > t.y + vin && top < t.y + t.h - vin) {
-      s.over = 'hit';
+      s.over = t.fly ? 'bird' : 'hit';
       return;
     }
   }
