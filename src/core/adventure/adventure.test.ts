@@ -75,8 +75,8 @@ describe('冒険の 動き', () => {
     }
     return { ...s.floor.exit, fight: false };
   }
-  function play(seed: number, stats = strong, maxT = 600) {
-    const s = newAdventure(seed, stats);
+  function play(seed: number, stats = strong, maxT = 600, floor = 1) {
+    const s = newAdventure(seed, stats, floor);
     const dt = 1 / 30;
     while (s.result === 'play' && s.t < maxT) {
       const p = s.player;
@@ -119,7 +119,7 @@ describe('冒険の 動き', () => {
   });
   it('弱い MONZ だと 負けることも ある(ボットは よけない)', () => {
     const weak = { hp: 2, power: 2, tough: 2, speed: 2, tech: 2 };
-    const r = [1, 2, 3, 4].map((sd) => play(sd, weak).result);
+    const r = [1, 2, 3, 4].map((sd) => play(sd, weak, 600, 4).result);
     expect(r).toContain('lose');
   });
 });
