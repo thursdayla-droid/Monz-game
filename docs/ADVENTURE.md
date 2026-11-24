@@ -157,3 +157,4 @@
 - 確認用ページ: 「確認 NF」ボタンで 階を えらべる
 - 2026-11-24 冒険だけの 確認用ページ（9つめ・`--adv`）: https://claude.ai/artifact/NAUqpMvP5MNTiRm6vdW3vN 。敵の 絵は こちらだけ（STREET KING の ページは 15MB に 入らないため）
 - 3体目: PIGE（描きなおし。前の 絵は `unused/adventure/pige_old.png`）
+- 4体目: BATZ

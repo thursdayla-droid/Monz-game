@@ -161,6 +161,7 @@ const MOB_ART: Record<string, { file: string; h: number; fly: boolean }> = {
   kingslime: { file: 'assets/adventure/mob_slime.webp', h: 3.6, fly: false },
   ratz: { file: 'assets/adventure/mob_ratz.webp', h: 1.2, fly: false },
   pige: { file: 'assets/adventure/mob_pige.webp', h: 1.4, fly: true },
+  batz: { file: 'assets/adventure/mob_batz.webp', h: 1.2, fly: true },
 };
 /** 【仮】絵が とどくまでの 仮の 形(色・大きさ・形) */
 const MOB_LOOK: Record<MobKind, { color: number; size: number; shape: 'ball' | 'flat' | 'can' | 'block' | 'cap'; ghost?: boolean }> = {
