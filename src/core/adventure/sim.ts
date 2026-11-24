@@ -372,15 +372,18 @@ export const jabStyleOf = (species: string): string => ({ mofu: 'whip', puni: 's
 const WATER_JAB: AdvTech = { id: 'punch', kind: 'jab', power: 7, cooldown: 0, element: '水', effect: 'なし', strength: '弱' };
 
 /** 部屋ごとの しかけを 決める(はじまりの 部屋は none・さいごの 部屋は ワープ)。kill・switch・box・key を 1つずつは 入れる */
-function makePuzzles(f: Floor, rng: Rng): Puzzle[] {
+function makePuzzles(f: Floor, rng: Rng, boss: boolean): Puzzle[] {
   const n = f.doors.length;
-  const kinds: PuzzleKind[] = ['kill', 'switch', 'box', 'key'];
-  while (kinds.length < n - 1) kinds.push(['kill', 'switch', 'box', 'key'][Math.floor(rng() * 4)] as PuzzleKind);
+  // 2026-11-24 企画者「部屋の ギミックは そんな いらない」→ しかけ(スイッチ・箱・鍵)は 1階に 1つ。ほかは 敵を 倒す 部屋と ひらいた 部屋【仮】
+  // ボスの 階は ワープの 前の 部屋が ボスの 部屋(倒すまで 扉が ひらかない)
+  const m = boss ? n - 2 : n - 1;
+  const kinds: PuzzleKind[] = [(['switch', 'box', 'key'] as PuzzleKind[])[Math.floor(rng() * 3)]];
+  while (kinds.length < m) kinds.push(kinds.length % 2 ? 'kill' : 'none');
   for (let i = kinds.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));
     [kinds[i], kinds[j]] = [kinds[j], kinds[i]];
   }
-  const list: PuzzleKind[] = ['none', ...kinds.slice(0, n - 1)];
+  const list: PuzzleKind[] = ['none', ...kinds.slice(0, m), ...(boss ? (['kill'] as PuzzleKind[]) : [])];
   return list.map((kind, room) => {
     const r = f.rooms[room];
     const z: Puzzle = { room, kind, solved: kind === 'none' };
@@ -414,7 +417,9 @@ export function newAdventure(seed: number, stats: StatBlock, level = 1, techs: (
   p.speed = P.speed + stats.speed * P.speedPer;
   const mobs: Actor[] = [];
   const mobRoom: number[] = [];
-  const puzzles = makePuzzles(floor, rng);
+  const boss = BOSS_AT[level];
+  const bossRoom = floor.rooms.length - 2;
+  const puzzles = makePuzzles(floor, rng, !!boss);
   let forceKind: MobKind | null = null;
   const addMob = (r: Room, room: number) => {
     const c = cellToWorld(r.x + 1 + Math.floor(rng() * (r.w - 2)), r.y + 1 + Math.floor(rng() * (r.h - 2)));
@@ -441,23 +446,21 @@ export function newAdventure(seed: number, stats: StatBlock, level = 1, techs: (
     mobs.push(m);
     mobRoom.push(room);
   };
-  // 敵: 倒す 部屋は 3〜4体・ほかの しかけの 部屋は 0〜2体・はじまりと ワープの 部屋は なし【仮】
+  // 敵: 倒す 部屋は 3〜4体・ほかの 部屋は 0〜2体・はじまりと ワープと ボスの 部屋は なし【仮】
   floor.rooms.forEach((r, i) => {
-    if (i === 0 || i === floor.rooms.length - 1) return;
+    if (i === 0 || i === floor.rooms.length - 1 || (boss && i === bossRoom)) return;
     const kind = puzzles[i]?.kind;
     const n = kind === 'kill' ? 3 + Math.floor(rng() * 2) : Math.floor(rng() * 3);
     for (let k = 0; k < n; k++) addMob(r, i);
   });
-  // ボスの 階: ワープの 部屋に ボス。たおすまで ワープは うごかない
-  const boss = BOSS_AT[level];
-  const last = floor.rooms.length - 1;
+  // ボスの 階: ワープの 前の 部屋に ボス。たおすまで ワープの 部屋への 扉は ひらかない(2026-11-24 企画者)
   if (boss) {
     forceKind = boss;
-    addMob(floor.rooms[last], last);
+    addMob(floor.rooms[bossRoom], bossRoom);
   }
   const ts = [0, 1, 2, 3].map((i) => techs[i] ?? null);
   return {
-    floor, puzzles, keys: 0, mobRoom, rng, t: 0, player: p, mobs, tech: stats.tech, exitOpen: !boss, floorNo: level, result: 'play', kills: 0, events: [],
+    floor, puzzles, keys: 0, mobRoom, rng, t: 0, player: p, mobs, tech: stats.tech, exitOpen: true, floorNo: level, result: 'play', kills: 0, events: [],
     techs: ts, techCd: [0, 0, 0, 0], techSlot: -1, bag: [], gear: {}, drops: [], seq: 0,
     shots: [], mobShots: [], fields: [], shieldUntil: 0, atkUpUntil: 0, dash: null, combo: null, jumpTo: null, aimed: false, growType, jab: jabStyleOf(species), chain: 0, lastAtk: -9,
     base: { atk: p.atk, tough: p.tough, maxHp: p.maxHp },
@@ -908,10 +911,9 @@ function damage(s: AdvState, from: Actor, to: Actor, mul = 1, tech?: AdvTech): v
     to.actT = 0;
     if (to.id !== 0) {
       s.kills++;
-      // ボスを たおすと ワープが うごく
+      // ボスを たおすと 呼んだ 敵も 消える(→ 扉が ひらく)
       if (isBoss(to)) {
-        s.exitOpen = true;
-        s.events.push({ kind: 'open', x: s.floor.exit.x, z: s.floor.exit.z });
+        s.events.push({ kind: 'open', x: to.x, z: to.z });
         for (const o of s.mobs) if (o !== to && o.act !== 'dead') o.hp = 0, o.act = 'dead';
       }
       s.events.push({ kind: 'die', id: to.id, x: to.x, z: to.z });

@@ -372,7 +372,7 @@ export class AdventureScene extends Phaser.Scene {
       if (e.kind === 'attack' && e.id === 0) audio.se('swing');
       else if (e.kind === 'hit') audio.se(e.target === 0 ? 'punch' : 'b3dPunchHit', e.crit ? { pitch: 0.8 } : undefined);
       else if (e.kind === 'die') audio.se('burst');
-      else if (e.kind === 'open') this.message('ボスを たおした！ ワープが ひらいた');
+      else if (e.kind === 'open') this.message('ボスを たおした！ とびらが ひらいた');
       else if (e.kind === 'door') {
         audio.se('cheer');
         this.message('とびらが ひらいた！');
@@ -413,7 +413,7 @@ export class AdventureScene extends Phaser.Scene {
     const left = s.mobs.filter((m, k) => m.act !== 'dead' && s.mobRoom[k] === ri).length;
     const boss = s.mobs.find((m) => isBoss(m) && m.act !== 'dead');
     const goal =
-      ri === s.floor.rooms.length - 1 && boss
+      boss && s.mobRoom[s.mobs.indexOf(boss)] === ri
         ? `<b>${MOB_KINDS[boss.mobKind!].name}</b> を たおせ　HP <b>${Math.ceil((boss.hp / boss.maxHp) * 100)}%</b>`
         : ri === s.floor.rooms.length - 1
         ? '<b>ワープ</b>に のって 次の 階へ'

@@ -151,6 +151,8 @@ interface Pop {
 /** 敵の 絵(種類ごと)。h: 絵の 高さ・fly: 宙に 浮く */
 interface MobArt {
   tex: THREE.Texture;
+  /** 左右 反転した 絵(スプライトは 大きさを マイナスに しても 反転しないので 別に 持つ) */
+  flip: THREE.Texture;
   h: number;
   fly: boolean;
 }
@@ -188,6 +190,8 @@ class MobView {
   private deadT = 0;
   /** 敵の 絵(2026-11-24〜 企画者の 絵が ある 種類だけ。カメラの ほうを 向く 板) */
   private art: THREE.Sprite | null = null;
+  private rightTex: THREE.Texture | null = null;
+  private flipTex: THREE.Texture | null = null;
   private artMat: THREE.SpriteMaterial | null = null;
   private artH = 1.7;
   private fly = false;
@@ -260,6 +264,8 @@ class MobView {
     if (art) {
       this.body.visible = false;
       this.artMat = new THREE.SpriteMaterial({ map: art.tex, transparent: true, alphaTest: 0.1 });
+      this.rightTex = art.tex;
+      this.flipTex = art.flip;
       this.art = new THREE.Sprite(this.artMat);
       this.art.center.set(0.5, 0);
       this.artH = art.h;
@@ -282,8 +288,10 @@ class MobView {
     const img = tex.image as { width?: number; height?: number } | null;
     const aspect = img?.width && img?.height ? img.width / img.height : 1;
     // 絵は 右向き。左へ 動く ときは 左右を 反転
-    const dir = Math.cos(m.face) < 0 ? -1 : 1;
-    sp.scale.set(this.artH * aspect * sx * dir, this.artH * (sy / 0.85), 1);
+    const left = Math.cos(m.face) < 0;
+    const want = left ? this.flipTex! : this.rightTex!;
+    if (mat.map !== want) mat.map = want;
+    sp.scale.set(this.artH * aspect * sx, this.artH * (sy / 0.85), 1);
     sp.position.y = this.fly ? 0.7 + Math.sin(now * 5 + m.id) * 0.12 : 0;
     mat.color.setHex(0xffffff);
     if (m.act === 'attack' && !m.struck && m.actT / ADV.mob.windup > 0.5) mat.color.setHex(0xff6a7a);
@@ -834,7 +842,11 @@ export class DungeonView {
     if (!art) {
       const tex = new THREE.TextureLoader().load(assetUrl(a.file));
       tex.colorSpace = THREE.SRGBColorSpace;
-      art = { tex, h: a.h, fly: a.fly };
+      const flip = new THREE.TextureLoader().load(assetUrl(a.file));
+      flip.colorSpace = THREE.SRGBColorSpace;
+      flip.repeat.x = -1;
+      flip.offset.x = 1;
+      art = { tex, flip, h: a.h, fly: a.fly };
       this.mobTex.set(kind!, art);
     }
     return art;

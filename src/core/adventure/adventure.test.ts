@@ -101,13 +101,17 @@ describe('冒険の 動き', () => {
     }
     return s;
   }
-  it('しかけ: はじまりの 部屋は ひらいている・敵 / スイッチ / 箱 / 鍵 が 1つずつは ある・扉は しまっている', () => {
+  it('しかけ: はじまりの 部屋は ひらいている・しかけ(スイッチ / 箱 / 鍵)は 1つだけ・敵を 倒す 部屋が ある・解くまで 扉は しまっている', () => {
+    const seen = new Set<string>();
     for (let seed = 1; seed <= 20; seed++) {
       const s = newAdventure(seed, strong);
       expect(s.puzzles[0].kind).toBe('none');
-      for (const k of ['kill', 'switch', 'box', 'key']) expect(s.puzzles.some((z) => z.kind === k)).toBe(true);
+      expect(s.puzzles.filter((z) => ['switch', 'box', 'key'].includes(z.kind)).length).toBe(1);
+      expect(s.puzzles.some((z) => z.kind === 'kill')).toBe(true);
+      for (const z of s.puzzles) seen.add(z.kind);
       s.puzzles.forEach((z, i) => expect(s.floor.tiles[s.floor.doors[i].cells[0]]).toBe(z.solved ? FLOOR : DOOR));
     }
+    for (const k of ['kill', 'switch', 'box', 'key']) expect(seen.has(k)).toBe(true);
   });
   it('強い MONZ なら しかけを 解いて ワープで クリアできる', () => {
     for (const seed of [1, 2, 3]) {
@@ -297,21 +301,26 @@ describe('路地裏の 敵 10種(2026-11-24)', () => {
 
 describe('階と ボス(2026-11-24)', () => {
   const stats = { hp: 10, power: 10, tough: 10, speed: 10, tech: 10 };
-  it('階ごとの 敵が 出る・5階と 10階は ワープの 部屋に ボス・たおすまで ワープは うごかない', () => {
+  it('階ごとの 敵が 出る・5階と 10階は ワープの 前の 部屋に ボス・たおすまで 扉が ひらかない', () => {
     for (let f = 1; f <= ALLEY_TOP; f++) {
       const s = newAdventure(f * 3, stats, f);
       const normal = s.mobs.filter((m) => !isBoss(m));
       for (const m of normal) expect(FLOOR_MOBS[f]).toContain(m.mobKind);
       const boss = s.mobs.filter(isBoss);
       expect(boss.map((m) => m.mobKind)).toEqual(BOSS_AT[f] ? [BOSS_AT[f]] : []);
-      expect(s.exitOpen).toBe(!BOSS_AT[f]);
       if (boss.length) {
-        expect(s.mobRoom[s.mobs.indexOf(boss[0])]).toBe(s.floor.rooms.length - 1);
+        const br = s.floor.rooms.length - 2;
+        expect(s.mobRoom[s.mobs.indexOf(boss[0])]).toBe(br);
+        expect(s.mobRoom.filter((r) => r === br).length).toBe(1);
+        expect(s.puzzles[br].kind).toBe('kill');
+        expect(s.floor.tiles[s.floor.doors[br].cells[0]]).toBe(DOOR);
         boss[0].hp = 1;
         Object.assign(s.player, { x: boss[0].x - 1.5, z: boss[0].z, face: 0 });
         for (let t = 0; t < 1 && boss[0].act !== 'dead'; t += 1 / 30) stepAdventure(s, { mx: 0, mz: 0, attack: true }, 1 / 30);
         expect(boss[0].act).toBe('dead');
-        expect(s.exitOpen).toBe(true);
+        stepAdventure(s, { mx: 0, mz: 0, attack: false }, 1 / 30);
+        expect(s.puzzles[br].solved).toBe(true);
+        expect(s.floor.tiles[s.floor.doors[br].cells[0]]).toBe(FLOOR);
       }
     }
   });
