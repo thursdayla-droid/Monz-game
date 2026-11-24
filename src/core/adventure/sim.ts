@@ -321,8 +321,7 @@ export function newAdventure(seed: number, stats: StatBlock, level = 1, techs: (
     m.tough = 4 * level;
     m.speed = M.speed;
     m.face = rng() * Math.PI * 2;
-    // 【仮】絵が そろうまで 路地裏の 敵は 全部 PIGE(2026-11-24 企画者の 絵)。動き(飛ぶ・羽を 撃つ)は まだ ふつうの 敵と 同じ
-    m.mobKind = 'pige';
+    // 2026-11-24 企画者「やっぱり 敵 やめた。もう一回 考える」→ 敵の 種類は 未定。仮の 形に もどした(PIGE の 絵は design/ に 残す)
     mobs.push(m);
     mobRoom.push(room);
   };
