@@ -145,3 +145,13 @@
 - 1体目: SLIME（`design/adventure/mobs/slime.png` → `public/assets/adventure/mob_slime.webp`）。前の PIGE の webp は `unused/adventure/` へ
 - 2026-11-24 企画者「そんな カラフルじゃなくて いい。ちゃんと RPG 感 あって、少し スパイス 足すぐらい」→ 敵の 色は 王道RPGの 落ち着いた 色。ネオン色は ほんの 少し（目・小さな 模様 1か所 ていど）
 - 2体目: RATZ（`design/adventure/mobs/ratz.png` → `public/assets/adventure/mob_ratz.webp`）
+
+## 2026-11-24 1〜10階を 通して 遊べる 形・敵の 出かた・ボス（企画者「最初は 弱い 敵・10階に 近くなって 強い 雑魚」「10階は ソロで Lv20 で ぎりぎり クリア」）
+- ワープに のると「N階へ ▶」で 次の 階。【仮】HP は 階ごとに 満タン・持ち物と 装備は 持ちこす・負けたら 同じ 階から・もどるで 1階から
+- 階ごとの 敵（`FLOOR_MOBS`【仮】）: 1F SLIME・RATZ → 2F +PIGE → 3F +BATZ → 4F +SHROOM → 5F KING SLIME → 6F +GHOST → 7F +SPIDER → 8F +MIMIC・SKELE → 9F +GOLEM → 10F ALLEY TROLL
+- 上の 階ほど 敵の HP・攻撃・かたさが 上がる（`ADV.grow`【仮】）
+- ボスは ワープの 部屋の まん中。たおすまで ワープは うごかない。技の 前に 床に 赤い 印（よける 合図）。HP 半分 以下で 技が 早くなる【仮】
+  - KING SLIME: ジャンププレス（ねらった 場所に 落ちる）・毒液（3方向）・小さい SLIME を 2体 呼ぶ
+  - ALLEY TROLL: こん棒の 振り下ろし（前）・回転攻撃（まわり）・衝撃波（広い 輪）
+- 強さの 目安（自動で 遊ぶ プログラムで 調べた。ボスの 赤い 印は よける）: 10階は Lv20 で 半分くらい クリア・のこり HP 1〜2割 / Lv15 では クリアできない。5階は Lv15〜20
+- 確認用ページ: 「確認 NF」ボタンで 階を えらべる

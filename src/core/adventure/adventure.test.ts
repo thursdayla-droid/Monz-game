@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CELL, DOOR, FLOOR, generateFloor, type Floor } from './dungeon';
-import { adventureReward, ALLEY_MOBS, BAG_MAX, MOB_KINDS, newAdventure, type MobKind, stepAdventure, unequip, useBagItem, useHerb, type AdvState } from './sim';
+import { adventureReward, ALLEY_MOBS, ALLEY_TOP, BAG_MAX, BOSS_AT, FLOOR_MOBS, isBoss, MOB_KINDS, newAdventure, type MobKind, stepAdventure, unequip, useBagItem, useHerb, type AdvState } from './sim';
 
 /** マス(x,y)から 歩いて 行ける マスの 距離(BFS)。doors = しまった 扉も 通れる ことに する */
 function bfs(f: Floor, sx: number, sy: number, doors = false): Int32Array {
@@ -292,5 +292,35 @@ describe('路地裏の 敵 10種(2026-11-24)', () => {
     run(s, 2);
     expect(s.mobs[0].x).toBe(x);
     expect(s.player.hp).toBe(s.player.maxHp);
+  });
+});
+
+describe('階と ボス(2026-11-24)', () => {
+  const stats = { hp: 10, power: 10, tough: 10, speed: 10, tech: 10 };
+  it('階ごとの 敵が 出る・5階と 10階は ワープの 部屋に ボス・たおすまで ワープは うごかない', () => {
+    for (let f = 1; f <= ALLEY_TOP; f++) {
+      const s = newAdventure(f * 3, stats, f);
+      const normal = s.mobs.filter((m) => !isBoss(m));
+      for (const m of normal) expect(FLOOR_MOBS[f]).toContain(m.mobKind);
+      const boss = s.mobs.filter(isBoss);
+      expect(boss.map((m) => m.mobKind)).toEqual(BOSS_AT[f] ? [BOSS_AT[f]] : []);
+      expect(s.exitOpen).toBe(!BOSS_AT[f]);
+      if (boss.length) {
+        expect(s.mobRoom[s.mobs.indexOf(boss[0])]).toBe(s.floor.rooms.length - 1);
+        boss[0].hp = 1;
+        Object.assign(s.player, { x: boss[0].x - 1.5, z: boss[0].z, face: 0 });
+        for (let t = 0; t < 1 && boss[0].act !== 'dead'; t += 1 / 30) stepAdventure(s, { mx: 0, mz: 0, attack: true }, 1 / 30);
+        expect(boss[0].act).toBe('dead');
+        expect(s.exitOpen).toBe(true);
+      }
+    }
+  });
+  it('上の 階ほど 敵が 強い', () => {
+    const avg = (f: number) => {
+      const s = newAdventure(11, stats, f);
+      const n = s.mobs.filter((m) => !isBoss(m));
+      return n.reduce((a, m) => a + m.maxHp * m.atk, 0) / n.length;
+    };
+    expect(avg(9)).toBeGreaterThan(avg(1) * 2);
   });
 });

@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
-import { newAdventure, stepAdventure, playerRoom, adventureReward, aimPreview, unequip, useBagItem, useHerb, BAG_MAX, SELF_KINDS, SLOT_NAMES, type AdvItem, type AdvState, type AdvTech, type GearSlot } from '../core/adventure/sim';
+import { ALLEY_TOP, isBoss, MOB_KINDS, newAdventure, stepAdventure, playerRoom, adventureReward, aimPreview, unequip, useBagItem, useHerb, BAG_MAX, SELF_KINDS, SLOT_NAMES, type AdvItem, type AdvState, type AdvTech, type GearSlot } from '../core/adventure/sim';
 import { getTech } from '../core/battle3d/techTable';
 import { RANK_HEX } from '../render/dungeonView';
 import type { Proficiency } from '../core/battle3d/config';
@@ -80,7 +80,12 @@ const isPreview = () => ['Battle3D', 'RumbleMode'].includes((window as { __MONZ_
 /** 確認用: ためす レベルと 型 */
 const advDev: { level: number; type: string; species: string | null } = { level: 1, type: 'power', species: null };
 const DEV_SPECIES = ['bunk', 'mofu', 'zipp', 'puni', 'klak', 'riot', 'snek', 'grit', 'vybe', 'shellz', 'crownie'];
-const DEV_LEVELS = [1, 10, 25, 45, 70];
+const DEV_LEVELS = [1, 10, 20, 25, 45, 70];
+/**
+ * 今の 階(2026-11-24 企画者「次の 階に 行ける ワープ」・1〜10階 路地裏)。
+ * 【仮】クリアで 次の 階へ(HP は 満タンに もどる・持ち物と 装備は 持ちこす)。負けたら 同じ 階から。もどるで 1階から
+ */
+const advRun: { floor: number; carry: Pick<AdvState, 'bag' | 'gear'> | null } = { floor: 1, carry: null };
 const DEV_TYPES = ['power', 'tough', 'speed', 'tech'];
 
 const START_PROFICIENCY: Proficiency = { attack: 2, defense: 2, evasion: 2, counter: 2, spacing: 2 };
@@ -140,7 +145,11 @@ export class AdventureScene extends Phaser.Scene {
       return { id, kind: t.kind, power: t.power ?? 0, cooldown: Math.max(2, t.cooldown), element: t.element, effect: t.effect ?? 'なし', strength: t.strength };
     });
     this.techNames = techs.map((t) => (t ? getTech(t.id).name : ''));
-    this.state = newAdventure(seed, me.stats, 1, techs, growType, me.species);
+    this.state = newAdventure(seed, me.stats, advRun.floor, techs, growType, me.species);
+    if (advRun.carry) {
+      this.state.bag = advRun.carry.bag;
+      this.state.gear = advRun.carry.gear;
+    }
     this.buildDom(me);
     audio.playBgm('battle');
     window.addEventListener('resize', this.onResize);
@@ -157,8 +166,8 @@ export class AdventureScene extends Phaser.Scene {
     root.appendChild(canvas);
     root.insertAdjacentHTML(
       'beforeend',
-      `<div class="top"><button class="back">◀ もどる</button><div class="me"><div class="nm">${me.name}　Lv.${this.level}</div><div class="bar"><i></i></div><div class="num"></div></div><div class="goal"></div><button class="bagBtn">もちもの</button></div>
-       ${isPreview() ? `<div class="dev" style="position:absolute;z-index:5;left:calc(env(safe-area-inset-left) + 12px);top:calc(env(safe-area-inset-top) + 62px);display:flex;gap:6px"><button class="back devLv">確認 Lv.${advDev.level}</button><button class="back devTy">型：${STAT_LABELS[advDev.type as StatKey]}</button><button class="back devSp">${(advDev.species ?? '自分').toUpperCase()}</button></div>` : ''}
+      `<div class="top"><button class="back">◀ もどる</button><div class="me"><div class="nm">${me.name}　Lv.${this.level}　<b style="color:#ffd23a">${advRun.floor}F</b></div><div class="bar"><i></i></div><div class="num"></div></div><div class="goal"></div><button class="bagBtn">もちもの</button></div>
+       ${isPreview() ? `<div class="dev" style="position:absolute;z-index:5;left:calc(env(safe-area-inset-left) + 12px);top:calc(env(safe-area-inset-top) + 62px);display:flex;gap:6px"><button class="back devLv">確認 Lv.${advDev.level}</button><button class="back devTy">型：${STAT_LABELS[advDev.type as StatKey]}</button><button class="back devFl">確認 ${advRun.floor}F</button><button class="back devSp">${(advDev.species ?? '自分').toUpperCase()}</button></div>` : ''}
        <div class="stickZone"><div class="stickBase"><div class="stickKnob"></div></div></div>
        <div class="stickHint">ここを<br>さわって<br>うごかす</div>
        <button class="atk">こうげき</button>
@@ -179,6 +188,14 @@ export class AdventureScene extends Phaser.Scene {
     $('.leave').addEventListener('click', () => this.leave());
     $('.again').addEventListener('click', () => {
       audio.se('tap');
+      // クリア → 次の 階へ(持ち物と 装備を 持ちこす)。負け → 同じ 階を もう一度
+      if (this.state.result === 'clear' && advRun.floor < ALLEY_TOP) {
+        advRun.floor++;
+        advRun.carry = { bag: this.state.bag, gear: this.state.gear };
+      } else if (this.state.result === 'clear') {
+        advRun.floor = 1;
+        advRun.carry = null;
+      }
       this.scene.restart();
     });
     const atk = $('.atk');
@@ -263,6 +280,11 @@ export class AdventureScene extends Phaser.Scene {
     if (isPreview()) {
       $('.devLv').addEventListener('click', () => {
         advDev.level = DEV_LEVELS[(DEV_LEVELS.indexOf(advDev.level) + 1) % DEV_LEVELS.length];
+        this.scene.restart();
+      });
+      $('.devFl').addEventListener('click', () => {
+        advRun.floor = (advRun.floor % ALLEY_TOP) + 1;
+        advRun.carry = null;
         this.scene.restart();
       });
       $('.devSp').addEventListener('click', () => {
@@ -350,7 +372,7 @@ export class AdventureScene extends Phaser.Scene {
       if (e.kind === 'attack' && e.id === 0) audio.se('swing');
       else if (e.kind === 'hit') audio.se(e.target === 0 ? 'punch' : 'b3dPunchHit', e.crit ? { pitch: 0.8 } : undefined);
       else if (e.kind === 'die') audio.se('burst');
-      else if (e.kind === 'open') this.message('出口が ひらいた！');
+      else if (e.kind === 'open') this.message('ボスを たおした！ ワープが ひらいた');
       else if (e.kind === 'door') {
         audio.se('cheer');
         this.message('とびらが ひらいた！');
@@ -389,8 +411,11 @@ export class AdventureScene extends Phaser.Scene {
     const ri = playerRoom(s);
     const z = ri >= 0 ? s.puzzles[ri] : undefined;
     const left = s.mobs.filter((m, k) => m.act !== 'dead' && s.mobRoom[k] === ri).length;
+    const boss = s.mobs.find((m) => isBoss(m) && m.act !== 'dead');
     const goal =
-      ri === s.floor.rooms.length - 1
+      ri === s.floor.rooms.length - 1 && boss
+        ? `<b>${MOB_KINDS[boss.mobKind!].name}</b> を たおせ　HP <b>${Math.ceil((boss.hp / boss.maxHp) * 100)}%</b>`
+        : ri === s.floor.rooms.length - 1
         ? '<b>ワープ</b>に のって 次の 階へ'
         : !z || z.solved
           ? '次の 部屋へ すすもう'
@@ -481,7 +506,8 @@ export class AdventureScene extends Phaser.Scene {
     if (got.exp || got.coins) new LifeRecord(loadLife()).grant({ runId: `adv:${Date.now()}`, source: 'adventure', coins: got.coins, exp: got.exp });
     const res = this.root!.querySelector('.result') as HTMLElement;
     res.classList.toggle('lose', s.result === 'lose');
-    (res.querySelector('h1') as HTMLElement).textContent = s.result === 'clear' ? 'CLEAR' : 'LOSE';
+    (res.querySelector('h1') as HTMLElement).textContent = s.result === 'clear' ? (advRun.floor >= ALLEY_TOP ? '路地裏 CLEAR' : `${advRun.floor}F CLEAR`) : 'LOSE';
+    (res.querySelector('.again') as HTMLElement).textContent = s.result === 'clear' ? (advRun.floor < ALLEY_TOP ? `${advRun.floor + 1}階へ ▶` : '1階から') : 'もう一度';
     (res.querySelector('.prize') as HTMLElement).textContent = `EXP +${got.exp}　コイン +${got.coins}`;
     window.setTimeout(() => (res.style.display = 'flex'), 700);
     audio.se(s.result === 'clear' ? 'cheer' : 'back');
@@ -489,6 +515,8 @@ export class AdventureScene extends Phaser.Scene {
 
   private leave(): void {
     audio.se('back');
+    advRun.floor = 1;
+    advRun.carry = null;
     // 確認用ページ(MONZ RUMBLE から 入った)は MONZ RUMBLE へ もどる
     this.scene.start(isPreview() ? 'RumbleMode' : 'Home');
   }

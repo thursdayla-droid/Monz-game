@@ -157,6 +157,8 @@ interface MobArt {
 /** 絵の ある 敵(企画者の 絵が とどいたら ここに 足す。2026-11-24 前の PIGE の 絵は 方針が 変わったので 使わない) */
 const MOB_ART: Record<string, { file: string; h: number; fly: boolean }> = {
   slime: { file: 'assets/adventure/mob_slime.webp', h: 1.5, fly: false },
+  // 【仮】KING SLIME の 絵が とどくまで SLIME の 絵を 大きく + 金の 王冠
+  kingslime: { file: 'assets/adventure/mob_slime.webp', h: 3.6, fly: false },
   ratz: { file: 'assets/adventure/mob_ratz.webp', h: 1.2, fly: false },
 };
 /** 【仮】絵が とどくまでの 仮の 形(色・大きさ・形) */
@@ -171,6 +173,8 @@ const MOB_LOOK: Record<MobKind, { color: number; size: number; shape: 'ball' | '
   shroom: { color: 0xff5ab0, size: 0.9, shape: 'cap' },
   skele: { color: 0xeae6d8, size: 0.85, shape: 'ball' },
   golem: { color: 0xa0583a, size: 1.45, shape: 'block' },
+  kingslime: { color: 0x8a3ad0, size: 2.6, shape: 'flat' },
+  troll: { color: 0x7a9070, size: 2.6, shape: 'block' },
 };
 
 class MobView {
@@ -191,6 +195,7 @@ class MobView {
   private baseY = 0.5;
   private flyLook = false;
   private sy0 = 0.85;
+  private crown: THREE.Mesh | null = null;
   constructor(grad: THREE.Texture, art: MobArt | null = null, kind: MobKind = 'slime') {
     const L = MOB_LOOK[kind] ?? MOB_LOOK.slime;
     this.base = L.color;
@@ -217,6 +222,13 @@ class MobView {
       const eye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), new THREE.MeshBasicMaterial({ color: 0xfff27a }));
       eye.position.set(0.52, 0.12, s * 0.2);
       this.body.add(eye);
+    }
+    if (kind === 'kingslime') {
+      // 【仮】金の 王冠
+      const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.28, 0.3, 5, 1, true), new THREE.MeshToonMaterial({ color: 0xffd23a, gradientMap: grad, side: THREE.DoubleSide }));
+      crown.rotation.z = 0.35;
+      this.crown = crown;
+      this.root.add(crown);
     }
     if (L.shape === 'cap') {
       // キノコの かさ
@@ -308,6 +320,11 @@ class MobView {
     const k0 = this.size;
     this.body.scale.set(sx * k0, (sy / 0.85) * this.sy0 * k0, sx * k0);
     if (this.art) this.updateArt(m, now, sx, sy);
+    if (this.crown) {
+      const top = this.art ? this.artH * (sy / 0.85) : this.baseY * 2;
+      this.crown.position.set(0, top + 0.05, 0);
+      this.crown.scale.setScalar(this.art ? 1.6 : 1.2);
+    }
     const r = Math.max(0, m.hp / m.maxHp);
     this.bar.scale.x = r;
     this.bar.position.x = 0;
@@ -498,6 +515,22 @@ export class DungeonView {
     this.addFx(m, life, (k) => {
       m.scale.setScalar(0.2 + r * (1 - (1 - k) * (1 - k)));
       (m.material as THREE.MeshBasicMaterial).opacity = 0.9 * (1 - k);
+    });
+  }
+
+  /** ボスの 技の 前の 赤い 印(よける 合図) */
+  private bossWarn(e: Extract<AdvEvent, { kind: 'bossWarn' }>): void {
+    if (e.move === 'spit' || e.move === 'summon') return;
+    let geo: THREE.BufferGeometry;
+    if (e.move === 'club') geo = new THREE.CircleGeometry(e.r, 24, -0.8, 1.6);
+    else if (e.move === 'quake') geo = new THREE.RingGeometry(e.r - 0.3, e.r, 48);
+    else geo = new THREE.CircleGeometry(e.r, 32);
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xff2a3a, transparent: true, opacity: 0.3, depthWrite: false, side: THREE.DoubleSide }));
+    m.rotation.x = -Math.PI / 2;
+    if (e.move === 'club') m.rotation.z = -e.dir;
+    m.position.set(e.x, 0.06, e.z);
+    this.addFx(m, e.time, (k) => {
+      (m.material as THREE.MeshBasicMaterial).opacity = 0.18 + 0.3 * k;
     });
   }
 
@@ -875,7 +908,12 @@ export class DungeonView {
       } else if (e.kind === 'tech') this.techFx(e);
       else if (e.kind === 'jab') this.jabFx(e);
       else if (e.kind === 'status') this.burst(e.x, e.z, 0xc080ff, 6);
-      else if (e.kind === 'mobFx') {
+      else if (e.kind === 'bossWarn') this.bossWarn(e);
+      else if (e.kind === 'mobFx' && ['press', 'club', 'spin', 'quake', 'spit', 'summon'].includes(e.style)) {
+        const c = e.style === 'quake' ? 0xffb03a : e.style === 'spit' ? 0x9aff5a : e.style === 'summon' ? 0xc07aff : 0xff6a3a;
+        if (e.style !== 'spit' && e.style !== 'press') this.groundRing(e.x, e.z, e.r, c, e.style === 'quake' ? 0.6 : 0.4, e.style === 'quake' ? 0.12 : 0.25);
+        if (e.style === 'quake' || e.style === 'club') this.shake = Math.max(this.shake, 0.4);
+      } else if (e.kind === 'mobFx') {
         // 敵の 攻撃の 見た目【仮】: 胞子 ピンク・重い パンチ オレンジ・超音波 紫・ほか 白
         const c = e.style === 'spore' ? 0xff5ab0 : e.style === 'smash' ? 0xff8a2a : e.style === 'wave' ? 0xb05aff : 0xffffff;
         const fx = e.style === 'spore' || e.style === 'smash' || e.style === 'wave';
@@ -926,7 +964,16 @@ export class DungeonView {
     if (best >= 0) this.auraMat.color.setHex(RANK_HEX[RANKS[best]]);
     this.aura.position.set(p.x, 0.06, p.z);
     this.aura.scale.setScalar(1 + best * 0.12);
+    // ボスが 呼んだ 敵
+    while (this.mobs.length < s.mobs.length) {
+      const m = s.mobs[this.mobs.length];
+      const v = new MobView(this.grad, this.mobArt(m.mobKind), m.mobKind);
+      this.mobs.push(v);
+      this.scene.add(v.root);
+    }
     s.mobs.forEach((m, i) => this.mobs[i].update(m, dt, this.camera, now));
+    // ワープ: ボスを たおすまで 暗い
+    this.warpRing.visible = this.exit.visible = s.exitOpen;
     // 出口(ワープ)
     this.exitMat.color.setHex(0xb07aff);
     this.exitMat.opacity = 0.45 + Math.sin(now * 5) * 0.2;
