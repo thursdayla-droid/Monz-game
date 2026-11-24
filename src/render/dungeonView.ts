@@ -226,7 +226,8 @@ export class DungeonView {
   /** 2026-11-07 企画者「カメラ もっと 引きで」「もっと 2D 感」→ 遠近の ない カメラで、高い ところから 見下ろす */
   readonly camera = new THREE.OrthographicCamera(-12, 12, 7, -7, 0.1, 200);
   /** 画面の たての 広さ(世界の 長さ) */
-  private viewH = 14;
+  // 2026-11-24 企画者「若干 遠目」→ 14 → 17
+  private viewH = 17;
   private grad = toonGradient();
   private rig: MonsterRig;
   private puppet: AnimeMon;
@@ -272,10 +273,10 @@ export class DungeonView {
     moon.castShadow = true;
     moon.shadow.mapSize.set(1024, 1024);
     const sc = moon.shadow.camera;
-    sc.left = -16;
-    sc.right = 16;
-    sc.top = 16;
-    sc.bottom = -16;
+    sc.left = -24;
+    sc.right = 24;
+    sc.top = 24;
+    sc.bottom = -24;
     this.scene.add(moon);
     this.scene.add(moon.target);
     this.moon = moon;

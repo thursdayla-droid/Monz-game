@@ -52,9 +52,10 @@ export const cellToWorld = (cx: number, cy: number) => ({ x: (cx + 0.5) * CELL, 
 
 /** 部屋を 置く ます目(4×4)・1つの 大きさ(マス) */
 const GRID = 4;
-const SLOT = 12;
+// 2026-11-24 企画者「もっと 部屋 広い 感じ」→ ます目 12 → 16・部屋 6〜9 → 9〜13 マス
+const SLOT = 16;
 /** 通路の 位置(ます目の 中の 列・行。はば 2) */
-const LANE = 5;
+const LANE = 7;
 
 /**
  * 1階を 作る(2026-11-24 作り直し)。4×4 の ます目に 部屋を 一本道で ならべ、となりどうしを まっすぐの 通路で つなぐ。
@@ -85,8 +86,8 @@ export function generateFloor(seed: number, opt: FloorOptions = {}): Floor {
   };
   // 部屋: 通路の 線(LANE, LANE+1)を かならず ふくむ
   const rooms: Room[] = path.map(([gx, gy]) => {
-    const rw = ri(6, 9);
-    const rh = ri(6, 9);
+    const rw = ri(9, 13);
+    const rh = ri(9, 13);
     const ox = gx * SLOT;
     const oy = gy * SLOT;
     const x = ri(Math.max(ox + 1, ox + LANE + 2 - rw), Math.min(ox + LANE, ox + SLOT - 1 - rw));
