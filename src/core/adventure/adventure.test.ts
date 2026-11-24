@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { CELL, FLOOR, generateFloor, type Floor } from './dungeon';
-import { adventureReward, BAG_MAX, newAdventure, stepAdventure, unequip, useBagItem, useHerb } from './sim';
+import { CELL, DOOR, FLOOR, generateFloor, type Floor } from './dungeon';
+import { adventureReward, BAG_MAX, newAdventure, stepAdventure, unequip, useBagItem, useHerb, type AdvState } from './sim';
 
-/** マス(x,y)から 歩いて 行ける マスの 距離(BFS) */
-function bfs(f: Floor, sx: number, sy: number): Int32Array {
+/** マス(x,y)から 歩いて 行ける マスの 距離(BFS)。doors = しまった 扉も 通れる ことに する */
+function bfs(f: Floor, sx: number, sy: number, doors = false): Int32Array {
   const d = new Int32Array(f.w * f.h).fill(-1);
   const q = [sy * f.w + sx];
   d[q[0]] = 0;
@@ -13,7 +13,7 @@ function bfs(f: Floor, sx: number, sy: number): Int32Array {
     const y = Math.floor(i / f.w);
     for (const [ax, ay] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const j = (y + ay) * f.w + x + ax;
-      if (f.tiles[j] === FLOOR && d[j] < 0) {
+      if ((f.tiles[j] === FLOOR || (doors && f.tiles[j] === DOOR)) && d[j] < 0) {
         d[j] = d[i] + 1;
         q.push(j);
       }
@@ -27,26 +27,60 @@ describe('冒険の ダンジョン', () => {
     expect(generateFloor(5).tiles).toEqual(generateFloor(5).tiles);
     expect(generateFloor(5).tiles).not.toEqual(generateFloor(6).tiles);
   });
-  it('どの 部屋にも はじまりから 歩いて 行ける', () => {
+  it('部屋は 一本道・扉を 通れば どの 部屋にも 行ける・扉 i を 通らないと 部屋 i+1 へ 行けない', () => {
     for (let seed = 1; seed <= 40; seed++) {
       const f = generateFloor(seed);
-      expect(f.rooms.length).toBeGreaterThanOrEqual(5);
-      const d = bfs(f, Math.floor(f.start.x / CELL), Math.floor(f.start.z / CELL));
+      expect(f.rooms.length).toBe(7);
+      expect(f.doors.length).toBe(6);
+      const sx = Math.floor(f.start.x / CELL);
+      const sy = Math.floor(f.start.z / CELL);
+      const d = bfs(f, sx, sy, true);
       for (const r of f.rooms) expect(d[(r.y + 1) * f.w + r.x + 1]).toBeGreaterThanOrEqual(0);
+      // 扉を 1つ しめると、その 先の 部屋へは 行けない
+      for (let i = 0; i < f.doors.length; i++) {
+        const g = { ...f, tiles: new Uint8Array(f.tiles) };
+        for (const c of f.doors[i].cells) g.tiles[c] = DOOR;
+        const e = bfs(g, sx, sy);
+        const next = f.rooms[i + 1];
+        expect(e[(next.y + 1) * f.w + next.x + 1]).toBe(-1);
+        const here = f.rooms[i];
+        expect(e[(here.y + 1) * f.w + here.x + 1]).toBeGreaterThanOrEqual(0);
+      }
     }
   });
 });
 
 describe('冒険の 動き', () => {
   const strong = { hp: 40, power: 40, tough: 30, speed: 20, tech: 20 };
-  /** いちばん 近い モブへ(マスの 道を たどって)向かい、近ければ 攻撃する ボット */
-  function play(seed: number, stats = strong, maxT = 400) {
+  /** しかけを 解きながら 進む ボット: 今の 部屋の しかけ(敵・スイッチ・箱・鍵)→ 扉 → 次の 部屋 → ワープ */
+  function goalOf(s: AdvState): { x: number; z: number; fight: boolean } {
+    const p = s.player;
+    const i = s.puzzles.findIndex((z) => !z.solved);
+    const live = s.mobs.filter((m, k) => m.act !== 'dead' && (s.mobRoom[k] === i || Math.hypot(m.x - p.x, m.z - p.z) < 3));
+    if (live.length && (s.puzzles[i]?.kind === 'kill' || live.some((m) => Math.hypot(m.x - p.x, m.z - p.z) < 3))) {
+      const m = live.sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0];
+      return { x: m.x, z: m.z, fight: true };
+    }
+    if (i < 0) return { ...s.floor.exit, fight: false };
+    const z = s.puzzles[i];
+    if (z.kind === 'switch') return { ...z.plate!, fight: false };
+    if (z.kind === 'key') return z.key!.taken ? { x: s.floor.doors[i].x, z: s.floor.doors[i].z, fight: false } : { ...z.key!, fight: false };
+    if (z.kind === 'box') {
+      const b = z.box!;
+      const dir = Math.sign(z.plate!.x - b.x) || 1;
+      const behind = { x: b.x - dir * 2.0, z: b.z };
+      // 箱の うしろに まわって から 押す
+      if (Math.abs(p.z - b.z) < 0.35 && Math.sign(b.x - p.x) === dir) return { x: z.plate!.x + dir * 3, z: b.z, fight: false };
+      return { ...behind, fight: false };
+    }
+    return { ...s.floor.exit, fight: false };
+  }
+  function play(seed: number, stats = strong, maxT = 600) {
     const s = newAdventure(seed, stats);
     const dt = 1 / 30;
     while (s.result === 'play' && s.t < maxT) {
       const p = s.player;
-      const live = s.mobs.filter((m) => m.act !== 'dead');
-      const goal = live.length ? live.sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0] : s.floor.exit;
+      const goal = goalOf(s);
       const f = s.floor;
       const d = bfs(f, Math.floor(goal.x / CELL), Math.floor(goal.z / CELL));
       const cx = Math.floor(p.x / CELL);
@@ -62,16 +96,24 @@ describe('冒険の 動き', () => {
           }
         }
       const n = Math.hypot(best[0], best[1]) || 1;
-      const near = live.length && Math.hypot(goal.x - p.x, goal.z - p.z) < 2.2;
-      stepAdventure(s, { mx: near ? 0 : best[0] / n, mz: near ? 0 : best[1] / n, attack: !!near }, dt);
+      const near = goal.fight && Math.hypot(goal.x - p.x, goal.z - p.z) < 2.2;
+      stepAdventure(s, { mx: near ? 0 : best[0] / n, mz: near ? 0 : best[1] / n, attack: near }, dt);
     }
     return s;
   }
-  it('強い MONZ なら 全部 倒して クリアできる', () => {
+  it('しかけ: はじまりの 部屋は ひらいている・敵 / スイッチ / 箱 / 鍵 が 1つずつは ある・扉は しまっている', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const s = newAdventure(seed, strong);
+      expect(s.puzzles[0].kind).toBe('none');
+      for (const k of ['kill', 'switch', 'box', 'key']) expect(s.puzzles.some((z) => z.kind === k)).toBe(true);
+      s.puzzles.forEach((z, i) => expect(s.floor.tiles[s.floor.doors[i].cells[0]]).toBe(z.solved ? FLOOR : DOOR));
+    }
+  });
+  it('強い MONZ なら しかけを 解いて ワープで クリアできる', () => {
     for (const seed of [1, 2, 3]) {
       const s = play(seed);
       expect(s.result).toBe('clear');
-      expect(s.kills).toBe(s.mobs.length);
+      expect(s.puzzles.every((z) => z.solved)).toBe(true);
       expect(adventureReward(s).coins).toBe(s.kills * 3 + 20);
     }
   });

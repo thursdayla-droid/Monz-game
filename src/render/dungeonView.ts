@@ -7,7 +7,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { assetUrl } from '../assetUrl';
 import { newAnimeBattle, type AnimeEntrant, type AnimeMon } from '../core/battle3d/anime';
-import { CELL, FLOOR } from '../core/adventure/dungeon';
+import { CELL, WALL } from '../core/adventure/dungeon';
 import { ADV, RANKS, techWindup, type AimShape, type Actor, type AdvEvent, type AdvItem, type AdvState, type Rank } from '../core/adventure/sim';
 import type { modelFor } from '../core/roster';
 import { MonsterRig } from './monsterRig';
@@ -234,6 +234,12 @@ export class DungeonView {
   private moon!: THREE.DirectionalLight;
   private exit: THREE.Mesh;
   private exitMat: THREE.MeshBasicMaterial;
+  /** しかけ(2026-11-24): 扉・スイッチ・箱・鍵・ワープの 光 */
+  private doorObjs: THREE.Mesh[] = [];
+  private plateObjs: (THREE.Mesh | null)[] = [];
+  private boxObjs: (THREE.Object3D | null)[] = [];
+  private keyObjs: (THREE.Object3D | null)[] = [];
+  private warpRing!: THREE.Mesh;
   private pops: Pop[] = [];
   private shake = 0;
   private drops = new Map<number, THREE.Object3D>();
@@ -282,6 +288,7 @@ export class DungeonView {
     this.exit.rotation.x = -Math.PI / 2;
     this.exit.position.set(s.floor.exit.x, 0.03, s.floor.exit.z);
     this.scene.add(this.exit);
+    this.buildPuzzles(s);
     // 自分の MONZ(MONZ RUMBLE と 同じ 体と 動き)
     this.rig = new MonsterRig(0x8fb4e8, 0xe8f0ff, 0xffd23a, this.grad);
     this.scene.add(this.rig.root);
@@ -537,6 +544,62 @@ export class DungeonView {
 
 
   /** 床と 壁(箱を ならべる) */
+  /** しかけの 見た目【仮】: 扉(しかけの 種類で 色)・スイッチ・箱・鍵・ワープ */
+  private buildPuzzles(s: AdvState): void {
+    const DOOR_HEX: Record<string, number> = { kill: 0xff4a5a, switch: 0x4aa8ff, box: 0xff9a2a, key: 0xffd23a, none: 0x888888 };
+    s.floor.doors.forEach((d, i) => {
+      const kind = s.puzzles[i]?.kind ?? 'none';
+      const g = d.horiz ? new THREE.BoxGeometry(0.6, 2.2, CELL * 2) : new THREE.BoxGeometry(CELL * 2, 2.2, 0.6);
+      const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: DOOR_HEX[kind], emissive: DOOR_HEX[kind], emissiveIntensity: 0.35 }));
+      m.position.set(d.x, 1.1, d.z);
+      m.castShadow = true;
+      m.visible = !s.puzzles[i]?.solved;
+      this.scene.add(m);
+      this.doorObjs.push(m);
+    });
+    s.puzzles.forEach((z) => {
+      // スイッチ(床の 四角)
+      if (z.plate) {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(CELL * 0.8, 0.12, CELL * 0.8), new THREE.MeshLambertMaterial({ color: z.kind === 'box' ? 0xff9a2a : 0x4aa8ff, emissive: z.kind === 'box' ? 0xff9a2a : 0x4aa8ff, emissiveIntensity: 0.5 }));
+        m.position.set(z.plate.x, 0.06, z.plate.z);
+        this.scene.add(m);
+        this.plateObjs.push(m);
+      } else this.plateObjs.push(null);
+      // 押す 箱(木の 箱)
+      if (z.box) {
+        const g = new THREE.Group();
+        const c = new THREE.Mesh(new THREE.BoxGeometry(ADV.puzzle.box * 2, 1.4, ADV.puzzle.box * 2), new THREE.MeshLambertMaterial({ color: 0xa8743a }));
+        c.position.y = 0.7;
+        c.castShadow = true;
+        const band = new THREE.Mesh(new THREE.BoxGeometry(ADV.puzzle.box * 2 + 0.04, 0.18, ADV.puzzle.box * 2 + 0.04), new THREE.MeshLambertMaterial({ color: 0x5a3a1a }));
+        band.position.y = 0.7;
+        g.add(c, band);
+        this.scene.add(g);
+        this.boxObjs.push(g);
+      } else this.boxObjs.push(null);
+      // 鍵(金色)
+      if (z.key) {
+        const g = new THREE.Group();
+        const mat = new THREE.MeshLambertMaterial({ color: 0xffd23a, emissive: 0xffb000, emissiveIntensity: 0.5 });
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.09, 8, 16), mat);
+        ring.position.y = 0.35;
+        const bar = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.6, 0.12), mat);
+        bar.position.y = -0.1;
+        const tooth = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.1, 0.12), mat);
+        tooth.position.set(0.1, -0.3, 0);
+        g.add(ring, bar, tooth);
+        g.position.set(z.key.x, 0.9, z.key.z);
+        this.scene.add(g);
+        this.keyObjs.push(g);
+      } else this.keyObjs.push(null);
+    });
+    // ワープ(さいごの 部屋)。まわる 光の 輪
+    this.warpRing = new THREE.Mesh(new THREE.RingGeometry(1.2, 1.5, 6), new THREE.MeshBasicMaterial({ color: 0xb07aff, transparent: true, opacity: 0.8, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
+    this.warpRing.rotation.x = -Math.PI / 2;
+    this.warpRing.position.set(s.floor.exit.x, 0.08, s.floor.exit.z);
+    this.scene.add(this.warpRing);
+  }
+
   private buildFloor(s: AdvState): void {
     const f = s.floor;
     const floors: number[] = [];
@@ -544,7 +607,7 @@ export class DungeonView {
     for (let y = 0; y < f.h; y++)
       for (let x = 0; x < f.w; x++) {
         const i = y * f.w + x;
-        if (f.tiles[i] === FLOOR) floors.push(i);
+        if (f.tiles[i] !== WALL) floors.push(i);
         else {
           // 床の となりの 壁だけ 立てる
           let near = false;
@@ -552,7 +615,7 @@ export class DungeonView {
             for (let dx = -1; dx <= 1; dx++) {
               const xx = x + dx;
               const yy = y + dy;
-              if (xx >= 0 && yy >= 0 && xx < f.w && yy < f.h && f.tiles[yy * f.w + xx] === FLOOR) near = true;
+              if (xx >= 0 && yy >= 0 && xx < f.w && yy < f.h && f.tiles[yy * f.w + xx] !== WALL) near = true;
             }
           if (near) walls.push(i);
         }
@@ -565,9 +628,9 @@ export class DungeonView {
       const y = Math.floor(i / f.w);
       m4.makeTranslation((x + 0.5) * CELL, -0.1, (y + 0.5) * CELL);
       fl.setMatrixAt(k, m4);
-      // 石の 床(少しずつ 色を 変える)
+      // 路地裏の アスファルト(2026-11-24 1〜10 階 = ストリートの 路地裏)【仮】
       const v = ((x * 7 + y * 13) % 5) / 5;
-      col.setRGB(0.62 + v * 0.06, 0.56 + v * 0.05, 0.66 + v * 0.06);
+      col.setRGB(0.5 + v * 0.05, 0.5 + v * 0.05, 0.56 + v * 0.05);
       fl.setColorAt(k, col);
     });
     fl.receiveShadow = true;
@@ -579,7 +642,8 @@ export class DungeonView {
       m4.makeTranslation((x + 0.5) * CELL, 1.0, (y + 0.5) * CELL);
       wl.setMatrixAt(k, m4);
       const v = ((x * 5 + y * 3) % 4) / 4;
-      col.setRGB(0.3 + v * 0.04, 0.22 + v * 0.03, 0.42 + v * 0.05);
+      // レンガの 壁【仮】
+      col.setRGB(0.46 + v * 0.05, 0.24 + v * 0.03, 0.26 + v * 0.04);
       wl.setColorAt(k, col);
     });
     wl.castShadow = true;
@@ -672,6 +736,18 @@ export class DungeonView {
         if (toMe) this.rig.flash = 0.12;
       } else if (e.kind === 'die') this.burst(e.x, e.z, 0xb070ff, 18);
       else if (e.kind === 'open') this.burst(e.x, e.z, 0x7affd0, 24);
+      else if (e.kind === 'door') {
+        const d = s.floor.doors[e.door];
+        const o = this.doorObjs[e.door];
+        if (o) this.addFx(o, 0.5, (k) => {
+          o.position.y = 1.1 - k * 2.4;
+          if (k >= 1) o.visible = false;
+        });
+        if (d) this.burst(d.x, d.z, 0x7affd0, 18);
+        this.shake = Math.max(this.shake, 0.15);
+      } else if (e.kind === 'press') this.burst(e.x, e.z, 0x7aff8a, 14);
+      else if (e.kind === 'key') this.burst(e.x, e.z, 0xffd23a, 16);
+      else if (e.kind === 'boxReset') this.burst(e.x, e.z, 0xc0a080, 12);
       else if (e.kind === 'drop') {
         const o = this.dropMesh(e.drop.item);
         o.position.set(e.drop.x, 0.45, e.drop.z);
@@ -729,9 +805,24 @@ export class DungeonView {
     this.aura.position.set(p.x, 0.06, p.z);
     this.aura.scale.setScalar(1 + best * 0.12);
     s.mobs.forEach((m, i) => this.mobs[i].update(m, dt, this.camera, now));
-    // 出口
-    this.exitMat.color.setHex(s.exitOpen ? 0x7affd0 : 0x4a3a5a);
-    this.exitMat.opacity = s.exitOpen ? 0.55 + Math.sin(now * 5) * 0.25 : 0.5;
+    // 出口(ワープ)
+    this.exitMat.color.setHex(0xb07aff);
+    this.exitMat.opacity = 0.45 + Math.sin(now * 5) * 0.2;
+    this.warpRing.rotation.z = now * 1.5;
+    this.warpRing.scale.setScalar(1 + Math.sin(now * 3) * 0.08);
+    // しかけ
+    s.puzzles.forEach((z, i) => {
+      const b = this.boxObjs[i];
+      if (b && z.box) b.position.set(z.box.x, 0, z.box.z);
+      const k = this.keyObjs[i];
+      if (k && z.key) {
+        k.visible = !z.key.taken;
+        k.rotation.y = now * 2;
+        k.position.y = 0.9 + Math.sin(now * 3) * 0.12;
+      }
+      const pl = this.plateObjs[i];
+      if (pl && z.plate) (pl.material as THREE.MeshLambertMaterial).emissive.setHex(z.plate.pressed ? 0x5aff8a : z.kind === 'box' ? 0xff9a2a : 0x4aa8ff);
+    });
     // 弾(属性の 色の 光の 玉)
     const live = new Set<number>();
     for (const sh of s.shots) {

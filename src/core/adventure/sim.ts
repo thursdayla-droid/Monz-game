@@ -5,7 +5,7 @@
  */
 import { mulberry32, type Rng } from '../rng';
 import type { StatBlock } from '../stats';
-import { fits, generateFloor, lineOfSight, cellToWorld, walkable, type Floor } from './dungeon';
+import { fits, generateFloor, lineOfSight, cellToWorld, roomAt, setDoor, walkable, type Floor, type Room } from './dungeon';
 
 export const ADV = {
   player: { r: 0.55, hp: 60, hpPer: 4, atk: 6, atkPer: 0.5, speed: 4.2, speedPer: 0.03, range: 2.0, arc: 1.25, windup: 0.08, recover: 0.22, cool: 0.34, knock: 3 },
@@ -60,6 +60,8 @@ export const ADV = {
   /** 装備の 強さ(ランクごとの 倍)と 1倍の ときの 上がり方 */
   gear: { mul: { D: 1, C: 2, B: 3, A: 5, S: 8 } as Record<Rank, number>, head: 2, armor: 3, charm: 8 },
   pickR: 1.1,
+  /** しかけ【仮】: 箱の 半分の 大きさ・スイッチに のる きょり・鍵で 扉を あける きょり・はまった 箱を もどす 秒 */
+  puzzle: { box: 0.85, plate: 0.8, keyDoor: 2.6, stuckReset: 1.6, warp: 1.4 },
 } as const;
 
 export type ActKind = 'free' | 'attack' | 'tech' | 'hurt' | 'dead';
@@ -172,15 +174,42 @@ export type AdvEvent =
   | { kind: 'pick'; drop: Drop }
   | { kind: 'full' }
   | { kind: 'clear' }
+  | { kind: 'door'; door: number }
+  | { kind: 'press'; x: number; z: number }
+  | { kind: 'key'; x: number; z: number }
+  | { kind: 'boxReset'; x: number; z: number }
   | { kind: 'lose' };
+
+/**
+ * しかけ(2026-11-24 企画者「ギミックと 敵を どんどん 倒して いく」)。部屋 i の しかけを 解くと 扉 i(部屋 i → i+1)が ひらく。
+ * kill = 部屋の 敵を 全部 倒す・switch = スイッチを ふむ・box = 箱を おして スイッチに のせる・key = 鍵を ひろって 扉に さわる・none = さいしょから ひらいている
+ */
+export type PuzzleKind = 'none' | 'kill' | 'switch' | 'box' | 'key';
+export interface Puzzle {
+  room: number;
+  kind: PuzzleKind;
+  solved: boolean;
+  /** スイッチ(switch・box) */
+  plate?: { x: number; z: number; pressed: boolean };
+  /** 押す 箱(box)。sx・sz = はじめの 場所(はまったら もどす) */
+  box?: { x: number; z: number; sx: number; sz: number; stuck: number };
+  /** 鍵(key) */
+  key?: { x: number; z: number; taken: boolean };
+}
 
 export interface AdvState {
   floor: Floor;
+  /** 部屋ごとの しかけ(puzzles[i] で 扉 i が ひらく) */
+  puzzles: Puzzle[];
+  /** 持っている 鍵の 数 */
+  keys: number;
   rng: Rng;
   t: number;
   player: Actor;
   /** 0 = 自分。モブは 1 から */
   mobs: Actor[];
+  /** モブが いる 部屋(mobRoom[i] = mobs[i] の 部屋) */
+  mobRoom: number[];
   tech: number;
   exitOpen: boolean;
   result: 'play' | 'clear' | 'lose';
@@ -237,6 +266,38 @@ function actor(id: number, x: number, z: number): Actor {
 export const jabStyleOf = (species: string): string => ({ mofu: 'whip', puni: 'shot', zipp: 'dash', klak: 'snap' } as Record<string, string>)[species] ?? 'punch';
 const WATER_JAB: AdvTech = { id: 'punch', kind: 'jab', power: 7, cooldown: 0, element: '水', effect: 'なし', strength: '弱' };
 
+/** 部屋ごとの しかけを 決める(はじまりの 部屋は none・さいごの 部屋は ワープ)。kill・switch・box・key を 1つずつは 入れる */
+function makePuzzles(f: Floor, rng: Rng): Puzzle[] {
+  const n = f.doors.length;
+  const kinds: PuzzleKind[] = ['kill', 'switch', 'box', 'key'];
+  while (kinds.length < n - 1) kinds.push(['kill', 'switch', 'box', 'key'][Math.floor(rng() * 4)] as PuzzleKind);
+  for (let i = kinds.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [kinds[i], kinds[j]] = [kinds[j], kinds[i]];
+  }
+  const list: PuzzleKind[] = ['none', ...kinds.slice(0, n - 1)];
+  return list.map((kind, room) => {
+    const r = f.rooms[room];
+    const z: Puzzle = { room, kind, solved: kind === 'none' };
+    const at = (cx: number, cy: number) => cellToWorld(cx, cy);
+    const rnd = () => at(r.x + 1 + Math.floor(rng() * (r.w - 2)), r.y + 1 + Math.floor(rng() * (r.h - 2)));
+    if (kind === 'switch') z.plate = { ...rnd(), pressed: false };
+    if (kind === 'key') z.key = { ...rnd(), taken: false };
+    if (kind === 'box') {
+      // 箱と スイッチは 同じ 行(横に おすだけ)。箱の うしろに 1マス あける
+      const cy = r.y + Math.floor(r.h / 2);
+      const left = rng() < 0.5;
+      const bx = left ? r.x + 2 : r.x + r.w - 3;
+      const px = left ? r.x + r.w - 2 : r.x + 1;
+      const b = at(bx, cy);
+      z.box = { x: b.x, z: b.z, sx: b.x, sz: b.z, stuck: 0 };
+      z.plate = { ...at(px, cy), pressed: false };
+    }
+    if (!z.solved) setDoor(f, room, true);
+    return z;
+  });
+}
+
 export function newAdventure(seed: number, stats: StatBlock, level = 1, techs: (AdvTech | null)[] = [], growType: string | null = null, species = 'bunk'): AdvState {
   const floor = generateFloor(seed);
   const rng = mulberry32(seed ^ 0x9e3779b9);
@@ -247,24 +308,30 @@ export function newAdventure(seed: number, stats: StatBlock, level = 1, techs: (
   p.tough = stats.tough;
   p.speed = P.speed + stats.speed * P.speedPer;
   const mobs: Actor[] = [];
-  // はじまりの 部屋 いがいに 2〜3体ずつ
-  floor.rooms.slice(1).forEach((r) => {
-    const n = 2 + Math.floor(rng() * 2);
-    for (let i = 0; i < n; i++) {
-      const c = cellToWorld(r.x + 1 + Math.floor(rng() * (r.w - 2)), r.y + 1 + Math.floor(rng() * (r.h - 2)));
-      const m = actor(mobs.length + 1, c.x, c.z);
-      const M = ADV.mob;
-      m.maxHp = m.hp = Math.round(M.hp * (1 + (level - 1) * 0.35));
-      m.atk = M.atk * (1 + (level - 1) * 0.3);
-      m.tough = 4 * level;
-      m.speed = M.speed;
-      m.face = rng() * Math.PI * 2;
-      mobs.push(m);
-    }
+  const mobRoom: number[] = [];
+  const puzzles = makePuzzles(floor, rng);
+  const addMob = (r: Room, room: number) => {
+    const c = cellToWorld(r.x + 1 + Math.floor(rng() * (r.w - 2)), r.y + 1 + Math.floor(rng() * (r.h - 2)));
+    const m = actor(mobs.length + 1, c.x, c.z);
+    const M = ADV.mob;
+    m.maxHp = m.hp = Math.round(M.hp * (1 + (level - 1) * 0.35));
+    m.atk = M.atk * (1 + (level - 1) * 0.3);
+    m.tough = 4 * level;
+    m.speed = M.speed;
+    m.face = rng() * Math.PI * 2;
+    mobs.push(m);
+    mobRoom.push(room);
+  };
+  // 敵: 倒す 部屋は 3〜4体・ほかの しかけの 部屋は 0〜2体・はじまりと ワープの 部屋は なし【仮】
+  floor.rooms.forEach((r, i) => {
+    if (i === 0 || i === floor.rooms.length - 1) return;
+    const kind = puzzles[i]?.kind;
+    const n = kind === 'kill' ? 3 + Math.floor(rng() * 2) : Math.floor(rng() * 3);
+    for (let k = 0; k < n; k++) addMob(r, i);
   });
   const ts = [0, 1, 2, 3].map((i) => techs[i] ?? null);
   return {
-    floor, rng, t: 0, player: p, mobs, tech: stats.tech, exitOpen: false, result: 'play', kills: 0, events: [],
+    floor, puzzles, keys: 0, mobRoom, rng, t: 0, player: p, mobs, tech: stats.tech, exitOpen: true, result: 'play', kills: 0, events: [],
     techs: ts, techCd: [0, 0, 0, 0], techSlot: -1, bag: [], gear: {}, drops: [], seq: 0,
     shots: [], fields: [], shieldUntil: 0, atkUpUntil: 0, dash: null, combo: null, jumpTo: null, aimed: false, growType, jab: jabStyleOf(species), chain: 0, lastAtk: -9,
     base: { atk: p.atk, tough: p.tough, maxHp: p.maxHp },
@@ -744,6 +811,7 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
     p.vx += (Math.cos(mdir) * sp * (len > 0.1 ? 1 : 0) - p.vx) * Math.min(1, dt * 12);
     p.vz += (Math.sin(mdir) * sp * (len > 0.1 ? 1 : 0) - p.vz) * Math.min(1, dt * 12);
     moveBy(s, p, p.vx * dt, p.vz * dt, P.r);
+    pushBoxes(s);
     // 攻撃: いちばん 近い モブの ほうを 向く(近ければ)
     if (inp.attack && p.act !== 'attack' && p.act !== 'tech' && s.t >= p.coolUntil) {
       const near = s.mobs.filter((m) => m.act !== 'dead').sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0];
@@ -880,12 +948,9 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
       }
     }
   if (p.act !== 'dead') pickUp(s);
-  // 出口
-  if (!s.exitOpen && s.mobs.every((m) => m.act === 'dead')) {
-    s.exitOpen = true;
-    s.events.push({ kind: 'open', x: s.floor.exit.x, z: s.floor.exit.z });
-  }
-  if (s.exitOpen && Math.hypot(p.x - s.floor.exit.x, p.z - s.floor.exit.z) < 1.4) {
+  stepPuzzles(s, dt);
+  // ワープ(さいごの 部屋。2026-11-24 企画者「次の 階に 行ける ワープ」)。扉を ぜんぶ ひらかないと 来られない
+  if (s.exitOpen && p.act !== 'dead' && Math.hypot(p.x - s.floor.exit.x, p.z - s.floor.exit.z) < ADV.puzzle.warp) {
     s.result = 'clear';
     s.events.push({ kind: 'clear' });
   }
@@ -894,6 +959,85 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
     s.events.push({ kind: 'lose' });
   }
 }
+
+/** 箱を おす: 自分が 箱に 重なったら、当たった 面の 向きに 箱を おす(おせない 時は 自分が 止まる) */
+function pushBoxes(s: AdvState): void {
+  const p = s.player;
+  const r = ADV.player.r;
+  const B = ADV.puzzle.box;
+  for (const z of s.puzzles) {
+    const b = z.box;
+    if (!b || z.solved) continue;
+    const dx = p.x - b.x;
+    const dz = p.z - b.z;
+    const ox = B + r - Math.abs(dx);
+    const oz = B + r - Math.abs(dz);
+    if (ox <= 0 || oz <= 0) continue;
+    if (ox < oz) {
+      const mv = -Math.sign(dx) * ox;
+      if (fits(s.floor, b.x + mv, b.z, B)) b.x += mv;
+      else p.x += Math.sign(dx) * ox;
+    } else {
+      const mv = -Math.sign(dz) * oz;
+      if (fits(s.floor, b.x, b.z + mv, B)) b.z += mv;
+      else p.z += Math.sign(dz) * oz;
+    }
+  }
+}
+
+/** しかけを 見る(スイッチ・箱・鍵・敵)。解けたら 扉を ひらく */
+function stepPuzzles(s: AdvState, dt: number): void {
+  const p = s.player;
+  const Z = ADV.puzzle;
+  s.puzzles.forEach((z, i) => {
+    if (z.solved) return;
+    let done = false;
+    if (z.kind === 'kill') done = s.mobs.every((m, k) => s.mobRoom[k] !== i || m.act === 'dead');
+    else if (z.kind === 'switch' && z.plate) {
+      if (Math.hypot(p.x - z.plate.x, p.z - z.plate.z) < Z.plate) done = true;
+    } else if (z.kind === 'box' && z.box && z.plate) {
+      const b = z.box;
+      if (Math.hypot(b.x - z.plate.x, b.z - z.plate.z) < Z.plate) {
+        b.x = z.plate.x;
+        b.z = z.plate.z;
+        done = true;
+      } else {
+        // かべに くっついて 動かせなく なったら、はじめの 場所へ もどす
+        const stuck = !fits(s.floor, b.x + 0.2, b.z, Z.box) || !fits(s.floor, b.x - 0.2, b.z, Z.box) || !fits(s.floor, b.x, b.z + 0.2, Z.box) || !fits(s.floor, b.x, b.z - 0.2, Z.box);
+        b.stuck = stuck ? b.stuck + dt : 0;
+        if (b.stuck > Z.stuckReset && Math.hypot(p.x - b.sx, p.z - b.sz) > Z.box + ADV.player.r + 0.3) {
+          s.events.push({ kind: 'boxReset', x: b.x, z: b.z });
+          b.x = b.sx;
+          b.z = b.sz;
+          b.stuck = 0;
+        }
+      }
+    } else if (z.kind === 'key' && z.key) {
+      const k = z.key;
+      if (!k.taken && Math.hypot(p.x - k.x, p.z - k.z) < ADV.pickR) {
+        k.taken = true;
+        s.keys++;
+        s.events.push({ kind: 'key', x: k.x, z: k.z });
+      }
+      const d = s.floor.doors[i];
+      if (s.keys > 0 && d && Math.hypot(p.x - d.x, p.z - d.z) < Z.keyDoor) {
+        s.keys--;
+        done = true;
+      }
+    }
+    if (!done) return;
+    z.solved = true;
+    if (z.plate) {
+      z.plate.pressed = true;
+      s.events.push({ kind: 'press', x: z.plate.x, z: z.plate.z });
+    }
+    setDoor(s.floor, i, false);
+    s.events.push({ kind: 'door', door: i });
+  });
+}
+
+/** 今 いる 部屋(部屋の 外は -1) */
+export const playerRoom = (s: AdvState): number => roomAt(s.floor, s.player.x, s.player.z);
 
 /** この 冒険で もらえる ごほうび(勝っても 負けても 倒した ぶんは もらえる【仮】) */
 export function adventureReward(s: AdvState): { exp: number; coins: number } {

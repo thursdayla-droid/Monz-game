@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
-import { newAdventure, stepAdventure, adventureReward, aimPreview, unequip, useBagItem, useHerb, BAG_MAX, SELF_KINDS, SLOT_NAMES, type AdvItem, type AdvState, type AdvTech, type GearSlot } from '../core/adventure/sim';
+import { newAdventure, stepAdventure, playerRoom, adventureReward, aimPreview, unequip, useBagItem, useHerb, BAG_MAX, SELF_KINDS, SLOT_NAMES, type AdvItem, type AdvState, type AdvTech, type GearSlot } from '../core/adventure/sim';
 import { getTech } from '../core/battle3d/techTable';
 import { RANK_HEX } from '../render/dungeonView';
 import type { Proficiency } from '../core/battle3d/config';
@@ -351,6 +351,14 @@ export class AdventureScene extends Phaser.Scene {
       else if (e.kind === 'hit') audio.se(e.target === 0 ? 'punch' : 'b3dPunchHit', e.crit ? { pitch: 0.8 } : undefined);
       else if (e.kind === 'die') audio.se('burst');
       else if (e.kind === 'open') this.message('出口が ひらいた！');
+      else if (e.kind === 'door') {
+        audio.se('cheer');
+        this.message('とびらが ひらいた！');
+      } else if (e.kind === 'press') audio.se('select');
+      else if (e.kind === 'key') {
+        audio.se('select');
+        this.message('カギを ひろった！ とびらへ');
+      } else if (e.kind === 'boxReset') this.message('箱が もとの 場所に もどった');
       else if (e.kind === 'tech') {
         audio.se(e.fx === 'heal' || e.fx === 'barrier' || e.fx === 'buff' ? 'mcHeal' : e.fx === 'shot' ? 'whoosh' : 'punchHeavy');
       } else if (e.kind === 'pick') audio.se('select');
@@ -377,8 +385,25 @@ export class AdventureScene extends Phaser.Scene {
     (root.querySelector('.ib b') as HTMLElement).textContent = String(herbs);
     (root.querySelector('.ib') as HTMLButtonElement).disabled = herbs === 0;
     (root.querySelector('.bagBtn') as HTMLElement).textContent = `もちもの ${s.bag.length}/${BAG_MAX}`;
-    const left = s.mobs.filter((m) => m.act !== 'dead').length;
-    (root.querySelector('.goal') as HTMLElement).innerHTML = left ? `のこり <b>${left}</b> 体` : '<b>出口</b>へ すすもう';
+    // 今の 部屋の めあて(2026-11-24 しかけ)
+    const ri = playerRoom(s);
+    const z = ri >= 0 ? s.puzzles[ri] : undefined;
+    const left = s.mobs.filter((m, k) => m.act !== 'dead' && s.mobRoom[k] === ri).length;
+    const goal =
+      ri === s.floor.rooms.length - 1
+        ? '<b>ワープ</b>に のって 次の 階へ'
+        : !z || z.solved
+          ? '次の 部屋へ すすもう'
+          : z.kind === 'kill'
+            ? `敵を ぜんぶ たおせ　のこり <b>${left}</b> 体`
+            : z.kind === 'switch'
+              ? '<b>スイッチ</b>を ふもう'
+              : z.kind === 'box'
+                ? '<b>箱</b>を おして スイッチに のせよう'
+                : s.keys > 0
+                  ? '<b>カギ</b>で とびらを あけよう'
+                  : '<b>カギ</b>を さがそう';
+    (root.querySelector('.goal') as HTMLElement).innerHTML = goal + (s.keys > 0 ? '　🔑' : '');
   }
 
   private msgT = 0;
