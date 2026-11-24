@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CELL, DOOR, FLOOR, generateFloor, type Floor } from './dungeon';
-import { adventureReward, BAG_MAX, newAdventure, stepAdventure, unequip, useBagItem, useHerb, type AdvState } from './sim';
+import { adventureReward, ALLEY_MOBS, BAG_MAX, MOB_KINDS, newAdventure, type MobKind, stepAdventure, unequip, useBagItem, useHerb, type AdvState } from './sim';
 
 /** マス(x,y)から 歩いて 行ける マスの 距離(BFS)。doors = しまった 扉も 通れる ことに する */
 function bfs(f: Floor, sx: number, sy: number, doors = false): Int32Array {
@@ -243,5 +243,54 @@ describe('ねらった 向きは スティックで 変わらない', () => {
       for (const e of s.events) if (e.kind === 'tech') dir = e.dir;
     }
     expect(dir).toBeCloseTo(-Math.PI / 2);
+  });
+});
+
+describe('路地裏の 敵 10種(2026-11-24)', () => {
+  const stats = { hp: 10, power: 10, tough: 10, speed: 10, tech: 10 };
+  /** 部屋の まん中に 自分と 敵 1体だけ 置く */
+  const duel = (kind: MobKind, gap: number): AdvState => {
+    const s = newAdventure(7, stats);
+    const r = s.floor.rooms[0];
+    const cx = (r.x + r.w / 2) * CELL;
+    const cz = (r.y + r.h / 2) * CELL;
+    const m = s.mobs[0];
+    s.mobs = [m];
+    s.mobRoom = [0];
+    m.mobKind = kind;
+    m.speed = MOB_KINDS[kind].speed;
+    Object.assign(s.player, { x: cx - gap / 2, z: cz });
+    Object.assign(m, { x: cx + gap / 2, z: cz, awake: true });
+    return s;
+  };
+  const run = (s: AdvState, sec: number) => {
+    for (let t = 0; t < sec; t += 1 / 30) stepAdventure(s, { mx: 0, mz: 0, attack: false }, 1 / 30);
+  };
+  it('どの 種類も 自分に ダメージを あたえる', () => {
+    for (const k of ALLEY_MOBS) {
+      const s = duel(k, 6);
+      run(s, 6);
+      expect(s.player.hp, k).toBeLessThan(s.player.maxHp);
+    }
+  });
+  it('撃つ 敵は はなれた まま 撃つ・クモの 糸で おそくなる', () => {
+    const s = duel('pige', 6);
+    run(s, 3);
+    expect(Math.hypot(s.player.x - s.mobs[0].x, s.player.z - s.mobs[0].z)).toBeGreaterThan(3);
+    const w = duel('spider', 5);
+    let slowed = false;
+    for (let t = 0; t < 5 && !slowed; t += 1 / 30) {
+      stepAdventure(w, { mx: 0, mz: 0, attack: false }, 1 / 30);
+      slowed = (w.player.slowUntil ?? 0) > w.t;
+    }
+    expect(slowed).toBe(true);
+  });
+  it('ミミックは 近づくまで 動かない', () => {
+    const s = duel('mimic', 6);
+    s.mobs[0].awake = false;
+    const x = s.mobs[0].x;
+    run(s, 2);
+    expect(s.mobs[0].x).toBe(x);
+    expect(s.player.hp).toBe(s.player.maxHp);
   });
 });

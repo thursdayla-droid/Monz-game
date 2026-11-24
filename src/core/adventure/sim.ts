@@ -7,6 +7,58 @@ import { mulberry32, type Rng } from '../rng';
 import type { StatBlock } from '../stats';
 import { fits, generateFloor, lineOfSight, cellToWorld, roomAt, setDoor, walkable, type Floor, type Room } from './dungeon';
 
+/**
+ * 路地裏(1〜10階)の 敵 10種(2026-11-24 企画者の 案)。絵と 3D は 企画者が 作る → それまで 仮の 形
+ * 数値は ぜんぶ【仮】(HP・攻撃・速さは ADV.mob に かける 倍)。出る 階・数・ドロップは 未定
+ * style: lunge 体当たり / bite かみつき / slash 剣 / smash 重い パンチ / shot 弾 / web 糸(おそくなる) / wave 超音波(前に 扇) / spore 胞子(まわり) / ambush 化けて 待つ → かみつき
+ */
+export type MobKind = 'slime' | 'ratz' | 'pige' | 'batz' | 'ghost' | 'spider' | 'mimic' | 'shroom' | 'skele' | 'golem';
+export interface MobSpec {
+  name: string;
+  hp: number;
+  atk: number;
+  speed: number;
+  tough: number;
+  style: 'lunge' | 'bite' | 'slash' | 'smash' | 'shot' | 'web' | 'wave' | 'spore' | 'ambush';
+  /** とどく 長さ */
+  range: number;
+  /** 前の 扇の はば(角度の 半分) */
+  arc: number;
+  windup: number;
+  cool: number;
+  /** 遠くから 撃つ 敵: この 距離を たもつ */
+  keep?: number;
+  knock: number;
+  fly?: boolean;
+}
+export const MOB_KINDS: Record<MobKind, MobSpec> = {
+  slime: { name: 'SLIME', hp: 1.0, atk: 1.0, speed: 2.4, tough: 1, style: 'lunge', range: 2.6, arc: 1.2, windup: 0.6, cool: 1.5, knock: 3 },
+  ratz: { name: 'RATZ', hp: 0.6, atk: 0.8, speed: 4.3, tough: 0.5, style: 'bite', range: 1.3, arc: 1.0, windup: 0.3, cool: 0.9, knock: 1.5 },
+  pige: { name: 'PIGE', hp: 0.6, atk: 0.8, speed: 3.4, tough: 0.5, style: 'shot', range: 7, arc: 0, windup: 0.6, cool: 1.8, keep: 4.5, knock: 1.5, fly: true },
+  batz: { name: 'BATZ', hp: 0.5, atk: 0.8, speed: 3.9, tough: 0.5, style: 'wave', range: 3.8, arc: 0.55, windup: 0.6, cool: 1.7, keep: 2.8, knock: 2, fly: true },
+  ghost: { name: 'GHOST', hp: 0.7, atk: 1.1, speed: 2.2, tough: 1, style: 'shot', range: 7.5, arc: 0, windup: 0.85, cool: 2.3, keep: 5, knock: 2.5, fly: true },
+  spider: { name: 'SPIDER', hp: 1.0, atk: 0.7, speed: 3.0, tough: 1, style: 'web', range: 5.5, arc: 0, windup: 0.6, cool: 2.4, keep: 3.5, knock: 1 },
+  mimic: { name: 'MIMIC', hp: 1.3, atk: 1.4, speed: 3.6, tough: 1.5, style: 'ambush', range: 1.6, arc: 1.3, windup: 0.25, cool: 1.1, knock: 3 },
+  shroom: { name: 'SHROOM', hp: 1.1, atk: 0.7, speed: 1.6, tough: 1, style: 'spore', range: 2.5, arc: Math.PI, windup: 0.9, cool: 2.4, knock: 1 },
+  skele: { name: 'SKELE', hp: 1.0, atk: 1.1, speed: 3.0, tough: 1, style: 'slash', range: 1.9, arc: 1.5, windup: 0.45, cool: 1.2, knock: 2.5 },
+  golem: { name: 'GOLEM', hp: 2.4, atk: 1.8, speed: 1.8, tough: 3, style: 'smash', range: 1.9, arc: 1.4, windup: 1.0, cool: 2.2, knock: 5.5 },
+};
+export const ALLEY_MOBS = Object.keys(MOB_KINDS) as MobKind[];
+/** 敵の 弾(羽・エネルギー弾・クモの 糸) */
+export interface MobShot {
+  id: number;
+  kind: MobKind;
+  x: number;
+  z: number;
+  vx: number;
+  vz: number;
+  r: number;
+  life: number;
+  from: Actor;
+  slow: boolean;
+}
+export const mobSpec = (m: Actor): MobSpec => MOB_KINDS[(m.mobKind ?? 'slime') as MobKind] ?? MOB_KINDS.slime;
+
 export const ADV = {
   player: { r: 0.55, hp: 60, hpPer: 4, atk: 6, atkPer: 0.5, speed: 4.2, speedPer: 0.03, range: 2.0, arc: 1.25, windup: 0.08, recover: 0.22, cool: 0.34, knock: 3 },
   /** 受ける ダメージ = 攻撃 × K / (K + タフネス) */
@@ -16,6 +68,9 @@ export const ADV = {
   /** 【仮】ごほうび: モブ1体・クリア */
   reward: { mobExp: 5, mobCoins: 3, clearExp: 30, clearCoins: 20 },
   hurtTime: 0.25,
+  /** 【仮】クモの 糸: おそさ・秒 */
+  webSlow: 0.55,
+  webTime: 1.6,
   /** 通常攻撃の 続け打ち(この 秒数の 中で 押すと 次の 段)・3段めの 強さ */
   chain: { keep: 0.75, last: 1.5 },
   /** 種族ごとの 通常攻撃の とどく 長さ・はば【仮】 */
@@ -125,8 +180,8 @@ export interface Actor {
   coolUntil: number;
   /** モブが 気づいたか */
   awake: boolean;
-  /** 敵の 種類(2026-11-24 路地裏: pige など。絵が ない 種類は 仮の 形) */
-  mobKind?: string;
+  /** 敵の 種類(2026-11-24 路地裏の 10種。MOB_KINDS) */
+  mobKind?: MobKind;
   /** 状態(時刻) */
   stunUntil?: number;
   slowUntil?: number;
@@ -180,6 +235,7 @@ export type AdvEvent =
   | { kind: 'press'; x: number; z: number }
   | { kind: 'key'; x: number; z: number }
   | { kind: 'boxReset'; x: number; z: number }
+  | { kind: 'mobFx'; style: string; x: number; z: number; dir: number; r: number; arc: number }
   | { kind: 'lose' };
 
 /**
@@ -226,6 +282,8 @@ export interface AdvState {
   drops: Drop[];
   seq: number;
   shots: Shot[];
+  /** 敵の 弾 */
+  mobShots: MobShot[];
   fields: Field[];
   /** 自分の 守り・強化(時刻) */
   shieldUntil: number;
@@ -316,12 +374,15 @@ export function newAdventure(seed: number, stats: StatBlock, level = 1, techs: (
     const c = cellToWorld(r.x + 1 + Math.floor(rng() * (r.w - 2)), r.y + 1 + Math.floor(rng() * (r.h - 2)));
     const m = actor(mobs.length + 1, c.x, c.z);
     const M = ADV.mob;
-    m.maxHp = m.hp = Math.round(M.hp * (1 + (level - 1) * 0.35));
-    m.atk = M.atk * (1 + (level - 1) * 0.3);
-    m.tough = 4 * level;
-    m.speed = M.speed;
+    // 2026-11-24 企画者の 案: 路地裏の 10種。【仮】どの 階に どれが 出るかは 未定 → 今は 10種から ランダム
+    const kind = ALLEY_MOBS[Math.floor(rng() * ALLEY_MOBS.length)];
+    const K = MOB_KINDS[kind];
+    m.mobKind = kind;
+    m.maxHp = m.hp = Math.round(M.hp * K.hp * (1 + (level - 1) * 0.35));
+    m.atk = M.atk * K.atk * (1 + (level - 1) * 0.3);
+    m.tough = 4 * level * K.tough;
+    m.speed = K.speed;
     m.face = rng() * Math.PI * 2;
-    // 2026-11-24 企画者「やっぱり 敵 やめた。もう一回 考える」→ 敵の 種類は 未定。仮の 形に もどした(PIGE の 絵は design/ に 残す)
     mobs.push(m);
     mobRoom.push(room);
   };
@@ -336,7 +397,7 @@ export function newAdventure(seed: number, stats: StatBlock, level = 1, techs: (
   return {
     floor, puzzles, keys: 0, mobRoom, rng, t: 0, player: p, mobs, tech: stats.tech, exitOpen: true, result: 'play', kills: 0, events: [],
     techs: ts, techCd: [0, 0, 0, 0], techSlot: -1, bag: [], gear: {}, drops: [], seq: 0,
-    shots: [], fields: [], shieldUntil: 0, atkUpUntil: 0, dash: null, combo: null, jumpTo: null, aimed: false, growType, jab: jabStyleOf(species), chain: 0, lastAtk: -9,
+    shots: [], mobShots: [], fields: [], shieldUntil: 0, atkUpUntil: 0, dash: null, combo: null, jumpTo: null, aimed: false, growType, jab: jabStyleOf(species), chain: 0, lastAtk: -9,
     base: { atk: p.atk, tough: p.tough, maxHp: p.maxHp },
   };
 }
@@ -775,7 +836,7 @@ function damage(s: AdvState, from: Actor, to: Actor, mul = 1, tech?: AdvTech): v
   s.events.push({ kind: 'hit', target: to.id, x: to.x, z: to.z, dmg, crit });
   // ふっとび
   const g = Math.atan2(to.z - from.z, to.x - from.x);
-  const k = from.id === 0 ? ADV.player.knock : ADV.mob.knock;
+  const k = from.id === 0 ? ADV.player.knock : mobSpec(from).knock;
   to.vx = Math.cos(g) * k;
   to.vz = Math.sin(g) * k;
   if (to.hp <= 0) {
@@ -809,7 +870,9 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
     if (len > 0.1 && p.act !== 'tech' && !(p.act === 'attack' && !p.struck)) p.face = Math.atan2(inp.mz, inp.mx);
     // スティックを いっぱいに たおすと 走る(2026-11-07 企画者「もう少し 早く 走って」)
     const run = len > 0.85 ? 1.4 : 1;
-    const sp = p.speed * len * run * (p.act === 'attack' || p.act === 'tech' ? 0.35 : p.act === 'hurt' ? 0.4 : 1);
+    // クモの 糸に 当たると しばらく おそくなる
+    const webbed = (p.slowUntil ?? 0) > s.t ? ADV.webSlow : 1;
+    const sp = p.speed * len * run * webbed * (p.act === 'attack' || p.act === 'tech' ? 0.35 : p.act === 'hurt' ? 0.4 : 1);
     const mdir = len > 0.1 ? Math.atan2(inp.mz, inp.mx) : p.face;
     p.vx += (Math.cos(mdir) * sp * (len > 0.1 ? 1 : 0) - p.vx) * Math.min(1, dt * 12);
     p.vz += (Math.sin(mdir) * sp * (len > 0.1 ? 1 : 0) - p.vz) * Math.min(1, dt * 12);
@@ -912,28 +975,42 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
     }
     const slow = (m.slowUntil ?? 0) > s.t ? ADV.status.slowMul : 1;
     const d = Math.hypot(p.x - m.x, p.z - m.z);
-    if (!m.awake && d < M.aggro && lineOfSight(s.floor, m.x, m.z, p.x, p.z)) m.awake = true;
+    // ミミックは ゴミ箱に 化けて 近くに 来るまで 動かない(奇襲)
+    const aggro = mobSpec(m).style === 'ambush' ? 2.4 : M.aggro;
+    if (!m.awake && d < aggro && lineOfSight(s.floor, m.x, m.z, p.x, p.z)) {
+      m.awake = true;
+      if (mobSpec(m).style === 'ambush') m.coolUntil = s.t;
+    }
     if (!m.awake || p.act === 'dead') continue;
     const g = Math.atan2(p.z - m.z, p.x - m.x);
+    const K = mobSpec(m);
     if (m.act === 'attack') {
-      if (!m.struck && m.actT >= M.windup) {
+      if (!m.struck && m.actT >= K.windup) {
         m.struck = true;
-        if (d < M.range + P.r + 0.3 && Math.abs(angDiff(g, m.face)) < 1.2) damage(s, m, p);
+        mobStrike(s, m, K, d, g);
       }
-      if (m.actT > M.windup + 0.35) m.act = 'free';
+      if (m.actT > K.windup + 0.35) m.act = 'free';
       continue;
     }
     m.face = g;
-    if (d < M.range + P.r && s.t >= m.coolUntil) {
+    const ranged = K.keep !== undefined;
+    const reach = K.style === 'spore' || K.style === 'smash' || K.style === 'lunge' ? K.range : K.range + P.r;
+    const canHit = d < reach && (!ranged || lineOfSight(s.floor, m.x, m.z, p.x, p.z));
+    if (canHit && s.t >= m.coolUntil) {
       m.act = 'attack';
       m.actT = 0;
       m.struck = false;
-      m.coolUntil = s.t + M.cool;
+      m.coolUntil = s.t + K.cool;
       s.events.push({ kind: 'attack', id: m.id });
-    } else if (d > M.range * 0.8) {
-      moveBy(s, m, Math.cos(g) * m.speed * slow * dt, Math.sin(g) * m.speed * slow * dt, M.r);
+    } else {
+      // 遠くから 撃つ 敵は 間を あける・近い 敵は 近づく
+      let dir = 0;
+      if (ranged) dir = d > K.keep! + 0.6 || !lineOfSight(s.floor, m.x, m.z, p.x, p.z) ? 1 : d < K.keep! - 1.2 ? -0.7 : 0;
+      else if (d > K.range * 0.7) dir = 1;
+      if (dir) moveBy(s, m, Math.cos(g) * m.speed * slow * dir * dt, Math.sin(g) * m.speed * slow * dir * dt, M.r);
     }
   }
+  stepMobShots(s, dt);
   // モブどうし・自分と 重ならない
   const all = [p, ...s.mobs.filter((m) => m.act !== 'dead')];
   for (let i = 0; i < all.length; i++)
@@ -1037,6 +1114,44 @@ function stepPuzzles(s: AdvState, dt: number): void {
     setDoor(s.floor, i, false);
     s.events.push({ kind: 'door', door: i });
   });
+}
+
+/** 敵の 攻撃が 出る 時 */
+function mobStrike(s: AdvState, m: Actor, K: MobSpec, d: number, g: number): void {
+  const p = s.player;
+  const P = ADV.player;
+  if (K.style === 'shot' || K.style === 'web') {
+    const sp = K.style === 'web' ? 7 : m.mobKind === 'ghost' ? 6 : 9;
+    s.mobShots.push({ id: ++s.seq, kind: m.mobKind ?? 'slime', x: m.x + Math.cos(m.face) * 0.6, z: m.z + Math.sin(m.face) * 0.6, vx: Math.cos(m.face) * sp, vz: Math.sin(m.face) * sp, r: m.mobKind === 'ghost' ? 0.45 : 0.3, life: K.range / sp + 0.3, from: m, slow: K.style === 'web' });
+    return;
+  }
+  if (K.style === 'lunge') {
+    // 体当たり: 前へ とびこむ
+    const before = Math.hypot(p.x - m.x, p.z - m.z);
+    moveBy(s, m, Math.cos(m.face) * Math.min(K.range - 0.6, Math.max(0, before - 0.9)), Math.sin(m.face) * Math.min(K.range - 0.6, Math.max(0, before - 0.9)), ADV.mob.r);
+    if (Math.hypot(p.x - m.x, p.z - m.z) < ADV.mob.r + P.r + 0.45) damage(s, m, p);
+    return;
+  }
+  s.events.push({ kind: 'mobFx', style: K.style, x: m.x, z: m.z, dir: m.face, r: K.range, arc: K.arc });
+  if (K.style === 'spore' || K.style === 'smash' ? d < K.range + P.r : d < K.range + P.r + 0.3 && Math.abs(angDiff(g, m.face)) < K.arc) {
+    if (K.style !== 'wave' || lineOfSight(s.floor, m.x, m.z, p.x, p.z)) damage(s, m, p);
+  }
+}
+
+function stepMobShots(s: AdvState, dt: number): void {
+  const p = s.player;
+  for (const sh of s.mobShots) {
+    sh.x += sh.vx * dt;
+    sh.z += sh.vz * dt;
+    sh.life -= dt;
+    if (!walkable(s.floor, sh.x, sh.z)) sh.life = 0;
+    else if (p.act !== 'dead' && Math.hypot(p.x - sh.x, p.z - sh.z) < sh.r + ADV.player.r) {
+      damage(s, sh.from, p, sh.slow ? 0.6 : 1);
+      if (sh.slow) p.slowUntil = s.t + ADV.webTime;
+      sh.life = 0;
+    }
+  }
+  s.mobShots = s.mobShots.filter((x) => x.life > 0);
 }
 
 /** 今 いる 部屋(部屋の 外は -1) */

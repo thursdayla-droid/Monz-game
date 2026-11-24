@@ -8,7 +8,7 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import { assetUrl } from '../assetUrl';
 import { newAnimeBattle, type AnimeEntrant, type AnimeMon } from '../core/battle3d/anime';
 import { CELL, WALL } from '../core/adventure/dungeon';
-import { ADV, RANKS, techWindup, type AimShape, type Actor, type AdvEvent, type AdvItem, type AdvState, type Rank } from '../core/adventure/sim';
+import { ADV, MOB_KINDS, mobSpec, RANKS, techWindup, type MobKind, type AimShape, type Actor, type AdvEvent, type AdvItem, type AdvState, type Rank } from '../core/adventure/sim';
 import type { modelFor } from '../core/roster';
 import { MonsterRig } from './monsterRig';
 
@@ -154,9 +154,20 @@ interface MobArt {
   h: number;
   fly: boolean;
 }
-/** 絵の ある 敵(2026-11-24 PIGE: 金の チェーンの ハト。飛ぶ) */
-const MOB_ART: Record<string, { file: string; h: number; fly: boolean }> = {
-  pige: { file: 'assets/adventure/mob_pige.webp', h: 1.9, fly: true },
+/** 絵の ある 敵(企画者の 絵が とどいたら ここに 足す。2026-11-24 前の PIGE の 絵は 方針が 変わったので 使わない) */
+const MOB_ART: Record<string, { file: string; h: number; fly: boolean }> = {};
+/** 【仮】絵が とどくまでの 仮の 形(色・大きさ・形) */
+const MOB_LOOK: Record<MobKind, { color: number; size: number; shape: 'ball' | 'flat' | 'can' | 'block' | 'cap'; ghost?: boolean }> = {
+  slime: { color: 0x9a4ae0, size: 1, shape: 'flat' },
+  ratz: { color: 0x8a8a96, size: 0.75, shape: 'ball' },
+  pige: { color: 0x7a7aa8, size: 0.7, shape: 'ball' },
+  batz: { color: 0x6a2aa8, size: 0.65, shape: 'ball' },
+  ghost: { color: 0x8ae8ff, size: 0.8, shape: 'ball', ghost: true },
+  spider: { color: 0x2a1a3a, size: 1.05, shape: 'flat' },
+  mimic: { color: 0x5a6a62, size: 1, shape: 'can' },
+  shroom: { color: 0xff5ab0, size: 0.9, shape: 'cap' },
+  skele: { color: 0xeae6d8, size: 0.85, shape: 'ball' },
+  golem: { color: 0xa0583a, size: 1.45, shape: 'block' },
 };
 
 class MobView {
@@ -172,11 +183,23 @@ class MobView {
   private artH = 1.7;
   private fly = false;
   private shadow: THREE.Mesh | null = null;
-  constructor(grad: THREE.Texture, art: MobArt | null = null) {
-    this.mat = new THREE.MeshToonMaterial({ color: 0x8a3ac8, gradientMap: grad });
-    this.body = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 12), this.mat);
-    this.body.position.y = 0.5;
-    this.body.scale.y = 0.85;
+  private base = 0x8a3ac8;
+  private size = 1;
+  private baseY = 0.5;
+  private flyLook = false;
+  private sy0 = 0.85;
+  constructor(grad: THREE.Texture, art: MobArt | null = null, kind: MobKind = 'slime') {
+    const L = MOB_LOOK[kind] ?? MOB_LOOK.slime;
+    this.base = L.color;
+    this.size = L.size;
+    this.flyLook = !!MOB_KINDS[kind]?.fly;
+    this.mat = new THREE.MeshToonMaterial({ color: L.color, gradientMap: grad, transparent: !!L.ghost, opacity: L.ghost ? 0.75 : 1 });
+    const geo = L.shape === 'can' ? new THREE.CylinderGeometry(0.42, 0.36, 1.0, 16) : L.shape === 'block' ? new THREE.BoxGeometry(0.9, 1.0, 0.9) : new THREE.SphereGeometry(0.5, 16, 12);
+    this.sy0 = L.shape === 'flat' ? 0.6 : L.shape === 'ball' || L.shape === 'cap' ? 0.85 : 1;
+    this.body = new THREE.Mesh(geo, this.mat);
+    this.baseY = (L.shape === 'can' || L.shape === 'block' ? 0.5 : 0.5 * this.sy0) * L.size + (this.flyLook ? 0.8 : 0);
+    this.body.position.y = this.baseY;
+    this.body.scale.y = this.sy0;
     this.body.castShadow = true;
     this.root.add(this.body);
     const outline = new THREE.Mesh(this.body.geometry, new THREE.MeshBasicMaterial({ color: 0x16101c, side: THREE.BackSide }));
@@ -192,12 +215,30 @@ class MobView {
       eye.position.set(0.52, 0.12, s * 0.2);
       this.body.add(eye);
     }
+    if (L.shape === 'cap') {
+      // キノコの かさ
+      const cap = new THREE.Mesh(new THREE.SphereGeometry(0.62, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshToonMaterial({ color: 0xff2a8a, gradientMap: grad }));
+      cap.position.y = 0.3;
+      this.body.add(cap);
+    }
+    if (this.flyLook) {
+      // 床の 影(浮いて いる 敵)
+      const sh = new THREE.Mesh(new THREE.CircleGeometry(0.4 * L.size, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false }));
+      sh.rotation.x = -Math.PI / 2;
+      sh.position.y = 0.04;
+      this.root.add(sh);
+    }
+    // 【仮】名前(絵が とどくまで 見分けやすく)
+    const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: numberTexture(MOB_KINDS[kind]?.name ?? '', '#ffffff'), transparent: true, depthTest: false }));
+    tag.scale.set(2.0, 0.5, 1);
+    tag.renderOrder = 9;
+    tag.position.y = this.baseY + 0.75 * L.size + 0.35;
+    this.root.add(tag);
     this.barBg = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.14), new THREE.MeshBasicMaterial({ color: 0x16101c, depthTest: false }));
     this.bar = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.08), new THREE.MeshBasicMaterial({ color: 0xff4a6a, depthTest: false }));
     this.barBg.renderOrder = 10;
     this.bar.renderOrder = 11;
-    this.barBg.position.y = 1.75;
-    this.bar.position.y = 1.75;
+    this.barBg.position.y = this.bar.position.y = tag.position.y + 0.35;
     this.root.add(this.barBg, this.bar);
     if (art) {
       this.body.visible = false;
@@ -234,17 +275,20 @@ class MobView {
   update(m: Actor, dt: number, cam: THREE.Camera, now: number): void {
     this.root.position.set(m.x, 0, m.z);
     this.body.rotation.y = -m.face;
-    const M = ADV.mob;
     let sy = 0.85 + Math.sin(now * 6 + m.id) * 0.04;
     let sx = 1;
-    this.mat.color.setHex(0x8a3ac8);
+    this.mat.color.setHex(this.base);
+    if (this.flyLook) this.body.position.y = this.baseY + Math.sin(now * 5 + m.id) * 0.12;
+    // ミミック: 気づくまで ゴミ箱の ふり(ゆれない)
+    if (!m.awake && mobSpec(m).style === 'ambush') sy = 0.85;
+    const W = mobSpec(m).windup;
     if (m.act === 'attack') {
-      const w = Math.min(1, m.actT / M.windup);
+      const w = Math.min(1, m.actT / W);
       if (!m.struck) {
         // ため: ちぢんで 赤く 光る(よける 合図)
         sy = 0.85 - w * 0.25;
         sx = 1 + w * 0.2;
-        this.mat.color.setHex(w > 0.5 ? 0xff4a6a : 0xb04ab8);
+        this.mat.color.setHex(w > 0.5 ? 0xff4a6a : this.base);
       } else {
         sx = 1.25;
         sy = 0.7;
@@ -257,7 +301,8 @@ class MobView {
       this.root.scale.setScalar(k);
       this.root.visible = k > 0;
     }
-    this.body.scale.set(sx, sy, sx);
+    const k0 = this.size;
+    this.body.scale.set(sx * k0, (sy / 0.85) * this.sy0 * k0, sx * k0);
     if (this.art) this.updateArt(m, now, sx, sy);
     const r = Math.max(0, m.hp / m.maxHp);
     this.bar.scale.x = r;
@@ -296,6 +341,7 @@ export class DungeonView {
   private drops = new Map<number, THREE.Object3D>();
   private fx: Fx[] = [];
   private shotObjs = new Map<number, THREE.Object3D>();
+  private mobShotObjs = new Map<number, THREE.Object3D>();
   private fieldObjs = new Map<number, THREE.Object3D>();
   private dome: THREE.Mesh;
   /** 技を ねらう 矢印(床) */
@@ -345,7 +391,7 @@ export class DungeonView {
     this.scene.add(this.rig.root);
     this.puppet = newAnimeBattle(entrant, entrant, 1).f[0];
     for (let i = 0; i < s.mobs.length; i++) {
-      const v = new MobView(this.grad, this.mobArt(s.mobs[i].mobKind));
+      const v = new MobView(this.grad, this.mobArt(s.mobs[i].mobKind), s.mobs[i].mobKind);
       this.mobs.push(v);
       this.scene.add(v.root);
     }
@@ -825,6 +871,14 @@ export class DungeonView {
       } else if (e.kind === 'tech') this.techFx(e);
       else if (e.kind === 'jab') this.jabFx(e);
       else if (e.kind === 'status') this.burst(e.x, e.z, 0xc080ff, 6);
+      else if (e.kind === 'mobFx') {
+        // 敵の 攻撃の 見た目【仮】: 胞子 ピンク・重い パンチ オレンジ・超音波 紫・ほか 白
+        const c = e.style === 'spore' ? 0xff5ab0 : e.style === 'smash' ? 0xff8a2a : e.style === 'wave' ? 0xb05aff : 0xffffff;
+        const fx = e.style === 'spore' || e.style === 'smash' || e.style === 'wave';
+        this.groundRing(fx ? e.x : e.x + Math.cos(e.dir) * 0.9, fx ? e.z : e.z + Math.sin(e.dir) * 0.9, fx ? e.r : 1.0, c, 0.4);
+        if (e.style === 'spore') this.burst(e.x, e.z, 0xff8ad0, 12);
+        if (e.style === 'smash') this.shake = Math.max(this.shake, 0.25);
+      }
       else if (e.kind === 'heal' && e.amount > 0) {
         this.burst(e.x, e.z, 0x5aff8a, 10);
       }
@@ -912,6 +966,26 @@ export class DungeonView {
         this.scene.remove(o);
         this.shotObjs.delete(id);
         this.burst(o.position.x, o.position.z, 0xffd080, 5);
+      }
+    // 敵の 弾(羽: 白・エネルギー弾: 水色・糸: 白い 大きめ)
+    const liveM = new Set<number>();
+    for (const sh of s.mobShots) {
+      liveM.add(sh.id);
+      let o = this.mobShotObjs.get(sh.id);
+      if (!o) {
+        const c = sh.kind === 'ghost' ? 0x6ae8ff : sh.slow ? 0xf0f0ff : 0xd8d0ff;
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: c, transparent: true, depthWrite: false, depthTest: false }));
+        sp.scale.setScalar(sh.r * 3.2);
+        this.scene.add(sp);
+        this.mobShotObjs.set(sh.id, sp);
+        o = sp;
+      }
+      o.position.set(sh.x, 0.9, sh.z);
+    }
+    for (const [id, o] of this.mobShotObjs)
+      if (!liveM.has(id)) {
+        this.scene.remove(o);
+        this.mobShotObjs.delete(id);
       }
     // 場(魔法陣): 回る 輪
     const liveF = new Set<number>();
