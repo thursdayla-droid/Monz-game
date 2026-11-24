@@ -148,7 +148,7 @@
 
 ## 2026-11-24 1〜10階を 通して 遊べる 形・敵の 出かた・ボス（企画者「最初は 弱い 敵・10階に 近くなって 強い 雑魚」「10階は ソロで Lv20 で ぎりぎり クリア」）
 - ワープに のると「N階へ ▶」で 次の 階。【仮】HP は 階ごとに 満タン・持ち物と 装備は 持ちこす・負けたら 同じ 階から・もどるで 1階から
-- 階ごとの 敵（`FLOOR_MOBS`【仮】）: 1F SLIME・RATZ → 2F +PIGE → 3F +BATZ → 4F +SHROOM → 5F KING SLIME → 6F +GHOST → 7F +SPIDER → 8F +MIMIC・SKELE → 9F +GOLEM → 10F ALLEY TROLL
+- 階ごとの 敵（`FLOOR_MOBS`【仮】）: 1F SLIME・RATZ・PIGE（2026-11-24 企画者）→ 2F 同じ（PIGE 多め） → 3F +BATZ → 4F +SHROOM → 5F KING SLIME → 6F +GHOST → 7F +SPIDER → 8F +MIMIC・SKELE → 9F +GOLEM → 10F ALLEY TROLL
 - 上の 階ほど 敵の HP・攻撃・かたさが 上がる（`ADV.grow`【仮】）
 - ボスは ワープの 部屋の まん中。たおすまで ワープは うごかない。技の 前に 床に 赤い 印（よける 合図）。HP 半分 以下で 技が 早くなる【仮】
   - KING SLIME: ジャンププレス（ねらった 場所に 落ちる）・毒液（3方向）・小さい SLIME を 2体 呼ぶ

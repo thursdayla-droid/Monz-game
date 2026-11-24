@@ -60,7 +60,8 @@ export const ALLEY_MOBS: MobKind[] = ['slime', 'ratz', 'pige', 'batz', 'ghost', 
  * 同じ 名前を 2回 書くと 出やすい
  */
 export const FLOOR_MOBS: Record<number, MobKind[]> = {
-  1: ['slime', 'slime', 'slime', 'ratz', 'ratz'],
+  // 2026-11-24 企画者「1階は この 3体(SLIME・RATZ・PIGE)ぐらい。数は 任せる」
+  1: ['slime', 'slime', 'ratz', 'ratz', 'pige'],
   2: ['slime', 'slime', 'ratz', 'ratz', 'pige', 'pige'],
   3: ['slime', 'ratz', 'pige', 'pige', 'batz', 'batz'],
   4: ['ratz', 'pige', 'batz', 'batz', 'shroom', 'shroom'],
