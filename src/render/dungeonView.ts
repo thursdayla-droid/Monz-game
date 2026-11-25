@@ -764,35 +764,85 @@ export class DungeonView {
           if (near) walls.push(i);
         }
       }
-    const m4 = new THREE.Matrix4();
-    const col = new THREE.Color();
-    const fl = new THREE.InstancedMesh(new THREE.BoxGeometry(CELL, 0.2, CELL), new THREE.MeshLambertMaterial({ color: 0xffffff, map: tileTexture() }), floors.length);
-    floors.forEach((i, k) => {
-      const x = i % f.w;
-      const y = Math.floor(i / f.w);
-      m4.makeTranslation((x + 0.5) * CELL, -0.1, (y + 0.5) * CELL);
-      fl.setMatrixAt(k, m4);
-      // 路地裏の アスファルト(2026-11-24 1〜10 階 = ストリートの 路地裏)【仮】
-      const v = ((x * 7 + y * 13) % 5) / 5;
-      col.setRGB(0.5 + v * 0.05, 0.5 + v * 0.05, 0.56 + v * 0.05);
-      fl.setColorAt(k, col);
-    });
+    // 2026-11-25 企画者の 絵(路地裏: アスファルトの 床・レンガの 壁・コンクリートの 壁の 上)。
+    // 絵は 場所で 貼る(マスごとに 同じ 絵が くり返して 見えないように)。つなぎ目は 鏡に うつす 並べ方で 消す
+    const isWall = (x: number, y: number) => x < 0 || y < 0 || x >= f.w || y >= f.h || f.tiles[y * f.w + x] === WALL;
+    const FLOOR_UV = 8;
+    const WALL_UV = 4;
+    const SIDE_UV = 6;
+    const H = 2.0;
+    const fp: number[] = [];
+    const fu: number[] = [];
+    for (const i of floors) {
+      const x0 = (i % f.w) * CELL;
+      const z0 = Math.floor(i / f.w) * CELL;
+      const q = [[x0, z0], [x0, z0 + CELL], [x0 + CELL, z0 + CELL], [x0, z0], [x0 + CELL, z0 + CELL], [x0 + CELL, z0]];
+      for (const [x, z] of q) {
+        fp.push(x, 0, z);
+        fu.push(x / FLOOR_UV, -z / FLOOR_UV);
+      }
+    }
+    const fg = new THREE.BufferGeometry();
+    fg.setAttribute('position', new THREE.Float32BufferAttribute(fp, 3));
+    fg.setAttribute('uv', new THREE.Float32BufferAttribute(fu, 2));
+    fg.computeVertexNormals();
+    const fl = new THREE.Mesh(fg, new THREE.MeshLambertMaterial({ color: 0xffffff, map: this.tileTex('tile_floor', tileTexture) }));
     fl.receiveShadow = true;
     this.scene.add(fl);
-    const wl = new THREE.InstancedMesh(new THREE.BoxGeometry(CELL, 2.0, CELL), new THREE.MeshLambertMaterial({ color: 0xffffff, map: wallTexture() }), walls.length);
-    walls.forEach((i, k) => {
-      const x = i % f.w;
-      const y = Math.floor(i / f.w);
-      m4.makeTranslation((x + 0.5) * CELL, 1.0, (y + 0.5) * CELL);
-      wl.setMatrixAt(k, m4);
-      const v = ((x * 5 + y * 3) % 4) / 4;
-      // レンガの 壁【仮】
-      col.setRGB(0.46 + v * 0.05, 0.24 + v * 0.03, 0.26 + v * 0.04);
-      wl.setColorAt(k, col);
-    });
-    wl.castShadow = true;
-    wl.receiveShadow = true;
-    this.scene.add(wl);
+    // 壁: 上の 面(コンクリート)と、床に 向いた 横の 面(レンガ)
+    const tp: number[] = [];
+    const tu: number[] = [];
+    const sp: number[] = [];
+    const su: number[] = [];
+    const quad = (P: number[], UV: number[], a: number[], b: number[], c: number[], d: number[], ua: number[], ub: number[], uc: number[], ud: number[]) => {
+      for (const [v, u] of [[a, ua], [b, ub], [c, uc], [a, ua], [c, uc], [d, ud]] as [number[], number[]][]) {
+        P.push(...v);
+        UV.push(...u);
+      }
+    };
+    for (const i of walls) {
+      const cx = i % f.w;
+      const cy = Math.floor(i / f.w);
+      const x0 = cx * CELL;
+      const z0 = cy * CELL;
+      const x1 = x0 + CELL;
+      const z1 = z0 + CELL;
+      const t = (x: number, z: number) => [x / WALL_UV, -z / WALL_UV];
+      quad(tp, tu, [x0, H, z0], [x0, H, z1], [x1, H, z1], [x1, H, z0], t(x0, z0), t(x0, z1), t(x1, z1), t(x1, z0));
+      // レンガは 少し 大きく 見せる
+      const v0 = 0;
+      const v1 = H / SIDE_UV;
+      // 南(+z)・北(-z)・東(+x)・西(-x) の 面。となりが 床の ときだけ
+      if (!isWall(cx, cy + 1)) quad(sp, su, [x0, 0, z1], [x1, 0, z1], [x1, H, z1], [x0, H, z1], [x0 / SIDE_UV, v0], [x1 / SIDE_UV, v0], [x1 / SIDE_UV, v1], [x0 / SIDE_UV, v1]);
+      if (!isWall(cx, cy - 1)) quad(sp, su, [x1, 0, z0], [x0, 0, z0], [x0, H, z0], [x1, H, z0], [x1 / SIDE_UV, v0], [x0 / SIDE_UV, v0], [x0 / SIDE_UV, v1], [x1 / SIDE_UV, v1]);
+      if (!isWall(cx + 1, cy)) quad(sp, su, [x1, 0, z1], [x1, 0, z0], [x1, H, z0], [x1, H, z1], [z1 / SIDE_UV, v0], [z0 / SIDE_UV, v0], [z0 / SIDE_UV, v1], [z1 / SIDE_UV, v1]);
+      if (!isWall(cx - 1, cy)) quad(sp, su, [x0, 0, z0], [x0, 0, z1], [x0, H, z1], [x0, H, z0], [z0 / SIDE_UV, v0], [z1 / SIDE_UV, v0], [z1 / SIDE_UV, v1], [z0 / SIDE_UV, v1]);
+    }
+    const mk = (P: number[], UV: number[], tex: THREE.Texture, bright = 1) => {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute(UV, 2));
+      g.computeVertexNormals();
+      const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: new THREE.Color(bright, bright, bright), map: tex }));
+      m.castShadow = true;
+      m.receiveShadow = true;
+      this.scene.add(m);
+    };
+    mk(tp, tu, this.tileTex('tile_walltop', wallTexture));
+    mk(sp, su, this.tileTex('tile_wall', wallTexture), 1.35);
+  }
+
+  /** 床・壁の 絵(なければ 前の 仮の 絵) */
+  private tileTex(name: string, fallback: () => THREE.Texture): THREE.Texture {
+    const path = `assets/adventure/${name}.webp`;
+    const url = assetUrl(path);
+    // 確認用ページで 絵が 入っていない ときは 仮の 絵
+    if ((window as { __MONZ_ASSETS?: Record<string, string> }).__MONZ_ASSETS && url === path) return fallback();
+    const t = new THREE.TextureLoader().load(url);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.wrapS = t.wrapT = THREE.MirroredRepeatWrapping;
+    t.anisotropy = 4;
+    return t;
   }
 
   private loadModel(): void {
