@@ -49,8 +49,7 @@ if B3D:
         paths = [p for p in paths if p.endswith('.webp') or os.path.basename(p)[:-4] in FORM1]
         if STORY:
             paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/story/*.webp'))
-            # 2026-11-25 冒険の 床・壁の 絵は STREET KING の ページにも(敵の 絵は 入らない)
-            paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/adventure/tile_*.webp'))
+            # 2026-11-25 冒険の 床・壁の 絵は 15MB に 入らないので 冒険の ページだけ(ここでは 前の 仮の 絵)
         else:
             # 2026-11-24 冒険の 敵の 絵(SLIME など)は 冒険の ページだけ
             paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/adventure/*.webp'))
