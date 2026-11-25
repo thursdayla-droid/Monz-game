@@ -18,6 +18,30 @@ export interface Room {
 
 /** 部屋と 部屋の 間の 扉(2026-11-24 企画者「ギミックと 敵を 倒して 進む」)。部屋 i → i+1 の 通路の 入り口 */
 export const DOOR = 2;
+/** 置き物(ゴミ箱など)の マス。歩けない(2026-11-25 企画者の 絵) */
+export const PROP = 3;
+
+/** 路地裏の 置き物(2026-11-25 企画者の 絵 ④〜⑩)。lamp は 街灯 */
+export type PropKind = 'trash' | 'dumpster' | 'boxes' | 'bags' | 'drum' | 'crate' | 'lamp';
+export interface FloorProp {
+  kind: PropKind;
+  /** マス */
+  cx: number;
+  cy: number;
+}
+/** 床の 模様(⑫水たまり・⑬マンホール)。歩ける。x,z は 世界の 座標・rot は 向き */
+export interface FloorDecal {
+  kind: 'puddle' | 'manhole';
+  x: number;
+  z: number;
+  rot: number;
+  size: number;
+}
+/** 壁の ネオン看板(⑪)。北の 壁(カメラから 見える 面)の 床がわ。x,z は 壁の 面の 場所 */
+export interface FloorSign {
+  x: number;
+  z: number;
+}
 export interface FloorDoor {
   /** 扉の マス(tiles の 番号) */
   cells: number[];
@@ -39,6 +63,10 @@ export interface Floor {
   /** はじまりの 場所(1つめの 部屋の まん中)・出口(ワープ。さいごの 部屋)。世界の 座標 */
   start: { x: number; z: number };
   exit: { x: number; z: number };
+  /** 置き物・床の 模様・ネオン看板(見た目。置き物は 歩けない) */
+  props: FloorProp[];
+  decals: FloorDecal[];
+  signs: FloorSign[];
 }
 
 export interface FloorOptions {
@@ -129,7 +157,81 @@ export function generateFloor(seed: number, opt: FloorOptions = {}): Floor {
   }
   const s = center(rooms[0]);
   const e = center(rooms[rooms.length - 1]);
-  return { w, h, tiles, rooms, doors, start: cellToWorld(s.cx, s.cy), exit: cellToWorld(e.cx, e.cy) };
+  const f: Floor = { w, h, tiles, rooms, doors, start: cellToWorld(s.cx, s.cy), exit: cellToWorld(e.cx, e.cy), props: [], decals: [], signs: [] };
+  decorate(f, seed);
+  return f;
+}
+
+const PROP_KINDS: PropKind[] = ['trash', 'dumpster', 'boxes', 'bags', 'drum', 'crate'];
+
+/**
+ * 置き物を 並べる(2026-11-25 企画者「部屋の すみや 壁ぎわに」)。部屋の 形は 変えない(べつの 乱数)。
+ * 置き物は 部屋の ふちの マス(北・西・東。南は 手前の 壁で かくれるので 置かない)。通路の 入り口の まわりは あける。
+ * 敵・しかけは 部屋の ふちより 内がわに 出るので 重ならない。【仮】数
+ */
+function decorate(f: Floor, seed: number): void {
+  const rng = mulberry32((seed ^ 0x5bd1e995) >>> 0);
+  const ri = (a: number, b: number) => a + Math.floor(rng() * (b - a + 1));
+  const at = (x: number, y: number) => (x < 0 || y < 0 || x >= f.w || y >= f.h ? WALL : f.tiles[y * f.w + x]);
+  f.rooms.forEach((r) => {
+    // 通路の 入り口(部屋の ふちで、外が 壁でない マス)
+    const open: [number, number][] = [];
+    for (let y = r.y; y < r.y + r.h; y++)
+      for (let x = r.x; x < r.x + r.w; x++) {
+        const inR = (xx: number, yy: number) => xx >= r.x && xx < r.x + r.w && yy >= r.y && yy < r.y + r.h;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]])
+          if (!inR(x + dx, y + dy) && at(x + dx, y + dy) !== WALL) open.push([x, y]);
+      }
+    const nearOpen = (x: number, y: number) => open.some(([ox, oy]) => Math.abs(ox - x) <= 2 && Math.abs(oy - y) <= 2);
+    const north: [number, number][] = [];
+    const sides: [number, number][] = [];
+    for (let x = r.x; x < r.x + r.w; x++) if (!nearOpen(x, r.y)) north.push([x, r.y]);
+    for (let y = r.y + 1; y < r.y + r.h - 1; y++) {
+      if (!nearOpen(r.x, y)) sides.push([r.x, y]);
+      if (!nearOpen(r.x + r.w - 1, y)) sides.push([r.x + r.w - 1, y]);
+    }
+    const take = (list: [number, number][]) => (list.length ? list.splice(Math.floor(rng() * list.length), 1)[0] : null);
+    const put = (kind: PropKind, c: [number, number] | null) => {
+      if (!c || at(c[0], c[1]) !== FLOOR) return;
+      f.tiles[c[1] * f.w + c[0]] = PROP;
+      f.props.push({ kind, cx: c[0], cy: c[1] });
+    };
+    // 街灯は 北の 壁ぎわに 1本(半分の 部屋)
+    if (rng() < 0.5) put('lamp', take(north));
+    const n = ri(2, 4);
+    for (let k = 0; k < n; k++) {
+      const kind = PROP_KINDS[Math.floor(rng() * PROP_KINDS.length)];
+      put(kind, take(rng() < 0.5 ? north : sides) ?? take(north) ?? take(sides));
+    }
+    // ネオン看板は 北の 壁に 1つ(半分の 部屋)。置き物の 上は さける
+    if (rng() < 0.5 && north.length) {
+      const c = north[Math.floor(rng() * north.length)];
+      const w = cellToWorld(c[0], c[1]);
+      f.signs.push({ x: w.x, z: r.y * CELL });
+    }
+    // 床の 模様: 水たまり 0〜2・マンホール 0〜1(部屋の 内がわ。まん中は あける)
+    const mid = center(r);
+    const spot = () => {
+      for (let t = 0; t < 10; t++) {
+        const x = ri(r.x + 1, r.x + r.w - 2);
+        const y = ri(r.y + 1, r.y + r.h - 2);
+        if (Math.abs(x - mid.cx) <= 1 && Math.abs(y - mid.cy) <= 1) continue;
+        const w = cellToWorld(x, y);
+        if (f.decals.some((d) => Math.hypot(d.x - w.x, d.z - w.z) < CELL * 2)) continue;
+        return w;
+      }
+      return null;
+    };
+    const np = ri(0, 2);
+    for (let k = 0; k < np; k++) {
+      const w = spot();
+      if (w) f.decals.push({ kind: 'puddle', x: w.x + (rng() - 0.5), z: w.z + (rng() - 0.5), rot: (rng() - 0.5) * 0.6, size: 2.2 + rng() * 1.2 });
+    }
+    if (rng() < 0.5) {
+      const w = spot();
+      if (w) f.decals.push({ kind: 'manhole', x: w.x, z: w.z, rot: rng() * Math.PI * 2, size: 1.7 });
+    }
+  });
 }
 
 /** 扉を しめる / ひらく */

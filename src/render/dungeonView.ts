@@ -744,6 +744,8 @@ export class DungeonView {
     this.scene.add(this.warpRing);
   }
 
+  private propTex = new Map<string, THREE.Texture>();
+
   private buildFloor(s: AdvState): void {
     const f = s.floor;
     const floors: number[] = [];
@@ -830,6 +832,99 @@ export class DungeonView {
     };
     mk(tp, tu, this.tileTex('tile_walltop', wallTexture));
     mk(sp, su, this.tileTex('tile_wall', wallTexture), 1.35);
+    this.buildProps(s);
+  }
+
+  /**
+   * 置き物・床の 模様・ネオン看板(2026-11-25 企画者の 絵)。
+   * カメラは いつも 同じ 向き(南 ななめ 上 45度)なので、置き物は カメラに 向いた たての 板。
+   * 板を √2 倍 高くすると 画面では 絵の とおりの 形に 見える(ななめの 板だと 北の 壁に めりこむため)
+   */
+  private buildProps(s: AdvState): void {
+    const f = s.floor;
+    const has = (name: string) => {
+      const path = `assets/adventure/${name}.webp`;
+      return !((window as { __MONZ_ASSETS?: Record<string, string> }).__MONZ_ASSETS && assetUrl(path) === path);
+    };
+    const tex = (name: string) => {
+      let t = this.propTex.get(name);
+      if (!t) {
+        t = new THREE.TextureLoader().load(assetUrl(`assets/adventure/${name}.webp`));
+        t.colorSpace = THREE.SRGBColorSpace;
+        t.anisotropy = 4;
+        this.propTex.set(name, t);
+      }
+      return t;
+    };
+    // 置き物の 高さ(世界の 長さ)・横の はば は 絵の 形から。【仮】大きさ
+    const SIZE: Record<string, { h: number; aspect: number; shade?: number }> = {
+      trash: { h: 1.5, aspect: 240 / 320 },
+      dumpster: { h: 1.75, aspect: 384 / 361 },
+      boxes: { h: 1.6, aspect: 311 / 320 },
+      bags: { h: 1.2, aspect: 320 / 280 },
+      drum: { h: 1.6, aspect: 195 / 320 },
+      crate: { h: 1.45, aspect: 282 / 320 },
+      lamp: { h: 3.4, aspect: 105 / 384 },
+    };
+    const STAND = Math.SQRT2;
+    for (const p of f.props) {
+      const z = SIZE[p.kind];
+      const name = `prop_${p.kind}`;
+      const x = (p.cx + 0.5) * CELL;
+      const zz = (p.cy + 0.5) * CELL;
+      if (!has(name)) {
+        // 絵が ない ときは 仮の 箱
+        const b = new THREE.Mesh(new THREE.BoxGeometry(1.4, z.h * 0.7, 1.4), new THREE.MeshLambertMaterial({ color: 0x5a5466 }));
+        b.position.set(x, z.h * 0.35, zz);
+        this.scene.add(b);
+        continue;
+      }
+      const w = Math.min(CELL * 1.05, z.h * z.aspect);
+      const h = (w / z.aspect) * STAND;
+      const g = new THREE.PlaneGeometry(w, h);
+      g.translate(0, h / 2, 0);
+      const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tex(name), transparent: true, alphaTest: 0.35, color: 0xd8d4e0 }));
+      // 少し ずらして 置き物どうしが きれいに ならばない ように
+      const jx = (((p.cx * 73 + p.cy * 37) % 7) / 7 - 0.5) * 0.3;
+      m.position.set(x + jx, 0.01, zz + 0.15);
+      this.scene.add(m);
+      if (p.kind === 'lamp') {
+        // 街灯の あかり(光の 玉 + 足もとの 光)
+        const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xffb860, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending }));
+        glow.scale.set(2.6, 2.6, 1);
+        glow.position.set(x + jx, h * 0.83, zz + 0.25);
+        this.scene.add(glow);
+        const pool = new THREE.Mesh(new THREE.CircleGeometry(2.6, 24), new THREE.MeshBasicMaterial({ map: glowTexture(), color: 0x806030, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+        pool.rotation.x = -Math.PI / 2;
+        pool.position.set(x + jx, 0.03, zz + 1.2);
+        this.scene.add(pool);
+      }
+    }
+    // 床の 模様(水たまり・マンホール)。床に ぴったり
+    for (const d of f.decals) {
+      const name = `prop_${d.kind}`;
+      if (!has(name)) continue;
+      const aspect = d.kind === 'puddle' ? 384 / 216 : 374 / 384;
+      const g = new THREE.PlaneGeometry(d.size * aspect, d.size);
+      const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ map: tex(name), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, opacity: d.kind === 'puddle' ? 0.9 : 1 }));
+      m.rotation.set(-Math.PI / 2, 0, d.rot);
+      m.position.set(d.x, 0.015, d.z);
+      m.receiveShadow = true;
+      this.scene.add(m);
+    }
+    // ネオン看板(北の 壁の 面に はりつく。光る)
+    if (has('prop_neon'))
+      for (const sg of f.signs) {
+        const w = 1.7;
+        const h = (w * 312) / 320;
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex('prop_neon'), transparent: true, alphaTest: 0.3 }));
+        m.position.set(sg.x, 1.15, sg.z + 0.04);
+        this.scene.add(m);
+        const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xff3ad0, transparent: true, opacity: 0.45, depthWrite: false, blending: THREE.AdditiveBlending }));
+        glow.scale.set(2.4, 2.0, 1);
+        glow.position.set(sg.x - 0.15, 1.05, sg.z + 0.3);
+        this.scene.add(glow);
+      }
   }
 
   /** 床・壁の 絵(なければ 前の 仮の 絵) */

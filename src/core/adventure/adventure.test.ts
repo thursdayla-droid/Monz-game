@@ -27,6 +27,20 @@ describe('冒険の ダンジョン', () => {
     expect(generateFloor(5).tiles).toEqual(generateFloor(5).tiles);
     expect(generateFloor(5).tiles).not.toEqual(generateFloor(6).tiles);
   });
+  it('置き物は 部屋の ふちだけ・部屋の 内がわと 通路は ぜんぶ 歩いて 行ける', () => {
+    for (let seed = 1; seed <= 40; seed++) {
+      const f = generateFloor(seed);
+      expect(f.props.length).toBeGreaterThan(5);
+      const d = bfs(f, Math.floor(f.start.x / CELL), Math.floor(f.start.z / CELL), true);
+      for (const p of f.props) {
+        const r = f.rooms.find((r) => p.cx >= r.x && p.cx < r.x + r.w && p.cy >= r.y && p.cy < r.y + r.h)!;
+        expect(r).toBeTruthy();
+        expect(p.cx === r.x || p.cx === r.x + r.w - 1 || p.cy === r.y).toBe(true);
+      }
+      for (const r of f.rooms) for (let y = r.y + 1; y < r.y + r.h - 1; y++) for (let x = r.x + 1; x < r.x + r.w - 1; x++) expect(d[y * f.w + x]).toBeGreaterThanOrEqual(0);
+      for (const dr of f.doors) for (const c of dr.cells) expect(d[c]).toBeGreaterThanOrEqual(0);
+    }
+  });
   it('部屋は 一本道・扉を 通れば どの 部屋にも 行ける・扉 i を 通らないと 部屋 i+1 へ 行けない', () => {
     for (let seed = 1; seed <= 40; seed++) {
       const f = generateFloor(seed);
