@@ -512,7 +512,7 @@ export class DungeonView {
   constructor(canvas: HTMLCanvasElement, s: AdvState, entrant: AnimeEntrant, private model: ModelPick, pixel: { on: boolean } | null = null) {
     this.pixelOpt = pixel;
     // 擬人化RPG の 試作は キャラを 大きく 見せる(昔の MMORPG くらいの 近さ)【仮】
-    if (pixel) this.viewH = 8.5;
+    if (pixel) this.viewH = 12;
     // 2026-11-20 企画者「モンズランブル やってると たまに 最初に 戻っちゃう」: iPhone で メモリが 足りず ページが 読み直される →
     // 3D の 描く 細かさを 少し 下げる(細かい 画面では なめらか処理なし・最大 1.5倍)。見た目の 大きさは 同じ
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: (window.devicePixelRatio || 1) < 2 });
