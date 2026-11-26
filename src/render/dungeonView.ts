@@ -770,9 +770,9 @@ export class DungeonView {
   }
 
   /** 木箱の かけら */
-  private splinters(x: number, z: number, n: number): void {
+  private splinters(x: number, z: number, n: number, colors: [number, number] = [0x8a5a32, 0x5a3a20]): void {
     for (let i = 0; i < n; i++) {
-      const b = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.08, 0.12), new THREE.MeshLambertMaterial({ color: i % 3 ? 0x8a5a32 : 0x5a3a20, transparent: true }));
+      const b = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.08, 0.12), new THREE.MeshLambertMaterial({ color: i % 3 ? colors[0] : colors[1], transparent: true }));
       const a = Math.random() * Math.PI * 2;
       const sp = 2 + Math.random() * 3;
       const vy = 3 + Math.random() * 3;
@@ -1268,7 +1268,9 @@ export class DungeonView {
         if (toMe) this.rig.flash = 0.12;
       } else if (e.kind === 'crate') {
         const m = this.propObjs.get(e.prop);
-        this.splinters(e.x, e.z, e.broken ? 14 : 4);
+        // かけらの 色: 木箱 = 木・段ボール = 茶色の 紙・ゴミ箱 = 灰色の 金属
+        const kind = s.floor.props[e.prop]?.kind;
+        this.splinters(e.x, e.z, e.broken ? 14 : 4, kind === 'trash' ? [0x9a98a4, 0x5a5866] : kind === 'boxes' ? [0xc09060, 0x8a6038] : undefined);
         this.shake = Math.max(this.shake, e.broken ? 0.25 : 0.12);
         if (m && e.broken) {
           this.scene.remove(m);

@@ -154,6 +154,8 @@ export const ADV = {
   pickR: 1.1,
   /** 木箱【仮】: 2回 たたくと こわれる・回復の実 50%・装備 30% */
   crate: { hp: 2, herb: 0.5, gear: 0.3 },
+  /** こわせる 置き物と たたく 回数【仮】(2026-11-26 企画者「段ボールと ゴミ箱も 壊せるように」) */
+  breakable: { crate: 2, boxes: 1, trash: 2 } as Record<string, number>,
   /** スライムの とびかかりの 時間(秒) */
   hop: { dur: 0.32 },
   /** しかけ【仮】: 箱の 半分の 大きさ・スイッチに のる きょり・鍵で 扉を あける きょり・はまった 箱を もどす 秒 */
@@ -476,7 +478,7 @@ export function newAdventure(seed: number, stats: StatBlock, level = 1, techs: (
   }
   const ts = [0, 1, 2, 3].map((i) => techs[i] ?? null);
   return {
-    floor, crates: floor.props.flatMap((pr, i) => (pr.kind === 'crate' ? [{ cx: pr.cx, cy: pr.cy, hp: ADV.crate.hp, prop: i }] : [])), puzzles, keys: 0, mobRoom, rng, t: 0, player: p, mobs, tech: stats.tech, exitOpen: true, floorNo: level, result: 'play', kills: 0, events: [],
+    floor, crates: floor.props.flatMap((pr, i) => (ADV.breakable[pr.kind] ? [{ cx: pr.cx, cy: pr.cy, hp: ADV.breakable[pr.kind], prop: i }] : [])), puzzles, keys: 0, mobRoom, rng, t: 0, player: p, mobs, tech: stats.tech, exitOpen: true, floorNo: level, result: 'play', kills: 0, events: [],
     techs: ts, techCd: [0, 0, 0, 0], techSlot: -1, bag: [], gear: {}, drops: [], seq: 0,
     shots: [], mobShots: [], fields: [], shieldUntil: 0, atkUpUntil: 0, dash: null, combo: null, jumpTo: null, aimed: false, growType, jab: jabStyleOf(species), chain: 0, lastAtk: -9,
     base: { atk: p.atk, tough: p.tough, maxHp: p.maxHp },

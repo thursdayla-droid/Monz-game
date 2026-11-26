@@ -65,6 +65,13 @@ describe('冒険の ダンジョン', () => {
 });
 
 describe('冒険の 動き', () => {
+  it('こわせる 置き物は 木箱・段ボール・ゴミ箱(ほかは こわれない)', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const s = newAdventure(seed, { hp: 10, power: 10, tough: 10, speed: 10, tech: 10 });
+      for (const c of s.crates) expect(['crate', 'boxes', 'trash']).toContain(s.floor.props[c.prop].kind);
+      expect(s.crates.length).toBe(s.floor.props.filter((p) => ['crate', 'boxes', 'trash'].includes(p.kind)).length);
+    }
+  });
   it('木箱は 2回 たたくと こわれて 通れる・物が 出る ことが ある', () => {
     let s: AdvState | null = null;
     for (let seed = 1; seed < 50 && !s; seed++) {
