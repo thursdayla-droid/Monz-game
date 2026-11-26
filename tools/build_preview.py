@@ -22,7 +22,8 @@ SLOT = '--slot' in sys.argv[2:]
 # 2026-11-05: STREET KING(ストーリー)の 確認用ページ(--story)。10種族の 第1形態の モデル + 一枚絵
 STORY = '--story' in sys.argv[2:]
 # 2026-11-24 9つめ: 冒険(--adv)。10種族の 第1形態の モデル + 敵の 絵。開くと 冒険から(STREET KING の ページが 15MB に 入らなくなったため)
-ADV = '--adv' in sys.argv[2:]
+RPG = '--rpg' in sys.argv[2:]
+ADV = '--adv' in sys.argv[2:] or RPG
 B3D = '--b3d' in sys.argv[2:] or '--b3d2' in sys.argv[2:] or STORY or ADV
 # 2026-11-04: 10体の3Dモデルは 1ページ(15MB)に入らないので、新しい5体(RIOT など)は 2つめのページ(--b3d2)。相手の BUNK の3体は 両方に入れる
 B3D2 = '--b3d2' in sys.argv[2:]
@@ -30,7 +31,7 @@ B3D2 = '--b3d2' in sys.argv[2:]
 CARE = '--care' in sys.argv[2:]
 NEW5 = ('riot', 'rioter', 'riotrax', 'grit', 'gritter', 'gritbull', 'snek', 'sneker', 'snekxus', 'vybe', 'vyga', 'vygard', 'shellz', 'sheld', 'sheldozer')
 if not os.path.exists(out):
-    open(out, 'w').write('<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>' + ('STREET KING 確認用' if STORY else '冒険 確認用' if ADV else '3Dバトル 確認用2' if B3D2 else '3Dバトル 確認用' if B3D else 'MYTHCLASH 確認用' if MYTH else 'ROYAL JACKPOT 確認用' if SLOT else 'お世話 確認用' if CARE else 'MONZ') + '</title>'
+    open(out, 'w').write('<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>' + ('STREET KING 確認用' if STORY else '擬人化RPG 試作' if RPG else '冒険 確認用' if ADV else '3Dバトル 確認用2' if B3D2 else '3Dバトル 確認用' if B3D else 'MYTHCLASH 確認用' if MYTH else 'ROYAL JACKPOT 確認用' if SLOT else 'お世話 確認用' if CARE else 'MONZ') + '</title>'
                          '<style>html,body{margin:0;height:100%;background:#1b1024;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none}#game{width:100%;height:100%}</style></head>'
                          '<body><div id="boot" style="color:#fff;font:20px sans-serif;text-align:center;padding-top:40vh">よみこみ中…</div><div id="game"></div>\n<script type="module"></script></body></html>')
 js = open(glob.glob(root + '/dist/assets/index-*.js')[0]).read()
@@ -53,6 +54,9 @@ if B3D:
         else:
             # 2026-11-24 冒険の 敵の 絵(SLIME など)は 冒険の ページだけ
             paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/adventure/*.webp'))
+            # 2026-11-26 擬人化RPG の 試作(--rpg): 企画者の BUNK 擬人化 モデル
+            if RPG:
+                paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/rpg/*.glb'))
     else:
         paths = [p for p in paths if (is_new(p) or is_bunk(p) or p.endswith(('crownie.glb', 'crownix.glb')))] if B3D2 else [p for p in paths if not is_new(p)]
         # 2026-11-06 CROWNOR は 15MB に 入らないので STREET KING の ページ(--story)だけ
@@ -228,7 +232,7 @@ jsons = {p: json.load(open(pub + p)) for p in ['assets/bunk/parts/parts.json', '
 html = open(out).read()
 start = html.index('<script>window.__MONZ_ASSETS') if '__MONZ_ASSETS' in html else html.index('<script type="module">')
 # MYTHCLASH の確認用ページは MYTHCLASH のタイトルから。ゲームの確認用ページはカードの絵を読みにいかない(入れていないので)
-flags = "window.__MONZ_START = 'Adventure'; window.__MONZ_NO_CARD_ART = true;" if ADV else "window.__MONZ_START = 'SlotTitle'; window.__MONZ_NO_CARD_ART = true;" if SLOT else "window.__MONZ_START = 'MahjongQuest'; window.__MONZ_NO_CARD_ART = true;" if MJ else "window.__MONZ_START = 'RumbleMode'; window.__MONZ_NO_CARD_ART = true;" if B3D else "window.__MONZ_START = 'MythTitle';" if MYTH else 'window.__MONZ_NO_CARD_ART = true;'
+flags = "window.__MONZ_START = 'Adventure'; window.__MONZ_NO_CARD_ART = true;" + (" window.__MONZ_RPG = true;" if RPG else "") if ADV else "window.__MONZ_START = 'SlotTitle'; window.__MONZ_NO_CARD_ART = true;" if SLOT else "window.__MONZ_START = 'MahjongQuest'; window.__MONZ_NO_CARD_ART = true;" if MJ else "window.__MONZ_START = 'RumbleMode'; window.__MONZ_NO_CARD_ART = true;" if B3D else "window.__MONZ_START = 'MythTitle';" if MYTH else 'window.__MONZ_NO_CARD_ART = true;'
 html = html[:start] + '<script>window.__MONZ_ASSETS = ' + json.dumps(assets) + ';\nwindow.__MONZ_JSON = ' + json.dumps(jsons) + ';\n' + flags + '</script>\n' + \
     '<script type="module">\ndocument.getElementById(\'boot\')?.remove();\n' + js + '\n</script>\n'
 open(out, 'w').write(html)

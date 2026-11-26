@@ -502,7 +502,17 @@ export class DungeonView {
   private auraMat: THREE.MeshBasicMaterial;
   ready = false;
 
-  constructor(canvas: HTMLCanvasElement, s: AdvState, entrant: AnimeEntrant, private model: ModelPick) {
+  /** 擬人化RPG の 試作: 自分を ドット絵の ように 見せる(3D を 小さく 写して 板に はる・8方向) */
+  private pixelOpt: { on: boolean } | null = null;
+  private pixRT: THREE.WebGLRenderTarget | null = null;
+  private pixCam: THREE.OrthographicCamera | null = null;
+  private pixQuad: THREE.Mesh | null = null;
+  private pixWas = false;
+
+  constructor(canvas: HTMLCanvasElement, s: AdvState, entrant: AnimeEntrant, private model: ModelPick, pixel: { on: boolean } | null = null) {
+    this.pixelOpt = pixel;
+    // 擬人化RPG の 試作は キャラを 大きく 見せる(昔の MMORPG くらいの 近さ)【仮】
+    if (pixel) this.viewH = 8.5;
     // 2026-11-20 企画者「モンズランブル やってると たまに 最初に 戻っちゃう」: iPhone で メモリが 足りず ページが 読み直される →
     // 3D の 描く 細かさを 少し 下げる(細かい 画面では なめらか処理なし・最大 1.5倍)。見た目の 大きさは 同じ
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: (window.devicePixelRatio || 1) < 2 });
@@ -1338,6 +1348,8 @@ export class DungeonView {
               : { k: 'free' };
     // とびおり・地面の 技は とび上がる
     if (tc && (tc.kind === 'drop' || tc.kind === 'quake') && p.actT < tw) f.y = Math.sin(Math.PI * (p.actT / tw)) * (tc.kind === 'drop' ? 3 : 0.9);
+    // ドットの 見た目は 8方向(昔の MMORPG の キャラの 絵と 同じ)
+    if (this.pixelOpt?.on) f.face = Math.round(f.face / (Math.PI / 4)) * (Math.PI / 4);
     this.rig.update(f, dt);
     // 落ちている 物: くるくる・ふわふわ
     for (const o of this.drops.values()) {
@@ -1519,7 +1531,55 @@ export class DungeonView {
     // 角度は 最初の 試作と 同じ(約58度。2026-11-07 企画者「真上からは嫌・角度は最初のぐらい」)
     this.camera.position.set(cx, 17, cz + 17); // 同じ日「若干 真上っぽい」→ 45度に
     this.camera.lookAt(cx, 0.6, cz);
+    this.pixelPass(p.x, p.z);
     this.renderer.render(this.scene, this.camera);
+  }
+
+  /**
+   * 擬人化RPG の 試作 C: 自分の 体だけを 小さな 絵に 写して(ぼかさない)、その 絵を カメラに 向いた 板で 出す。
+   * 板の 絵は 1マス = 1点 の ドット絵の ように 見える。体(3D)は かくす
+   */
+  private pixelPass(x: number, z: number): void {
+    const on = !!this.pixelOpt?.on;
+    if (on !== this.pixWas) {
+      this.pixWas = on;
+      // 体を 別の 層へ(ふつうの カメラには うつらない)
+      this.rig.root.traverse((o) => o.layers.set(on ? 1 : 0));
+      if (this.pixQuad) this.pixQuad.visible = on;
+    }
+    if (!on) return;
+    this.rig.root.traverse((o) => o.layers.set(1));
+    const SPAN = 2.6;
+    const RES = 88;
+    if (!this.pixRT) {
+      this.pixRT = new THREE.WebGLRenderTarget(RES, RES, { magFilter: THREE.NearestFilter, minFilter: THREE.NearestFilter });
+      this.pixRT.texture.colorSpace = THREE.SRGBColorSpace;
+      this.pixCam = new THREE.OrthographicCamera(-SPAN / 2, SPAN / 2, SPAN / 2, -SPAN / 2, 0.1, 100);
+      this.pixCam.layers.set(1);
+      this.scene.traverse((o) => {
+        if ((o as THREE.Light).isLight) o.layers.enable(1);
+      });
+      this.pixQuad = new THREE.Mesh(new THREE.PlaneGeometry(SPAN, SPAN), new THREE.MeshBasicMaterial({ map: this.pixRT.texture, transparent: true, alphaTest: 0.5 }));
+      this.scene.add(this.pixQuad);
+    }
+    const cam = this.pixCam!;
+    // ふつうの カメラと 同じ 向きで、自分の まん中を 見る
+    const cy = 0.85;
+    const off = new THREE.Vector3(0, 16.4, 17).normalize();
+    cam.position.set(x, cy, z).addScaledVector(off, 20);
+    cam.lookAt(x, cy, z);
+    const bg = this.scene.background;
+    this.scene.background = null;
+    this.renderer.setRenderTarget(this.pixRT);
+    this.renderer.setClearColor(0x000000, 0);
+    this.renderer.clear();
+    this.renderer.render(this.scene, cam);
+    this.renderer.setRenderTarget(null);
+    this.scene.background = bg;
+    this.renderer.setClearColor(0x0b0712, 1);
+    const q = this.pixQuad!;
+    q.position.set(x, cy, z);
+    q.quaternion.copy(cam.quaternion);
   }
 
   dispose(): void {

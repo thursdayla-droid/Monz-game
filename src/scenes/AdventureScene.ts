@@ -11,6 +11,11 @@ import { addStats, autoGrowthAt, speciesStats, STAT_LABELS, type StatBlock, type
 import type { SpeciesId } from '../core/species';
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { modelFor } from '../core/roster';
+
+/** 擬人化RPG の 試作(確認用ページ --rpg)。冒険の 画面を 借りて 試す */
+const rpgTest = () => !!(window as { __MONZ_RPG?: boolean }).__MONZ_RPG;
+/** 試作の 見た目: false = 3D(B)・true = 3D から 写した ドット(C) */
+const rpgPixel = { on: false };
 import { DungeonView } from '../render/dungeonView';
 import { UI_FONT } from '../ui/paint';
 import { partnerEntrant } from './AutoBattleScene';
@@ -170,7 +175,7 @@ export class AdventureScene extends Phaser.Scene {
     root.insertAdjacentHTML(
       'beforeend',
       `<div class="top"><button class="back">◀ もどる</button><div class="me"><div class="nm">${me.name}　Lv.${this.level}　<b style="color:#ffd23a">${advRun.floor}F</b></div><div class="bar"><i></i></div><div class="num"></div></div><div class="goal"></div><button class="bagBtn">もちもの</button></div>
-       ${isPreview() ? `<div class="dev" style="position:absolute;z-index:5;left:calc(env(safe-area-inset-left) + 12px);top:calc(env(safe-area-inset-top) + 62px);display:flex;gap:6px"><button class="back devLv">確認 Lv.${advDev.level}</button><button class="back devTy">型：${STAT_LABELS[advDev.type as StatKey]}</button><button class="back devFl">確認 ${advRun.floor}F</button><button class="back devSp">${(advDev.species ?? '自分').toUpperCase()}</button></div>` : ''}
+       ${isPreview() ? `<div class="dev" style="position:absolute;z-index:5;left:calc(env(safe-area-inset-left) + 12px);top:calc(env(safe-area-inset-top) + 62px);display:flex;gap:6px"><button class="back devLv">確認 Lv.${advDev.level}</button><button class="back devTy">型：${STAT_LABELS[advDev.type as StatKey]}</button><button class="back devFl">確認 ${advRun.floor}F</button><button class="back devSp">${(advDev.species ?? '自分').toUpperCase()}</button>${rpgTest() ? `<button class="back devPx">見た目：${rpgPixel.on ? 'ドット' : '3D'}</button>` : ''}</div>` : ''}
        <div class="stickZone"><div class="stickBase"><div class="stickKnob"></div></div></div>
        <div class="stickHint">ここを<br>さわって<br>うごかす</div>
        <button class="atk">こうげき</button>
@@ -295,13 +300,20 @@ export class AdventureScene extends Phaser.Scene {
         advDev.species = i + 1 < DEV_SPECIES.length ? DEV_SPECIES[i + 1] : null;
         this.scene.restart();
       });
+      if (rpgTest())
+        $('.devPx').addEventListener('click', () => {
+          rpgPixel.on = !rpgPixel.on;
+          $('.devPx').textContent = `見た目：${rpgPixel.on ? 'ドット' : '3D'}`;
+        });
       $('.devTy').addEventListener('click', () => {
         advDev.type = DEV_TYPES[(DEV_TYPES.indexOf(advDev.type) + 1) % DEV_TYPES.length];
         if (advDev.level === 1) advDev.level = 25;
         this.scene.restart();
       });
     }
-    this.view = new DungeonView(canvas, this.state, me, modelFor(me.species, this.level));
+    // 擬人化RPG の 試作(2026-11-26。確認用ページ --rpg だけ): 企画者の BUNK 擬人化 モデルで 路地裏を 動く
+    const pick = rpgTest() ? { file: 'assets/rpg/bunk_rpg.glb', form: 1, height: 1.75, bones: true, amp: 1, rig: 'auto' as const } : modelFor(me.species, this.level);
+    this.view = new DungeonView(canvas, this.state, me, pick, rpgPixel);
     this.resize();
   }
 
