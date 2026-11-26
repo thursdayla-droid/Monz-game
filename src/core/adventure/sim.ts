@@ -363,6 +363,8 @@ export interface AdvState {
   growType: string | null;
   /** 通常攻撃の 種類(種族で 決まる)・続け打ちの 段 */
   jab: string;
+  /** 通常攻撃の 届く 長さ・広さを 変える(擬人化RPG の 試作: ロールと 進化で 決める。なければ 種族の ふつう) */
+  jabReach?: { range: number; arc: number };
   chain: number;
   lastAtk: number;
   /** 装備の 前の 数字(装備で 足す 元) */
@@ -833,6 +835,15 @@ function dropAt(s: AdvState, x: number, z: number, gearP: number, herbP: number)
   s.events.push({ kind: 'drop', drop: d });
 }
 
+/**
+ * 擬人化RPG の 通常攻撃の 届く 範囲(2026-11-26 企画者「剣闘士にしては 広すぎる」「姿は 変わらないけど 進化したら 攻撃の 長さが 少し 広がる」)。
+ * form = 進化(1〜3)【仮】
+ */
+export function rpgJabReach(role: string, form: number): { range: number; arc: number } {
+  const base = ({ 剣闘士: { range: 1.8, arc: 0.55 } } as Record<string, { range: number; arc: number }>)[role] ?? { range: 1.8, arc: 0.55 };
+  return { range: base.range + (form - 1) * 0.3, arc: base.arc };
+}
+
 /** 木箱を たたく(test = その 場所に 攻撃が とどくか)。こわれたら 通れる ように なり、物が 出る */
 function hitCrates(s: AdvState, test: (x: number, z: number) => boolean): void {
   for (const c of s.crates) {
@@ -1055,7 +1066,7 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
     if (p.act === 'attack' && !p.struck && p.actT >= P.windup) {
       p.struck = true;
       // 種族ごとの 通常攻撃(MONZ RUMBLE と 同じ 考え): ムチ = 遠くまで 細く・水の玉 = 飛ばす・電撃ダッシュ = 少し 前へ・ほかは 目の前
-      const J = ADV.jab[s.jab] ?? ADV.jab.punch;
+      const J = s.jabReach ?? ADV.jab[s.jab] ?? ADV.jab.punch;
       const mul = s.chain === 3 ? ADV.chain.last : 1;
       if (s.jab === 'shot') {
         const sp = ADV.tech.shot.speed;
