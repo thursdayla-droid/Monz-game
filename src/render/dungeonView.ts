@@ -256,14 +256,22 @@ interface MobArt {
   tex: THREE.Texture;
   /** 左右 反転した 絵(スプライトは 大きさを マイナスに しても 反転しないので 別に 持つ) */
   flip: THREE.Texture;
+  /** ミミックが 化けて いる 間の 絵(ゴミ箱) */
+  sleep?: THREE.Texture;
   h: number;
   fly: boolean;
 }
 /** 絵の ある 敵(企画者の 絵が とどいたら ここに 足す) */
 const MOB_ART: Record<string, { file: string; h: number; fly: boolean }> = {
   slime: { file: 'assets/adventure/mob_slime.webp', h: 1.5, fly: false },
-  // 【仮】KING SLIME の 絵が とどくまで SLIME の 絵を 大きく + 金の 王冠
-  kingslime: { file: 'assets/adventure/mob_slime.webp', h: 3.6, fly: false },
+  kingslime: { file: 'assets/adventure/mob_kingslime.webp', h: 3.6, fly: false },
+  troll: { file: 'assets/adventure/mob_troll.webp', h: 4.2, fly: false },
+  ghost: { file: 'assets/adventure/mob_ghost.webp', h: 1.5, fly: true },
+  spider: { file: 'assets/adventure/mob_spider.webp', h: 1.5, fly: false },
+  mimic: { file: 'assets/adventure/mob_mimic.webp', h: 1.7, fly: false },
+  shroom: { file: 'assets/adventure/mob_shroom.webp', h: 1.6, fly: false },
+  skele: { file: 'assets/adventure/mob_skele.webp', h: 1.8, fly: false },
+  golem: { file: 'assets/adventure/mob_golem.webp', h: 2.7, fly: false },
   ratz: { file: 'assets/adventure/mob_ratz.webp', h: 1.2, fly: false },
   pige: { file: 'assets/adventure/mob_pige.webp', h: 1.4, fly: true },
   batz: { file: 'assets/adventure/mob_batz.webp', h: 1.2, fly: true },
@@ -295,6 +303,7 @@ class MobView {
   private art: THREE.Sprite | null = null;
   private rightTex: THREE.Texture | null = null;
   private flipTex: THREE.Texture | null = null;
+  private sleepTex: THREE.Texture | null = null;
   private artMat: THREE.SpriteMaterial | null = null;
   private artH = 1.7;
   private fly = false;
@@ -332,7 +341,7 @@ class MobView {
       eye.position.set(0.52, 0.12, s * 0.2);
       this.body.add(eye);
     }
-    if (kind === 'kingslime') {
+    if (kind === 'kingslime' && !art) {
       // 【仮】金の 王冠
       const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.28, 0.3, 5, 1, true), new THREE.MeshToonMaterial({ color: 0xffd23a, gradientMap: grad, side: THREE.DoubleSide }));
       crown.rotation.z = 0.35;
@@ -369,6 +378,7 @@ class MobView {
       this.artMat = new THREE.SpriteMaterial({ map: art.tex, transparent: true, alphaTest: 0.1 });
       this.rightTex = art.tex;
       this.flipTex = art.flip;
+      this.sleepTex = art.sleep ?? null;
       this.art = new THREE.Sprite(this.artMat);
       this.art.center.set(0.5, 0);
       this.artH = art.h;
@@ -392,7 +402,8 @@ class MobView {
     const aspect = img?.width && img?.height ? img.width / img.height : 1;
     // 絵は 右向き。左へ 動く ときは 左右を 反転
     const left = Math.cos(m.face) < 0;
-    const want = left ? this.flipTex! : this.rightTex!;
+    // ミミック: 気づくまで 置き物の ゴミ箱の 絵(2026-11-26 企画者の 絵)
+    const want = this.sleepTex && !m.awake ? this.sleepTex : left ? this.flipTex! : this.rightTex!;
     if (mat.map !== want) mat.map = want;
     sp.scale.set(this.artH * aspect * sx, this.artH * (sy / 0.85), 1);
     sp.position.y = this.fly ? 0.7 + Math.sin(now * 5 + m.id) * 0.12 : 0;
@@ -1190,6 +1201,10 @@ export class DungeonView {
       flip.repeat.x = -1;
       flip.offset.x = 1;
       art = { tex, flip, h: a.h, fly: a.fly };
+      if (kind === 'mimic') {
+        art.sleep = new THREE.TextureLoader().load(assetUrl('assets/adventure/prop_trash.webp'));
+        art.sleep.colorSpace = THREE.SRGBColorSpace;
+      }
       this.mobTex.set(kind!, art);
     }
     return art;
