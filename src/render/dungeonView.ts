@@ -1659,8 +1659,8 @@ export class DungeonView {
     m.visible = true;
     m.position.set(p.x, 0.07, p.z);
     m.rotation.z += dt * 2.5;
-    m.scale.setScalar(1.2 + w * 1.6);
-    mat.opacity = 0.4 + w * 0.6;
+    m.scale.setScalar(2.0 + w * 2.0);
+    mat.opacity = 0.5 + w * 0.5;
   }
 
   /** 技(擬人化RPG): 技の 名前を さけぶ + 形ごとの 演出(剣闘士の 試作) */
@@ -1672,7 +1672,7 @@ export class DungeonView {
     } catch {
       name = '';
     }
-    if (name) this.pop(`${name}!!`, '#ffffff', s.player.x, 3.0, s.player.z, 0.55);
+    if (name) this.pop(`${name}!!`, '#ffffff', s.player.x, 3.0, s.player.z, 0.95);
     this.lastEl = { el: e.element, t: performance.now() / 1000 };
     const c = EL_HEX[e.element] ?? 0xffffff;
     const ex = this.exName(e.element);
