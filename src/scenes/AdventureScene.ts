@@ -98,6 +98,8 @@ export class AdventureScene extends Phaser.Scene {
   private attack = false;
   /** 押した(短く 押しても 1回は 出す) */
   private press = false;
+  /** 当てた 瞬間の 止まる 時間(秒) */
+  private hitStop = 0;
   /** 押した 技(0〜3) */
   private techPress: number | null = null;
   private bagOpen = false;
@@ -360,6 +362,12 @@ export class AdventureScene extends Phaser.Scene {
       this.view.render(s, [], 0);
       return;
     }
+    // 当てた 瞬間 少しだけ 止める(重い 手ごたえ。2026-11-26 企画者「攻撃に もう少し 重厚感」)
+    if (this.hitStop > 0) {
+      this.hitStop -= dt;
+      this.view.render(s, [], 0);
+      return;
+    }
     stepAdventure(s, { mx: this.stick.x, mz: this.stick.y, attack: this.attack || this.press, tech: this.techPress, techDir: this.techDir }, dt);
     if (s.events.some((e) => e.kind === 'attack' && e.id === 0)) this.press = false;
     if (s.player.act === 'tech' || this.techPress === null || (s.techCd[this.techPress] ?? 0) > s.t) {
@@ -368,10 +376,12 @@ export class AdventureScene extends Phaser.Scene {
     }
     const shape = this.aim ? aimPreview(s, this.aim.slot, this.aim.dir) : null;
     this.view.setAim(shape && this.aim ? { ...shape, dir: this.aim.dir ?? s.player.face, auto: this.aim.dir === null } : null);
+    for (const e of s.events) if (e.kind === 'hit' && e.target !== 0) this.hitStop = Math.max(this.hitStop, e.crit || s.chain === 3 ? 0.09 : 0.05);
     for (const e of s.events) {
       if (e.kind === 'attack' && e.id === 0) audio.se('swing');
       else if (e.kind === 'hit') audio.se(e.target === 0 ? 'punch' : 'b3dPunchHit', e.crit ? { pitch: 0.8 } : undefined);
       else if (e.kind === 'die') audio.se('burst');
+      else if (e.kind === 'crate') audio.se(e.broken ? 'punchHeavy' : 'b3dPunchHit');
       else if (e.kind === 'open') this.message('ボスを たおした！ とびらが ひらいた');
       else if (e.kind === 'door') {
         audio.se('cheer');

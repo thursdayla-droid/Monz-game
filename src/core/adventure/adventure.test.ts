@@ -65,6 +65,34 @@ describe('冒険の ダンジョン', () => {
 });
 
 describe('冒険の 動き', () => {
+  it('木箱は 2回 たたくと こわれて 通れる・物が 出る ことが ある', () => {
+    let s: AdvState | null = null;
+    for (let seed = 1; seed < 50 && !s; seed++) {
+      const t = newAdventure(seed, { hp: 10, power: 10, tough: 10, speed: 10, tech: 10 });
+      if (t.crates.length) s = t;
+    }
+    expect(s).toBeTruthy();
+    const st = s!;
+    st.mobs.length = 0;
+    st.mobRoom.length = 0;
+    const c = st.crates[0];
+    const f = st.floor;
+    expect(f.tiles[c.cy * f.w + c.cx]).toBe(3);
+    // 木箱の となり(部屋の 内がわ)に 立って 木箱を 向く
+    const inR = f.rooms.find((r) => c.cx >= r.x && c.cx < r.x + r.w && c.cy >= r.y && c.cy < r.y + r.h)!;
+    const nx = c.cx === inR.x ? c.cx + 1 : c.cx === inR.x + inR.w - 1 ? c.cx - 1 : c.cx;
+    const ny = nx === c.cx ? c.cy + 1 : c.cy;
+    st.player.x = (nx + 0.5) * CELL;
+    st.player.z = (ny + 0.5) * CELL;
+    let broke = false;
+    for (let i = 0; i < 200 && !broke; i++) {
+      st.player.face = Math.atan2((c.cy + 0.5) * CELL - st.player.z, (c.cx + 0.5) * CELL - st.player.x);
+      stepAdventure(st, { mx: 0, mz: 0, attack: true, tech: null, techDir: null }, 1 / 30);
+      if (st.events.some((e) => e.kind === 'crate' && e.broken)) broke = true;
+    }
+    expect(broke).toBe(true);
+    expect(f.tiles[c.cy * f.w + c.cx]).toBe(FLOOR);
+  });
   const strong = { hp: 40, power: 40, tough: 30, speed: 20, tech: 20 };
   /** しかけを 解きながら 進む ボット: 今の 部屋の しかけ(敵・スイッチ・箱・鍵)→ 扉 → 次の 部屋 → ワープ */
   function goalOf(s: AdvState): { x: number; z: number; fight: boolean } {

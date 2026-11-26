@@ -5,7 +5,7 @@
  */
 import { mulberry32, type Rng } from '../rng';
 import type { StatBlock } from '../stats';
-import { fits, generateFloor, lineOfSight, cellToWorld, roomAt, setDoor, walkable, type Floor, type Room } from './dungeon';
+import { CELL, FLOOR, fits, generateFloor, lineOfSight, cellToWorld, roomAt, setDoor, walkable, type Floor, type Room } from './dungeon';
 
 /**
  * 路地裏(1〜10階)の 敵 10種(2026-11-24 企画者の 案)。絵と 3D は 企画者が 作る → それまで 仮の 形
@@ -152,6 +152,10 @@ export const ADV = {
   /** 装備の 強さ(ランクごとの 倍)と 1倍の ときの 上がり方 */
   gear: { mul: { D: 1, C: 2, B: 3, A: 5, S: 8 } as Record<Rank, number>, head: 2, armor: 3, charm: 8 },
   pickR: 1.1,
+  /** 木箱【仮】: 2回 たたくと こわれる・回復の実 50%・装備 30% */
+  crate: { hp: 2, herb: 0.5, gear: 0.3 },
+  /** スライムの とびかかりの 時間(秒) */
+  hop: { dur: 0.32 },
   /** しかけ【仮】: 箱の 半分の 大きさ・スイッチに のる きょり・鍵で 扉を あける きょり・はまった 箱を もどす 秒 */
   puzzle: { box: 0.85, plate: 0.8, keyDoor: 2.6, stuckReset: 1.6, warp: 1.4 },
 } as const;
@@ -233,6 +237,8 @@ export interface Actor {
   dotDmg?: number;
   atkDownUntil?: number;
   defDownUntil?: number;
+  /** スライムの とびかかり(2026-11-26 企画者「瞬間移動して 攻撃は やめて」→ 少しずつ とぶ) */
+  hop?: { t: number; dur: number; dist: number; dir: number; hit: boolean };
 }
 
 /** 飛ぶ 弾(自分の 技) */
@@ -279,6 +285,7 @@ export type AdvEvent =
   | { kind: 'boxReset'; x: number; z: number }
   | { kind: 'bossWarn'; move: BossMove; x: number; z: number; dir: number; r: number; time: number }
   | { kind: 'mobFx'; style: string; x: number; z: number; dir: number; r: number; arc: number }
+  | { kind: 'crate'; x: number; z: number; prop: number; broken: boolean }
   | { kind: 'lose' };
 
 /**
@@ -298,8 +305,17 @@ export interface Puzzle {
   key?: { x: number; z: number; taken: boolean };
 }
 
+/** こわせる 木箱(2026-11-26 企画者「木箱は 壊れて アイテムが 出る」)。prop = floor.props の 番号 */
+export interface Crate {
+  cx: number;
+  cy: number;
+  hp: number;
+  prop: number;
+}
+
 export interface AdvState {
   floor: Floor;
+  crates: Crate[];
   /** 部屋ごとの しかけ(puzzles[i] で 扉 i が ひらく) */
   puzzles: Puzzle[];
   /** 持っている 鍵の 数 */
@@ -460,7 +476,7 @@ export function newAdventure(seed: number, stats: StatBlock, level = 1, techs: (
   }
   const ts = [0, 1, 2, 3].map((i) => techs[i] ?? null);
   return {
-    floor, puzzles, keys: 0, mobRoom, rng, t: 0, player: p, mobs, tech: stats.tech, exitOpen: true, floorNo: level, result: 'play', kills: 0, events: [],
+    floor, crates: floor.props.flatMap((pr, i) => (pr.kind === 'crate' ? [{ cx: pr.cx, cy: pr.cy, hp: ADV.crate.hp, prop: i }] : [])), puzzles, keys: 0, mobRoom, rng, t: 0, player: p, mobs, tech: stats.tech, exitOpen: true, floorNo: level, result: 'play', kills: 0, events: [],
     techs: ts, techCd: [0, 0, 0, 0], techSlot: -1, bag: [], gear: {}, drops: [], seq: 0,
     shots: [], mobShots: [], fields: [], shieldUntil: 0, atkUpUntil: 0, dash: null, combo: null, jumpTo: null, aimed: false, growType, jab: jabStyleOf(species), chain: 0, lastAtk: -9,
     base: { atk: p.atk, tough: p.tough, maxHp: p.maxHp },
@@ -725,6 +741,7 @@ function stepTechs(s: AdvState, dt: number): void {
     if (s.t >= s.dash.until || p.act === 'dead') s.dash = null;
     else {
       moveBy(s, p, Math.cos(p.face) * s.dash.speed * dt, Math.sin(p.face) * s.dash.speed * dt, ADV.player.r);
+      if (s.dash.jab) hitCrates(s, (x, z) => Math.hypot(x - p.x, z - p.z) < T.rush.r + 1.1);
       for (const m of inCircle(s, p.x, p.z, T.rush.r)) {
         if (s.dash.hit.includes(m.id)) continue;
         s.dash.hit.push(m.id);
@@ -739,6 +756,7 @@ function stepTechs(s: AdvState, dt: number): void {
       m.awake = true;
       damage(s, p, m, s.combo.mul, tc);
     }
+    hitCrates(s, inConeAt(p.x, p.z, p.face, T.combo.range, T.combo.arc));
     s.combo.left--;
     s.combo.next = s.t + T.combo.every;
     if (s.combo.left <= 0) s.combo = null;
@@ -747,7 +765,10 @@ function stepTechs(s: AdvState, dt: number): void {
     sh.x += sh.vx * dt;
     sh.z += sh.vz * dt;
     sh.life -= dt;
-    if (!fits(s.floor, sh.x, sh.z, 0.05)) sh.life = 0;
+    if (!fits(s.floor, sh.x, sh.z, 0.05)) {
+      sh.life = 0;
+      hitCrates(s, (x, z) => Math.abs(x - sh.x) < CELL * 0.6 && Math.abs(z - sh.z) < CELL * 0.6);
+    }
     const m = inCircle(s, sh.x, sh.z, sh.r)[0];
     if (m && sh.life > 0) {
       m.awake = true;
@@ -786,10 +807,14 @@ function stepTechs(s: AdvState, dt: number): void {
 
 /** 倒した モブが 物を 落とす【仮】 */
 function dropFrom(s: AdvState, m: Actor): void {
+  dropAt(s, m.x, m.z, ADV.drop.gear, ADV.drop.herb);
+}
+
+function dropAt(s: AdvState, x: number, z: number, gearP: number, herbP: number): void {
   const D = ADV.drop;
   const r = s.rng();
   let item: AdvItem | null = null;
-  if (r < D.gear) {
+  if (r < gearP) {
     const slots: GearSlot[] = ['head', 'armor', 'charm'];
     const slot = slots[Math.floor(s.rng() * 3)];
     let q = s.rng() * D.rank.reduce((a, b) => a + b, 0);
@@ -799,12 +824,31 @@ function dropFrom(s: AdvState, m: Actor): void {
       break;
     }
     item = { kind: 'gear', slot, rank };
-  } else if (r < D.gear + D.herb) item = { kind: 'herb' };
+  } else if (r < gearP + herbP) item = { kind: 'herb' };
   if (!item) return;
-  const d: Drop = { id: ++s.seq, x: m.x, z: m.z, item };
+  const d: Drop = { id: ++s.seq, x, z, item };
   s.drops.push(d);
   s.events.push({ kind: 'drop', drop: d });
 }
+
+/** 木箱を たたく(test = その 場所に 攻撃が とどくか)。こわれたら 通れる ように なり、物が 出る */
+function hitCrates(s: AdvState, test: (x: number, z: number) => boolean): void {
+  for (const c of s.crates) {
+    if (c.hp <= 0) continue;
+    const x = (c.cx + 0.5) * CELL;
+    const z = (c.cy + 0.5) * CELL;
+    if (!test(x, z)) continue;
+    c.hp--;
+    const broken = c.hp <= 0;
+    s.events.push({ kind: 'crate', x, z, prop: c.prop, broken });
+    if (broken) {
+      s.floor.tiles[c.cy * s.floor.w + c.cx] = FLOOR;
+      dropAt(s, x, z, ADV.crate.gear, ADV.crate.herb);
+    }
+  }
+}
+const inConeAt = (px: number, pz: number, dir: number, range: number, arc: number) => (x: number, z: number) =>
+  Math.hypot(x - px, z - pz) < range + 1.0 && Math.abs(angDiff(Math.atan2(z - pz, x - px), dir)) < arc + 0.3;
 
 /** 装備で 数字を 足し直す(HP の 割合は そのまま) */
 function applyGear(s: AdvState): void {
@@ -1017,11 +1061,13 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
       } else {
         // ZIPP の 電撃ダッシュ: 速く 走って ぶつかる(瞬間移動に しない。2026-11-07 企画者「早くても いい」)
         if (s.jab === 'dash') s.dash = { until: s.t + 0.16, hit: [], mul, speed: 13, jab: true };
-        else
+        else {
           for (const m of inCone(s, p.x, p.z, p.face, J.range, J.arc * (s.chain === 3 ? 1.3 : 1))) {
             m.awake = true;
             damage(s, p, m, mul);
           }
+          hitCrates(s, inConeAt(p.x, p.z, p.face, J.range, J.arc * (s.chain === 3 ? 1.3 : 1)));
+        }
       }
       s.events.push({ kind: 'jab', style: s.jab, chain: s.chain, x: p.x, z: p.z, dir: p.face, range: J.range });
     }
@@ -1037,6 +1083,7 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
     m.vx *= Math.exp(-dt * 8);
     m.vz *= Math.exp(-dt * 8);
     if (m.act === 'hurt') {
+      m.hop = undefined;
       if (m.actT > ADV.hurtTime) m.act = 'free';
       continue;
     }
@@ -1058,12 +1105,26 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
     const K = mobSpec(m);
     if (m.act === 'attack') {
       const W = K.style === 'boss' ? bossWindup(m) : K.windup;
+      if (m.hop) {
+        const h = m.hop;
+        const k = Math.min(dt, h.dur - h.t) / h.dur;
+        moveBy(s, m, Math.cos(h.dir) * h.dist * k, Math.sin(h.dir) * h.dist * k, mobR(m));
+        h.t += dt;
+        if (!h.hit && Math.hypot(p.x - m.x, p.z - m.z) < mobR(m) + P.r + 0.3) {
+          h.hit = true;
+          damage(s, m, p);
+        }
+        if (h.t >= h.dur) m.hop = undefined;
+      }
       if (!m.struck && m.actT >= W) {
         m.struck = true;
         if (K.style === 'boss') bossStrike(s, m, K);
         else mobStrike(s, m, K, d, g);
       }
-      if (m.actT > W + (K.style === 'boss' ? 0.6 : 0.35)) m.act = 'free';
+      if (m.actT > W + (K.style === 'boss' ? 0.6 : K.style === 'lunge' ? ADV.hop.dur + 0.2 : 0.35)) {
+        m.act = 'free';
+        m.hop = undefined;
+      }
       continue;
     }
     m.face = g;
@@ -1225,10 +1286,9 @@ function mobStrike(s: AdvState, m: Actor, K: MobSpec, d: number, g: number): voi
     return;
   }
   if (K.style === 'lunge') {
-    // 体当たり: 前へ とびこむ
+    // 体当たり: 前へ とびこむ(2026-11-26 企画者「瞬間移動して 攻撃は やめて」→ 0.3秒 かけて とぶ。とんでいる 間に ぶつかると 当たる)
     const before = Math.hypot(p.x - m.x, p.z - m.z);
-    moveBy(s, m, Math.cos(m.face) * Math.min(K.range - 0.6, Math.max(0, before - 0.9)), Math.sin(m.face) * Math.min(K.range - 0.6, Math.max(0, before - 0.9)), ADV.mob.r);
-    if (Math.hypot(p.x - m.x, p.z - m.z) < ADV.mob.r + P.r + 0.45) damage(s, m, p);
+    m.hop = { t: 0, dur: ADV.hop.dur, dist: Math.min(K.range - 0.6, Math.max(0, before - 0.9)) + 0.4, dir: m.face, hit: false };
     return;
   }
   s.events.push({ kind: 'mobFx', style: K.style, x: m.x, z: m.z, dir: m.face, r: K.range, arc: K.arc });

@@ -53,6 +53,109 @@ function glowTexture(): THREE.CanvasTexture {
   return glowTex;
 }
 
+/** 斬った あとの 光(三日月。外がわが 明るく、内がわへ 消える。先は 細い) */
+let slashTex: THREE.CanvasTexture | null = null;
+function slashTexture(): THREE.CanvasTexture {
+  if (slashTex) return slashTex;
+  const c = document.createElement('canvas');
+  c.width = 128;
+  c.height = 32;
+  const g = c.getContext('2d')!;
+  // u = 弧の 向き(0→1)・v = 内(0)→外(1)
+  const img = g.createImageData(128, 32);
+  for (let y = 0; y < 32; y++)
+    for (let x = 0; x < 128; x++) {
+      const u = x / 127;
+      const v = 1 - y / 31;
+      const tip = Math.pow(Math.sin(Math.PI * u), 0.6);
+      // ふちに 鋭い 線・内がわへ すっと 消える
+      const edge = Math.pow(v, 3);
+      const core = Math.max(0, (v - 0.8) / 0.2);
+      const a = Math.min(1, tip * (edge + core * 0.8)) * (0.45 + 0.55 * u);
+      const w = Math.round(200 + 55 * core);
+      const i = (y * 128 + x) * 4;
+      img.data[i] = img.data[i + 1] = img.data[i + 2] = w;
+      img.data[i + 3] = Math.round(a * 255);
+    }
+  g.putImageData(img, 0, 0);
+  slashTex = new THREE.CanvasTexture(c);
+  return slashTex;
+}
+
+/** 三日月の 形(内がわは 先へ いくほど 外に よる = 先が 細い)。u は 弧の 向き */
+function crescentGeometry(r: number, width: number, arc: number, seg = 32): THREE.BufferGeometry {
+  const pos: number[] = [];
+  const uv: number[] = [];
+  const idx: number[] = [];
+  for (let i = 0; i <= seg; i++) {
+    const u = i / seg;
+    const a = -arc / 2 + arc * u;
+    const w = width * Math.sin(Math.PI * u) + 0.02;
+    const ro = r;
+    const ri = Math.max(0.05, r - w);
+    pos.push(Math.cos(a) * ri, Math.sin(a) * ri, 0, Math.cos(a) * ro, Math.sin(a) * ro, 0);
+    uv.push(u, 0, u, 1);
+    if (i < seg) {
+      const k = i * 2;
+      idx.push(k, k + 1, k + 3, k, k + 3, k + 2);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  return g;
+}
+
+/** ハトの 羽(2026-11-26 企画者「ハトの 攻撃も 球みたいの 羽にしよ」)。右向き */
+let featherTex: THREE.CanvasTexture | null = null;
+function featherTexture(): THREE.CanvasTexture {
+  if (featherTex) return featherTex;
+  const c = document.createElement('canvas');
+  c.width = 128;
+  c.height = 48;
+  const g = c.getContext('2d')!;
+  g.translate(64, 24);
+  // 羽の 形
+  g.beginPath();
+  g.moveTo(-54, 2);
+  g.bezierCurveTo(-30, -20, 30, -20, 58, -2);
+  g.bezierCurveTo(30, 16, -30, 18, -54, 2);
+  g.closePath();
+  g.fillStyle = '#e8e6f2';
+  g.fill();
+  g.lineWidth = 4;
+  g.strokeStyle = '#1a1424';
+  g.stroke();
+  // 先の 灰色
+  g.save();
+  g.clip();
+  g.fillStyle = '#8a86a0';
+  g.fillRect(20, -24, 50, 48);
+  // すじ
+  g.strokeStyle = 'rgba(60,50,80,0.6)';
+  g.lineWidth = 2;
+  for (let i = -40; i < 50; i += 9) {
+    g.beginPath();
+    g.moveTo(i, 0);
+    g.lineTo(i + 10, -14);
+    g.moveTo(i, 0);
+    g.lineTo(i + 10, 13);
+    g.stroke();
+  }
+  g.restore();
+  // じく
+  g.beginPath();
+  g.moveTo(-62, 3);
+  g.lineTo(56, -1);
+  g.lineWidth = 3;
+  g.strokeStyle = '#3a3448';
+  g.stroke();
+  featherTex = new THREE.CanvasTexture(c);
+  featherTex.colorSpace = THREE.SRGBColorSpace;
+  return featherTex;
+}
+
 /** 床の タイル(はっきりした ふちの 石だたみ。2D の 地図のように) */
 function tileTexture(): THREE.CanvasTexture {
   const c = document.createElement('canvas');
@@ -299,7 +402,10 @@ class MobView {
     mat.opacity = m.act === 'hurt' && Math.floor(now * 20) % 2 ? 0.55 : 1;
   }
   update(m: Actor, dt: number, cam: THREE.Camera, now: number): void {
-    this.root.position.set(m.x, 0, m.z);
+    // スライムの とびかかり: 弧を えがいて とぶ(影は 床に のこす)
+    const hopY = m.hop ? Math.sin(Math.PI * Math.min(1, m.hop.t / m.hop.dur)) * 1.1 : 0;
+    this.root.position.set(m.x, hopY, m.z);
+    if (this.shadow) this.shadow.position.y = 0.04 - hopY;
     this.body.rotation.y = -m.face;
     let sy = 0.85 + Math.sin(now * 6 + m.id) * 0.04;
     let sx = 1;
@@ -514,6 +620,8 @@ export class DungeonView {
       if (m) mats.push(m);
     });
     this.scene.add(obj);
+    // 確認用: 見た目を ゆっくり 見る(ふだんは 1)
+    life *= (window as { __MONZ_FXSLOW?: number }).__MONZ_FXSLOW ?? 1;
     this.fx.push({ obj, mats, t: 0, life, tick });
     tick(0);
   }
@@ -546,29 +654,94 @@ export class DungeonView {
   }
 
   /** 通常攻撃の 見た目(2D: 床に 平らな 光。段ごとに 左・右・大きく) */
+  /**
+   * 通常攻撃の 見た目(2026-11-26 企画者「安っぽい・もっと 重厚感・範囲を スタイリッシュに」)。
+   * 先が 細い 三日月の 光を 振りぬく(1段め 右→左・2段め 左→右・3段め 大きく 1回転)。外がわに 白い 芯、少し 遅れて 色の 残像
+   */
   private jabFx(e: Extract<AdvEvent, { kind: 'jab' }>): void {
     if (e.style === 'shot') return;
     const big = e.chain === 3;
     const side = e.chain === 2 ? -1 : 1;
-    const color = e.style === 'whip' ? 0x8aff7a : e.style === 'dash' ? 0xffe24a : big ? 0xffb84a : 0xffffff;
-    const r = e.range * (big ? 1.1 : 0.95);
-    const arc = e.style === 'whip' ? 0.7 : big ? 2.6 : 1.8;
-    const m = new THREE.Mesh(new THREE.RingGeometry(r * (e.style === 'whip' ? 0.85 : 0.5), r, 24, 1, -arc / 2, arc), this.glowMat(color, 0.9, THREE.DoubleSide));
-    m.rotation.x = -Math.PI / 2;
-    m.rotation.z = -e.dir + side * (big ? 0 : 0.35);
-    m.position.set(e.x, 0.3, e.z);
-    this.addFx(m, big ? 0.3 : 0.2, (k) => {
-      m.scale.setScalar(0.8 + k * 0.3);
-      (m.material as THREE.MeshBasicMaterial).opacity = 0.9 * (1 - k);
-    });
+    const color = e.style === 'whip' ? 0x30ff60 : e.style === 'dash' ? 0xffc010 : big ? 0xff4a08 : 0xff7a18;
+    const r = e.range * (big ? 1.45 : 1.3);
+    const arc = e.style === 'whip' ? 0.9 : big ? Math.PI * 1.7 : 2.6;
+    const sweep = big ? 2.2 : 1.1;
+    const life = big ? 0.36 : 0.26;
+    const layer = (rr: number, w: number, col: number, op: number, delay: number, y: number) => {
+      const mat = new THREE.MeshBasicMaterial({ map: slashTexture(), color: col, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+      mat.color.multiplyScalar(1.5);
+      const m = new THREE.Mesh(crescentGeometry(rr, w, arc), mat);
+      m.rotation.x = -Math.PI / 2;
+      m.position.set(e.x, y, e.z);
+      this.addFx(m, life + delay, (k) => {
+        const t = Math.max(0, (k * (life + delay) - delay) / life);
+        const ease = 1 - Math.pow(1 - t, 3);
+        // 振りぬく: 向きが 回りながら 少し ふくらむ
+        m.rotation.z = -e.dir - side * (sweep / 2 - sweep * ease);
+        m.scale.setScalar(0.85 + ease * 0.2);
+        (m.material as THREE.MeshBasicMaterial).opacity = op * (t < 0.1 ? t / 0.1 : 1 - Math.pow((t - 0.1) / 0.9, 2));
+      });
+    };
+    layer(r, r * 0.42, color, 1, 0.03, 0.32);
+    layer(r, r * 0.09, 0xffffff, 0.9, 0, 0.36);
+    if (big) {
+      // 3段め: 床に 衝撃の 輪 + 強い ゆれ
+      this.groundRing(e.x + Math.cos(e.dir) * 0.8, e.z + Math.sin(e.dir) * 0.8, r * 1.1, 0xffb050, 0.4, 0.12);
+      this.shake = Math.max(this.shake, 0.3);
+    } else this.shake = Math.max(this.shake, 0.06);
     if (e.style === 'dash') {
-      const t = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.6), this.glowMat(0xffe24a, 0.7, THREE.DoubleSide));
+      const t = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.5), new THREE.MeshBasicMaterial({ map: slashTexture(), color: 0xffe24a, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
       t.rotation.x = -Math.PI / 2;
       t.rotation.z = -e.dir;
-      t.position.set(e.x - Math.cos(e.dir) * 0.9, 0.2, e.z - Math.sin(e.dir) * 0.9);
-      this.addFx(t, 0.25, (k) => ((t.material as THREE.MeshBasicMaterial).opacity = 0.7 * (1 - k)));
+      t.position.set(e.x - Math.cos(e.dir) * 1.1, 0.2, e.z - Math.sin(e.dir) * 1.1);
+      this.addFx(t, 0.25, (k) => ((t.material as THREE.MeshBasicMaterial).opacity = 0.8 * (1 - k)));
     }
-    if (big) this.shake = Math.max(this.shake, 0.18);
+  }
+
+  /** 当たった 所の 光(白い 光の 玉 + 放射の すじ)。重い 手ごたえ */
+  private impact(x: number, z: number, color: number, big: boolean): void {
+    const fl = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xffffff, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending }));
+    fl.position.set(x, 1.0, z);
+    fl.renderOrder = 5;
+    this.addFx(fl, big ? 0.22 : 0.15, (k) => {
+      fl.scale.setScalar((big ? 3.4 : 2.4) * (0.5 + k * 0.8));
+      fl.material.opacity = 1 - k;
+    });
+    const n = big ? 10 : 7;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + Math.random() * 0.4;
+      const len = (big ? 2.0 : 1.4) * (0.6 + Math.random() * 0.5);
+      const ln = new THREE.Mesh(new THREE.PlaneGeometry(len, 0.09), this.glowMat(i % 2 ? color : 0xffffff, 1, THREE.DoubleSide));
+      ln.position.set(x, 1.0, z);
+      ln.quaternion.copy(this.camera.quaternion);
+      ln.rotateZ(a);
+      this.addFx(ln, 0.16, (k) => {
+        const d = 0.3 + k * len * 0.6;
+        ln.position.set(x, 1.0, z);
+        ln.quaternion.copy(this.camera.quaternion);
+        ln.rotateZ(a);
+        ln.translateX(d);
+        ln.scale.x = 1 - k * 0.7;
+        (ln.material as THREE.MeshBasicMaterial).opacity = 1 - k;
+      });
+    }
+  }
+
+  /** 木箱の かけら */
+  private splinters(x: number, z: number, n: number): void {
+    for (let i = 0; i < n; i++) {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.08, 0.12), new THREE.MeshLambertMaterial({ color: i % 3 ? 0x8a5a32 : 0x5a3a20, transparent: true }));
+      const a = Math.random() * Math.PI * 2;
+      const sp = 2 + Math.random() * 3;
+      const vy = 3 + Math.random() * 3;
+      const rx = Math.random() * 10;
+      this.addFx(b, 0.6, (k) => {
+        const t = k * 0.6;
+        b.position.set(x + Math.cos(a) * sp * t, Math.max(0.05, 0.8 + vy * t - 9 * t * t), z + Math.sin(a) * sp * t);
+        b.rotation.set(rx * t, rx * t * 0.7, 0);
+        (b.material as THREE.MeshLambertMaterial).opacity = k > 0.7 ? (1 - k) / 0.3 : 1;
+      });
+    }
   }
 
   /** 技を 出した 時の 見た目(種類ごと) */
@@ -746,6 +919,8 @@ export class DungeonView {
   }
 
   private propTex = new Map<string, THREE.Texture>();
+  /** 置き物(floor.props の 番号 → 見た目)。こわれた 木箱は 消す */
+  private propObjs = new Map<number, THREE.Object3D>();
 
   private buildFloor(s: AdvState): void {
     const f = s.floor;
@@ -868,7 +1043,7 @@ export class DungeonView {
       lamp: { h: 3.4, aspect: 105 / 384 },
     };
     const STAND = Math.SQRT2;
-    for (const p of f.props) {
+    for (const [pi, p] of f.props.entries()) {
       const z = SIZE[p.kind];
       const name = `prop_${p.kind}`;
       const x = (p.cx + 0.5) * CELL;
@@ -878,6 +1053,7 @@ export class DungeonView {
         const b = new THREE.Mesh(new THREE.BoxGeometry(1.4, z.h * 0.7, 1.4), new THREE.MeshLambertMaterial({ color: 0x5a5466 }));
         b.position.set(x, z.h * 0.35, zz);
         this.scene.add(b);
+        this.propObjs.set(pi, b);
         continue;
       }
       const w = Math.min(CELL * 1.05, z.h * z.aspect);
@@ -889,6 +1065,7 @@ export class DungeonView {
       const jx = (((p.cx * 73 + p.cy * 37) % 7) / 7 - 0.5) * 0.3;
       m.position.set(x + jx, 0.01, zz + 0.15);
       this.scene.add(m);
+      this.propObjs.set(pi, m);
       if (p.kind === 'lamp') {
         // 街灯の あかり(光の 玉 + 足もとの 光)
         const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xffb860, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending }));
@@ -1039,8 +1216,20 @@ export class DungeonView {
         this.pop(String(e.dmg), toMe ? '#ff6a6a' : e.crit ? '#ffd23a' : '#ffffff', e.x, 2.1, e.z, e.crit ? 0.95 : 0.8);
         if (e.crit) this.pop('CRITICAL', '#ffd23a', e.x, 2.75, e.z, 0.4);
         this.burst(e.x, e.z, toMe ? 0xff4a4a : 0xffc060, e.crit ? 14 : 8);
-        this.shake = Math.max(this.shake, toMe ? 0.25 : 0.12);
+        if (!toMe) this.impact(e.x, e.z, e.crit ? 0xffd23a : 0xffa040, e.crit);
+        this.shake = Math.max(this.shake, toMe ? 0.25 : e.crit ? 0.32 : 0.2);
         if (toMe) this.rig.flash = 0.12;
+      } else if (e.kind === 'crate') {
+        const m = this.propObjs.get(e.prop);
+        this.splinters(e.x, e.z, e.broken ? 14 : 4);
+        this.shake = Math.max(this.shake, e.broken ? 0.25 : 0.12);
+        if (m && e.broken) {
+          this.scene.remove(m);
+          this.propObjs.delete(e.prop);
+        } else if (m) {
+          const x0 = m.position.x;
+          this.addFx(new THREE.Object3D(), 0.18, (k) => (m.position.x = x0 + Math.sin(k * 30) * 0.12 * (1 - k)));
+        }
       } else if (e.kind === 'die') this.burst(e.x, e.z, 0xb070ff, 18);
       else if (e.kind === 'open') this.burst(e.x, e.z, 0x7affd0, 24);
       else if (e.kind === 'door') {
@@ -1185,8 +1374,13 @@ export class DungeonView {
       let o = this.mobShotObjs.get(sh.id);
       if (!o) {
         const c = sh.kind === 'ghost' ? 0x6ae8ff : sh.slow ? 0xf0f0ff : 0xd8d0ff;
-        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: c, transparent: true, depthWrite: false, depthTest: false }));
-        sp.scale.setScalar(sh.r * 3.2);
+        const feather = sh.kind === 'pige';
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: feather ? featherTexture() : glowTexture(), color: feather ? 0xffffff : c, transparent: true, depthWrite: false, depthTest: false }));
+        if (feather) {
+          // 進む 向きに 羽の 先を 向ける(画面の 上下は 奥行きが 少し ちぢむ)
+          sp.scale.set(1.3, 0.5, 1);
+          sp.material.rotation = Math.atan2(-sh.vz * 0.71, sh.vx);
+        } else sp.scale.setScalar(sh.r * 3.2);
         this.scene.add(sp);
         this.mobShotObjs.set(sh.id, sp);
         o = sp;
