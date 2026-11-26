@@ -1159,6 +1159,7 @@ export class DungeonView {
     const done = (g: { scene: THREE.Object3D }) => {
       try {
         this.rig.useModel(g.scene, m.height, m.hue ?? 0, m.bones, m.amp, m.rig);
+        this.rig.setModelFile(m.file);
       } catch {
         // 使えない モデルは 仮の 形の まま
       }
@@ -1343,6 +1344,13 @@ export class DungeonView {
       o.rotation.y += dt * 2;
       o.position.y = 0.45 + Math.sin(now * 3 + o.id) * 0.08;
     }
+    // 装備の 3D(2026-11-26 企画者「装備したら 見た目 変えたい」)
+    const gearLook: Partial<Record<'head' | 'armor' | 'charm', [number, number]>> = {};
+    for (const k of ['head', 'armor', 'charm'] as const) {
+      const g = s.gear[k];
+      if (g) gearLook[k] = [RANK_HEX[g.rank], RANKS.indexOf(g.rank)];
+    }
+    this.rig.setGear(gearLook);
     // 装備の ランクの 光(いちばん 高い ランク)
     const best = (['head', 'armor', 'charm'] as const).reduce((r, k) => Math.max(r, s.gear[k] ? RANKS.indexOf(s.gear[k]!.rank) : -1), -1);
     this.auraMat.opacity = best < 0 ? 0 : 0.25 + best * 0.1 + Math.sin(now * 4) * 0.08;

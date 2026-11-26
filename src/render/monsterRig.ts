@@ -10,6 +10,7 @@ import { QuadBones, type QuadStyle } from './quadBones';
 import { SnakeBones } from './snakeBones';
 import type { ModelRig } from '../core/roster';
 import { BunkBones, type AttackPose } from './bunkBones';
+import { armorMesh, charmMesh, helmetMesh } from './gearMeshes';
 import { getTech } from '../core/battle3d/techTable';
 import type { AnimeMon } from '../core/battle3d/anime';
 import { ANIME } from '../core/battle3d/animeConfig';
@@ -104,6 +105,22 @@ function shiftHue(mat: THREE.MeshStandardMaterial, angle: number): void {
 }
 
 const OUTLINE = new THREE.MeshBasicMaterial({ color: 0x1a1020, side: THREE.BackSide });
+
+/** 装備の 付く 場所: [x, y, z, 大きさ] (体の 中の 長さ。+x が 前・+z が カメラがわ)。armor は [x, y, z, 体の 半径, 高さ, 形] */
+type GearFit = { head: number[]; armor: [number, number, number, number, number, ('chest' | 'pads' | 'back')?]; charm: number[] };
+/** 種族ごとの 装備の 場所(2026-11-26 第1形態の モデルを 横・前から 見て 決めた)【仮】 */
+const GEAR_FIT: Record<string, GearFit> = {
+  bunk: { head: [0.02, 1.12, 0, 0.42], armor: [0, 0.62, 0, 0.48, 0.32, 'chest'], charm: [0.15, 0.52, 0.6, 0.26] },
+  mofu: { head: [0.03, 1.02, 0, 0.4], armor: [0, 0.55, 0, 0.45, 0.3, 'chest'], charm: [0.1, 0.45, 0.5, 0.24] },
+  zipp: { head: [0.22, 0.93, 0, 0.26], armor: [0.17, 0.52, 0, 0.16, 0.16, 'chest'], charm: [0.15, 0.42, 0.16, 0.15] },
+  puni: { head: [0.06, 1.05, 0, 0.38], armor: [0, 0.55, 0, 0.45, 0.32, 'chest'], charm: [0.1, 0.42, 0.48, 0.24] },
+  klak: { head: [0, 1.02, 0, 0.4], armor: [0, 0.55, 0, 0.45, 0.3, 'pads'], charm: [0.05, 0.45, 0.5, 0.22] },
+  riot: { head: [0.6, 1.0, 0, 0.32], armor: [-0.08, 0.42, 0, 0.3, 1.5, 'back'], charm: [0.3, 0.48, 0.22, 0.18] },
+  snek: { head: [0.18, 1.05, 0, 0.28], armor: [0.2, 0.46, 0, 0.18, 0.16, 'chest'], charm: [0, 0.32, 0.45, 0.2] },
+  grit: { head: [0.5, 0.94, 0, 0.33], armor: [-0.15, 0.44, 0, 0.33, 1.5, 'back'], charm: [0.3, 0.45, 0.35, 0.2] },
+  vybe: { head: [0.34, 0.88, 0, 0.3], armor: [-0.1, 0.38, 0, 0.3, 1.3, 'back'], charm: [0.2, 0.35, 0.25, 0.17] },
+  shellz: { head: [0.88, 0.86, 0, 0.28], armor: [0.02, 0.72, 0, 0.62, 1.1, 'back'], charm: [0.6, 0.55, 0.4, 0.22] },
+};
 
 export class MonsterRig {
   readonly root = new THREE.Group();
@@ -297,6 +314,54 @@ export class MonsterRig {
     this.creature = cb?.ok ? cb : null;
     // 口(技を撃つ所)を、モデルの顔の前に
     this.mouth.position.set(size.x * k * 0.55, height * 0.42, 0);
+  }
+
+  /** 冒険の 装備の 3D(2026-11-26)。key が 変わった 時だけ 作り直す */
+  private gearObjs: THREE.Object3D[] = [];
+  private gearKey = '';
+  private modelFile = '';
+  /** 今の モデルの ファイル(装備の 付く 場所を 種族ごとに 決めるため) */
+  setModelFile(file: string): void {
+    this.modelFile = file.split('/').pop()?.replace(/\.glb$/, '') ?? '';
+    this.gearKey = '';
+  }
+  /**
+   * 装備を 体に 付ける。付く 場所は 種族ごとの 表(GEAR_FIT。体の 形が ちがうため)。表に ない モデルは 体の 大きさから だいたいで。
+   * gear: 場所ごとの [ランクの 色, ランクの 番号(D=0〜S=4)]。モデルが まだ ない 時は 何もしない
+   */
+  setGear(gear: Partial<Record<'head' | 'armor' | 'charm', [number, number]>>): void {
+    const key = JSON.stringify(gear) + this.modelFile;
+    if (!this.model || key === this.gearKey) return;
+    this.gearKey = key;
+    for (const o of this.gearObjs) o.removeFromParent();
+    this.gearObjs = [];
+    const fit = GEAR_FIT[this.modelFile] ?? this.guessFit();
+    const add = (o: THREE.Object3D, p: ArrayLike<unknown>) => {
+      o.position.set(Number(p[0]), Number(p[1]), Number(p[2]));
+      o.traverse((c) => ((c as THREE.Mesh).castShadow = true));
+      this.body.add(o);
+      this.gearObjs.push(o);
+    };
+    if (gear.head) add(helmetMesh(fit.head[3], gear.head[0], gear.head[1]), fit.head);
+    if (gear.armor) add(armorMesh(fit.armor[3], fit.armor[4], gear.armor[0], gear.armor[1], fit.armor[5] ?? 'chest'), fit.armor);
+    if (gear.charm) add(charmMesh(fit.charm[3], gear.charm[0], gear.charm[1]), fit.charm);
+  }
+  private guessFit(): GearFit {
+    const box = new THREE.Box3();
+    this.model!.traverse((o) => {
+      if ((o as THREE.Mesh).isMesh) box.expandByObject(o);
+    });
+    this.body.updateMatrixWorld(true);
+    const inv = this.body.matrixWorld.clone().invert();
+    box.applyMatrix4(inv);
+    const c = box.getCenter(new THREE.Vector3());
+    const sz = box.getSize(new THREE.Vector3());
+    const h = sz.y;
+    return {
+      head: [c.x + sz.x * 0.15, box.max.y - h * 0.22, c.z, h * 0.2],
+      armor: [c.x, h * 0.45, c.z, Math.min(sz.x, sz.z) * 0.4, h * 0.2],
+      charm: [c.x, h * 0.35, box.max.z, h * 0.15],
+    };
   }
 
   /** ばね(目標へ行きすぎて、ぷるんと戻る)。[今の値, 速さ] */
