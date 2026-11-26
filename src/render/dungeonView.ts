@@ -598,24 +598,25 @@ export class DungeonView {
     }
   }
 
-  /** 落ちている 物(回復の実 = 緑の 実・装備 = ランクの 色の 箱) */
+  /** 落ちている 物(2026-11-26 企画者の 絵: 回復の実・アタマ・ヨロイ・オマモリ)。装備は 足もとが ランクの 色に 光る */
   private dropMesh(item: AdvItem): THREE.Object3D {
     const g = new THREE.Group();
-    if (item.kind === 'herb') {
-      const m = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 8), new THREE.MeshToonMaterial({ color: 0x5ad05a, gradientMap: this.grad }));
-      const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.2, 6), new THREE.MeshToonMaterial({ color: 0x2a8a3a, gradientMap: this.grad }));
-      leaf.position.y = 0.24;
-      m.add(leaf);
-      g.add(m);
-    } else {
-      const c = RANK_HEX[item.rank];
-      const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.28), new THREE.MeshToonMaterial({ color: c, gradientMap: this.grad, emissive: c, emissiveIntensity: 0.4 }));
-      g.add(m);
-      const glow = new THREE.Mesh(new THREE.CircleGeometry(0.6, 20), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending }));
-      glow.rotation.x = -Math.PI / 2;
-      glow.position.y = -0.38;
-      g.add(glow);
+    const name = item.kind === 'herb' ? 'herb' : item.slot;
+    let tex = this.propTex.get(`item_${name}`);
+    if (!tex) {
+      tex = new THREE.TextureLoader().load(assetUrl(`assets/adventure/item_${name}.webp`));
+      tex.colorSpace = THREE.SRGBColorSpace;
+      this.propTex.set(`item_${name}`, tex);
     }
+    const c = item.kind === 'herb' ? 0x7aff8a : RANK_HEX[item.rank];
+    const glow = new THREE.Mesh(new THREE.CircleGeometry(0.7, 24), new THREE.MeshBasicMaterial({ map: glowTexture(), color: c, transparent: true, opacity: item.kind === 'herb' ? 0.35 : 0.7, depthWrite: false, blending: THREE.AdditiveBlending }));
+    glow.rotation.x = -Math.PI / 2;
+    glow.position.y = -0.4;
+    g.add(glow);
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, alphaTest: 0.1 }));
+    sp.scale.set(1.3, 1.3, 1);
+    sp.position.y = 0.3;
+    g.add(sp);
     return g;
   }
 

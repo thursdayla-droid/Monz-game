@@ -3,6 +3,7 @@ import { audio } from '../audio/engine';
 import { ALLEY_TOP, isBoss, MOB_KINDS, newAdventure, stepAdventure, playerRoom, adventureReward, aimPreview, unequip, useBagItem, useHerb, BAG_MAX, SELF_KINDS, SLOT_NAMES, type AdvItem, type AdvState, type AdvTech, type GearSlot } from '../core/adventure/sim';
 import { getTech } from '../core/battle3d/techTable';
 import { RANK_HEX } from '../render/dungeonView';
+import { assetUrl } from '../assetUrl';
 import type { Proficiency } from '../core/battle3d/config';
 import type { AnimeEntrant } from '../core/battle3d/anime';
 import { formAt, learnAt, slotsAt } from '../core/battle3d/techLearn';
@@ -175,7 +176,7 @@ export class AdventureScene extends Phaser.Scene {
        <button class="atk">こうげき</button>
        ${[0, 1, 2, 3].map((i) => `<button class="tb" data-i="${i}"><span class="cd"></span><span class="lb">${'ABCD'[i]}</span></button>`).join('')}
        <div class="cancel">キャンセル</div>
-       <button class="ib"><span class="lb">回復の実<b>0</b></span></button>
+       <button class="ib"><img src="${assetUrl('assets/adventure/item_herb.webp')}" alt="" style="position:absolute;left:6px;top:4px;width:34px;height:34px;object-fit:contain;pointer-events:none"><span class="lb" style="position:absolute;right:2px;bottom:0;text-shadow:0 0 3px #000,0 0 3px #000"><b>0</b></span></button>
        <div class="bag"><div class="box"></div></div>
        <div class="msg"></div>
        <div class="result"><h1></h1><p class="prize"></p><div class="row"><button class="again">もう一度</button><button class="leave">もどる</button></div></div>
@@ -451,6 +452,12 @@ export class AdventureScene extends Phaser.Scene {
     this.msgT = window.setTimeout(() => (el.style.opacity = '0'), 1600);
   }
 
+  /** 持ち物の 絵(2026-11-26 企画者の 絵) */
+  private itemImg(it: AdvItem | GearSlot, px = 34): string {
+    const n = typeof it === 'string' ? it : it.kind === 'herb' ? 'herb' : it.slot;
+    return `<img src="${assetUrl(`assets/adventure/item_${n}.webp`)}" style="width:${px}px;height:${px}px;object-fit:contain;display:block;pointer-events:none" alt="">`;
+  }
+
   /** 持ち物の 名前(2文字くらい)と 色 */
   private itemLabel(it: AdvItem): { top: string; sub: string; color: string } {
     if (it.kind === 'herb') return { top: '実', sub: '回復', color: '#5ad05a' };
@@ -472,7 +479,7 @@ export class AdventureScene extends Phaser.Scene {
         <div class="gear">${slots
           .map((k) => {
             const g = s.gear[k];
-            return `<button class="gs ${g ? 'on' : ''}" data-g="${k}" style="${g ? `border-color:${this.itemLabel(g).color}` : ''}">${SLOT_NAMES[k]}<br>${g ? `<b style="color:${this.itemLabel(g).color};font-size:16px">${g.rank}ランク</b>` : 'なし'}</button>`;
+            return `<button class="gs ${g ? 'on' : ''}" data-g="${k}" style="${g ? `border-color:${this.itemLabel(g).color}` : ''}"><span style="display:flex;justify-content:center;opacity:${g ? 1 : 0.35}">${this.itemImg(k, 30)}</span>${SLOT_NAMES[k]}<br>${g ? `<b style="color:${this.itemLabel(g).color};font-size:16px">${g.rank}ランク</b>` : 'なし'}</button>`;
           })
           .join('')}</div>
         <h3>もちもの<span style="font-size:12px;color:#fff">${s.bag.length} / ${BAG_MAX}</span></h3>
@@ -480,7 +487,7 @@ export class AdventureScene extends Phaser.Scene {
           const it = s.bag[i];
           if (!it) return `<div class="it"></div>`;
           const l = this.itemLabel(it);
-          return `<button class="it" data-i="${i}" style="border-color:${l.color}"><b style="color:${l.color}">${l.top}</b>${l.sub}</button>`;
+          return `<button class="it" data-i="${i}" style="border-color:${l.color};position:relative">${this.itemImg(it)}${it.kind === 'gear' ? `<b style="color:${l.color};position:absolute;right:3px;bottom:1px;font-size:13px;text-shadow:0 0 3px #000,0 0 3px #000">${l.top}</b>` : ''}</button>`;
         }).join('')}</div>
         <div class="note">さわると 使う・装備する（装備を さわると はずす）。S が いちばん 強い</div>
         <button class="close">とじる</button>`;

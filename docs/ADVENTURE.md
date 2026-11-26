@@ -190,3 +190,7 @@
 ## 2026-11-26 敵の 絵（のこり 8体。企画者の 絵）
 - GHOST・SPIDER・MIMIC・SHROOM・SKELE・GOLEM・KING SLIME・ALLEY TROLL（`design/adventure/mobs/`）→ `public/assets/adventure/mob_*.webp`。これで 路地裏の 敵は ぜんぶ 企画者の 絵
 - MIMIC は 気づくまで 置き物の ゴミ箱の 絵（化けて いる）。KING SLIME の 仮の 王冠は 絵に 王冠が あるので 出さない
+
+## 2026-11-26 アイテムの 絵（企画者の 絵）
+- 回復の実・アタマ・ヨロイ・オマモリ（`design/adventure/items/`）→ `public/assets/adventure/item_*.webp`
+- 床に 落ちている 物・持ち物・装備の 画面・回復の実の ボタンに 絵を 出す。装備の 強さ（D〜S）は 絵を 分けず、足もとの 光と 字の 色で 見分ける
