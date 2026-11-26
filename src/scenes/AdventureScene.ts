@@ -16,6 +16,13 @@ import { modelFor } from '../core/roster';
 const rpgTest = () => !!(window as { __MONZ_RPG?: boolean }).__MONZ_RPG;
 /** 試作の 見た目: false = 3D(B)・true = 3D から 写した ドット(C) */
 const rpgPixel = { on: false };
+
+/** 技の 名前 → 冒険で 使う 技 */
+function advTech(id: string | undefined): AdvTech | null {
+  if (!id) return null;
+  const t = getTech(id);
+  return { id, kind: t.kind, power: t.power ?? 0, cooldown: Math.max(2, t.cooldown), element: t.element, effect: t.effect ?? 'なし', strength: t.strength };
+}
 import { DungeonView } from '../render/dungeonView';
 import { UI_FONT } from '../ui/paint';
 import { partnerEntrant } from './AutoBattleScene';
@@ -66,6 +73,15 @@ const CSS = `
 .adv .bag .it{aspect-ratio:1;border-radius:9px;border:2px solid #ffffff40;background:#ffffff10;color:#fff;font:900 11px ${UI_FONT};display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0;line-height:1.1}
 .adv .bag .it b{font-size:15px}
 .adv .bag .note{font-size:11px;color:#c8bcd8}
+.adv .bag .techBtn{border:2px solid #ffd23a;border-radius:9px;background:#3a2a6a;color:#ffd23a;font:900 15px ${UI_FONT}}
+.adv .bag .tslots{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.adv .bag .ts{border:2px dashed #ffffff60;border-radius:10px;padding:6px 4px;background:#ffffff10;color:#fff;font:900 12px ${UI_FONT};min-height:52px}
+.adv .bag .ts.on{border-style:solid;border-color:#ffd23a;background:#ffd23a30}
+.adv .bag .ts.lock{opacity:.35}
+.adv .bag .tl{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+.adv .bag .tk{border:2px solid #ffffff40;border-radius:9px;padding:6px 4px;background:#ffffff10;color:#fff;font:900 12px ${UI_FONT};text-align:left}
+.adv .bag .tk.used{opacity:.5}
+.adv .bag .ts i,.adv .bag .tk i{font-style:normal;font-size:10px;padding:0 4px;border-radius:4px;margin-right:4px;color:#16101c}
 .adv .bag .close{align-self:center;font:900 16px ${UI_FONT};padding:7px 26px;border-radius:12px;border:3px solid #16101c;background:#ffd23a;color:#16101c}
 .adv .msg{position:absolute;left:0;right:0;top:30%;text-align:center;font:900 min(30px,7vh) ${UI_FONT};color:#ffe680;text-shadow:0 3px 0 #16101c,0 0 4px #16101c,0 0 8px #16101c;pointer-events:none;opacity:0;transition:opacity .3s}
 .adv .result{position:absolute;inset:0;background:#0b0712d0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px}
@@ -115,6 +131,10 @@ export class AdventureScene extends Phaser.Scene {
   private done = false;
   private level = 1;
   private techNames: string[] = [];
+  /** 覚えている 技・使える 枠の 数・確認用の 仮の 技か(仮の ときは 保存しない) */
+  private learned: string[] = [];
+  private slotCount = 4;
+  private devTechs = false;
   private onResize = () => this.resize();
 
   constructor() {
@@ -145,13 +165,14 @@ export class AdventureScene extends Phaser.Scene {
       this.level = L;
       growType = advDev.type;
       equipped = learnAt(sp, L, stats, [], advDev.type as StatKey).slice(-slotsAt(L));
+      this.learned = learnAt(sp, L, stats, [], advDev.type as StatKey);
+      this.devTechs = true;
+    } else {
+      this.learned = mon.techs?.learned ?? [...equipped];
+      this.devTechs = false;
     }
-    const techs: (AdvTech | null)[] = [0, 1, 2, 3].map((i) => {
-      const id = equipped[i];
-      if (!id) return null;
-      const t = getTech(id);
-      return { id, kind: t.kind, power: t.power ?? 0, cooldown: Math.max(2, t.cooldown), element: t.element, effect: t.effect ?? 'なし', strength: t.strength };
-    });
+    this.slotCount = Math.min(4, slotsAt(this.level));
+    const techs: (AdvTech | null)[] = [0, 1, 2, 3].map((i) => advTech(equipped[i]));
     this.techNames = techs.map((t) => (t ? getTech(t.id).name : ''));
     this.state = newAdventure(seed, me.stats, advRun.floor, techs, growType, me.species);
     // 擬人化RPG の 試作: BUNK は 剣闘士。進化で 通常攻撃が 少し 長く なる(姿は 変わらない)
@@ -485,7 +506,89 @@ export class AdventureScene extends Phaser.Scene {
     this.bagOpen = true;
     const bag = this.root!.querySelector('.bag') as HTMLElement;
     const box = bag.querySelector('.box') as HTMLElement;
+    // 2026-11-26 企画者「持ち物の とこ、技 入れ替えられる ように。持ち物と 別に なる ように 技って ボタン」
+    let mode: 'items' | 'techs' = 'items';
+    let sel: number | null = null;
+    const EL_CSS: Record<string, string> = { 炎: '#ff6a2a', 水: '#3aa8ff', 自然: '#6ad04a', 雷: '#ffd23a', 光: '#fff2a0', 闇: '#a05aff', 無: '#e0e0f0' };
+    const close = () => {
+      audio.se('back');
+      bag.style.display = 'none';
+      this.bagOpen = false;
+    };
+    const drawTechs = () => {
+      const s = this.state;
+      // 名前で そろえる(古い 呼び名の 技も 同じ 技として あつかう)
+      const nm = (id: string) => {
+        try {
+          return getTech(id).name;
+        } catch {
+          return id;
+        }
+      };
+      const eq = s.techs.map((t) => (t ? nm(t.id) : ''));
+      const chip = (id: string) => {
+        const t = getTech(id);
+        return `<i style="background:${EL_CSS[t.element] ?? '#fff'}">${t.element}</i>`;
+      };
+      box.innerHTML = `<h3>わざ<span style="font-size:12px;color:#fff">${sel === null ? '入れかえる 枠を さわる' : `${'ABCD'[sel]} に 入れる わざを さわる`}</span></h3>
+        <div class="tslots">${[0, 1, 2, 3]
+          .map((i) => {
+            const id = eq[i];
+            const lock = i >= this.slotCount;
+            return `<button class="ts ${sel === i ? 'on' : ''} ${lock ? 'lock' : ''}" data-s="${i}">${'ABCD'[i]}<br>${lock ? 'まだ 使えない' : id ? `${chip(id)}${getTech(id).name}` : '― なし'}</button>`;
+          })
+          .join('')}</div>
+        <h3>おぼえている わざ<span style="font-size:12px;color:#fff">${this.learned.length}こ</span></h3>
+        <div class="tl">${this.learned
+          .map((id) => {
+            const u = eq.indexOf(nm(id));
+            return `<button class="tk ${u >= 0 ? 'used' : ''}" data-t="${id}">${chip(id)}${u >= 0 ? `${'ABCD'[u]}:` : ''}${getTech(id).name}</button>`;
+          })
+          .join('')}</div>
+        <div class="note">枠を さわってから わざを さわると 入れかわる（同じ わざを もう一度 さわると はずす）</div>
+        <div style="display:flex;gap:8px"><button class="close techBack" style="flex:1">もちものへ</button><button class="close techClose" style="flex:1">とじる</button></div>`;
+      (box.querySelector('.techBack') as HTMLElement).addEventListener('click', () => {
+        audio.se('tap');
+        mode = 'items';
+        sel = null;
+        draw();
+      });
+      (box.querySelector('.techClose') as HTMLElement).addEventListener('click', close);
+      box.querySelectorAll('.ts').forEach((el) =>
+        el.addEventListener('click', () => {
+          const i = Number((el as HTMLElement).dataset.s);
+          if (i >= this.slotCount) {
+            audio.se('back');
+            return;
+          }
+          audio.se('tap');
+          sel = sel === i ? null : i;
+          drawTechs();
+        }),
+      );
+      box.querySelectorAll('.tk').forEach((el) =>
+        el.addEventListener('click', () => {
+          if (sel === null) {
+            audio.se('tap', { pitch: 0.8 });
+            return;
+          }
+          const id = nm((el as HTMLElement).dataset.t!);
+          const next = [...eq];
+          if (next[sel] === id) next[sel] = '';
+          else {
+            const was = next.indexOf(id);
+            if (was >= 0) next[was] = next[sel];
+            next[sel] = id;
+          }
+          this.setTechs(next);
+          audio.se('select');
+          sel = null;
+          drawTechs();
+        }),
+      );
+    };
     const draw = () => {
+      if (mode === 'techs') return drawTechs();
       const s = this.state;
       const slots: GearSlot[] = ['head', 'armor', 'charm'];
       const p = s.player;
@@ -496,7 +599,7 @@ export class AdventureScene extends Phaser.Scene {
             return `<button class="gs ${g ? 'on' : ''}" data-g="${k}" style="${g ? `border-color:${this.itemLabel(g).color}` : ''}"><span style="display:flex;justify-content:center;opacity:${g ? 1 : 0.35}">${this.itemImg(k, 30)}</span>${SLOT_NAMES[k]}<br>${g ? `<b style="color:${this.itemLabel(g).color};font-size:16px">${g.rank}ランク</b>` : 'なし'}</button>`;
           })
           .join('')}</div>
-        <h3>もちもの<span style="font-size:12px;color:#fff">${s.bag.length} / ${BAG_MAX}</span></h3>
+        <h3><span>もちもの <span style="font-size:12px;color:#fff">${s.bag.length} / ${BAG_MAX}</span></span><button class="techBtn" style="padding:4px 18px">技</button></h3>
         <div class="grid">${Array.from({ length: BAG_MAX }, (_, i) => {
           const it = s.bag[i];
           if (!it) return `<div class="it"></div>`;
@@ -505,10 +608,11 @@ export class AdventureScene extends Phaser.Scene {
         }).join('')}</div>
         <div class="note">さわると 使う・装備する（装備を さわると はずす）。S が いちばん 強い</div>
         <button class="close">とじる</button>`;
-      (box.querySelector('.close') as HTMLElement).addEventListener('click', () => {
-        audio.se('back');
-        bag.style.display = 'none';
-        this.bagOpen = false;
+      (box.querySelector('.close') as HTMLElement).addEventListener('click', close);
+      (box.querySelector('.techBtn') as HTMLElement).addEventListener('click', () => {
+        audio.se('tap');
+        mode = 'techs';
+        drawTechs();
       });
       box.querySelectorAll('.it[data-i]').forEach((el) =>
         el.addEventListener('click', () => {
@@ -527,6 +631,25 @@ export class AdventureScene extends Phaser.Scene {
     };
     draw();
     bag.style.display = 'flex';
+  }
+
+  /** 技を 入れかえる(冒険の 中の 4つ・ボタン。ふだんは 保存して MONZ RUMBLE と 同じ セットに する) */
+  private setTechs(eq: string[]): void {
+    const s = this.state;
+    for (let i = 0; i < 4; i++) {
+      const id = eq[i] || undefined;
+      if ((s.techs[i] ? getTech(s.techs[i]!.id).name : undefined) === id) continue;
+      s.techs[i] = advTech(id);
+      s.techCd[i] = 0;
+    }
+    this.techNames = s.techs.map((t) => (t ? getTech(t.id).name : ''));
+    this.root?.querySelectorAll<HTMLButtonElement>('.tb').forEach((b) => {
+      const t = s.techs[Number(b.dataset.i)];
+      b.disabled = !t;
+      b.classList.toggle('sup', !!t && SELF_KINDS.has(t.kind));
+      b.title = this.techNames[Number(b.dataset.i)];
+    });
+    if (!this.devTechs) new LifeRecord(loadLife()).setTechs(eq.filter(Boolean));
   }
 
   private finish(): void {
