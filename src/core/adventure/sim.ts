@@ -273,7 +273,7 @@ export type AdvEvent =
   | { kind: 'open'; x: number; z: number }
   | { kind: 'tech'; slot: number; x: number; z: number; fx: string; dir: number; r: number; len: number; element: string; tx: number; tz: number }
   | { kind: 'status'; target: number; x: number; z: number; effect: string }
-  | { kind: 'jab'; style: string; chain: number; x: number; z: number; dir: number; range: number }
+  | { kind: 'jab'; style: string; chain: number; x: number; z: number; dir: number; range: number; arc: number }
   | { kind: 'heal'; amount: number; x: number; z: number }
   | { kind: 'drop'; drop: Drop }
   | { kind: 'pick'; drop: Drop }
@@ -1069,7 +1069,8 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
           hitCrates(s, inConeAt(p.x, p.z, p.face, J.range, J.arc * (s.chain === 3 ? 1.3 : 1)));
         }
       }
-      s.events.push({ kind: 'jab', style: s.jab, chain: s.chain, x: p.x, z: p.z, dir: p.face, range: J.range });
+      // range・arc = 当たる 広さ(モブの 中心まで range + モブの 大きさ・左右 arc)
+      s.events.push({ kind: 'jab', style: s.jab, chain: s.chain, x: p.x, z: p.z, dir: p.face, range: J.range + ADV.mob.r, arc: J.arc * (s.chain === 3 ? 1.3 : 1) });
     }
   }
   stepTechs(s, dt);

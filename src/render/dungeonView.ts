@@ -663,9 +663,10 @@ export class DungeonView {
     const big = e.chain === 3;
     const side = e.chain === 2 ? -1 : 1;
     const color = e.style === 'whip' ? 0x30ff60 : e.style === 'dash' ? 0xffc010 : big ? 0xff4a08 : 0xff7a18;
-    const r = e.range * (big ? 1.45 : 1.3);
-    const arc = e.style === 'whip' ? 0.9 : big ? Math.PI * 1.7 : 2.6;
-    const sweep = big ? 2.2 : 1.1;
+    // 2026-11-26 企画者「通常攻撃の 当たる 位置が 分かりにくい」→ 光の 大きさ・広さを 当たる 広さと 同じに。床に 当たる 範囲を 出す
+    const r = e.range;
+    const arc = e.arc * 2;
+    const sweep = big ? 0.9 : 0.6;
     const life = big ? 0.36 : 0.26;
     const layer = (rr: number, w: number, col: number, op: number, delay: number, y: number) => {
       const mat = new THREE.MeshBasicMaterial({ map: slashTexture(), color: col, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
@@ -677,11 +678,30 @@ export class DungeonView {
         const t = Math.max(0, (k * (life + delay) - delay) / life);
         const ease = 1 - Math.pow(1 - t, 3);
         // 振りぬく: 向きが 回りながら 少し ふくらむ
-        m.rotation.z = -e.dir - side * (sweep / 2 - sweep * ease);
+        m.rotation.z = -e.dir - side * sweep * (1 - ease);
         m.scale.setScalar(0.85 + ease * 0.2);
         (m.material as THREE.MeshBasicMaterial).opacity = op * (t < 0.1 ? t / 0.1 : 1 - Math.pow((t - 0.1) / 0.9, 2));
       });
     };
+    // 床: 当たる 範囲(扇)。うすく ぬって ふちを 光らせる
+    const fan = new THREE.Group();
+    const fill = new THREE.Mesh(new THREE.CircleGeometry(r, 32, -arc / 2, arc), this.glowMat(color, 0.28, THREE.DoubleSide));
+    const rim = new THREE.Mesh(new THREE.RingGeometry(r - 0.07, r, 32, 1, -arc / 2, arc), this.glowMat(0xffffff, 0.8, THREE.DoubleSide));
+    fan.add(fill, rim);
+    for (const sgn of [-1, 1]) {
+      const ln = new THREE.Mesh(new THREE.PlaneGeometry(r, 0.05), this.glowMat(color, 0.6, THREE.DoubleSide));
+      ln.position.set(Math.cos((sgn * arc) / 2) * r * 0.5, Math.sin((sgn * arc) / 2) * r * 0.5, 0);
+      ln.rotation.z = (sgn * arc) / 2;
+      fan.add(ln);
+    }
+    fan.rotation.x = -Math.PI / 2;
+    fan.rotation.z = -e.dir;
+    fan.position.set(e.x, 0.06, e.z);
+    this.addFx(fan, big ? 0.3 : 0.24, (k) => {
+      (fill.material as THREE.MeshBasicMaterial).opacity = 0.28 * (1 - k);
+      (rim.material as THREE.MeshBasicMaterial).opacity = 0.8 * (1 - k);
+      for (const c of fan.children.slice(2)) ((c as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = 0.6 * (1 - k);
+    });
     layer(r, r * 0.42, color, 1, 0.03, 0.32);
     layer(r, r * 0.09, 0xffffff, 0.9, 0, 0.36);
     if (big) {
