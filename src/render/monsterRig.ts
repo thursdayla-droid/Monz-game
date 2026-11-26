@@ -172,6 +172,8 @@ export class MonsterRig {
   private eyes: THREE.Group;
   private xEyes: THREE.Group;
   private hop = 0;
+  /** 人の 形の 体(擬人化RPG): 跳ねない・つぶれない・人の 歩き方(2026-11-26) */
+  human = false;
   flash = 0;
   /** 攻撃が当たらない間(たおれている・起きた直後・よけている瞬間)。白く点滅させる(2026-11-02 企画者「喰らわない時白くするか分かりやすく」) */
   safe = false;
@@ -608,8 +610,18 @@ export class MonsterRig {
       const breathe = Math.sin(now * 4.5 + f.side * 2) * 0.035;
       sy = 1 + breathe;
       sx = 1 - breathe * 0.6;
+      if (this.human) {
+        sy = 1;
+        sx = 1;
+      }
       const sp = f.speed;
-      if (sp > 0.3) {
+      if (sp > 0.3 && this.human) {
+        // 歩幅に あわせて 足を 出す(すべって 見えない ように)。上下に 少しだけ ゆれる
+        this.hop += dt * sp * 2.6;
+        lift = Math.abs(Math.sin(this.hop)) * 0.035;
+        sy = 1;
+        sx = 1;
+      } else if (sp > 0.3) {
         this.hop += dt * (6 + sp * 2.4);
         const h = Math.abs(Math.sin(this.hop));
         const big = Math.min(1, sp / 4);
@@ -732,6 +744,7 @@ export class MonsterRig {
           atk = { kind, wind, active, recover, n: a.n, punch };
         }
       }
+      this.bones.human = this.human;
       this.bones.update(mode, this.hop, f.speed, now, dt, f.side * 1.3, atk, f.speed > 0.3 ? side / f.speed : 0);
       // パンチに合わせて、体ごと前へ出る(腕だけだと小さく見えるため。2026-11-02)
       // パンチは体ごと前へは出ない(腕が前へ出るのを見せる)

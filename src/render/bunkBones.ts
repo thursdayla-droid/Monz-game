@@ -69,7 +69,12 @@ interface Driven {
 const tmpQ = new THREE.Quaternion();
 const clamp = (v: number, a: number) => Math.max(-a, Math.min(a, v));
 
+/** 人の 形の 体(擬人化RPG・2026-11-26)の 動きの 上限。人らしく 大きく 手足を 振る */
+const HUMAN_SAFE: Record<string, number> = { ...SAFE, L_Thigh: 0.9, R_Thigh: 0.9, L_Calf: 1.1, R_Calf: 1.1, L_Upperarm: 1.3, R_Upperarm: 1.3, L_Forearm: 0.9, R_Forearm: 0.9, Spine01: 0.25, Spine02: 0.2, Head: 0.2 };
+
 export class BunkBones {
+  /** 人の 形の 体(擬人化RPG): 人の 歩き方・自然に 立つ(2026-11-26 企画者「歩き方 じゃっかん 違和感」) */
+  human = false;
   private bones = new Map<string, Driven>();
   /** 待機・移動の強さ(なめらかに切りかえる) */
   private wIdle = 1;
@@ -142,11 +147,20 @@ export class BunkBones {
     this.wMove += ((mode === 'move' && !atk ? 1 : 0) - this.wMove) * k;
     // 攻撃はすばやく入る(もどりはゆっくり)
     this.wAtk += ((atk ? 1 : 0) - this.wAtk) * (1 - Math.exp(-dt * (atk ? 30 : 10)));
-    this.limit = this.wAtk > 0.05 ? { ...SAFE, ...SAFE_ATTACK } : SAFE;
+    const base = this.human ? HUMAN_SAFE : SAFE;
+    this.limit = this.wAtk > 0.05 ? { ...base, ...SAFE_ATTACK } : base;
     for (const d of this.bones.values()) {
       d.bone.quaternion.copy(d.bind);
       d.bone.scale.copy(d.bindScale);
       d.bone.position.copy(d.bindPos);
+    }
+    if (this.human) {
+      this.humanPose(hop, speed, t, seed);
+      this.punchExt = 0;
+      this.punchSide = 0;
+      if (this.wAtk > 0.01) this.attack(atk ?? this.lastAtk, this.wAtk);
+      if (atk) this.lastAtk = atk;
+      return;
     }
     const wi = this.wIdle;
     const wm = this.wMove;
@@ -227,6 +241,45 @@ export class BunkBones {
     this.punchSide = 0;
     if (this.wAtk > 0.01) this.attack(atk ?? this.lastAtk, this.wAtk);
     if (atk) this.lastAtk = atk;
+  }
+
+  /**
+   * 人の 形の 待機と 歩き(擬人化RPG)。歩き = 足を 交互に 前後・後ろの 足は ひざを 曲げて 前へ・腕は 足と 反対に 振る・体は 少し ひねる。
+   * 待機 = 腕を 体の 横に 下ろして 息を する。hop = 歩きの 調子(1歩 = π)
+   */
+  private humanPose(hop: number, speed: number, t: number, seed: number): void {
+    const wi = this.wIdle;
+    const wm = this.wMove;
+    const br = Math.sin(t * 2.2 + seed);
+    // 腕を 下ろす(モデルは 腕を 少し 広げた 形)
+    const down = 0.55 + 0.03 * br * wi;
+    this.rot('L_Upperarm', 'front', -down);
+    this.rot('R_Upperarm', 'front', down);
+    this.rot('L_Forearm', 'side', 0.18);
+    this.rot('R_Forearm', 'side', 0.18);
+    // 待機: 息を する(背中を 少し)・頭を ゆらす
+    this.rot('Spine01', 'side', wi * br * 0.03);
+    this.rot('Head', 'side', wi * br * 0.04);
+    if (wm > 0.01) {
+      const s = Math.sin(hop);
+      const c = Math.cos(hop);
+      const amp = wm * Math.min(1, 0.5 + speed / 5);
+      // 足: 前後に 振る。前へ 出す 時(振り出し)に ひざを 曲げる
+      this.rot('L_Thigh', 'side', s * 0.55 * amp);
+      this.rot('R_Thigh', 'side', -s * 0.55 * amp);
+      this.rot('L_Calf', 'side', -Math.max(0, c) * 0.8 * amp - 0.08 * amp);
+      this.rot('R_Calf', 'side', -Math.max(0, -c) * 0.8 * amp - 0.08 * amp);
+      // 腕: 足と 反対に 振る・ひじを 少し 曲げる
+      this.rot('L_Upperarm', 'side', -s * 0.5 * amp);
+      this.rot('R_Upperarm', 'side', s * 0.5 * amp);
+      this.rot('L_Forearm', 'side', (0.15 + 0.2 * Math.max(0, -s)) * amp);
+      this.rot('R_Forearm', 'side', (0.15 + 0.2 * Math.max(0, s)) * amp);
+      // 体: 少し 前へ・腰と 肩を 反対に ひねる・頭は まっすぐ 前
+      this.rot('Spine01', 'side', 0.06 * amp);
+      this.rot('Spine01', 'up', s * 0.1 * amp);
+      this.rot('Spine02', 'up', -s * 0.06 * amp);
+      this.rot('Head', 'up', -s * 0.04 * amp);
+    }
   }
 
   private lastAtk: AttackPose = { kind: 'rush', wind: 0, active: false, recover: 1, n: 0, punch: 0 };

@@ -548,6 +548,8 @@ export class DungeonView {
     this.buildPuzzles(s);
     // 自分の MONZ(MONZ RUMBLE と 同じ 体と 動き)
     this.rig = new MonsterRig(0x8fb4e8, 0xe8f0ff, 0xffd23a, this.grad);
+    // 擬人化RPG の 試作: 人の 形の 体(人の 歩き方)
+    this.rig.human = !!pixel;
     this.scene.add(this.rig.root);
     this.puppet = newAnimeBattle(entrant, entrant, 1).f[0];
     for (let i = 0; i < s.mobs.length; i++) {
