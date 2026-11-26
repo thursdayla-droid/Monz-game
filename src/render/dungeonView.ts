@@ -8,7 +8,8 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import { assetUrl } from '../assetUrl';
 import { newAnimeBattle, type AnimeEntrant, type AnimeMon } from '../core/battle3d/anime';
 import { CELL, WALL } from '../core/adventure/dungeon';
-import { ADV, MOB_KINDS, mobSpec, RANKS, techWindup, type MobKind, type AimShape, type Actor, type AdvEvent, type AdvItem, type AdvState, type Rank } from '../core/adventure/sim';
+import { getTech } from '../core/battle3d/techTable';
+import { ADV, MOB_KINDS, mobSpec, RANKS, SELF_KINDS, techWindup, type MobKind, type AimShape, type Actor, type AdvEvent, type AdvItem, type AdvState, type Rank } from '../core/adventure/sim';
 import type { modelFor } from '../core/roster';
 import { MonsterRig } from './monsterRig';
 
@@ -1264,6 +1265,7 @@ export class DungeonView {
         if (e.crit) this.pop('CRITICAL', '#ffd23a', e.x, 2.75, e.z, 0.4);
         this.burst(e.x, e.z, toMe ? 0xff4a4a : 0xffc060, e.crit ? 14 : 8);
         if (!toMe) this.impact(e.x, e.z, e.crit ? 0xffd23a : 0xffa040, e.crit);
+        if (!toMe && this.pixelOpt) this.rpgHit(e.x, e.z, e.crit);
         this.shake = Math.max(this.shake, toMe ? 0.25 : e.crit ? 0.32 : 0.2);
         if (toMe) this.rig.flash = 0.12;
       } else if (e.kind === 'crate') {
@@ -1303,8 +1305,13 @@ export class DungeonView {
         if (o) this.scene.remove(o);
         this.drops.delete(e.drop.id);
         this.burst(p.x, p.z, e.drop.item.kind === 'herb' ? 0x7aff8a : RANK_HEX[e.drop.item.rank], 8);
-      } else if (e.kind === 'tech') this.techFx(e);
-      else if (e.kind === 'jab') this.jabFx(e);
+      } else if (e.kind === 'tech') {
+        if (this.pixelOpt) this.rpgTechFx(e, s);
+        else this.techFx(e);
+      } else if (e.kind === 'jab') {
+        if (this.pixelOpt) this.rpgJab(e);
+        else this.jabFx(e);
+      }
       else if (e.kind === 'status') this.burst(e.x, e.z, 0xc080ff, 6);
       else if (e.kind === 'bossWarn') this.bossWarn(e);
       else if (e.kind === 'mobFx' && ['press', 'club', 'spin', 'quake', 'spit', 'summon'].includes(e.style)) {
@@ -1350,6 +1357,7 @@ export class DungeonView {
               : { k: 'free' };
     // とびおり・地面の 技は とび上がる
     if (tc && (tc.kind === 'drop' || tc.kind === 'quake') && p.actT < tw) f.y = Math.sin(Math.PI * (p.actT / tw)) * (tc.kind === 'drop' ? 3 : 0.9);
+    if (this.pixelOpt) this.rpgCast(s, dt);
     // ドットの 見た目は 8方向(昔の MMORPG の キャラの 絵と 同じ)
     if (this.pixelOpt?.on) f.face = Math.round(f.face / (Math.PI / 4)) * (Math.PI / 4);
     this.rig.update(f, dt);
@@ -1535,6 +1543,219 @@ export class DungeonView {
     this.camera.lookAt(cx, 0.6, cz);
     this.pixelPass(p.x, p.z);
     this.renderer.render(this.scene, this.camera);
+  }
+
+  // ===== 擬人化RPG の 試作: ラグナロクのような 技の 演出(2026-11-26 企画者の 絵 design/rpg/fx) =====
+  private fxTexs = new Map<string, THREE.Texture>();
+  private castObj: THREE.Mesh | null = null;
+  /** さいごに 使った 技の 属性と 時刻(当たった 時の 爆発の 色) */
+  private lastEl = { el: '無', t: -9 };
+  private fxTex(name: string): THREE.Texture {
+    let t = this.fxTexs.get(name);
+    if (!t) {
+      t = new THREE.TextureLoader().load(assetUrl(`assets/rpg/fx/fx_${name}.webp`));
+      t.colorSpace = THREE.SRGBColorSpace;
+      this.fxTexs.set(name, t);
+    }
+    return t;
+  }
+  /** 光の 絵の 材料(黒は 消える・光を 足す)。color で 染める */
+  private fxMat(name: string, color: number, op = 1): THREE.MeshBasicMaterial {
+    return new THREE.MeshBasicMaterial({ map: this.fxTex(name), color, transparent: true, opacity: op, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+  }
+  /** カメラに 向いた 光の 絵。grow = 大きく なる 速さ */
+  private fxBill(name: string, color: number, x: number, y: number, z: number, size: number, life: number, grow = 0.6, delay = 0, aspect = 1): void {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(size * aspect, size), this.fxMat(name, color));
+    m.renderOrder = 6;
+    const spin = (Math.random() - 0.5) * 0.6;
+    this.addFx(m, life + delay, (k) => {
+      const t = Math.max(0, (k * (life + delay) - delay) / life);
+      m.visible = t > 0;
+      m.position.set(x, y, z);
+      m.quaternion.copy(this.camera.quaternion);
+      if (aspect === 1) m.rotateZ(spin * t);
+      m.scale.setScalar(0.55 + grow * Math.min(1, t * 2.2));
+      (m.material as THREE.MeshBasicMaterial).opacity = t < 0.12 ? t / 0.12 : Math.max(0, 1 - (t - 0.12) / 0.88);
+    });
+  }
+  /** 床に はりつく 光の 絵(魔法陣・衝撃波)。rot = 回る 速さ */
+  private fxGround(name: string, color: number, x: number, z: number, size: number, life: number, grow = 0.4, rot = 0, yaw = 0, op = 1): THREE.Mesh {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(size, size), this.fxMat(name, color, op));
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(x, 0.08, z);
+    m.renderOrder = 4;
+    this.addFx(m, life, (k) => {
+      m.rotation.z = yaw + rot * k;
+      m.scale.setScalar(1 - grow + grow * (1 - (1 - k) * (1 - k)));
+      (m.material as THREE.MeshBasicMaterial).opacity = op * (k < 0.1 ? k / 0.1 : Math.max(0, 1 - (k - 0.1) / 0.9));
+    });
+    return m;
+  }
+  /** 属性の 爆発の 絵(炎・雷・光・闇 は 企画者の 絵、ほかは 火花を 色で 染める) */
+  private exName(el: string): string {
+    return ({ 炎: 'ex_fire', 雷: 'ex_thunder', 光: 'ex_light', 闇: 'ex_dark' } as Record<string, string>)[el] ?? 'spark';
+  }
+  private exColor(el: string): number {
+    return this.exName(el) === 'spark' ? EL_HEX[el] ?? 0xffffff : 0xffffff;
+  }
+  /** 斬撃の 絵を 床に(弧の ふくらみを 前へ)。side = 振る 向き */
+  private fxSlash(x: number, z: number, dir: number, r: number, color: number, side: number, life = 0.24, delay = 0): void {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(r * 2, r * 2), this.fxMat('slash', color));
+    m.rotation.x = -Math.PI / 2;
+    m.renderOrder = 6;
+    this.addFx(m, life + delay, (k) => {
+      const t = Math.max(0, (k * (life + delay) - delay) / life);
+      m.visible = t > 0;
+      const ease = 1 - Math.pow(1 - t, 3);
+      // 絵の 弧は 左が ふくらむ → 前へ 向ける。振りぬく ように 回す
+      m.rotation.z = -dir + Math.PI - side * 0.7 * (1 - ease);
+      m.position.set(x + Math.cos(dir) * r * 0.25, 0.5, z + Math.sin(dir) * r * 0.25);
+      m.scale.setScalar(0.85 + 0.2 * ease);
+      (m.material as THREE.MeshBasicMaterial).opacity = t < 0.1 ? t / 0.1 : Math.max(0, 1 - Math.pow((t - 0.1) / 0.9, 1.5));
+    });
+  }
+
+  /** 通常攻撃(擬人化RPG): 当たる 範囲の 扇 + 斬撃の 絵 */
+  private rpgJab(e: Extract<AdvEvent, { kind: 'jab' }>): void {
+    if (e.style === 'shot') return;
+    const big = e.chain === 3;
+    const side = e.chain === 2 ? -1 : 1;
+    this.fxGround('ring', 0xffb060, e.x + Math.cos(e.dir) * e.range * 0.45, e.z + Math.sin(e.dir) * e.range * 0.45, e.range * 1.1, 0.22, 0.5, 0, 0, 0.35);
+    this.fxSlash(e.x, e.z, e.dir, e.range * (big ? 1.25 : 1.05), big ? 0xffa040 : 0xffe0b0, side, big ? 0.3 : 0.22);
+    if (big) {
+      this.fxSlash(e.x, e.z, e.dir, e.range * 1.1, 0xffffff, -side, 0.26, 0.06);
+      this.shake = Math.max(this.shake, 0.3);
+    }
+  }
+
+  /** 技が 当たった(擬人化RPG): 属性の 爆発 */
+  private rpgHit(x: number, z: number, crit: boolean): void {
+    const recent = performance.now() / 1000 - this.lastEl.t < 0.8;
+    const el = recent ? this.lastEl.el : '無';
+    this.fxBill(recent ? this.exName(el) : 'spark', recent ? this.exColor(el) : 0xffe8c0, x, 1.0, z, crit ? 2.6 : recent ? 2.2 : 1.5, 0.3, 0.6);
+  }
+
+  /** 技の ため: 足もとに 魔法陣(攻撃 = とがった 陣・回復や 守り = 花の 陣)が 回りながら 広がる */
+  private rpgCast(s: AdvState, dt: number): void {
+    const p = s.player;
+    const tc = p.act === 'tech' && !p.struck ? s.techs[s.techSlot] : null;
+    if (!tc) {
+      if (this.castObj) this.castObj.visible = false;
+      return;
+    }
+    const self = SELF_KINDS.has(tc.kind);
+    const tex = self ? 'circle_sup' : 'circle_atk';
+    if (!this.castObj) {
+      this.castObj = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), this.fxMat(tex, 0xffffff));
+      this.castObj.rotation.x = -Math.PI / 2;
+      this.castObj.renderOrder = 3;
+      this.scene.add(this.castObj);
+    }
+    const m = this.castObj;
+    const mat = m.material as THREE.MeshBasicMaterial;
+    mat.map = this.fxTex(tex);
+    mat.color.setHex(self ? 0x9affc0 : EL_HEX[tc.element] ?? 0xffffff);
+    const w = Math.min(1, p.actT / Math.max(0.05, techWindup(tc.kind)));
+    m.visible = true;
+    m.position.set(p.x, 0.07, p.z);
+    m.rotation.z += dt * 2.5;
+    m.scale.setScalar(1.2 + w * 1.6);
+    mat.opacity = 0.4 + w * 0.6;
+  }
+
+  /** 技(擬人化RPG): 技の 名前を さけぶ + 形ごとの 演出(剣闘士の 試作) */
+  private rpgTechFx(e: Extract<AdvEvent, { kind: 'tech' }>, s: AdvState): void {
+    const tc = s.techs[e.slot];
+    let name = '';
+    try {
+      name = tc ? getTech(tc.id).name : '';
+    } catch {
+      name = '';
+    }
+    if (name) this.pop(`${name}!!`, '#ffffff', s.player.x, 3.0, s.player.z, 0.55);
+    this.lastEl = { el: e.element, t: performance.now() / 1000 };
+    const c = EL_HEX[e.element] ?? 0xffffff;
+    const ex = this.exName(e.element);
+    const exC = this.exColor(e.element);
+    const dir = e.dir;
+    switch (e.fx) {
+      case 'melee':
+      case 'drain':
+        this.fxSlash(e.x, e.z, dir, e.r * 1.1, c, 1, 0.28);
+        this.fxSlash(e.x, e.z, dir, e.r, 0xffffff, -1, 0.24, 0.05);
+        break;
+      case 'combo':
+        for (let i = 0; i < 4; i++) this.fxSlash(e.x, e.z, dir, e.r * (1 + i * 0.05), i % 2 ? 0xffffff : c, i % 2 ? -1 : 1, 0.2, i * 0.1);
+        break;
+      case 'spin':
+        // 剣を 振り回す: 斬撃が まわりに 3つ + 衝撃の 輪
+        for (let i = 0; i < 3; i++) this.fxSlash(e.x, e.z, dir + (i * Math.PI * 2) / 3, e.r * 0.9, i ? c : 0xffffff, 1, 0.35, i * 0.05);
+        this.fxGround('ring', c, e.x, e.z, e.r * 2.2, 0.45, 0.7);
+        this.fxBill(ex, exC, e.x, 0.9, e.z, e.r * 1.2, 0.35, 0.5);
+        break;
+      case 'rush':
+        // 盾を 構えて 突っこむ: 走った あとに 煙・先で 斬撃と 火花
+        this.fxBill('smoke', 0xb8b0c0, e.x - Math.cos(dir) * 0.6, 0.6, e.z - Math.sin(dir) * 0.6, 1.8, 0.5, 0.7);
+        this.fxSlash(e.x + Math.cos(dir) * 2.5, e.z + Math.sin(dir) * 2.5, dir, 1.8, c, 1, 0.3, 0.12);
+        this.fxBill(ex, exC, e.x + Math.cos(dir) * 3, 1.0, e.z + Math.sin(dir) * 3, 2.2, 0.35, 0.6, 0.12);
+        break;
+      case 'quake':
+        // 剣を 地面に 叩きつける: 衝撃波の 輪 2重 + 煙 + 属性の 爆発
+        this.fxGround('ring', c, e.x, e.z, e.r * 2.3, 0.55, 0.85);
+        this.fxGround('ring', 0xffffff, e.x, e.z, e.r * 1.4, 0.4, 0.85);
+        this.fxBill('smoke', 0x9a90a8, e.x, 0.7, e.z, e.r * 1.4, 0.7, 0.6);
+        this.fxBill(ex, exC, e.x, 0.9, e.z, e.r * 1.3, 0.4, 0.6);
+        this.shake = Math.max(this.shake, 0.4);
+        break;
+      case 'drop':
+        this.fxBill('pillar', c, e.tx, 1.4, e.tz, 3, 0.35, 0.3, 0, 2 / 3);
+        this.fxGround('ring', c, e.tx, e.tz, e.r * 2.3, 0.5, 0.85, 0, 0, 1);
+        this.fxBill(ex, exC, e.tx, 0.9, e.tz, e.r * 1.6, 0.45, 0.6, 0.05);
+        this.fxBill('smoke', 0x9a90a8, e.tx, 0.6, e.tz, e.r * 1.5, 0.7, 0.6, 0.05);
+        this.shake = Math.max(this.shake, 0.45);
+        break;
+      case 'pillar':
+        // 剣を 突き立てて 大きな 柱: 魔法陣 → 光の 柱 2本 → 爆発
+        this.fxGround('circle_atk', c, e.tx, e.tz, e.r * 2.4, 0.9, 0.2, 1.5);
+        this.fxBill('pillar', c, e.tx, e.r * 1.1, e.tz, e.r * 2.6, 0.7, 0.3, 0, 2 / 3);
+        this.fxBill('pillar', 0xffffff, e.tx, e.r * 1.0, e.tz, e.r * 2.0, 0.6, 0.3, 0.08, 2 / 3);
+        this.fxBill(ex, exC, e.tx, 1.0, e.tz, e.r * 2, 0.5, 0.6, 0.1);
+        this.fxGround('ring', c, e.tx, e.tz, e.r * 2.4, 0.6, 0.85);
+        this.shake = Math.max(this.shake, 0.5);
+        break;
+      case 'beam':
+        this.techFx(e);
+        this.fxBill('spark', c, e.x + Math.cos(dir), 1.0, e.z + Math.sin(dir), 2.2, 0.3, 0.6);
+        break;
+      case 'shot':
+        this.fxBill('spark', c, e.x + Math.cos(dir) * 0.9, 1.0, e.z + Math.sin(dir) * 0.9, 1.4, 0.2, 0.5);
+        break;
+      case 'heal':
+        this.fxGround('circle_sup', 0x7affa8, e.x, e.z, 3.4, 1.0, 0.3, 1.2);
+        this.fxBill('pillar', 0x7affa8, e.x, 1.4, e.z, 3.2, 0.8, 0.2, 0, 2 / 3);
+        for (let i = 0; i < 5; i++) this.fxBill('star', 0xc0ffd0, e.x + (Math.random() - 0.5) * 1.4, 0.6 + Math.random() * 1.6, e.z + (Math.random() - 0.5) * 1.4, 0.7, 0.5, 0.4, i * 0.08);
+        break;
+      case 'barrier':
+        this.fxGround('circle_sup', 0x8ad0ff, e.x, e.z, 3.2, 0.9, 0.3, -1.2);
+        this.fxBill('star', 0xbfe8ff, e.x, 1.0, e.z, 2.4, 0.45, 0.5);
+        this.fxBill('ex_light', 0x8ad0ff, e.x, 1.0, e.z, 2.6, 0.5, 0.4);
+        break;
+      case 'buff':
+        this.fxGround('circle_sup', 0xff8a4a, e.x, e.z, 3.2, 0.9, 0.3, 1.5);
+        this.fxBill('pillar', 0xff8a4a, e.x, 1.4, e.z, 3.2, 0.7, 0.2, 0, 2 / 3);
+        this.fxBill('star', 0xffd0a0, e.x, 1.6, e.z, 1.6, 0.4, 0.5, 0.1);
+        break;
+      case 'debuff':
+        // 雄たけび: 足もとに 攻撃の 陣・紫の 煙と 衝撃波
+        this.fxGround('circle_atk', 0xb070ff, e.x, e.z, e.r * 2.2, 0.8, 0.3, 1.2);
+        this.fxGround('ring', 0xb070ff, e.x, e.z, e.r * 2.3, 0.6, 0.85);
+        this.fxBill('smoke', 0x8a50c0, e.x, 0.8, e.z, 2.6, 0.7, 0.5);
+        break;
+      default:
+        this.techFx(e);
+        if (e.fx === 'field') this.fxGround('circle_atk', c, e.tx, e.tz, e.r * 2.2, 1.0, 0.2, 1.0);
+        break;
+    }
   }
 
   /**
