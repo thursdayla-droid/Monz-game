@@ -394,8 +394,9 @@ export class DungeonView {
     this.scene.background = new THREE.Color(0x0b0712);
     
     // 2026-11-07 企画者「もっと 2D 感」→ 光は 平らに(明るさの むらを なくす)。床は 光の 当たらない 絵の タイル
-    this.scene.add(new THREE.HemisphereLight(0xd8ccff, 0x4a3a5a, 1.5));
-    const moon = new THREE.DirectionalLight(0xffffff, 0.9);
+    // 2026-11-26 企画者「暗すぎて あんまり 見えない」→ あかりを 強く・床と 壁の 絵を 明るく
+    this.scene.add(new THREE.HemisphereLight(0xe8e0ff, 0x6a5a7a, 2.1));
+    const moon = new THREE.DirectionalLight(0xffffff, 1.2);
     moon.position.set(-4, 20, 8);
     moon.castShadow = true;
     moon.shadow.mapSize.set(1024, 1024);
@@ -788,7 +789,7 @@ export class DungeonView {
     fg.setAttribute('position', new THREE.Float32BufferAttribute(fp, 3));
     fg.setAttribute('uv', new THREE.Float32BufferAttribute(fu, 2));
     fg.computeVertexNormals();
-    const fl = new THREE.Mesh(fg, new THREE.MeshLambertMaterial({ color: 0xffffff, map: this.tileTex('tile_floor', tileTexture) }));
+    const fl = new THREE.Mesh(fg, new THREE.MeshLambertMaterial({ color: new THREE.Color(1.45, 1.45, 1.5), map: this.tileTex('tile_floor', tileTexture) }));
     fl.receiveShadow = true;
     this.scene.add(fl);
     // 壁: 上の 面(コンクリート)と、床に 向いた 横の 面(レンガ)
@@ -830,8 +831,8 @@ export class DungeonView {
       m.receiveShadow = true;
       this.scene.add(m);
     };
-    mk(tp, tu, this.tileTex('tile_walltop', wallTexture));
-    mk(sp, su, this.tileTex('tile_wall', wallTexture), 1.35);
+    mk(tp, tu, this.tileTex('tile_walltop', wallTexture), 1.3);
+    mk(sp, su, this.tileTex('tile_wall', wallTexture), 1.7);
     this.buildProps(s);
   }
 
@@ -883,7 +884,7 @@ export class DungeonView {
       const h = (w / z.aspect) * STAND;
       const g = new THREE.PlaneGeometry(w, h);
       g.translate(0, h / 2, 0);
-      const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tex(name), transparent: true, alphaTest: 0.35, color: 0xd8d4e0 }));
+      const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tex(name), transparent: true, alphaTest: 0.35, color: 0xffffff }));
       // 少し ずらして 置き物どうしが きれいに ならばない ように
       const jx = (((p.cx * 73 + p.cy * 37) % 7) / 7 - 0.5) * 0.3;
       m.position.set(x + jx, 0.01, zz + 0.15);
