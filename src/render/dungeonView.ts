@@ -1663,7 +1663,7 @@ export class DungeonView {
     mat.opacity = 0.5 + w * 0.5;
   }
 
-  /** 技(擬人化RPG): 技の 名前を さけぶ + 形ごとの 演出(剣闘士の 試作) */
+  /** 技(擬人化RPG): 形ごとの 演出(剣闘士の 試作) */
   private rpgTechFx(e: Extract<AdvEvent, { kind: 'tech' }>, s: AdvState): void {
     const tc = s.techs[e.slot];
     let name = '';
@@ -1672,7 +1672,8 @@ export class DungeonView {
     } catch {
       name = '';
     }
-    if (name) this.pop(`${name}!!`, '#ffffff', s.player.x, 3.0, s.player.z, 0.95);
+    // 2026-11-26 企画者「技名は 叫ばなくて 良い」→ 出さない
+    void name;
     this.lastEl = { el: e.element, t: performance.now() / 1000 };
     const c = EL_HEX[e.element] ?? 0xffffff;
     const ex = this.exName(e.element);
