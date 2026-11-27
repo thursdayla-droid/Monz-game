@@ -1457,13 +1457,39 @@ export class DungeonView {
 
   /** 床と 壁(箱を ならべる) */
   /** しかけの 見た目【仮】: 扉(しかけの 種類で 色)・スイッチ・箱・鍵・ワープ */
+  /** しかけ・扉の 企画者の 絵(2026-11-27 design/adventure/gimmicks)。確認用ページに ない 時は null(前の 形) */
+  private gimTex(name: string): THREE.Texture | null {
+    const path = `assets/adventure/gim_${name}.webp`;
+    const url = assetUrl(path);
+    if ((window as { __MONZ_ASSETS?: Record<string, string> }).__MONZ_ASSETS && url === path) return null;
+    let t = this.propTex.get(`gim_${name}`);
+    if (!t) {
+      t = new THREE.TextureLoader().load(url);
+      t.colorSpace = THREE.SRGBColorSpace;
+      this.propTex.set(`gim_${name}`, t);
+    }
+    return t;
+  }
+  /** カメラに 向いた 板(扉・箱。カメラは いつも 同じ 向き = 45度 見下ろし) */
+  private gimBoard(tex: THREE.Texture, w: number, h: number): THREE.Mesh {
+    const g = new THREE.PlaneGeometry(w, h);
+    g.translate(0, h / 2, 0);
+    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.3, color: 0xe8e4f0 }));
+    m.rotation.x = -Math.PI / 4;
+    return m;
+  }
+
   private buildPuzzles(s: AdvState): void {
     const DOOR_HEX: Record<string, number> = { kill: 0xff4a5a, switch: 0x4aa8ff, box: 0xff9a2a, key: 0xffd23a, none: 0x888888 };
     s.floor.doors.forEach((d, i) => {
       const kind = s.puzzles[i]?.kind ?? 'none';
+      const dt = this.gimTex('door');
       const g = d.horiz ? new THREE.BoxGeometry(0.6, 2.2, CELL * 2) : new THREE.BoxGeometry(CELL * 2, 2.2, 0.6);
-      const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: DOOR_HEX[kind], emissive: DOOR_HEX[kind], emissiveIntensity: 0.35 }));
-      m.position.set(d.x, 1.1, d.z);
+      // 横へ のびる 通路の 扉は カメラから 見ると 細いので はばを せまく
+      const m = dt ? this.gimBoard(dt, d.horiz ? CELL * 1.1 : CELL * 2.1, (CELL * 2.1 * 207) / 384 * 1.4) : new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: DOOR_HEX[kind], emissive: DOOR_HEX[kind], emissiveIntensity: 0.35 }));
+      // 絵の 扉は 床から 立つ(位置は 足もと)
+      m.position.set(d.x, dt ? 0 : 1.1, d.z);
+      if (dt) m.userData.base = 0;
       m.castShadow = true;
       m.visible = !s.puzzles[i]?.solved;
       this.scene.add(m);
@@ -1477,8 +1503,10 @@ export class DungeonView {
       const cx = ((Math.min(...xs) + Math.max(...xs) + 1) / 2) * CELL;
       const cz = ((Math.min(...ys) + Math.max(...ys) + 1) / 2) * CELL;
       const g = horiz ? new THREE.BoxGeometry(0.6, 2.2, CELL * 2) : new THREE.BoxGeometry(CELL * 2, 2.2, 0.6);
-      const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: 0xc0203a, emissive: 0xff2040, emissiveIntensity: 0.6 }));
-      m.position.set(cx, 1.1, cz);
+      const ht = this.gimTex('door_house');
+      const m = ht ? this.gimBoard(ht, horiz ? CELL * 1.1 : CELL * 2.1, (CELL * 2.1 * 212) / 384 * 1.4) : new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: 0xc0203a, emissive: 0xff2040, emissiveIntensity: 0.6 }));
+      if (ht) (m.material as THREE.MeshBasicMaterial).color.setHex(0xffffff);
+      m.position.set(cx, ht ? 0 : 1.1, cz);
       m.visible = false;
       this.scene.add(m);
       this.houseDoor = m;
@@ -1486,13 +1514,23 @@ export class DungeonView {
     s.puzzles.forEach((z) => {
       // スイッチ(床の 四角)
       if (z.plate) {
-        const m = new THREE.Mesh(new THREE.BoxGeometry(CELL * 0.8, 0.12, CELL * 0.8), new THREE.MeshLambertMaterial({ color: z.kind === 'box' ? 0xff9a2a : 0x4aa8ff, emissive: z.kind === 'box' ? 0xff9a2a : 0x4aa8ff, emissiveIntensity: 0.5 }));
-        m.position.set(z.plate.x, 0.06, z.plate.z);
+        const st = this.gimTex('switch');
+        const m = st
+          ? new THREE.Mesh(new THREE.PlaneGeometry(CELL * 0.95, CELL * 0.95 * (232 / 256)), new THREE.MeshBasicMaterial({ map: st, transparent: true, alphaTest: 0.2 }))
+          : new THREE.Mesh(new THREE.BoxGeometry(CELL * 0.8, 0.12, CELL * 0.8), new THREE.MeshLambertMaterial({ color: z.kind === 'box' ? 0xff9a2a : 0x4aa8ff, emissive: z.kind === 'box' ? 0xff9a2a : 0x4aa8ff, emissiveIntensity: 0.5 }));
+        if (st) m.rotation.x = -Math.PI / 2;
+        m.position.set(z.plate.x, st ? 0.04 : 0.06, z.plate.z);
         this.scene.add(m);
         this.plateObjs.push(m);
       } else this.plateObjs.push(null);
       // 押す 箱(木の 箱)
-      if (z.box) {
+      if (z.box && this.gimTex('box')) {
+        const g = new THREE.Group();
+        const bsz = ADV.puzzle.box * 2.4;
+        g.add(this.gimBoard(this.gimTex('box')!, bsz * (246 / 256), bsz * 1.15));
+        this.scene.add(g);
+        this.boxObjs.push(g);
+      } else if (z.box) {
         const g = new THREE.Group();
         const c = new THREE.Mesh(new THREE.BoxGeometry(ADV.puzzle.box * 2, 1.4, ADV.puzzle.box * 2), new THREE.MeshLambertMaterial({ color: 0xa8743a }));
         c.position.y = 0.7;
@@ -1504,7 +1542,15 @@ export class DungeonView {
         this.boxObjs.push(g);
       } else this.boxObjs.push(null);
       // 鍵(金色)
-      if (z.key) {
+      if (z.key && this.gimTex('key')) {
+        const g = new THREE.Group();
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.gimTex('key')!, transparent: true }));
+        sp.scale.set(1.1, 1.2, 1);
+        g.add(sp);
+        g.position.set(z.key.x, 0.9, z.key.z);
+        this.scene.add(g);
+        this.keyObjs.push(g);
+      } else if (z.key) {
         const g = new THREE.Group();
         const mat = new THREE.MeshLambertMaterial({ color: 0xffd23a, emissive: 0xffb000, emissiveIntensity: 0.5 });
         const ring = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.09, 8, 16), mat);
@@ -1520,7 +1566,11 @@ export class DungeonView {
       } else this.keyObjs.push(null);
     });
     // ワープ(さいごの 部屋)。まわる 光の 輪
-    this.warpRing = new THREE.Mesh(new THREE.RingGeometry(1.2, 1.5, 6), new THREE.MeshBasicMaterial({ color: 0xb07aff, transparent: true, opacity: 0.8, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
+    const wt = this.gimTex('warp');
+    this.warpRing = wt
+      ? new THREE.Mesh(new THREE.PlaneGeometry(3.4, 3.4), new THREE.MeshBasicMaterial({ map: wt, transparent: true, alphaTest: 0.2, side: THREE.DoubleSide }))
+      : new THREE.Mesh(new THREE.RingGeometry(1.2, 1.5, 6), new THREE.MeshBasicMaterial({ color: 0xb07aff, transparent: true, opacity: 0.8, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
+    if (wt) this.warpRing.userData.art = true;
     this.warpRing.rotation.x = -Math.PI / 2;
     this.warpRing.position.set(s.floor.exit.x, 0.08, s.floor.exit.z);
     this.scene.add(this.warpRing);
@@ -1858,7 +1908,7 @@ export class DungeonView {
         const d = s.floor.doors[e.door];
         const o = this.doorObjs[e.door];
         if (o) this.addFx(o, 0.5, (k) => {
-          o.position.y = 1.1 - k * 2.4;
+          o.position.y = (o.userData.base ?? 1.1) - k * 2.4;
           if (k >= 1) o.visible = false;
         });
         if (d) this.burst(d.x, d.z, 0x7affd0, 18);
@@ -1980,8 +2030,9 @@ export class DungeonView {
     // 出口(ワープ)
     this.exitMat.color.setHex(0xb07aff);
     this.exitMat.opacity = 0.45 + Math.sin(now * 5) * 0.2;
-    this.warpRing.rotation.z = now * 1.5;
-    this.warpRing.scale.setScalar(1 + Math.sin(now * 3) * 0.08);
+    // 絵の ワープは ゆっくり 回る・少し 光る
+    this.warpRing.rotation.z = now * (this.warpRing.userData.art ? 0.4 : 1.5);
+    this.warpRing.scale.setScalar(1 + Math.sin(now * 3) * (this.warpRing.userData.art ? 0.03 : 0.08));
     // しかけ
     s.puzzles.forEach((z, i) => {
       const b = this.boxObjs[i];
@@ -1993,7 +2044,13 @@ export class DungeonView {
         k.position.y = 0.9 + Math.sin(now * 3) * 0.12;
       }
       const pl = this.plateObjs[i];
-      if (pl && z.plate) (pl.material as THREE.MeshLambertMaterial).emissive.setHex(z.plate.pressed ? 0x5aff8a : z.kind === 'box' ? 0xff9a2a : 0x4aa8ff);
+      if (pl && z.plate) {
+        const mt = pl.material as THREE.MeshLambertMaterial;
+        if (mt.map) {
+          const want = this.gimTex(z.plate.pressed ? 'switch_on' : 'switch');
+          if (want && mt.map !== want) mt.map = want;
+        } else mt.emissive.setHex(z.plate.pressed ? 0x5aff8a : z.kind === 'box' ? 0xff9a2a : 0x4aa8ff);
+      }
     });
     // 弾(属性の 色の 光の 玉)
     const live = new Set<number>();
