@@ -2063,7 +2063,9 @@ export class DungeonView {
         const g = new THREE.Group();
         const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: c, transparent: true, opacity: 0.5, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending }));
         glow.scale.setScalar(sh.r * 3.5);
-        const core = new THREE.Sprite(new THREE.SpriteMaterial({ map: shotTexture(SHOT_EL[sh.tech.element] ?? 'none'), transparent: true, depthWrite: false, depthTest: false }));
+        const enm = SHOT_EL[sh.tech.element] ?? 'none';
+        // 2026-11-27 企画者の 絵(design/adventure/shots)。なければ プログラムの 絵
+        const core = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.shotArt(enm) ?? shotTexture(enm), transparent: true, depthWrite: false, depthTest: false }));
         const sz = Math.max(0.9, sh.r * 3.4);
         core.scale.set(sz * 2, sz, 1);
         core.material.rotation = Math.atan2(-sh.vz * 0.71, sh.vx);
