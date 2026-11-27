@@ -16,7 +16,8 @@ import { CELL, DOOR, FLOOR, fits, generateFloor, lineOfSight, cellToWorld, roomA
  */
 export type MobKind = 'slime' | 'ratz' | 'pige' | 'batz' | 'ghost' | 'spider' | 'mimic' | 'shroom' | 'skele' | 'golem' | 'kingslime' | 'troll';
 /** ボスの 技 */
-export type BossMove = 'press' | 'spit' | 'summon' | 'club' | 'spin' | 'quake';
+/** ボスの 技(2026-11-27 企画者「もう少し レパートリー」→ rain 毒の 雨・roll ころがり突進・charge 突進・rock 岩投げ を 追加) */
+export type BossMove = 'press' | 'spit' | 'summon' | 'club' | 'spin' | 'quake' | 'rain' | 'roll' | 'charge' | 'rock';
 export interface MobSpec {
   name: string;
   hp: number;
@@ -69,9 +70,9 @@ export const MOB_KINDS: Record<MobKind, MobSpec> = {
   skele: { name: 'SKELE', hp: 1.0, atk: 1.1, speed: 3.0, tough: 1, style: 'slash', range: 1.9, arc: 1.5, windup: 0.45, cool: 1.2, knock: 2.5 },
   golem: { name: 'GOLEM', hp: 2.2, atk: 1.4, speed: 1.8, tough: 3, style: 'smash', range: 1.9, arc: 1.4, windup: 1.0, cool: 2.2, knock: 5.5 },
   // 5階の 中ボス: ジャンププレス・毒液・小さい スライムを 呼ぶ(2026-11-24 企画者)
-  kingslime: { name: 'KING SLIME', hp: 6, atk: 0.85, speed: 2.2, tough: 2, style: 'boss', range: 6, arc: 0, windup: 0.9, cool: 1.4, knock: 4, size: 1.3, moves: ['press', 'spit', 'press', 'summon'] },
+  kingslime: { name: 'KING SLIME', hp: 6, atk: 0.85, speed: 2.2, tough: 2, style: 'boss', range: 6, arc: 0, windup: 0.9, cool: 1.4, knock: 4, size: 1.3, moves: ['press', 'spit', 'roll', 'rain', 'press', 'summon'] },
   // 10階の ボス: こん棒の 振り下ろし・回転攻撃・衝撃波(2026-11-24 企画者)
-  troll: { name: 'ALLEY TROLL', hp: 7, atk: 1.0, speed: 2.4, tough: 3, style: 'boss', range: 3.2, arc: 0.8, windup: 0.9, cool: 1.2, knock: 6, size: 1.5, moves: ['club', 'club', 'spin', 'quake'] },
+  troll: { name: 'ALLEY TROLL', hp: 7, atk: 1.0, speed: 2.4, tough: 3, style: 'boss', range: 3.2, arc: 0.8, windup: 0.9, cool: 1.2, knock: 6, size: 1.5, moves: ['club', 'rock', 'charge', 'club', 'spin', 'quake'] },
 };
 for (const k of Object.keys(ALT) as MobKind[]) MOB_KINDS[k].alt = ALT[k];
 /** 路地裏の ふつうの 敵(ボスを のぞく) */
@@ -267,6 +268,8 @@ export interface Actor {
   defDownUntil?: number;
   /** スライムの とびかかり(2026-11-26 企画者「瞬間移動して 攻撃は やめて」→ 少しずつ とぶ) */
   hop?: { t: number; dur: number; dist: number; dir: number; hit: boolean };
+  /** ボスの 毒の 雨の 落ちる 場所 */
+  spots?: { x: number; z: number }[];
   /** 攻撃の 回数・2つめの 技を 出して いるか */
   atkN?: number;
   altNow?: boolean;
@@ -1233,7 +1236,7 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
     if (K.style === 'boss') {
       // ボス: 近づきながら 順番に 技(技の 前に ねらう 場所が 出る)
       const mv = K.moves![(m.bossStep ?? 0) % K.moves!.length];
-      const far = mv === 'press' || mv === 'spit' || mv === 'summon' || mv === 'quake';
+      const far = mv !== 'club' && mv !== 'spin';
       const reach = far ? 7 : K.range + P.r;
       if (d < reach && s.t >= m.coolUntil && lineOfSight(s.floor, m.x, m.z, p.x, p.z)) {
         m.act = 'attack';
@@ -1246,7 +1249,23 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
         // 怒り: HP 半分 以下で 早くなる【仮】
         m.coolUntil = s.t + K.cool * (m.hp < m.maxHp / 2 ? 0.7 : 1);
         s.events.push({ kind: 'attack', id: m.id });
-        s.events.push({ kind: 'bossWarn', move: mv, x: mv === 'press' ? p.x : m.x, z: mv === 'press' ? p.z : m.z, dir: g, r: bossReach(mv), time: bossWindup(m) });
+        const bw = bossWindup(m);
+        if (mv === 'press') {
+          // 2026-11-27 企画者「ボスの 攻撃も 瞬間移動は やめて」→ ため の 間に ジャンプして 少しずつ ねらった 場所へ
+          const dist = Math.hypot(p.x - m.x, p.z - m.z);
+          m.hop = { t: 0, dur: bw, dist, dir: g, hit: true };
+        }
+        if (mv === 'rain') {
+          // 毒の 雨: 自分の 足もと + まわり 2か所
+          m.spots = [{ x: p.x, z: p.z }];
+          for (let k = 0; k < 2; k++) {
+            const a = s.rng() * Math.PI * 2;
+            const rr = 1.8 + s.rng() * 1.6;
+            m.spots.push({ x: p.x + Math.cos(a) * rr, z: p.z + Math.sin(a) * rr });
+          }
+          for (const sp of m.spots) s.events.push({ kind: 'bossWarn', move: mv, x: sp.x, z: sp.z, dir: g, r: bossReach(mv), time: bw });
+        } else
+          s.events.push({ kind: 'bossWarn', move: mv, x: mv === 'press' ? p.x : m.x, z: mv === 'press' ? p.z : m.z, dir: g, r: mv === 'roll' || mv === 'charge' ? Math.min(bossReach(mv), wallDist(s, m.x, m.z, g, bossReach(mv))) : bossReach(mv), time: bw });
       } else if (d > K.range * 0.7) moveBy(s, m, Math.cos(g) * m.speed * slow * dt, Math.sin(g) * m.speed * slow * dt, mobR(m));
       continue;
     }
@@ -1496,12 +1515,12 @@ function mobStrike(s: AdvState, m: Actor, K: MobSpec, d: number, g: number): voi
 
 /** ボスの 技の ため時間 */
 function bossWindup(m: Actor): number {
-  const W: Record<BossMove, number> = { press: 1.0, spit: 0.7, summon: 0.8, club: 0.85, spin: 0.9, quake: 1.3 };
+  const W: Record<BossMove, number> = { press: 1.0, spit: 0.7, summon: 0.8, club: 0.85, spin: 0.9, quake: 1.3, rain: 1.1, roll: 0.8, charge: 0.85, rock: 0.75 };
   return W[m.bossMove ?? 'club'];
 }
 /** ボスの 技の 広さ */
 function bossReach(mv: BossMove): number {
-  return ({ press: 2.6, spit: 7, summon: 2, club: 3.4, spin: 3.0, quake: 5.5 } as Record<BossMove, number>)[mv];
+  return ({ press: 2.6, spit: 7, summon: 2, club: 3.4, spin: 3.0, quake: 5.5, rain: 1.7, roll: 8, charge: 8, rock: 9 } as Record<BossMove, number>)[mv];
 }
 function bossStrike(s: AdvState, m: Actor, K: MobSpec): void {
   const p = s.player;
@@ -1512,12 +1531,8 @@ function bossStrike(s: AdvState, m: Actor, K: MobSpec): void {
   s.events.push({ kind: 'mobFx', style: mv, x: m.x, z: m.z, dir: m.face, r, arc: mv === 'club' ? K.arc : Math.PI });
   if (mv === 'press') {
     // ジャンプして ねらった 場所に 落ちる
-    const tx = m.tx ?? p.x;
-    const tz = m.tz ?? p.z;
-    if (fits(s.floor, tx, tz, mobR(m))) {
-      m.x = tx;
-      m.z = tz;
-    }
+    // (ため の 間に とんで きた。ここで 着地)
+    m.hop = undefined;
     s.events.push({ kind: 'mobFx', style: 'smash', x: m.x, z: m.z, dir: 0, r, arc: Math.PI });
     if (d() < r + P.r) damage(s, m, p, 1.2);
   } else if (mv === 'spit') {
@@ -1547,6 +1562,21 @@ function bossStrike(s: AdvState, m: Actor, K: MobSpec): void {
       s.mobs.push(c);
       s.mobRoom.push(room);
     }
+  } else if (mv === 'rain') {
+    for (const sp of m.spots ?? []) {
+      s.events.push({ kind: 'mobFx', style: 'smash', x: sp.x, z: sp.z, dir: 0, r, arc: Math.PI });
+      if (Math.hypot(p.x - sp.x, p.z - sp.z) < r + P.r) {
+        damage(s, m, p, 0.9);
+        break;
+      }
+    }
+    m.spots = undefined;
+  } else if (mv === 'roll' || mv === 'charge') {
+    // ころがり突進・突進: 向いた 方へ 一気に 走る(ぶつかると 当たる)
+    m.hop = { t: 0, dur: 0.5, dist: Math.max(0, wallDist(s, m.x, m.z, m.face, r) - 0.5), dir: m.face, hit: false };
+  } else if (mv === 'rock') {
+    // 岩投げ: 大きな 弾
+    s.mobShots.push({ id: ++s.seq, kind: 'troll', x: m.x + Math.cos(m.face) * 1.6, z: m.z + Math.sin(m.face) * 1.6, vx: Math.cos(m.face) * 9, vz: Math.sin(m.face) * 9, r: 0.75, life: r / 9, from: m, slow: false });
   } else if (mv === 'club') {
     const g = Math.atan2(p.z - m.z, p.x - m.x);
     if (d() < r + P.r && Math.abs(angDiff(g, m.face)) < K.arc) damage(s, m, p, 1.5);

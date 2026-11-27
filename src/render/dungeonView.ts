@@ -472,7 +472,9 @@ class MobView {
   }
   update(m: Actor, dt: number, cam: THREE.Camera, now: number): void {
     // スライムの とびかかり: 弧を えがいて とぶ(影は 床に のこす)
-    const hopY = m.hop ? Math.sin(Math.PI * Math.min(1, m.hop.t / m.hop.dur)) * 1.1 : 0;
+    // ボスの ジャンププレスは 高く・ころがり／突進は とばない
+    const hopH = m.bossMove === 'press' ? 3 : m.bossMove === 'roll' || m.bossMove === 'charge' ? 0 : 1.1;
+    const hopY = m.hop ? Math.sin(Math.PI * Math.min(1, m.hop.t / m.hop.dur)) * hopH : 0;
     this.root.position.set(m.x, hopY, m.z);
     if (this.shadow) this.shadow.position.y = 0.04 - hopY;
     this.body.rotation.y = -m.face;
@@ -726,10 +728,15 @@ export class DungeonView {
     let geo: THREE.BufferGeometry;
     if (e.move === 'club') geo = new THREE.CircleGeometry(e.r, 24, -0.8, 1.6);
     else if (e.move === 'quake') geo = new THREE.RingGeometry(e.r - 0.3, e.r, 48);
-    else geo = new THREE.CircleGeometry(e.r, 32);
+    else if (e.move === 'roll' || e.move === 'charge' || e.move === 'rock') {
+      // 走る・投げる 道すじ(帯)
+      const wd = e.move === 'rock' ? 1.6 : 2.6;
+      geo = new THREE.PlaneGeometry(e.r, wd);
+      geo.translate(e.r / 2, 0, 0);
+    } else geo = new THREE.CircleGeometry(e.r, 32);
     const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xff2a3a, transparent: true, opacity: 0.3, depthWrite: false, side: THREE.DoubleSide }));
     m.rotation.x = -Math.PI / 2;
-    if (e.move === 'club') m.rotation.z = -e.dir;
+    if (e.move === 'club' || e.move === 'roll' || e.move === 'charge' || e.move === 'rock') m.rotation.z = -e.dir;
     m.position.set(e.x, 0.06, e.z);
     this.addFx(m, e.time, (k) => {
       (m.material as THREE.MeshBasicMaterial).opacity = 0.18 + 0.3 * k;
@@ -1539,7 +1546,7 @@ export class DungeonView {
       liveM.add(sh.id);
       let o = this.mobShotObjs.get(sh.id);
       if (!o) {
-        const c = sh.kind === 'ghost' ? 0x6ae8ff : sh.slow ? 0xf0f0ff : sh.kind === 'slime' ? 0xb05aff : sh.kind === 'shroom' ? 0xff5ab0 : sh.kind === 'skele' ? 0xf0e8d0 : 0xd8d0ff;
+        const c = sh.kind === 'ghost' ? 0x6ae8ff : sh.slow ? 0xf0f0ff : sh.kind === 'slime' ? 0xb05aff : sh.kind === 'shroom' ? 0xff5ab0 : sh.kind === 'skele' ? 0xf0e8d0 : sh.kind === 'troll' ? 0x9a8a70 : sh.kind === 'kingslime' ? 0x9aff5a : 0xd8d0ff;
         const feather = sh.kind === 'pige';
         const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: feather ? featherTexture() : glowTexture(), color: feather ? 0xffffff : c, transparent: true, depthWrite: false, depthTest: false }));
         if (feather) {
