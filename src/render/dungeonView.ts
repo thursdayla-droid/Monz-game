@@ -1222,10 +1222,24 @@ export class DungeonView {
     }
   }
 
+  /** 敵の 近くの 攻撃の 企画者の 絵(2026-11-27 design/adventure/melee)。なければ プログラムの 絵 */
+  private meleeArt(name: string): THREE.Texture {
+    const path = `assets/adventure/fx_${name}.webp`;
+    const url = assetUrl(path);
+    if ((window as { __MONZ_ASSETS?: Record<string, string> }).__MONZ_ASSETS && url === path) return meleeTexture(name);
+    let t = this.propTex.get(`fx_${name}`);
+    if (!t) {
+      t = new THREE.TextureLoader().load(url);
+      t.colorSpace = THREE.SRGBColorSpace;
+      this.propTex.set(`fx_${name}`, t);
+    }
+    return t;
+  }
+
   /** 敵の 近くの 攻撃の 見た目(牙・ひっかき・地割れ・音の 波・胞子・けむり) */
   private enemyFx(e: Extract<AdvEvent, { kind: 'mobFx' }>): void {
     const bill = (tex: string, x: number, y: number, z: number, size: number, life: number, tick?: (m: THREE.Sprite, k: number) => void, rot = 0) => {
-      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: meleeTexture(tex), transparent: true, depthWrite: false, depthTest: false }));
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.meleeArt(tex), transparent: true, depthWrite: false, depthTest: false }));
       sp.position.set(x, y, z);
       sp.material.rotation = rot;
       sp.renderOrder = 7;
@@ -1236,7 +1250,7 @@ export class DungeonView {
       });
     };
     const flat = (tex: string, x: number, z: number, size: number, life: number, rotZ = 0, grow = 0.3) => {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshBasicMaterial({ map: meleeTexture(tex), transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshBasicMaterial({ map: this.meleeArt(tex), transparent: true, depthWrite: false, side: THREE.DoubleSide }));
       m.rotation.set(-Math.PI / 2, 0, rotZ);
       m.position.set(x, 0.05, z);
       this.addFx(m, life, (k) => {
@@ -1267,7 +1281,7 @@ export class DungeonView {
         // 音の 波が 前へ 3つ
         for (let i = 0; i < 3; i++) {
           const d = 0.8 + i * (e.r / 3);
-          const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: meleeTexture('sound'), transparent: true, depthWrite: false, depthTest: false }));
+          const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.meleeArt('sound'), transparent: true, depthWrite: false, depthTest: false }));
           sp.material.rotation = screenRot;
           sp.renderOrder = 7;
           this.addFx(sp, 0.35 + i * 0.08, (k) => {

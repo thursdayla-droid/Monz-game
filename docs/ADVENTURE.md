@@ -226,3 +226,4 @@
 - 2026-11-27 敵の 弾の 絵が とどいた（企画者。`design/adventure/shots/` → `public/assets/adventure/shot_*.webp`）: 羽・ねばねば・毒液・胞子玉・骨・クモの 網・霊の 火の玉・岩。プログラムで 描いた 仮の 絵と 入れかえた
 - 2026-11-27 しかけと 扉の 絵が とどいた（企画者。`design/adventure/gimmicks/` → `public/assets/adventure/gim_*.webp`）: 扉 = さびた シャッター・モンスター部屋の 扉 = 赤い ランプの 鉄の 扉・スイッチ（ふむ前 青／ふんだ あと 緑）・押す 箱・カギ・ワープ。扉と 箱は カメラに 向いた 板（横へ のびる 通路の 扉は はばを せまく）。絵が ない ページでは 前の 色つきの 形
 - 2026-11-27 自分の 技の 弾の 絵が とどいた（企画者。属性ごと: 炎・水・雷・自然・光・闇・無 → `public/assets/adventure/shot_<fire|water|thunder|leaf|light|dark|none>.webp`）。プログラムの 仮の 絵と 入れかえた
+- 2026-11-27 敵の 近くの 攻撃の 絵が とどいた（企画者。`design/adventure/melee/` → `public/assets/adventure/fx_*.webp`）: 牙・ひっかき・地割れ・音の 波・胞子の 粉・けむり。プログラムの 仮の 絵と 入れかえた。これで 冒険の 絵は ぜんぶ 企画者の 絵
