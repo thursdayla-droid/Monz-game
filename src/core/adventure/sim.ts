@@ -836,7 +836,7 @@ function dropAt(s: AdvState, x: number, z: number, gearP: number, herbP: number)
 }
 
 /**
- * 擬人化RPG の 通常攻撃の 届く 範囲(2026-11-26 企画者「拳闘士にしては 広すぎる」「姿は 変わらないけど 進化したら 攻撃の 長さが 少し 広がる」)。
+ * 擬人化RPG の 通常攻撃の 届く 範囲(2026-11-26 企画者「剣闘士にしては 広すぎる」「姿は 変わらないけど 進化したら 攻撃の 長さが 少し 広がる」)。
  * form = 進化(1〜3)【仮】
  */
 export function rpgJabReach(role: string, form: number): { range: number; arc: number } {
