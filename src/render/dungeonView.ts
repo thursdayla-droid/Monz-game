@@ -1266,7 +1266,7 @@ export class DungeonView {
         this.pop(String(e.dmg), toMe ? '#ff6a6a' : e.crit ? '#ffd23a' : '#ffffff', e.x, 2.1, e.z, e.crit ? 0.95 : 0.8);
         if (e.crit) this.pop('CRITICAL', '#ffd23a', e.x, 2.75, e.z, 0.4);
         this.burst(e.x, e.z, toMe ? 0xff4a4a : 0xffc060, e.crit ? 14 : 8);
-        if (!toMe) this.impact(e.x, e.z, e.crit ? 0xffd23a : 0xffa040, e.crit);
+        if (!toMe && !this.pixelOpt) this.impact(e.x, e.z, e.crit ? 0xffd23a : 0xffa040, e.crit);
         if (!toMe && this.pixelOpt) this.rpgHit(e.x, e.z, e.crit);
         this.shake = Math.max(this.shake, toMe ? 0.25 : e.crit ? 0.32 : 0.2);
         if (toMe) this.rig.flash = 0.12;
@@ -1620,21 +1620,18 @@ export class DungeonView {
   /** 通常攻撃(擬人化RPG): 当たる 範囲の 扇 + 斬撃の 絵 */
   private rpgJab(e: Extract<AdvEvent, { kind: 'jab' }>): void {
     if (e.style === 'shot') return;
+    // 2026-11-27 企画者「エフェクト でかすぎて 1レベルで 強そう」→ 当たる 範囲(前の 1マス)と 同じ 大きさ・控えめに
     const big = e.chain === 3;
     const side = e.chain === 2 ? -1 : 1;
-    this.fxGround('ring', 0xffb060, e.x + Math.cos(e.dir) * e.range * 0.45, e.z + Math.sin(e.dir) * e.range * 0.45, e.range * 1.1, 0.22, 0.5, 0, 0, 0.35);
-    this.fxSlash(e.x, e.z, e.dir, e.range * (big ? 1.25 : 1.05), big ? 0xffa040 : 0xffe0b0, side, big ? 0.3 : 0.22);
-    if (big) {
-      this.fxSlash(e.x, e.z, e.dir, e.range * 1.1, 0xffffff, -side, 0.26, 0.06);
-      this.shake = Math.max(this.shake, 0.3);
-    }
+    this.fxSlash(e.x, e.z, e.dir, e.range * 0.8, big ? 0xffc080 : 0xfff0d8, side, big ? 0.22 : 0.16);
+    if (big) this.shake = Math.max(this.shake, 0.12);
   }
 
   /** 技が 当たった(擬人化RPG): 属性の 爆発 */
   private rpgHit(x: number, z: number, crit: boolean): void {
     const recent = performance.now() / 1000 - this.lastEl.t < 0.8;
     const el = recent ? this.lastEl.el : '無';
-    this.fxBill(recent ? this.exName(el) : 'spark', recent ? this.exColor(el) : 0xffe8c0, x, 1.0, z, crit ? 2.6 : recent ? 2.2 : 1.5, 0.3, 0.6);
+    this.fxBill(recent ? this.exName(el) : 'spark', recent ? this.exColor(el) : 0xffe8c0, x, 1.0, z, crit ? 1.8 : recent ? 2.2 : 1.0, 0.25, 0.5);
   }
 
   /** 技の ため: 足もとに 魔法陣(攻撃 = とがった 陣・回復や 守り = 花の 陣)が 回りながら 広がる */

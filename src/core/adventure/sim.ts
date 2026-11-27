@@ -840,8 +840,9 @@ function dropAt(s: AdvState, x: number, z: number, gearP: number, herbP: number)
  * form = 進化(1〜3)【仮】
  */
 export function rpgJabReach(role: string, form: number): { range: number; arc: number } {
-  const base = ({ 剣闘士: { range: 1.8, arc: 0.55 } } as Record<string, { range: number; arc: number }>)[role] ?? { range: 1.8, arc: 0.55 };
-  return { range: base.range + (form - 1) * 0.3, arc: base.arc };
+  // 2026-11-27 企画者「レベル 低い 時は 前の 一マス ぐらいで いい」→ 1.8 → 1.2(敵の 大きさを 足して 約 1マス)
+  const base = ({ 剣闘士: { range: 1.2, arc: 0.6 } } as Record<string, { range: number; arc: number }>)[role] ?? { range: 1.2, arc: 0.6 };
+  return { range: base.range + (form - 1) * 0.4, arc: base.arc };
 }
 
 /** 木箱を たたく(test = その 場所に 攻撃が とどくか)。こわれたら 通れる ように なり、物が 出る */
