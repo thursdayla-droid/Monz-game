@@ -481,23 +481,13 @@ export class AdventureScene extends Phaser.Scene {
     const goal = H?.state === 'locked'
       ? `<b style="color:#ff5a6a">モンスターハウス</b>　のこり <b>${houseLeft}</b> 体・<b>${Math.max(0, Math.ceil(60 - H.t))}</b> 秒`
       : boss && s.mobRoom[s.mobs.indexOf(boss)] === ri
-        ? `<b>${MOB_KINDS[boss.mobKind!].name}</b> を たおせ　HP <b>${Math.ceil((boss.hp / boss.maxHp) * 100)}%</b>`
-        : ri < 0
-          ? 'わき道…？'
-          : ri === s.floor.rooms.length - 1
-        ? '<b>ワープ</b>に のって 次の 階へ'
-        : !z || z.solved
-          ? '次の 部屋へ すすもう'
-          : z.kind === 'kill'
-            ? `敵を ぜんぶ たおせ　のこり <b>${left}</b> 体`
-            : z.kind === 'switch'
-              ? '<b>スイッチ</b>を ふもう'
-              : z.kind === 'box'
-                ? '<b>箱</b>を おして スイッチに のせよう'
-                : s.keys > 0
-                  ? '<b>カギ</b>で とびらを あけよう'
-                  : '<b>カギ</b>を さがそう';
-    (root.querySelector('.goal') as HTMLElement).innerHTML = goal + (s.keys > 0 ? '　🔑' : '');
+        ? `<b>${MOB_KINDS[boss.mobKind!].name}</b>　HP <b>${Math.ceil((boss.hp / boss.maxHp) * 100)}%</b>`
+        : ''; // 2026-11-27 企画者「わき道？とか 敵を 倒そう とか ガイド いらない」→ めあての 文は 出さない(ボスの HP・モンスターハウスの のこり だけ)
+    void z;
+    void left;
+    const goalEl = root.querySelector('.goal') as HTMLElement;
+    goalEl.innerHTML = goal + (s.keys > 0 ? '　🔑' : '');
+    goalEl.style.visibility = goalEl.innerHTML ? 'visible' : 'hidden';
   }
 
   private msgT = 0;
