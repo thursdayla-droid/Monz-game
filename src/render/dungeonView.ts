@@ -538,6 +538,7 @@ export class DungeonView {
   private exitMat: THREE.MeshBasicMaterial;
   /** しかけ(2026-11-24): 扉・スイッチ・箱・鍵・ワープの 光 */
   private doorObjs: THREE.Mesh[] = [];
+  private houseDoor: THREE.Mesh | null = null;
   private plateObjs: (THREE.Mesh | null)[] = [];
   private boxObjs: (THREE.Object3D | null)[] = [];
   private keyObjs: (THREE.Object3D | null)[] = [];
@@ -977,6 +978,20 @@ export class DungeonView {
       this.scene.add(m);
       this.doorObjs.push(m);
     });
+    // モンスター部屋の 扉(とじこめ の 間だけ 出る。赤く 光る)
+    for (const sd of s.floor.sides.filter((x) => x.house)) {
+      const xs = sd.door.map((c) => c % s.floor.w);
+      const ys = sd.door.map((c) => Math.floor(c / s.floor.w));
+      const horiz = ys[0] !== ys[1];
+      const cx = ((Math.min(...xs) + Math.max(...xs) + 1) / 2) * CELL;
+      const cz = ((Math.min(...ys) + Math.max(...ys) + 1) / 2) * CELL;
+      const g = horiz ? new THREE.BoxGeometry(0.6, 2.2, CELL * 2) : new THREE.BoxGeometry(CELL * 2, 2.2, 0.6);
+      const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: 0xc0203a, emissive: 0xff2040, emissiveIntensity: 0.6 }));
+      m.position.set(cx, 1.1, cz);
+      m.visible = false;
+      this.scene.add(m);
+      this.houseDoor = m;
+    }
     s.puzzles.forEach((z) => {
       // スイッチ(床の 四角)
       if (z.plate) {
@@ -1327,6 +1342,12 @@ export class DungeonView {
         if (!toMe && this.pixelOpt) this.rpgHit(e.x, e.z, e.crit);
         this.shake = Math.max(this.shake, toMe ? 0.25 : e.crit ? 0.32 : 0.2);
         if (toMe) this.rig.flash = 0.12;
+      } else if (e.kind === 'house') {
+        if (this.houseDoor) this.houseDoor.visible = e.state === 'locked';
+        if (e.state === 'locked') {
+          this.shake = Math.max(this.shake, 0.5);
+          this.groundRing(e.x, e.z, 10, 0xff2040, 0.8, 0.1);
+        } else if (e.state === 'done') this.burst(this.houseDoor?.position.x ?? e.x, this.houseDoor?.position.z ?? e.z, 0x7affd0, 24);
       } else if (e.kind === 'crate') {
         const m = this.propObjs.get(e.prop);
         // かけらの 色: 木箱 = 木・段ボール = 茶色の 紙・ゴミ箱 = 灰色の 金属
@@ -1391,6 +1412,11 @@ export class DungeonView {
         const c = e.style === 'quake' ? 0xffb03a : e.style === 'spit' ? 0x9aff5a : e.style === 'summon' ? 0xc07aff : 0xff6a3a;
         if (e.style !== 'spit' && e.style !== 'press') this.groundRing(e.x, e.z, e.r, c, e.style === 'quake' ? 0.6 : 0.4, e.style === 'quake' ? 0.12 : 0.25);
         if (e.style === 'quake' || e.style === 'club') this.shake = Math.max(this.shake, 0.4);
+      } else if (e.kind === 'mobFx' && e.style === 'ring') {
+        this.groundRing(e.x, e.z, e.r, 0xff8a3a, 0.5, 0.2);
+        this.shake = Math.max(this.shake, 0.25);
+      } else if (e.kind === 'mobFx' && e.style === 'blink') {
+        this.burst(e.x, e.z, 0x9ae8ff, 12);
       } else if (e.kind === 'mobFx') {
         // 敵の 攻撃の 見た目【仮】: 胞子 ピンク・重い パンチ オレンジ・超音波 紫・ほか 白
         const c = e.style === 'spore' ? 0xff5ab0 : e.style === 'smash' ? 0xff8a2a : e.style === 'wave' ? 0xb05aff : 0xffffff;
@@ -1513,7 +1539,7 @@ export class DungeonView {
       liveM.add(sh.id);
       let o = this.mobShotObjs.get(sh.id);
       if (!o) {
-        const c = sh.kind === 'ghost' ? 0x6ae8ff : sh.slow ? 0xf0f0ff : 0xd8d0ff;
+        const c = sh.kind === 'ghost' ? 0x6ae8ff : sh.slow ? 0xf0f0ff : sh.kind === 'slime' ? 0xb05aff : sh.kind === 'shroom' ? 0xff5ab0 : sh.kind === 'skele' ? 0xf0e8d0 : 0xd8d0ff;
         const feather = sh.kind === 'pige';
         const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: feather ? featherTexture() : glowTexture(), color: feather ? 0xffffff : c, transparent: true, depthWrite: false, depthTest: false }));
         if (feather) {

@@ -67,11 +67,24 @@ export interface Floor {
   props: FloorProp[];
   decals: FloorDecal[];
   signs: FloorSign[];
+  /** わき道の 部屋(行き止まり。2026-11-27 企画者「一本道は やめよう。行き止まり・すごい 広い 部屋・モンスター部屋」) */
+  sides: SideRoom[];
+}
+
+/** わき道の 部屋。from = つながる 一本道の 部屋・door = 部屋の 入り口の マス(モンスター部屋で しめる)・big = 広い 部屋・house = モンスター部屋 */
+export interface SideRoom {
+  room: Room;
+  from: number;
+  door: number[];
+  big: boolean;
+  house: boolean;
 }
 
 export interface FloorOptions {
   /** 部屋の 数(はじまり・ワープ ふくむ) */
   rooms?: number;
+  /** 階(わき道・広い 部屋・モンスター部屋は 階が 進むほど ふえる) */
+  level?: number;
 }
 
 const center = (r: Room) => ({ cx: Math.floor(r.x + r.w / 2), cy: Math.floor(r.y + r.h / 2) });
@@ -155,11 +168,108 @@ export function generateFloor(seed: number, opt: FloorOptions = {}): Floor {
       doors.push({ cells, x: c.x + CELL / 2, z: c.z, horiz: false });
     }
   }
+  const sides = addSides(tiles, w, path, rooms, seed, opt.level ?? 1);
   const s = center(rooms[0]);
   const e = center(rooms[rooms.length - 1]);
-  const f: Floor = { w, h, tiles, rooms, doors, start: cellToWorld(s.cx, s.cy), exit: cellToWorld(e.cx, e.cy), props: [], decals: [], signs: [] };
+  const f: Floor = { w, h, tiles, rooms, doors, start: cellToWorld(s.cx, s.cy), exit: cellToWorld(e.cx, e.cy), props: [], decals: [], signs: [], sides };
   decorate(f, seed);
   return f;
+}
+
+/**
+ * わき道の 部屋を 足す(一本道の 部屋の となりの 空いた ます目へ。行き止まり)。部屋の 形は べつの 乱数(一本道は 変わらない)。
+ * 数: 1階 1つ・2階ごとに 1つ ふえる(4つまで)。広い 部屋(となり 2ます ぶん): 2階から 半分・5階から かならず。
+ * モンスター部屋: 3階から 半分・6階から 7割【仮】
+ */
+function addSides(tiles: Uint8Array, w: number, path: [number, number][], rooms: Room[], seed: number, level: number): SideRoom[] {
+  const rng = mulberry32((seed ^ 0x2c1b3c6d) >>> 0);
+  const ri = (a: number, b: number) => a + Math.floor(rng() * (b - a + 1));
+  const used = new Set(path.map(([x, y]) => `${x},${y}`));
+  const free = (x: number, y: number) => x >= 0 && y >= 0 && x < GRID && y < GRID && !used.has(`${x},${y}`);
+  const dig = (x: number, y: number) => {
+    if (x > 0 && y > 0 && x < w - 1 && y < w - 1) tiles[y * w + x] = FLOOR;
+  };
+  const want = Math.min(4, 1 + Math.floor((level - 1) / 2));
+  const bigOk = level >= 5 || (level >= 2 && rng() < 0.5);
+  const houseOk = level >= 6 ? rng() < 0.7 : level >= 3 && rng() < 0.5;
+  const out: SideRoom[] = [];
+  // 一本道の 部屋(はじまりと ワープの 部屋 以外を 先に)の となりの 空き
+  const order = path.map((_, i) => i).filter((i) => i > 0 && i < path.length - 1);
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  order.push(0);
+  for (const pi of order) {
+    if (out.length >= want) break;
+    const [px, py] = path[pi];
+    const dirs = ([[1, 0], [-1, 0], [0, 1], [0, -1]] as const).filter(([dx, dy]) => free(px + dx, py + dy));
+    if (!dirs.length) continue;
+    const [dx, dy] = dirs[Math.floor(rng() * dirs.length)];
+    const gx = px + dx;
+    const gy = py + dy;
+    // 広い 部屋: さらに 同じ 向きか 横の ます目も 空いて いれば 2ます ぶん
+    let g2: [number, number] | null = null;
+    if (bigOk && !out.some((o) => o.big)) {
+      const cand = ([[dx, dy], [dy, dx], [-dy, -dx]] as const).map(([ex, ey]) => [gx + ex, gy + ey] as [number, number]).filter(([x, y]) => free(x, y));
+      if (cand.length) g2 = cand[0];
+    }
+    used.add(`${gx},${gy}`);
+    if (g2) used.add(`${g2[0]},${g2[1]}`);
+    const slotRect = (sx: number, sy: number): Room => {
+      const rw = ri(8, 11);
+      const rh = ri(8, 11);
+      const ox = sx * SLOT;
+      const oy = sy * SLOT;
+      const x = ri(Math.max(ox + 1, ox + LANE + 2 - rw), Math.min(ox + LANE, ox + SLOT - 1 - rw));
+      const y = ri(Math.max(oy + 1, oy + LANE + 2 - rh), Math.min(oy + LANE, oy + SLOT - 1 - rh));
+      return { x, y, w: rw, h: rh };
+    };
+    let room: Room;
+    if (g2) {
+      // 2ます ぶんの 広い 部屋(両方の 通路の 線を ふくむ)
+      const x0 = Math.min(gx, g2[0]) * SLOT;
+      const y0 = Math.min(gy, g2[1]) * SLOT;
+      const x1 = (Math.max(gx, g2[0]) + 1) * SLOT;
+      const y1 = (Math.max(gy, g2[1]) + 1) * SLOT;
+      const m = () => ri(2, 3);
+      const wide = gx !== g2[0];
+      const rx = wide ? x0 + m() : x0 + ri(1, 3);
+      const ry = wide ? y0 + ri(1, 3) : y0 + m();
+      const rx1 = wide ? x1 - m() : x0 + SLOT - ri(1, 3);
+      const ry1 = wide ? y0 + SLOT - ri(1, 3) : y1 - m();
+      room = { x: rx, y: ry, w: rx1 - rx, h: ry1 - ry };
+    } else room = slotRect(gx, gy);
+    for (let y = room.y; y < room.y + room.h; y++) for (let x = room.x; x < room.x + room.w; x++) dig(x, y);
+    // 通路(一本道の 部屋 → わき道の 部屋)。部屋がわの 入り口の マスを 覚える
+    const a = rooms[pi];
+    const door: number[] = [];
+    if (dy === 0) {
+      const y0 = py * SLOT + LANE;
+      const goR = dx > 0;
+      const xa = goR ? a.x + a.w : room.x + room.w;
+      const xb = goR ? room.x - 1 : a.x - 1;
+      for (let x = xa; x <= xb; x++) for (const y of [y0, y0 + 1]) dig(x, y);
+      const ex = goR ? xb : xa;
+      door.push(y0 * w + ex, (y0 + 1) * w + ex);
+    } else {
+      const x0 = px * SLOT + LANE;
+      const goD = dy > 0;
+      const ya = goD ? a.y + a.h : room.y + room.h;
+      const yb = goD ? room.y - 1 : a.y - 1;
+      for (let y = ya; y <= yb; y++) for (const x of [x0, x0 + 1]) dig(x, y);
+      const ey = goD ? yb : ya;
+      door.push(ey * w + x0, ey * w + x0 + 1);
+    }
+    out.push({ room, from: pi, door, big: !!g2, house: false });
+  }
+  // モンスター部屋(はじまりの 部屋 から つながる 部屋 以外。広い 部屋が あれば そこ)
+  if (houseOk) {
+    const c = out.filter((o) => o.from !== 0);
+    const pick = c.find((o) => o.big) ?? c[Math.floor(rng() * c.length)];
+    if (pick) pick.house = true;
+  }
+  return out;
 }
 
 const PROP_KINDS: PropKind[] = ['trash', 'dumpster', 'boxes', 'bags', 'drum', 'crate'];
@@ -173,7 +283,7 @@ function decorate(f: Floor, seed: number): void {
   const rng = mulberry32((seed ^ 0x5bd1e995) >>> 0);
   const ri = (a: number, b: number) => a + Math.floor(rng() * (b - a + 1));
   const at = (x: number, y: number) => (x < 0 || y < 0 || x >= f.w || y >= f.h ? WALL : f.tiles[y * f.w + x]);
-  f.rooms.forEach((r) => {
+  [...f.rooms, ...f.sides.map((sd) => sd.room)].forEach((r) => {
     // 通路の 入り口(部屋の ふちで、外が 壁でない マス)
     const open: [number, number][] = [];
     for (let y = r.y; y < r.y + r.h; y++)

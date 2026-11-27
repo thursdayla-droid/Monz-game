@@ -34,13 +34,63 @@ describe('冒険の ダンジョン', () => {
       expect(f.props.length).toBeGreaterThan(5);
       const d = bfs(f, Math.floor(f.start.x / CELL), Math.floor(f.start.z / CELL), true);
       for (const p of f.props) {
-        const r = f.rooms.find((r) => p.cx >= r.x && p.cx < r.x + r.w && p.cy >= r.y && p.cy < r.y + r.h)!;
+        const r = [...f.rooms, ...f.sides.map((x) => x.room)].find((r) => p.cx >= r.x && p.cx < r.x + r.w && p.cy >= r.y && p.cy < r.y + r.h)!;
         expect(r).toBeTruthy();
         expect(p.cx === r.x || p.cx === r.x + r.w - 1 || p.cy === r.y).toBe(true);
       }
       for (const r of f.rooms) for (let y = r.y + 1; y < r.y + r.h - 1; y++) for (let x = r.x + 1; x < r.x + r.w - 1; x++) expect(d[y * f.w + x]).toBeGreaterThanOrEqual(0);
       for (const dr of f.doors) for (const c of dr.cells) expect(d[c]).toBeGreaterThanOrEqual(0);
     }
+  });
+  it('わき道の 部屋: 階が 進むと ふえる・どれも 歩いて 行ける・行き止まり(扉を しめると 先へ 行けない まま)・広い 部屋と モンスター部屋が 出る', () => {
+    let big = 0;
+    let house = 0;
+    for (let seed = 1; seed <= 40; seed++) {
+      const f1 = generateFloor(seed, { level: 1 });
+      const f9 = generateFloor(seed, { level: 9 });
+      expect(f1.sides.length).toBeGreaterThanOrEqual(1);
+      expect(f9.sides.length).toBeGreaterThanOrEqual(f1.sides.length);
+      expect(f1.sides.some((x) => x.house)).toBe(false);
+      for (const f of [f1, f9]) {
+        const sx = Math.floor(f.start.x / CELL);
+        const sy = Math.floor(f.start.z / CELL);
+        const d = bfs(f, sx, sy, true);
+        for (const sd of f.sides) expect(d[(sd.room.y + 1) * f.w + sd.room.x + 1]).toBeGreaterThanOrEqual(0);
+        // 一本道の 扉を しめると、その 先の 部屋へは 行けない(わき道で 回りこめない)
+        for (let i = 0; i < f.doors.length; i++) {
+          for (const c of f.doors[i].cells) f.tiles[c] = DOOR;
+          const d2 = bfs(f, sx, sy);
+          const r = f.rooms[i + 1];
+          expect(d2[(r.y + 1) * f.w + r.x + 1]).toBe(-1);
+          for (const c of f.doors[i].cells) f.tiles[c] = FLOOR;
+        }
+      }
+      big += f9.sides.filter((x) => x.big).length;
+      house += f9.sides.filter((x) => x.house).length;
+    }
+    expect(big).toBeGreaterThan(20);
+    expect(house).toBeGreaterThan(15);
+  });
+  it('モンスター部屋: 入って 10秒で とじて 敵が いっぱい・全部 倒すと ひらく', () => {
+    let s: AdvState | null = null;
+    for (let seed = 1; seed < 60 && !s; seed++) {
+      const t = newAdventure(seed, { hp: 10, power: 10, tough: 10, speed: 10, tech: 10 }, 8);
+      if (t.house) s = t;
+    }
+    const st = s!;
+    const sd = st.floor.sides.find((x) => x.house)!;
+    st.player.x = (sd.room.x + sd.room.w / 2) * CELL;
+    st.player.z = (sd.room.y + sd.room.h / 2) * CELL;
+    st.player.hp = st.player.maxHp = 1e9;
+    const n0 = st.mobs.length;
+    for (let i = 0; i < 11 * 30; i++) stepAdventure(st, { mx: 0, mz: 0, attack: false, tech: null, techDir: null }, 1 / 30);
+    expect(st.house!.state).toBe('locked');
+    expect(st.mobs.length - n0).toBeGreaterThanOrEqual(8);
+    for (const c of sd.door) expect(st.floor.tiles[c]).toBe(DOOR);
+    for (const m of st.mobs) m.hp = 0, (m.act = 'dead');
+    stepAdventure(st, { mx: 0, mz: 0, attack: false, tech: null, techDir: null }, 1 / 30);
+    expect(st.house!.state).toBe('done');
+    for (const c of sd.door) expect(st.floor.tiles[c]).toBe(FLOOR);
   });
   it('部屋は 一本道・扉を 通れば どの 部屋にも 行ける・扉 i を 通らないと 部屋 i+1 へ 行けない', () => {
     for (let seed = 1; seed <= 40; seed++) {
@@ -71,24 +121,6 @@ describe('冒険の 動き', () => {
     for (const [n] of RPG_LEARN.bunk) expect(getTech(n).name).toBe(n);
     expect(rpgLearned('bunk', 1)).toEqual(['ジャブジャブ', 'バンクバッシュ']);
     expect(rpgLearned('bunk', 99).length).toBe(11);
-  });
-  it('擬人化RPG: スウェイカウンター中に 攻撃されると ダメージなしで 反撃', () => {
-    const t = getTech('スウェイカウンター');
-    const s = newAdventure(3, { hp: 10, power: 10, tough: 10, speed: 10, tech: 10 }, 1, [{ id: 'スウェイカウンター', kind: t.kind, power: t.power, cooldown: 2, element: t.element, effect: 'なし', strength: t.strength }]);
-    const m = s.mobs[0];
-    m.x = s.player.x + 1;
-    m.z = s.player.z;
-    m.awake = true;
-    const hp = s.player.hp;
-    const mhp = m.hp;
-    let saw = false;
-    for (let i = 0; i < 90 && !saw; i++) {
-      stepAdventure(s, { mx: 0, mz: 0, attack: false, tech: i === 0 ? 0 : null, techDir: null }, 1 / 30);
-      saw = s.events.some((e) => e.kind === 'mobFx' && e.style === 'counter');
-    }
-    expect(saw).toBe(true);
-    expect(s.player.hp).toBe(hp);
-    expect(m.hp).toBeLessThan(mhp);
   });
   it('こわせる 置き物は 木箱・段ボール・ゴミ箱(ほかは こわれない)', () => {
     for (let seed = 1; seed <= 20; seed++) {

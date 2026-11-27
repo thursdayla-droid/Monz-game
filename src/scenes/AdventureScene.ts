@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
 import { rpgJabReach, ALLEY_TOP, isBoss, MOB_KINDS, newAdventure, stepAdventure, playerRoom, adventureReward, aimPreview, unequip, useBagItem, useHerb, BAG_MAX, SELF_KINDS, SLOT_NAMES, type AdvItem, type AdvState, type AdvTech, type GearSlot } from '../core/adventure/sim';
-import { getTech } from '../core/battle3d/techTable';
+import { getTech, techDesc } from '../core/battle3d/techTable';
 import { RANK_HEX } from '../render/dungeonView';
 import { assetUrl } from '../assetUrl';
 import type { Proficiency } from '../core/battle3d/config';
@@ -11,7 +11,7 @@ import { addStats, autoGrowthAt, speciesStats, STAT_LABELS, type StatBlock, type
 import type { SpeciesId } from '../core/species';
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { modelFor } from '../core/roster';
-import { rpgLearned } from '../core/rpg/roles';
+import { rpgLearned, rpgTechDesc } from '../core/rpg/roles';
 
 /** 擬人化RPG の 試作(確認用ページ --rpg)。冒険の 画面を 借りて 試す */
 const rpgTest = () => !!(window as { __MONZ_RPG?: boolean }).__MONZ_RPG;
@@ -82,6 +82,7 @@ const CSS = `
 .adv .bag .tl{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
 .adv .bag .tk{border:2px solid #ffffff40;border-radius:9px;padding:6px 4px;background:#ffffff10;color:#fff;font:900 12px ${UI_FONT};text-align:left}
 .adv .bag .tk.used{opacity:.5}
+.adv .bag .tk small{display:block;font-size:10px;font-weight:700;color:#c8bcd8;margin-top:3px;line-height:1.3}
 .adv .bag .ts i,.adv .bag .tk i{font-style:normal;font-size:10px;padding:0 4px;border-radius:4px;margin-right:4px;color:#16101c}
 .adv .bag .close{align-self:center;font:900 16px ${UI_FONT};padding:7px 26px;border-radius:12px;border:3px solid #16101c;background:#ffd23a;color:#16101c}
 .adv .msg{position:absolute;left:0;right:0;top:30%;text-align:center;font:900 min(30px,7vh) ${UI_FONT};color:#ffe680;text-shadow:0 3px 0 #16101c,0 0 4px #16101c,0 0 8px #16101c;pointer-events:none;opacity:0;transition:opacity .3s}
@@ -204,7 +205,7 @@ export class AdventureScene extends Phaser.Scene {
     root.appendChild(canvas);
     root.insertAdjacentHTML(
       'beforeend',
-      `<div class="top"><button class="back">◀ もどる</button><div class="me"><div class="nm">${me.name}　Lv.${this.level}　<b style="color:#ffd23a">${advRun.floor}F</b></div><div class="bar"><i></i></div><div class="num"></div></div><div class="goal"></div><button class="bagBtn">もちもの</button></div>
+      `<div class="top"><button class="back">◀ もどる</button><div class="me"><div class="nm">${me.name}　Lv.${this.level}　<b style="color:#ffd23a">${advRun.floor}F</b></div><div class="bar"><i></i></div><div class="num"></div></div><div class="goal"></div><button class="bagBtn">持ち物&amp;技</button></div>
        ${isPreview() ? `<div class="dev" style="position:absolute;z-index:5;left:calc(env(safe-area-inset-left) + 12px);top:calc(env(safe-area-inset-top) + 62px);display:flex;gap:6px"><button class="back devLv">確認 Lv.${advDev.level}</button><button class="back devTy">型：${STAT_LABELS[advDev.type as StatKey]}</button><button class="back devFl">確認 ${advRun.floor}F</button><button class="back devSp">${(advDev.species ?? '自分').toUpperCase()}</button>${rpgTest() ? `<button class="back devPx">見た目：${rpgPixel.on ? 'ドット' : '3D'}</button>` : ''}</div>` : ''}
        <div class="stickZone"><div class="stickBase"><div class="stickKnob"></div></div></div>
        <div class="stickHint">ここを<br>さわって<br>うごかす</div>
@@ -426,6 +427,16 @@ export class AdventureScene extends Phaser.Scene {
       else if (e.kind === 'die') audio.se('burst');
       else if (e.kind === 'crate') audio.se(e.broken ? 'punchHeavy' : 'b3dPunchHit');
       else if (e.kind === 'open') this.message('ボスを たおした！ とびらが ひらいた');
+      else if (e.kind === 'house') {
+        if (e.state === 'wait') this.message('…なにか いやな 予感が する');
+        else if (e.state === 'locked') {
+          audio.se('punchHeavy');
+          this.message('モンスターハウスだ！ 出られない！');
+        } else {
+          audio.se('cheer');
+          this.message('とびらが ひらいた！');
+        }
+      }
       else if (e.kind === 'door') {
         audio.se('cheer');
         this.message('とびらが ひらいた！');
@@ -459,16 +470,21 @@ export class AdventureScene extends Phaser.Scene {
     const herbs = s.bag.filter((b) => b.kind === 'herb').length;
     (root.querySelector('.ib b') as HTMLElement).textContent = String(herbs);
     (root.querySelector('.ib') as HTMLButtonElement).disabled = herbs === 0;
-    (root.querySelector('.bagBtn') as HTMLElement).textContent = `もちもの ${s.bag.length}/${BAG_MAX}`;
+    (root.querySelector('.bagBtn') as HTMLElement).textContent = `持ち物&技 ${s.bag.length}/${BAG_MAX}`;
     // 今の 部屋の めあて(2026-11-24 しかけ)
     const ri = playerRoom(s);
     const z = ri >= 0 ? s.puzzles[ri] : undefined;
     const left = s.mobs.filter((m, k) => m.act !== 'dead' && s.mobRoom[k] === ri).length;
     const boss = s.mobs.find((m) => isBoss(m) && m.act !== 'dead');
-    const goal =
-      boss && s.mobRoom[s.mobs.indexOf(boss)] === ri
+    const H = s.house;
+    const houseLeft = s.mobs.filter((m, k) => m.act !== 'dead' && s.mobRoom[k] === -50).length;
+    const goal = H?.state === 'locked'
+      ? `<b style="color:#ff5a6a">モンスターハウス</b>　のこり <b>${houseLeft}</b> 体・<b>${Math.max(0, Math.ceil(60 - H.t))}</b> 秒`
+      : boss && s.mobRoom[s.mobs.indexOf(boss)] === ri
         ? `<b>${MOB_KINDS[boss.mobKind!].name}</b> を たおせ　HP <b>${Math.ceil((boss.hp / boss.maxHp) * 100)}%</b>`
-        : ri === s.floor.rooms.length - 1
+        : ri < 0
+          ? 'わき道…？'
+          : ri === s.floor.rooms.length - 1
         ? '<b>ワープ</b>に のって 次の 階へ'
         : !z || z.solved
           ? '次の 部屋へ すすもう'
@@ -542,18 +558,21 @@ export class AdventureScene extends Phaser.Scene {
           .map((i) => {
             const id = eq[i];
             const lock = i >= this.slotCount;
-            return `<button class="ts ${sel === i ? 'on' : ''} ${lock ? 'lock' : ''}" data-s="${i}">${'ABCD'[i]}<br>${lock ? 'まだ 使えない' : id ? `${chip(id)}${getTech(id).name}` : '― なし'}</button>`;
+            const ds = id ? rpgTechDesc(getTech(id).name) ?? techDesc(getTech(id).name) : '';
+            return `<button class="ts ${sel === i ? 'on' : ''} ${lock ? 'lock' : ''}" data-s="${i}">${'ABCD'[i]}<br>${lock ? 'まだ 使えない' : id ? `${chip(id)}${getTech(id).name}<small style="display:block;font-size:10px;font-weight:700;color:#c8bcd8;margin-top:3px;line-height:1.3">${ds}</small>` : '― なし'}</button>`;
           })
           .join('')}</div>
         <h3>おぼえている わざ<span style="font-size:12px;color:#fff">${this.learned.length}こ</span></h3>
         <div class="tl">${this.learned
           .map((id) => {
             const u = eq.indexOf(nm(id));
-            return `<button class="tk ${u >= 0 ? 'used' : ''}" data-t="${id}">${chip(id)}${u >= 0 ? `${'ABCD'[u]}:` : ''}${getTech(id).name}</button>`;
+            const nmv = getTech(id).name;
+            const ds = rpgTechDesc(nmv) ?? techDesc(nmv);
+            return `<button class="tk ${u >= 0 ? 'used' : ''}" data-t="${id}">${chip(id)}${u >= 0 ? `${'ABCD'[u]}:` : ''}${nmv}<small>${ds}</small></button>`;
           })
           .join('')}</div>
         <div class="note">枠を さわってから わざを さわると 入れかわる（同じ わざを もう一度 さわると はずす）</div>
-        <div style="display:flex;gap:8px"><button class="close techBack" style="flex:1">もちものへ</button><button class="close techClose" style="flex:1">とじる</button></div>`;
+        <div style="display:flex;gap:8px"><button class="close techBack" style="flex:1">持ち物へ</button><button class="close techClose" style="flex:1">とじる</button></div>`;
       (box.querySelector('.techBack') as HTMLElement).addEventListener('click', () => {
         audio.se('tap');
         mode = 'items';
