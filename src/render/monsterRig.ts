@@ -174,6 +174,8 @@ export class MonsterRig {
   private hop = 0;
   /** 人の 形の 体(擬人化RPG): 跳ねない・つぶれない・人の 歩き方(2026-11-26) */
   human = false;
+  /** 構え(スウェイカウンター。擬人化RPG) */
+  guard = 0;
   flash = 0;
   /** 攻撃が当たらない間(たおれている・起きた直後・よけている瞬間)。白く点滅させる(2026-11-02 企画者「喰らわない時白くするか分かりやすく」) */
   safe = false;
@@ -745,6 +747,7 @@ export class MonsterRig {
         }
       }
       this.bones.human = this.human;
+      this.bones.guard += (this.guard - this.bones.guard) * Math.min(1, dt * 14);
       this.bones.update(mode, this.hop, f.speed, now, dt, f.side * 1.3, atk, f.speed > 0.3 ? side / f.speed : 0);
       // パンチに合わせて、体ごと前へ出る(腕だけだと小さく見えるため。2026-11-02)
       // パンチは体ごと前へは出ない(腕が前へ出るのを見せる)

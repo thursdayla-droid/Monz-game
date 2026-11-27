@@ -70,11 +70,14 @@ const tmpQ = new THREE.Quaternion();
 const clamp = (v: number, a: number) => Math.max(-a, Math.min(a, v));
 
 /** 人の 形の 体(擬人化RPG・2026-11-26)の 動きの 上限。人らしく 大きく 手足を 振る */
+const HUMAN_ATTACK: Record<string, number> = { L_Upperarm: 2.4, R_Upperarm: 2.4, L_Forearm: 2.0, R_Forearm: 2.0, L_Clavicle: 0.3, R_Clavicle: 0.3, Spine01: 0.45, Spine02: 0.35, Head: 0.25, L_Thigh: 0.9, R_Thigh: 0.9, L_Calf: 1.1, R_Calf: 1.1 };
 const HUMAN_SAFE: Record<string, number> = { ...SAFE, L_Thigh: 0.9, R_Thigh: 0.9, L_Calf: 1.1, R_Calf: 1.1, L_Upperarm: 1.3, R_Upperarm: 1.3, L_Forearm: 0.9, R_Forearm: 0.9, Spine01: 0.25, Spine02: 0.2, Head: 0.2 };
 
 export class BunkBones {
   /** 人の 形の 体(擬人化RPG): 人の 歩き方・自然に 立つ(2026-11-26 企画者「歩き方 じゃっかん 違和感」) */
   human = false;
+  /** 構え(スウェイカウンター): 0〜1 */
+  guard = 0;
   private bones = new Map<string, Driven>();
   /** 待機・移動の強さ(なめらかに切りかえる) */
   private wIdle = 1;
@@ -148,7 +151,7 @@ export class BunkBones {
     // 攻撃はすばやく入る(もどりはゆっくり)
     this.wAtk += ((atk ? 1 : 0) - this.wAtk) * (1 - Math.exp(-dt * (atk ? 30 : 10)));
     const base = this.human ? HUMAN_SAFE : SAFE;
-    this.limit = this.wAtk > 0.05 ? { ...base, ...SAFE_ATTACK } : base;
+    this.limit = this.human ? (this.wAtk > 0.05 || this.guard > 0.01 ? { ...base, ...HUMAN_ATTACK } : base) : this.wAtk > 0.05 ? { ...base, ...SAFE_ATTACK } : base;
     for (const d of this.bones.values()) {
       d.bone.quaternion.copy(d.bind);
       d.bone.scale.copy(d.bindScale);
@@ -158,7 +161,9 @@ export class BunkBones {
       this.humanPose(hop, speed, t, seed);
       this.punchExt = 0;
       this.punchSide = 0;
-      if (this.wAtk > 0.01) this.attack(atk ?? this.lastAtk, this.wAtk);
+      this.lunge = 0;
+      if (this.guard > 0.01) this.humanGuard(this.guard);
+      if (this.wAtk > 0.01) this.humanAttack(atk ?? this.lastAtk, this.wAtk);
       if (atk) this.lastAtk = atk;
       return;
     }
@@ -279,6 +284,117 @@ export class BunkBones {
       this.rot('Spine01', 'up', s * 0.1 * amp);
       this.rot('Spine02', 'up', -s * 0.06 * amp);
       this.rot('Head', 'up', -s * 0.04 * amp);
+    }
+  }
+
+  /** 拳闘士の 構え(両こぶしを 顔の 前に・体を 少し うしろへ そらす) */
+  private humanGuard(g: number): void {
+    for (const sd of [1, -1] as const) {
+      const up = sd > 0 ? 'R_Upperarm' : 'L_Upperarm';
+      const fo = sd > 0 ? 'R_Forearm' : 'L_Forearm';
+      this.rot(up, 'side', 0.85 * g);
+      this.rot(fo, 'side', 1.7 * g);
+    }
+    this.rot('Spine01', 'side', 0.16 * g);
+    this.rot('Spine02', 'side', 0.1 * g);
+    this.rot('Head', 'side', -0.12 * g);
+  }
+
+  /**
+   * 人の 形の 体の 攻撃(拳闘士。2026-11-27 企画者「パンチの 動きを 人の 体に」)。
+   * 腕は 体の 横に 下りている → 前へ 振り上げる(side の 軸で +)。ひじは side で + に 曲がる
+   */
+  private humanAttack(a: AttackPose, w: number): void {
+    const ease = (x: number) => 1 - (1 - x) * (1 - x);
+    // まっすぐの パンチ: ため = ひじを 曲げて 引く → のばす = 腕を 前へ 水平に・体を ひねる。反対の 手は 顔の 前で ガード
+    const punch = (sd: 1 | -1, p: number) => {
+      const ext = p < 0 ? 0 : ease(p);
+      const pull = p < 0 ? -p : 0;
+      const up = sd > 0 ? 'R_Upperarm' : 'L_Upperarm';
+      const fo = sd > 0 ? 'R_Forearm' : 'L_Forearm';
+      const oUp = sd > 0 ? 'L_Upperarm' : 'R_Upperarm';
+      const oFo = sd > 0 ? 'L_Forearm' : 'R_Forearm';
+      this.rot(up, 'side', (1.45 * ext + 0.5 * pull) * w);
+      this.rot(fo, 'side', (1.5 * pull + 0.9 * (1 - ext) * (p < 0 ? 0 : 1) - 0.18 * ext) * w);
+      this.rot(up, 'up', sd * 0.25 * ext * w);
+      this.rot(oUp, 'side', 0.8 * w);
+      this.rot(oFo, 'side', 1.6 * w);
+      this.rot('Spine01', 'up', sd * (0.4 * ext - 0.25 * pull) * w);
+      this.rot('Spine02', 'up', sd * 0.2 * ext * w);
+      this.rot('Spine01', 'side', -0.08 * ext * w);
+      // 前の 足に 体重(反対の 足を 少し 前へ)
+      this.rot(sd > 0 ? 'L_Thigh' : 'R_Thigh', 'side', 0.25 * ext * w);
+      this.rot(sd > 0 ? 'L_Calf' : 'R_Calf', 'side', -0.3 * ext * w);
+      const e2 = ext * w;
+      this.lunge = Math.max(this.lunge, e2 * 0.6);
+      if (e2 > this.punchExt) {
+        this.punchExt = e2;
+        this.punchSide = sd;
+      }
+    };
+    if (a.kind === 'combo') {
+      if (a.n === 0) this.humanGuard(w);
+      else {
+        const sd = a.n % 2 === 1 ? 1 : -1;
+        const p = a.punch < 0.3 ? a.punch / 0.3 : a.punch < 0.75 ? 1 : 1 - ((a.punch - 0.75) / 0.25) * 0.6;
+        punch(sd, p);
+      }
+    } else if (a.kind === 'shot1') {
+      punch(1, a.active ? 1 : a.wind > 0 ? -a.wind : 1 - a.recover);
+    } else if (a.kind === 'rush') {
+      // 突進: 体を 前へ たおして 右肩から 飛びこみ → ぶつかって 右ストレート
+      if (!a.active && a.wind === 0 && a.recover < 0.7) {
+        punch(1, a.recover < 0.15 ? a.recover / 0.15 : 1 - ((a.recover - 0.15) / 0.55) * 0.8);
+        return;
+      }
+      const k = a.active ? 1 : a.wind > 0 ? a.wind : 1 - a.recover;
+      this.humanGuard(k * w);
+      this.rot('Spine01', 'side', -0.35 * k * w);
+      this.rot('Spine02', 'side', -0.15 * k * w);
+      this.rot('Head', 'side', 0.2 * k * w);
+      this.rot('L_Thigh', 'side', 0.4 * k * w);
+      this.rot('R_Thigh', 'side', -0.35 * k * w);
+      this.rot('L_Calf', 'side', -0.4 * k * w);
+    } else if (a.kind === 'slam') {
+      // 地面なぐり: 右こぶしを 頭の 上へ 振り上げ → 足もとへ 振り下ろす(体ごと しゃがむ)
+      let raise = 0;
+      let down = 0;
+      if (!a.active && a.recover === 0) {
+        if (a.wind < 0.7) raise = ease(a.wind / 0.7);
+        else {
+          const d = (a.wind - 0.7) / 0.3;
+          raise = 1 - d;
+          down = ease(d);
+        }
+      } else if (a.active) down = 1;
+      else down = 1 - ease(a.recover);
+      this.rot('R_Upperarm', 'side', (2.3 * raise + 0.9 * down) * w);
+      this.rot('R_Forearm', 'side', 0.6 * raise * w);
+      this.rot('L_Upperarm', 'side', (1.2 * raise + 0.5 * down) * w);
+      this.rot('L_Forearm', 'side', 1.2 * raise * w);
+      this.rot('Spine01', 'side', (0.15 * raise - 0.45 * down) * w);
+      this.rot('Spine02', 'side', (0.1 * raise - 0.3 * down) * w);
+      this.rot('L_Thigh', 'side', 0.6 * down * w);
+      this.rot('R_Thigh', 'side', 0.6 * down * w);
+      this.rot('L_Calf', 'side', -1.0 * down * w);
+      this.rot('R_Calf', 'side', -1.0 * down * w);
+    } else if (a.kind === 'roar') {
+      // 雄たけび・気合: 両こぶしを 握って 胸を 張る → 前へ 乗り出す
+      const inhale = a.active || a.recover > 0 ? 0 : a.wind;
+      const out = a.active ? 1 : a.recover > 0 ? 1 - a.recover : 0;
+      for (const sd of [1, -1] as const) {
+        this.rot(sd > 0 ? 'R_Upperarm' : 'L_Upperarm', 'front', sd * 0.5 * out * w);
+        this.rot(sd > 0 ? 'R_Forearm' : 'L_Forearm', 'side', (0.8 * inhale + 1.4 * out) * w);
+      }
+      this.rot('Spine01', 'side', (0.2 * inhale - 0.2 * out) * w);
+      this.rot('Head', 'side', (0.15 * inhale - 0.1 * out) * w);
+    } else {
+      // 弾・ビームなど: 両こぶしを 前へ
+      const k = a.active ? 1 : a.wind > 0 ? a.wind : 1 - a.recover;
+      for (const sd of [1, -1] as const) {
+        this.rot(sd > 0 ? 'R_Upperarm' : 'L_Upperarm', 'side', 1.4 * k * w);
+        this.rot(sd > 0 ? 'R_Upperarm' : 'L_Upperarm', 'up', sd * 0.3 * k * w);
+      }
     }
   }
 

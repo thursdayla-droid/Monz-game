@@ -9,7 +9,7 @@ import { assetUrl } from '../assetUrl';
 import { newAnimeBattle, type AnimeEntrant, type AnimeMon } from '../core/battle3d/anime';
 import { CELL, WALL } from '../core/adventure/dungeon';
 import { getTech } from '../core/battle3d/techTable';
-import { ADV, MOB_KINDS, mobSpec, RANKS, SELF_KINDS, techWindup, type MobKind, type AimShape, type Actor, type AdvEvent, type AdvItem, type AdvState, type Rank } from '../core/adventure/sim';
+import { ADV, isBoss, MOB_KINDS, mobSpec, RANKS, SELF_KINDS, techWindup, type MobKind, type AimShape, type Actor, type AdvEvent, type AdvItem, type AdvState, type Rank } from '../core/adventure/sim';
 import type { modelFor } from '../core/roster';
 import { MonsterRig } from './monsterRig';
 
@@ -315,6 +315,11 @@ class MobView {
   private flyLook = false;
   private sy0 = 0.85;
   private crown: THREE.Mesh | null = null;
+  private lastX = 0;
+  private lastZ = 0;
+  private lastT = 0;
+  private walkW = 0;
+  private walkPh = Math.random() * 6;
   constructor(grad: THREE.Texture, art: MobArt | null = null, kind: MobKind = 'slime') {
     const L = MOB_LOOK[kind] ?? MOB_LOOK.slime;
     this.base = L.color;
@@ -406,8 +411,60 @@ class MobView {
     // ミミック: 気づくまで 置き物の ゴミ箱の 絵(2026-11-26 企画者の 絵)
     const want = this.sleepTex && !m.awake ? this.sleepTex : left ? this.flipTex! : this.rightTex!;
     if (mat.map !== want) mat.map = want;
-    sp.scale.set(this.artH * aspect * sx, this.artH * (sy / 0.85), 1);
-    sp.position.y = this.fly ? 0.7 + Math.sin(now * 5 + m.id) * 0.12 : 0;
+    // 2026-11-27 企画者「敵の 動きも 少し ほしい」: 歩くと はねる・ゆれる、ため で うしろへ そる → 打つ で 前へ のめる、やられると ゆれる
+    const dt = Math.max(0.001, now - this.lastT);
+    const moved = Math.hypot(m.x - this.lastX, m.z - this.lastZ) / dt;
+    this.lastX = m.x;
+    this.lastZ = m.z;
+    this.lastT = now;
+    this.walkW += ((moved > 0.4 && m.act !== 'attack' ? 1 : 0) - this.walkW) * Math.min(1, dt * 10);
+    this.walkPh += dt * (4 + Math.min(moved, 6) * 1.6);
+    const dirS = left ? -1 : 1;
+    let tilt = 0;
+    let hopY = 0;
+    let wx = 1;
+    let wy = 1;
+    let shift = 0;
+    // 息(待機): ゆっくり ふくらむ
+    wy += Math.sin(now * 3 + m.id) * 0.025;
+    wx -= Math.sin(now * 3 + m.id) * 0.015;
+    // 歩く: はねる・左右に ゆれる・着地で つぶれる
+    if (this.walkW > 0.01 && !this.fly) {
+      const h = Math.abs(Math.sin(this.walkPh));
+      hopY = h * 0.16 * this.walkW;
+      tilt += Math.sin(this.walkPh) * 0.1 * this.walkW;
+      wy += (h - 0.5) * 0.08 * this.walkW;
+      wx -= (h - 0.5) * 0.05 * this.walkW;
+    } else if (this.walkW > 0.01) tilt += Math.sin(this.walkPh) * 0.12 * this.walkW;
+    const W = isBoss(m) ? 0.9 : mobSpec(m).windup;
+    if (m.act === 'attack') {
+      if (!m.struck) {
+        // ため: うしろへ そる
+        const k = Math.min(1, m.actT / W);
+        tilt += dirS * 0.22 * k;
+        shift -= dirS * 0.12 * k;
+      } else {
+        // 打つ: 前へ のめる(すぐ もどる)
+        const k = Math.max(0, 1 - (m.actT - W) / 0.3);
+        tilt -= dirS * 0.28 * k;
+        shift += dirS * 0.25 * k;
+        wx *= 1 + 0.08 * k;
+      }
+    }
+    if (m.act === 'hurt') {
+      const k = Math.max(0, 1 - m.actT / ADV.hurtTime);
+      shift += Math.sin(now * 60) * 0.08 * k;
+      tilt += dirS * 0.2 * k;
+    }
+    // ミミック: 化けて いる 間は 動かない
+    if (this.sleepTex && !m.awake) {
+      tilt = 0;
+      wx = wy = 1;
+    }
+    mat.rotation = tilt;
+    sp.scale.set(this.artH * aspect * sx * wx, this.artH * (sy / 0.85) * wy, 1);
+    sp.position.x = shift;
+    sp.position.y = (this.fly ? 0.7 + Math.sin(now * 5 + m.id) * 0.12 : 0) + hopY;
     mat.color.setHex(0xffffff);
     if (m.act === 'attack' && !m.struck && m.actT / ADV.mob.windup > 0.5) mat.color.setHex(0xff6a7a);
     if (m.act === 'hurt') mat.color.setHex(0xff9a9a);
@@ -1374,6 +1431,7 @@ export class DungeonView {
     // とびおり・地面の 技は とび上がる
     if (tc && (tc.kind === 'drop' || tc.kind === 'quake') && p.actT < tw) f.y = Math.sin(Math.PI * (p.actT / tw)) * (tc.kind === 'drop' ? 3 : 0.9);
     if (this.pixelOpt) this.rpgCast(s, dt);
+    this.rig.guard = (s.counterUntil ?? 0) > s.t ? 1 : 0;
     // ドットの 見た目は 8方向(昔の MMORPG の キャラの 絵と 同じ)
     if (this.pixelOpt?.on) f.face = Math.round(f.face / (Math.PI / 4)) * (Math.PI / 4);
     this.rig.update(f, dt);
