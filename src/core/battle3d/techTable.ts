@@ -184,6 +184,11 @@ TECH_ROWS.push(...DARK_ROWS);
 const TABLE = new Map<string, TableTech>();
 for (const r of TECH_ROWS) if (TYPE_KIND[r.type] && !TABLE.has(r.name)) TABLE.set(r.name, buildTech(r));
 
+/** ほかの モードだけの 技を 足す(擬人化RPG の 専用技。2026-11-27)。表(TECH_ROWS)には 入れない */
+export function addTechRows(rows: TechRow[]): void {
+  for (const r of rows) if (TYPE_KIND[r.type] && !TABLE.has(r.name)) TABLE.set(r.name, buildTech(r));
+}
+
 /** 自分の まわりに置く場(中にいると自分が回復・守られる)の技(2026-11-03 MOFU) */
 export const SELF_FIELD_TECHS = new Set(['千花天幕']);
 

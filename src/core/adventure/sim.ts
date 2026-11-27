@@ -5,6 +5,8 @@
  */
 import { mulberry32, type Rng } from '../rng';
 import type { StatBlock } from '../stats';
+import { RPG_SPECIAL } from '../rpg/roles';
+import { getTech } from '../battle3d/techTable';
 import { CELL, FLOOR, fits, generateFloor, lineOfSight, cellToWorld, roomAt, setDoor, walkable, type Floor, type Room } from './dungeon';
 
 /**
@@ -140,6 +142,8 @@ export const ADV = {
     barrier: { time: 5, cut: 0.6 },
     buff: { time: 8, up: 1.35 },
     debuff: { r: 6, time: 6 },
+    /** 構えて 反撃(擬人化RPG): 構える 秒・反撃の 強さ【仮】 */
+    counter: { time: 1.6, mul: 2.2 },
   },
   /** 追加効果: かかる 確率(テクニックで 上がる)と 時間 */
   status: { chance: 0.35, techDiv: 300, stun: 1.0, slow: 3, slowMul: 0.45, dot: 4, dotEvery: 0.5, dotMul: 0.12, sleep: 2.5, atkDown: 6, atkDownMul: 0.65, defDown: 6, defDownMul: 0.6 },
@@ -358,7 +362,11 @@ export interface AdvState {
   /** 今の 技を ねらって うったか */
   aimed: boolean;
   /** 連続で 打つ 技(のこりの 回数・次の 時刻) */
-  combo: { left: number; next: number; mul: number } | null;
+  combo: { left: number; next: number; mul: number; finale?: number } | null;
+  /** 擬人化RPG: 構えて 反撃(時刻)・速さ アップ(時刻と 倍) */
+  counterUntil?: number;
+  hasteUntil?: number;
+  haste?: number;
   /** 育ち方の 型(自由ポイントで 決まる) */
   growType: string | null;
   /** 通常攻撃の 種類(種族で 決まる)・続け打ちの 段 */
@@ -486,6 +494,15 @@ export function newAdventure(seed: number, stats: StatBlock, level = 1, techs: (
     base: { atk: p.atk, tough: p.tough, maxHp: p.maxHp },
   };
 }
+
+/** 技の 名前(古い 呼び名も 今の 名前に) */
+const techName = (id: string): string => {
+  try {
+    return getTech(id).name;
+  } catch {
+    return id;
+  }
+};
 
 const angDiff = (a: number, b: number) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 
@@ -650,7 +667,10 @@ function fireTech(s: AdvState, slot: number): void {
       break;
     case 'combo':
       // 連続で 前を 打つ
-      s.combo = { left: T.combo.n, next: s.t, mul: mul * 0.55 };
+      {
+        const sp = RPG_SPECIAL[techName(tc.id)];
+        s.combo = { left: sp?.combo ?? T.combo.n, next: s.t, mul: mul * 0.55, finale: sp?.finale };
+      }
       ev('combo', T.combo.range);
       break;
     case 'shot':
@@ -713,11 +733,24 @@ function fireTech(s: AdvState, slot: number): void {
       break;
     }
     case 'barrier':
+      if (RPG_SPECIAL[techName(tc.id)]?.counter) {
+        // 構えて 反撃(擬人化RPG 拳闘士): 少しの 間、攻撃されたら よけて 反撃
+        s.counterUntil = s.t + ADV.tech.counter.time;
+        ev('counter', 1.6);
+        break;
+      }
       s.shieldUntil = s.t + T.barrier.time;
       ev('barrier', 1.6);
       break;
     case 'buff':
       s.atkUpUntil = s.t + T.buff.time;
+      {
+        const h = RPG_SPECIAL[techName(tc.id)]?.haste;
+        if (h) {
+          s.hasteUntil = s.t + T.buff.time;
+          s.haste = h;
+        }
+      }
       ev('buff', 1.6);
       break;
     case 'debuff':
@@ -756,10 +789,12 @@ function stepTechs(s: AdvState, dt: number): void {
   }
   if (s.combo && s.t >= s.combo.next) {
     const tc = s.techs[s.techSlot] ?? undefined;
+    const last = s.combo.left === 1 && s.combo.finale;
     for (const m of inCone(s, p.x, p.z, p.face, T.combo.range, T.combo.arc)) {
       m.awake = true;
-      damage(s, p, m, s.combo.mul, tc);
+      damage(s, p, m, s.combo.mul * (last ? s.combo.finale! : 1), tc);
     }
+    if (last) s.events.push({ kind: 'mobFx', style: 'finale', x: p.x, z: p.z, dir: p.face, r: T.combo.range, arc: T.combo.arc });
     hitCrates(s, inConeAt(p.x, p.z, p.face, T.combo.range, T.combo.arc));
     s.combo.left--;
     s.combo.next = s.t + T.combo.every;
@@ -944,6 +979,14 @@ function damage(s: AdvState, from: Actor, to: Actor, mul = 1, tech?: AdvTech): v
     if (s.t < s.atkUpUntil) m *= ADV.tech.buff.up;
     if (tech && s.growType === 'power') m *= Y.powerMul;
   } else {
+    if (to.id === 0 && (s.counterUntil ?? 0) > s.t) {
+      // よけて 反撃(ダメージ なし)
+      s.counterUntil = 0;
+      s.events.push({ kind: 'mobFx', style: 'counter', x: from.x, z: from.z, dir: Math.atan2(from.z - to.z, from.x - to.x), r: 1, arc: 0 });
+      from.awake = true;
+      damage(s, to, from, ADV.tech.counter.mul);
+      return;
+    }
     if ((from.atkDownUntil ?? 0) > s.t) m *= S.atkDownMul;
     if (s.t < s.shieldUntil) m *= 1 - ADV.tech.barrier.cut;
     if (s.growType === 'tough') m *= Y.toughCut;
@@ -1002,7 +1045,8 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
     const run = len > 0.85 ? 1.4 : 1;
     // クモの 糸に 当たると しばらく おそくなる
     const webbed = (p.slowUntil ?? 0) > s.t ? ADV.webSlow : 1;
-    const sp = p.speed * len * run * webbed * (p.act === 'attack' || p.act === 'tech' ? 0.35 : p.act === 'hurt' ? 0.4 : 1);
+    const haste = (s.hasteUntil ?? 0) > s.t ? s.haste ?? 1 : 1;
+    const sp = p.speed * len * run * webbed * haste * (p.act === 'attack' || p.act === 'tech' ? 0.35 : p.act === 'hurt' ? 0.4 : 1);
     const mdir = len > 0.1 ? Math.atan2(inp.mz, inp.mx) : p.face;
     p.vx += (Math.cos(mdir) * sp * (len > 0.1 ? 1 : 0) - p.vx) * Math.min(1, dt * 12);
     p.vz += (Math.sin(mdir) * sp * (len > 0.1 ? 1 : 0) - p.vz) * Math.min(1, dt * 12);

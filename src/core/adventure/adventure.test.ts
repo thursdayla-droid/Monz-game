@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CELL, DOOR, FLOOR, generateFloor, type Floor } from './dungeon';
+import { RPG_LEARN, rpgLearned } from '../rpg/roles';
 import { adventureReward, ALLEY_MOBS, ALLEY_TOP, BAG_MAX, BOSS_AT, FLOOR_MOBS, isBoss, MOB_KINDS, newAdventure, type MobKind, stepAdventure, unequip, useBagItem, useHerb, type AdvState } from './sim';
 
 /** マス(x,y)から 歩いて 行ける マスの 距離(BFS)。doors = しまった 扉も 通れる ことに する */
@@ -65,6 +66,30 @@ describe('冒険の ダンジョン', () => {
 });
 
 describe('冒険の 動き', () => {
+  it('擬人化RPG: BUNK(拳闘士)の 技は 11こ・どれも 使える・レベルで ふえる', () => {
+    expect(RPG_LEARN.bunk.length).toBe(11);
+    for (const [n] of RPG_LEARN.bunk) expect(getTech(n).name).toBe(n);
+    expect(rpgLearned('bunk', 1)).toEqual(['ジャブジャブ', 'バンクバッシュ']);
+    expect(rpgLearned('bunk', 99).length).toBe(11);
+  });
+  it('擬人化RPG: スウェイカウンター中に 攻撃されると ダメージなしで 反撃', () => {
+    const t = getTech('スウェイカウンター');
+    const s = newAdventure(3, { hp: 10, power: 10, tough: 10, speed: 10, tech: 10 }, 1, [{ id: 'スウェイカウンター', kind: t.kind, power: t.power, cooldown: 2, element: t.element, effect: 'なし', strength: t.strength }]);
+    const m = s.mobs[0];
+    m.x = s.player.x + 1;
+    m.z = s.player.z;
+    m.awake = true;
+    const hp = s.player.hp;
+    const mhp = m.hp;
+    let saw = false;
+    for (let i = 0; i < 90 && !saw; i++) {
+      stepAdventure(s, { mx: 0, mz: 0, attack: false, tech: i === 0 ? 0 : null, techDir: null }, 1 / 30);
+      saw = s.events.some((e) => e.kind === 'mobFx' && e.style === 'counter');
+    }
+    expect(saw).toBe(true);
+    expect(s.player.hp).toBe(hp);
+    expect(m.hp).toBeLessThan(mhp);
+  });
   it('こわせる 置き物は 木箱・段ボール・ゴミ箱(ほかは こわれない)', () => {
     for (let seed = 1; seed <= 20; seed++) {
       const s = newAdventure(seed, { hp: 10, power: 10, tough: 10, speed: 10, tech: 10 });

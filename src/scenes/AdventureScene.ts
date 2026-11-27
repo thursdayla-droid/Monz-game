@@ -11,6 +11,7 @@ import { addStats, autoGrowthAt, speciesStats, STAT_LABELS, type StatBlock, type
 import type { SpeciesId } from '../core/species';
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { modelFor } from '../core/roster';
+import { rpgLearned } from '../core/rpg/roles';
 
 /** 擬人化RPG の 試作(確認用ページ --rpg)。冒険の 画面を 借りて 試す */
 const rpgTest = () => !!(window as { __MONZ_RPG?: boolean }).__MONZ_RPG;
@@ -172,6 +173,12 @@ export class AdventureScene extends Phaser.Scene {
       this.devTechs = false;
     }
     this.slotCount = Math.min(4, slotsAt(this.level));
+    // 擬人化RPG の 試作: ロールの 専用技 ＋ しぼった BUNK の 技(2026-11-27 企画者 OK)。保存は しない(お世話の 技は 変えない)
+    if (rpgTest()) {
+      this.learned = rpgLearned('bunk', this.level);
+      equipped = this.learned.slice(-this.slotCount);
+      this.devTechs = true;
+    }
     const techs: (AdvTech | null)[] = [0, 1, 2, 3].map((i) => advTech(equipped[i]));
     this.techNames = techs.map((t) => (t ? getTech(t.id).name : ''));
     this.state = newAdventure(seed, me.stats, advRun.floor, techs, growType, me.species);

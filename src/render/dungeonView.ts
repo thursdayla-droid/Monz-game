@@ -1316,7 +1316,21 @@ export class DungeonView {
       }
       else if (e.kind === 'status') this.burst(e.x, e.z, 0xc080ff, 6);
       else if (e.kind === 'bossWarn') this.bossWarn(e);
-      else if (e.kind === 'mobFx' && ['press', 'club', 'spin', 'quake', 'spit', 'summon'].includes(e.style)) {
+      else if (e.kind === 'mobFx' && (e.style === 'counter' || e.style === 'finale')) {
+        // 擬人化RPG 拳闘士: よけて 反撃・連打の さいごの アッパー
+        if (e.style === 'counter') {
+          this.fxBill('star', 0xffffff, s.player.x, 1.4, s.player.z, 1.6, 0.3, 0.5);
+          this.fxBill('spark', 0xffe0a0, e.x, 1.0, e.z, 2.0, 0.3, 0.6);
+          this.shake = Math.max(this.shake, 0.25);
+        } else {
+          const fx = e.x + Math.cos(e.dir) * 1.3;
+          const fz = e.z + Math.sin(e.dir) * 1.3;
+          this.fxBill('pillar', 0xffd080, fx, 1.6, fz, 3.4, 0.4, 0.3, 0, 2 / 3);
+          this.fxBill('spark', 0xffffff, fx, 1.2, fz, 2.8, 0.35, 0.6);
+          this.fxGround('ring', 0xffb060, fx, fz, 3.2, 0.45, 0.8);
+          this.shake = Math.max(this.shake, 0.45);
+        }
+      } else if (e.kind === 'mobFx' && ['press', 'club', 'spin', 'quake', 'spit', 'summon'].includes(e.style)) {
         const c = e.style === 'quake' ? 0xffb03a : e.style === 'spit' ? 0x9aff5a : e.style === 'summon' ? 0xc07aff : 0xff6a3a;
         if (e.style !== 'spit' && e.style !== 'press') this.groundRing(e.x, e.z, e.r, c, e.style === 'quake' ? 0.6 : 0.4, e.style === 'quake' ? 0.12 : 0.25);
         if (e.style === 'quake' || e.style === 'club') this.shake = Math.max(this.shake, 0.4);
@@ -1601,7 +1615,15 @@ export class DungeonView {
     return this.exName(el) === 'spark' ? EL_HEX[el] ?? 0xffffff : 0xffffff;
   }
   /** 斬撃の 絵を 床に(弧の ふくらみを 前へ)。side = 振る 向き */
+  /** 拳闘士(BUNK の 擬人化): 斬撃の 代わりに こぶしの 衝撃 */
+  private fist = true;
   private fxSlash(x: number, z: number, dir: number, r: number, color: number, side: number, life = 0.24, delay = 0): void {
+    if (this.fist) {
+      const d = r * 0.75;
+      const off = side * 0.25;
+      this.fxBill('spark', color, x + Math.cos(dir + off * 0.3) * d, 0.9, z + Math.sin(dir + off * 0.3) * d, r * 0.9, life, 0.5, delay);
+      return;
+    }
     const m = new THREE.Mesh(new THREE.PlaneGeometry(r * 2, r * 2), this.fxMat('slash', color));
     m.rotation.x = -Math.PI / 2;
     m.renderOrder = 6;
@@ -1623,7 +1645,7 @@ export class DungeonView {
     // 2026-11-27 企画者「エフェクト でかすぎて 1レベルで 強そう」→ 当たる 範囲(前の 1マス)と 同じ 大きさ・控えめに
     const big = e.chain === 3;
     const side = e.chain === 2 ? -1 : 1;
-    this.fxSlash(e.x, e.z, e.dir, e.range * 0.8, big ? 0xffc080 : 0xfff0d8, side, big ? 0.22 : 0.16);
+    this.fxSlash(e.x, e.z, e.dir, e.range * (big ? 1.0 : 0.8), big ? 0xffc080 : 0xfff0d8, side, big ? 0.22 : 0.16);
     if (big) this.shake = Math.max(this.shake, 0.12);
   }
 
@@ -1724,8 +1746,28 @@ export class DungeonView {
         this.shake = Math.max(this.shake, 0.5);
         break;
       case 'beam':
+        if (this.fist) {
+          // ブロウクラッシュ: 地面を なぐり、前へ 一直線に 衝撃(土けむりと 輪が 順に 走る)
+          const n = Math.max(2, Math.round(e.len / 1.3));
+          for (let i = 0; i <= n; i++) {
+            const d = 0.9 + (e.len * i) / n;
+            const px = e.x + Math.cos(dir) * d;
+            const pz = e.z + Math.sin(dir) * d;
+            this.fxGround('ring', c, px, pz, 1.8, 0.35, 0.7, 0, 0, 0.9);
+            this.fxBill('smoke', 0xa89cb8, px, 0.5, pz, 1.4, 0.5, 0.4, i * 0.04);
+            this.fxBill('spark', 0xffe8c0, px, 0.7, pz, 1.2, 0.25, 0.5, i * 0.04);
+          }
+          this.fxBill('spark', 0xffffff, e.x + Math.cos(dir) * 0.8, 0.6, e.z + Math.sin(dir) * 0.8, 2.0, 0.25, 0.6);
+          this.shake = Math.max(this.shake, 0.35);
+          break;
+        }
         this.techFx(e);
         this.fxBill('spark', c, e.x + Math.cos(dir), 1.0, e.z + Math.sin(dir), 2.2, 0.3, 0.6);
+        break;
+      case 'counter':
+        // スウェイカウンター: 構え(花の 陣ではなく 体の まわりに 白い 輪)
+        this.fxGround('ring', 0xffffff, e.x, e.z, 2.6, 0.5, 0.3, 0, 0, 0.8);
+        this.fxBill('star', 0xdff0ff, e.x, 1.2, e.z, 1.4, 0.4, 0.4);
         break;
       case 'shot':
         this.fxBill('spark', c, e.x + Math.cos(dir) * 0.9, 1.0, e.z + Math.sin(dir) * 0.9, 1.4, 0.2, 0.5);
