@@ -175,8 +175,8 @@ export class AdventureScene extends Phaser.Scene {
     const techs: (AdvTech | null)[] = [0, 1, 2, 3].map((i) => advTech(equipped[i]));
     this.techNames = techs.map((t) => (t ? getTech(t.id).name : ''));
     this.state = newAdventure(seed, me.stats, advRun.floor, techs, growType, me.species);
-    // 擬人化RPG の 試作: BUNK は 剣闘士。進化で 通常攻撃が 少し 長く なる(姿は 変わらない)
-    if (rpgTest()) this.state.jabReach = rpgJabReach('剣闘士', formAt(this.level));
+    // 擬人化RPG の 試作: BUNK は 拳闘士。進化で 通常攻撃が 少し 長く なる(姿は 変わらない)
+    if (rpgTest()) this.state.jabReach = rpgJabReach('拳闘士', formAt(this.level));
     if (advRun.carry) {
       this.state.bag = advRun.carry.bag;
       this.state.gear = advRun.carry.gear;

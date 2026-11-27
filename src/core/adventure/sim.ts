@@ -836,12 +836,12 @@ function dropAt(s: AdvState, x: number, z: number, gearP: number, herbP: number)
 }
 
 /**
- * 擬人化RPG の 通常攻撃の 届く 範囲(2026-11-26 企画者「剣闘士にしては 広すぎる」「姿は 変わらないけど 進化したら 攻撃の 長さが 少し 広がる」)。
+ * 擬人化RPG の 通常攻撃の 届く 範囲(2026-11-26 企画者「拳闘士にしては 広すぎる」「姿は 変わらないけど 進化したら 攻撃の 長さが 少し 広がる」)。
  * form = 進化(1〜3)【仮】
  */
 export function rpgJabReach(role: string, form: number): { range: number; arc: number } {
   // 2026-11-27 企画者「レベル 低い 時は 前の 一マス ぐらいで いい」→ 1.8 → 1.2(敵の 大きさを 足して 約 1マス)
-  const base = ({ 剣闘士: { range: 1.2, arc: 0.6 } } as Record<string, { range: number; arc: number }>)[role] ?? { range: 1.2, arc: 0.6 };
+  const base = ({ 拳闘士: { range: 1.2, arc: 0.6 } } as Record<string, { range: number; arc: number }>)[role] ?? { range: 1.2, arc: 0.6 };
   return { range: base.range + (form - 1) * 0.4, arc: base.arc };
 }
 

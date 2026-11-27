@@ -1662,7 +1662,7 @@ export class DungeonView {
     mat.opacity = 0.5 + w * 0.5;
   }
 
-  /** 技(擬人化RPG): 形ごとの 演出(剣闘士の 試作) */
+  /** 技(擬人化RPG): 形ごとの 演出(拳闘士の 試作) */
   private rpgTechFx(e: Extract<AdvEvent, { kind: 'tech' }>, s: AdvState): void {
     const tc = s.techs[e.slot];
     let name = '';
