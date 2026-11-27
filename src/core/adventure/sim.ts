@@ -919,7 +919,7 @@ function dropAt(s: AdvState, x: number, z: number, gearP: number, herbP: number)
 export function rpgJabReach(role: string, form: number): { range: number; arc: number } {
   // 2026-11-27 企画者「レベル 低い 時は 前の 一マス ぐらいで いい」→ 1.8 → 1.2(敵の 大きさを 足して 約 1マス)
   // 2026-11-27 同じ日「攻撃が ほんの少しだけ 長く」→ 1.4
-  const base = ({ 拳闘士: { range: 1.4, arc: 0.6 } } as Record<string, { range: number; arc: number }>)[role] ?? { range: 1.4, arc: 0.6 };
+  const base = ({ 拳闘士: { range: 1.4, arc: 0.6 }, 剣士: { range: 1.7, arc: 0.75 } } as Record<string, { range: number; arc: number }>)[role] ?? { range: 1.4, arc: 0.6 };
   return { range: base.range + (form - 1) * 0.4, arc: base.arc };
 }
 

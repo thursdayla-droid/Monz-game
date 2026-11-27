@@ -56,6 +56,8 @@ if B3D:
             paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/adventure/*.webp'))
             # 2026-11-26 擬人化RPG の 試作(--rpg): 企画者の BUNK 擬人化 モデル
             if RPG:
+                # 擬人化RPG の ページは 擬人化の モデルだけ(MONZ の 3D モデルは 入れない。15MB に 入れるため)
+                paths = [p for p in paths if not p.endswith('.glb')]
                 paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/rpg/*.glb') + glob.glob(pub + 'assets/rpg/fx/*.webp'))
     else:
         paths = [p for p in paths if (is_new(p) or is_bunk(p) or p.endswith(('crownie.glb', 'crownix.glb')))] if B3D2 else [p for p in paths if not is_new(p)]

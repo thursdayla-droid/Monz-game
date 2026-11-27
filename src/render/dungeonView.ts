@@ -978,14 +978,16 @@ export class DungeonView {
   }
 
   /** 擬人化RPG の 試作: 自分を ドット絵の ように 見せる(3D を 小さく 写して 板に はる・8方向) */
-  private pixelOpt: { on: boolean } | null = null;
+  private pixelOpt: { on: boolean; role?: string } | null = null;
   private pixRT: THREE.WebGLRenderTarget | null = null;
   private pixCam: THREE.OrthographicCamera | null = null;
   private pixQuad: THREE.Mesh | null = null;
   private pixWas = false;
 
-  constructor(canvas: HTMLCanvasElement, s: AdvState, entrant: AnimeEntrant, private model: ModelPick, pixel: { on: boolean } | null = null) {
+  constructor(canvas: HTMLCanvasElement, s: AdvState, entrant: AnimeEntrant, private model: ModelPick, pixel: { on: boolean; role?: string } | null = null) {
     this.pixelOpt = pixel;
+    // 拳闘士は こぶしの 衝撃・剣士は 斬撃の 光
+    this.fist = (pixel?.role ?? '拳闘士') === '拳闘士';
     // 擬人化RPG の 試作は キャラを 大きく 見せる(昔の MMORPG くらいの 近さ)【仮】
     if (pixel) this.viewH = 14.5;
     // 2026-11-20 企画者「モンズランブル やってると たまに 最初に 戻っちゃう」: iPhone で メモリが 足りず ページが 読み直される →

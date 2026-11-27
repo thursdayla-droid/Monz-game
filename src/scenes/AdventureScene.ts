@@ -11,12 +11,15 @@ import { addStats, autoGrowthAt, speciesStats, STAT_LABELS, type StatBlock, type
 import type { SpeciesId } from '../core/species';
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { modelFor } from '../core/roster';
-import { rpgLearned, rpgTechDesc } from '../core/rpg/roles';
+import { ROLE_OF, RPG_MODEL, RPG_SPECIES, rpgLearned, rpgTechDesc } from '../core/rpg/roles';
 
 /** 擬人化RPG の 試作(確認用ページ --rpg)。冒険の 画面を 借りて 試す */
 const rpgTest = () => !!(window as { __MONZ_RPG?: boolean }).__MONZ_RPG;
 /** 試作の 見た目: false = 3D(B)・true = 3D から 写した ドット(C) */
 const rpgPixel = { on: false };
+/** 試作で 動かす 擬人化の 種族 */
+const rpgPick = { i: 0 };
+const rpgSp = (): string => RPG_SPECIES[rpgPick.i] ?? 'bunk';
 
 /** 技の 名前 → 冒険で 使う 技 */
 function advTech(id: string | undefined): AdvTech | null {
@@ -176,7 +179,7 @@ export class AdventureScene extends Phaser.Scene {
     this.slotCount = Math.min(4, slotsAt(this.level));
     // 擬人化RPG の 試作: ロールの 専用技 ＋ しぼった BUNK の 技(2026-11-27 企画者 OK)。保存は しない(お世話の 技は 変えない)
     if (rpgTest()) {
-      this.learned = rpgLearned('bunk', this.level);
+      this.learned = rpgLearned(rpgSp(), this.level);
       equipped = this.learned.slice(-this.slotCount);
       this.devTechs = true;
     }
@@ -184,7 +187,7 @@ export class AdventureScene extends Phaser.Scene {
     this.techNames = techs.map((t) => (t ? getTech(t.id).name : ''));
     this.state = newAdventure(seed, me.stats, advRun.floor, techs, growType, me.species);
     // 擬人化RPG の 試作: BUNK は 拳闘士。進化で 通常攻撃が 少し 長く なる(姿は 変わらない)
-    if (rpgTest()) this.state.jabReach = rpgJabReach('拳闘士', formAt(this.level));
+    if (rpgTest()) this.state.jabReach = rpgJabReach(ROLE_OF[rpgSp()] ?? '拳闘士', formAt(this.level));
     if (advRun.carry) {
       this.state.bag = advRun.carry.bag;
       this.state.gear = advRun.carry.gear;
@@ -206,7 +209,7 @@ export class AdventureScene extends Phaser.Scene {
     root.insertAdjacentHTML(
       'beforeend',
       `<div class="top"><button class="back">◀ もどる</button><div class="me"><div class="nm">${me.name}　Lv.${this.level}　<b style="color:#ffd23a">${advRun.floor}F</b></div><div class="bar"><i></i></div><div class="num"></div></div><div class="goal"></div><button class="bagBtn">持ち物&amp;技</button></div>
-       ${isPreview() ? `<div class="dev" style="position:absolute;z-index:5;left:calc(env(safe-area-inset-left) + 12px);top:calc(env(safe-area-inset-top) + 62px);display:flex;gap:6px"><button class="back devLv">確認 Lv.${advDev.level}</button><button class="back devTy">型：${STAT_LABELS[advDev.type as StatKey]}</button><button class="back devFl">確認 ${advRun.floor}F</button><button class="back devSp">${(advDev.species ?? '自分').toUpperCase()}</button>${rpgTest() ? `<button class="back devPx">見た目：${rpgPixel.on ? 'ドット' : '3D'}</button>` : ''}</div>` : ''}
+       ${isPreview() ? `<div class="dev" style="position:absolute;z-index:5;left:calc(env(safe-area-inset-left) + 12px);top:calc(env(safe-area-inset-top) + 62px);display:flex;gap:6px"><button class="back devLv">確認 Lv.${advDev.level}</button><button class="back devTy">型：${STAT_LABELS[advDev.type as StatKey]}</button><button class="back devFl">確認 ${advRun.floor}F</button><button class="back devSp">${rpgTest() ? `${rpgSp().toUpperCase()}（${ROLE_OF[rpgSp()]}）` : (advDev.species ?? '自分').toUpperCase()}</button>${rpgTest() ? `<button class="back devPx">見た目：${rpgPixel.on ? 'ドット' : '3D'}</button>` : ''}</div>` : ''}
        <div class="stickZone"><div class="stickBase"><div class="stickKnob"></div></div></div>
        <div class="stickHint">ここを<br>さわって<br>うごかす</div>
        <button class="atk">こうげき</button>
@@ -327,6 +330,12 @@ export class AdventureScene extends Phaser.Scene {
         this.scene.restart();
       });
       $('.devSp').addEventListener('click', () => {
+        if (rpgTest()) {
+          // 擬人化RPG の 試作: 擬人化の モデルが ある 種族だけ
+          rpgPick.i = (rpgPick.i + 1) % RPG_SPECIES.length;
+          this.scene.restart();
+          return;
+        }
         const i = advDev.species ? DEV_SPECIES.indexOf(advDev.species) : -1;
         advDev.species = i + 1 < DEV_SPECIES.length ? DEV_SPECIES[i + 1] : null;
         this.scene.restart();
@@ -343,8 +352,8 @@ export class AdventureScene extends Phaser.Scene {
       });
     }
     // 擬人化RPG の 試作(2026-11-26。確認用ページ --rpg だけ): 企画者の BUNK 擬人化 モデルで 路地裏を 動く
-    const pick = rpgTest() ? { file: 'assets/rpg/bunk_rpg.glb', form: 1, height: 1.75, bones: true, amp: 1, rig: 'auto' as const } : modelFor(me.species, this.level);
-    this.view = new DungeonView(canvas, this.state, me, pick, rpgPixel);
+    const pick = rpgTest() ? { file: RPG_MODEL[rpgSp()], form: 1, height: 1.75, bones: true, amp: 1, rig: 'auto' as const } : modelFor(me.species, this.level);
+    this.view = new DungeonView(canvas, this.state, me, pick, rpgTest() ? { ...rpgPixel, get on() { return rpgPixel.on; }, role: ROLE_OF[rpgSp()] } : null);
     this.resize();
   }
 
