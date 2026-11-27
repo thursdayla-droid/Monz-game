@@ -449,6 +449,110 @@ export function shotTexture(name: string): THREE.CanvasTexture {
   shotTexs.set(name, t);
   return t;
 }
+/** 敵の 近くの 攻撃の 絵(2026-11-27 企画者「敵も」): 牙・ひっかき・地割れ・音の 波・胞子の 粉・けむり。正方形 */
+const meleeTexs = new Map<string, THREE.CanvasTexture>();
+export function meleeTexture(name: string): THREE.CanvasTexture {
+  const hit = meleeTexs.get(name);
+  if (hit) return hit;
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d')!;
+  g.translate(64, 64);
+  g.lineJoin = g.lineCap = 'round';
+  const ink = '#1a1424';
+  if (name === 'bite') {
+    // 上と 下の あご(白い 三角の 牙)
+    for (const sg of [-1, 1]) {
+      g.beginPath();
+      g.moveTo(-48, sg * 44);
+      g.quadraticCurveTo(0, sg * 20, 48, sg * 44);
+      g.lineTo(48, sg * 30);
+      for (let k = 0; k < 6; k++) {
+        const x0 = 48 - k * 16;
+        g.lineTo(x0 - 8, sg * 4);
+        g.lineTo(x0 - 16, sg * (k === 5 ? 30 : 20));
+      }
+      g.closePath();
+      g.fillStyle = '#fff6e8';
+      g.fill();
+      g.lineWidth = 4;
+      g.strokeStyle = ink;
+      g.stroke();
+    }
+  } else if (name === 'claw') {
+    // 3本の ひっかき(ななめ・すき間 あり)
+    for (let i = -1; i <= 1; i++) {
+      g.beginPath();
+      g.moveTo(-34 + i * 22, -46);
+      g.quadraticCurveTo(-6 + i * 22, 0, -20 + i * 22 + 30, 46);
+      g.lineWidth = 11;
+      g.strokeStyle = ink;
+      g.stroke();
+      g.lineWidth = 5;
+      g.strokeStyle = '#fff0f0';
+      g.stroke();
+    }
+  } else if (name === 'crack') {
+    // 地割れ(ぎざぎざの ひび。まん中は へこみ)
+    g.beginPath();
+    g.arc(0, 0, 18, 0, Math.PI * 2);
+    g.fillStyle = 'rgba(30,20,40,0.75)';
+    g.fill();
+    g.strokeStyle = ink;
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * Math.PI * 2 + Math.random() * 0.4;
+      g.beginPath();
+      let x = Math.cos(a) * 14;
+      let y = Math.sin(a) * 14;
+      g.moveTo(x, y);
+      const n = 3 + Math.floor(Math.random() * 2);
+      for (let k = 0; k < n; k++) {
+        const aa = a + (Math.random() - 0.5) * 0.9;
+        const st = 9 + Math.random() * 8;
+        x += Math.cos(aa) * st;
+        y += Math.sin(aa) * st;
+        g.lineTo(x, y);
+      }
+      g.lineWidth = 5 - (i % 2) * 2;
+      g.stroke();
+    }
+    } else if (name === 'sound') {
+    // 音の 波(右へ ひろがる 弧)
+    for (const r of [18, 34, 50]) {
+      g.beginPath();
+      g.arc(-40, 0, r + 20, -0.7, 0.7);
+      g.lineWidth = 7;
+      g.strokeStyle = '#d8a0ff';
+      g.stroke();
+      g.lineWidth = 3;
+      g.strokeStyle = '#ffffff';
+      g.stroke();
+    }
+  } else if (name === 'powder') {
+    // 胞子の 粉(ピンクの 粒)
+    for (let i = 0; i < 40; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = Math.random() * 54;
+      g.beginPath();
+      g.arc(Math.cos(a) * r, Math.sin(a) * r, 2 + Math.random() * 5, 0, Math.PI * 2);
+      g.fillStyle = `rgba(255,${120 + Math.floor(Math.random() * 80)},210,${0.5 + Math.random() * 0.5})`;
+      g.fill();
+    }
+  } else {
+    // けむり
+    for (let i = 0; i < 7; i++) {
+      g.beginPath();
+      g.arc((Math.random() - 0.5) * 50, (Math.random() - 0.5) * 40, 18 + Math.random() * 14, 0, Math.PI * 2);
+      g.fillStyle = 'rgba(200,190,215,0.55)';
+      g.fill();
+    }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  meleeTexs.set(name, t);
+  return t;
+}
+
 const SHOT_EL: Record<string, string> = { 炎: 'fire', 水: 'water', 雷: 'thunder', 自然: 'leaf', 光: 'light', 闇: 'dark' };
 const MOB_SHOT: Partial<Record<string, string>> = { slime: 'goo', kingslime: 'poison', shroom: 'spore', skele: 'bone', ghost: 'wisp', troll: 'rock' };
 
@@ -1103,6 +1207,76 @@ export class DungeonView {
     }
   }
 
+  /** 敵の 近くの 攻撃の 見た目(牙・ひっかき・地割れ・音の 波・胞子・けむり) */
+  private enemyFx(e: Extract<AdvEvent, { kind: 'mobFx' }>): void {
+    const bill = (tex: string, x: number, y: number, z: number, size: number, life: number, tick?: (m: THREE.Sprite, k: number) => void, rot = 0) => {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: meleeTexture(tex), transparent: true, depthWrite: false, depthTest: false }));
+      sp.position.set(x, y, z);
+      sp.material.rotation = rot;
+      sp.renderOrder = 7;
+      this.addFx(sp, life, (k) => {
+        sp.scale.setScalar(size);
+        sp.material.opacity = k < 0.6 ? 1 : (1 - k) / 0.4;
+        tick?.(sp, k);
+      });
+    };
+    const flat = (tex: string, x: number, z: number, size: number, life: number, rotZ = 0, grow = 0.3) => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshBasicMaterial({ map: meleeTexture(tex), transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+      m.rotation.set(-Math.PI / 2, 0, rotZ);
+      m.position.set(x, 0.05, z);
+      this.addFx(m, life, (k) => {
+        m.scale.setScalar(1 - grow + grow * Math.min(1, k * 3));
+        (m.material as THREE.MeshBasicMaterial).opacity = k < 0.6 ? 1 : (1 - k) / 0.4;
+      });
+    };
+    const fx = e.x + Math.cos(e.dir) * 1.0;
+    const fz = e.z + Math.sin(e.dir) * 1.0;
+    const screenRot = Math.atan2(-Math.sin(e.dir) * 0.71, Math.cos(e.dir));
+    switch (e.style) {
+      case 'bite':
+      case 'ambush':
+        // 牙が とじる
+        bill('bite', fx, 0.9, fz, 1.3, 0.3, (m, k) => m.scale.set(1.3, 1.3 * (1.2 - 0.6 * Math.min(1, k * 3)), 1));
+        break;
+      case 'slash':
+        bill('claw', fx, 1.0, fz, 1.8, 0.3, undefined, screenRot);
+        break;
+      case 'smash':
+      case 'ring':
+        flat('crack', e.style === 'ring' ? e.x : fx, e.style === 'ring' ? e.z : fz, e.style === 'ring' ? e.r * 2 : 2.6, 0.7, Math.random() * 6);
+        bill('smoke', e.style === 'ring' ? e.x : fx, 0.6, e.style === 'ring' ? e.z : fz, e.style === 'ring' ? e.r * 1.2 : 2, 0.6);
+        if (e.style === 'ring') this.groundRing(e.x, e.z, e.r, 0xffb060, 0.45, 0.12);
+        this.shake = Math.max(this.shake, 0.25);
+        break;
+      case 'wave':
+        // 音の 波が 前へ 3つ
+        for (let i = 0; i < 3; i++) {
+          const d = 0.8 + i * (e.r / 3);
+          const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: meleeTexture('sound'), transparent: true, depthWrite: false, depthTest: false }));
+          sp.material.rotation = screenRot;
+          sp.renderOrder = 7;
+          this.addFx(sp, 0.35 + i * 0.08, (k) => {
+            const t = Math.max(0, k * (0.35 + i * 0.08) - i * 0.08) / 0.35;
+            sp.visible = t > 0;
+            sp.position.set(e.x + Math.cos(e.dir) * d * (0.6 + t * 0.4), 1.0, e.z + Math.sin(e.dir) * d * (0.6 + t * 0.4));
+            sp.scale.setScalar(1.2 + i * 0.4);
+            sp.material.opacity = 1 - t;
+          });
+        }
+        break;
+      case 'spore':
+        for (let i = 0; i < 4; i++) {
+          const a = (i / 4) * Math.PI * 2;
+          bill('powder', e.x + Math.cos(a) * e.r * 0.5, 0.7, e.z + Math.sin(a) * e.r * 0.5, e.r * 0.9, 0.7, (m, k) => m.position.setY(0.7 + k * 0.6));
+        }
+        break;
+      case 'blink':
+        bill('smoke', e.x, 0.9, e.z, 1.8, 0.45);
+        this.burst(e.x, e.z, 0x9ae8ff, 10);
+        break;
+    }
+  }
+
   /** 当たった 所の 光(白い 光の 玉 + 放射の すじ)。重い 手ごたえ */
   private impact(x: number, z: number, color: number, big: boolean): void {
     const fl = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xffffff, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending }));
@@ -1714,11 +1888,8 @@ export class DungeonView {
         const c = e.style === 'quake' ? 0xffb03a : e.style === 'spit' ? 0x9aff5a : e.style === 'summon' ? 0xc07aff : 0xff6a3a;
         if (e.style !== 'spit' && e.style !== 'press') this.groundRing(e.x, e.z, e.r, c, e.style === 'quake' ? 0.6 : 0.4, e.style === 'quake' ? 0.12 : 0.25);
         if (e.style === 'quake' || e.style === 'club') this.shake = Math.max(this.shake, 0.4);
-      } else if (e.kind === 'mobFx' && e.style === 'ring') {
-        this.groundRing(e.x, e.z, e.r, 0xff8a3a, 0.5, 0.2);
-        this.shake = Math.max(this.shake, 0.25);
-      } else if (e.kind === 'mobFx' && e.style === 'blink') {
-        this.burst(e.x, e.z, 0x9ae8ff, 12);
+      } else if (e.kind === 'mobFx' && ['ring', 'blink', 'bite', 'ambush', 'slash', 'smash', 'wave', 'spore'].includes(e.style)) {
+        this.enemyFx(e);
       } else if (e.kind === 'mobFx') {
         // 敵の 攻撃の 見た目【仮】: 胞子 ピンク・重い パンチ オレンジ・超音波 紫・ほか 白
         const c = e.style === 'spore' ? 0xff5ab0 : e.style === 'smash' ? 0xff8a2a : e.style === 'wave' ? 0xb05aff : 0xffffff;
