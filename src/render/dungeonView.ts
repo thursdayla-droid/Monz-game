@@ -962,6 +962,21 @@ export class DungeonView {
   private auraMat: THREE.MeshBasicMaterial;
   ready = false;
 
+  private shotArts = new Map<string, THREE.Texture | null>();
+  /** 敵の 弾の 企画者の 絵(確認用ページに 入って いない 時は null) */
+  private shotArt(nm: string): THREE.Texture | null {
+    if (this.shotArts.has(nm)) return this.shotArts.get(nm)!;
+    const path = `assets/adventure/shot_${nm}.webp`;
+    const url = assetUrl(path);
+    let t: THREE.Texture | null = null;
+    if (!((window as { __MONZ_ASSETS?: Record<string, string> }).__MONZ_ASSETS && url === path)) {
+      t = new THREE.TextureLoader().load(url);
+      t.colorSpace = THREE.SRGBColorSpace;
+    }
+    this.shotArts.set(nm, t);
+    return t;
+  }
+
   /** 擬人化RPG の 試作: 自分を ドット絵の ように 見せる(3D を 小さく 写して 板に はる・8方向) */
   private pixelOpt: { on: boolean } | null = null;
   private pixRT: THREE.WebGLRenderTarget | null = null;
@@ -2016,16 +2031,14 @@ export class DungeonView {
       if (!o) {
         const c = sh.kind === 'ghost' ? 0x6ae8ff : sh.slow ? 0xf0f0ff : sh.kind === 'slime' ? 0xb05aff : sh.kind === 'shroom' ? 0xff5ab0 : sh.kind === 'skele' ? 0xf0e8d0 : sh.kind === 'troll' ? 0x9a8a70 : sh.kind === 'kingslime' ? 0x9aff5a : 0xd8d0ff;
         void c;
-        const feather = sh.kind === 'pige';
-        const nm = sh.slow ? 'web' : MOB_SHOT[sh.kind] ?? 'goo';
-        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: feather ? featherTexture() : shotTexture(nm), transparent: true, depthWrite: false, depthTest: false }));
+        const nm = sh.slow ? 'web' : sh.kind === 'pige' ? 'feather' : MOB_SHOT[sh.kind] ?? 'goo';
+        // 2026-11-27 企画者の 絵(design/adventure/shots)。なければ プログラムで 描いた 絵
+        const art = this.shotArt(nm);
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: art ?? (nm === 'feather' ? featherTexture() : shotTexture(nm)), transparent: true, depthWrite: false, depthTest: false }));
         // 進む 向きに 先を 向ける(画面の 上下は 奥行きが 少し ちぢむ)
         sp.material.rotation = Math.atan2(-sh.vz * 0.71, sh.vx);
-        if (feather) sp.scale.set(1.3, 0.5, 1);
-        else {
-          const sz = Math.max(0.8, sh.r * 3.2);
-          sp.scale.set(sz * 2, sz, 1);
-        }
+        const sz = nm === 'feather' ? 0.75 : Math.max(0.85, sh.r * 3.4);
+        sp.scale.set(sz * 2.2, sz, 1);
         this.scene.add(sp);
         this.mobShotObjs.set(sh.id, sp);
         o = sp;
