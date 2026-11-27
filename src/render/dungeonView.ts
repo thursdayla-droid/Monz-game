@@ -157,6 +157,301 @@ function featherTexture(): THREE.CanvasTexture {
   return featherTex;
 }
 
+/**
+ * 飛ぶ 技の 絵(2026-11-27 企画者「飛ばす 技は ただの 丸は やめて。羽とか 毒とか その 技に あった 絵柄」)。
+ * どれも 右向き(進む 向き = 右)。黒い ふち線で 2D の ゲームらしく。ほかの 絵と 同じく 一度 作って 使い回す
+ */
+const shotTexs = new Map<string, THREE.CanvasTexture>();
+export function shotTexture(name: string): THREE.CanvasTexture {
+  const hit = shotTexs.get(name);
+  if (hit) return hit;
+  const c = document.createElement('canvas');
+  c.width = 128;
+  c.height = 64;
+  const g = c.getContext('2d')!;
+  g.translate(64, 32);
+  g.lineJoin = g.lineCap = 'round';
+  const ink = '#1a1424';
+  const blob = (x: number, y: number, r: number, fill: string) => {
+    g.beginPath();
+    g.arc(x, y, r, 0, Math.PI * 2);
+    g.fillStyle = fill;
+    g.fill();
+  };
+  const trail = (cols: string[], len = 56, w = 16) => {
+    // うしろに のびる 尾(進む 向きの 反対)
+    const gr = g.createLinearGradient(-len, 0, 0, 0);
+    gr.addColorStop(0, 'rgba(255,255,255,0)');
+    gr.addColorStop(1, cols[0]);
+    g.beginPath();
+    g.moveTo(0, -w / 2);
+    g.quadraticCurveTo(-len * 0.6, -w * 0.15, -len, 0);
+    g.quadraticCurveTo(-len * 0.6, w * 0.15, 0, w / 2);
+    g.closePath();
+    g.fillStyle = gr;
+    g.fill();
+  };
+  switch (name) {
+    case 'goo': {
+      // ねばねば(スライム): 紫の しずくと 飛び散り
+      trail(['rgba(176,90,255,0.7)'], 44, 18);
+      g.beginPath();
+      g.moveTo(26, 0);
+      g.bezierCurveTo(22, -18, -6, -18, -12, -4);
+      g.bezierCurveTo(-20, 0, -14, 18, 4, 16);
+      g.bezierCurveTo(18, 14, 26, 8, 26, 0);
+      g.fillStyle = '#9a4ae0';
+      g.fill();
+      g.lineWidth = 4;
+      g.strokeStyle = ink;
+      g.stroke();
+      blob(10, -6, 5, '#e0b8ff');
+      blob(-22, 12, 4, '#9a4ae0');
+      blob(-30, -10, 3, '#9a4ae0');
+      break;
+    }
+    case 'poison': {
+      // 毒液(KING SLIME): 緑の しずく・あわ
+      trail(['rgba(120,255,90,0.6)'], 48, 18);
+      g.beginPath();
+      g.moveTo(28, 0);
+      g.bezierCurveTo(10, -16, -14, -14, -14, 0);
+      g.bezierCurveTo(-14, 14, 10, 16, 28, 0);
+      g.fillStyle = '#6ad04a';
+      g.fill();
+      g.lineWidth = 4;
+      g.strokeStyle = ink;
+      g.stroke();
+      blob(-2, -4, 4, '#c8ff9a');
+      blob(6, 5, 3, '#c8ff9a');
+      blob(-24, -8, 4, '#6ad04a');
+      blob(-34, 6, 3, '#6ad04a');
+      break;
+    }
+    case 'spore': {
+      // 毒の 胞子玉(SHROOM): ピンクの 玉に 白い 斑点・まわりに 粉
+      for (let i = 0; i < 9; i++) blob(-10 - Math.random() * 40, (Math.random() - 0.5) * 30, 2 + Math.random() * 2, 'rgba(255,140,210,0.8)');
+      blob(6, 0, 18, '#ff5ab0');
+      g.lineWidth = 4;
+      g.strokeStyle = ink;
+      g.beginPath();
+      g.arc(6, 0, 18, 0, Math.PI * 2);
+      g.stroke();
+      blob(0, -7, 5, '#ffe0f0');
+      blob(12, 6, 4, '#ffe0f0');
+      blob(14, -8, 3, '#ffe0f0');
+      break;
+    }
+    case 'bone': {
+      // 骨(SKELE)
+      g.rotate(0.3);
+      g.fillStyle = '#f0e8d0';
+      g.strokeStyle = ink;
+      g.lineWidth = 4;
+      g.beginPath();
+      g.roundRect(-26, -5, 52, 10, 4);
+      g.fill();
+      g.stroke();
+      for (const sx of [-28, 28]) for (const sy of [-6, 6]) {
+        g.beginPath();
+        g.arc(sx, sy, 7, 0, Math.PI * 2);
+        g.fill();
+        g.stroke();
+      }
+      g.beginPath();
+      g.roundRect(-24, -3, 48, 6, 3);
+      g.fill();
+      break;
+    }
+    case 'web': {
+      // クモの 糸(SPIDER): 白い 網
+      g.strokeStyle = 'rgba(240,240,255,0.95)';
+      g.lineWidth = 2.5;
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        g.beginPath();
+        g.moveTo(0, 0);
+        g.lineTo(Math.cos(a) * 26, Math.sin(a) * 26);
+        g.stroke();
+      }
+      for (const r of [8, 15, 22]) {
+        g.beginPath();
+        for (let i = 0; i <= 8; i++) {
+          const a = (i / 8) * Math.PI * 2;
+          const x = Math.cos(a) * r;
+          const y = Math.sin(a) * r;
+          if (i) g.quadraticCurveTo(Math.cos(a - 0.4) * r * 0.85, Math.sin(a - 0.4) * r * 0.85, x, y);
+          else g.moveTo(x, y);
+        }
+        g.stroke();
+      }
+      g.beginPath();
+      g.moveTo(-26, 0);
+      g.lineTo(-60, 0);
+      g.stroke();
+      break;
+    }
+    case 'wisp': {
+      // 霊の 火の玉(GHOST): 水色の 炎
+      trail(['rgba(106,232,255,0.8)'], 58, 24);
+      g.beginPath();
+      g.moveTo(24, 0);
+      g.bezierCurveTo(22, -18, -2, -22, -16, -10);
+      g.quadraticCurveTo(-8, -4, -22, 0);
+      g.quadraticCurveTo(-8, 4, -16, 10);
+      g.bezierCurveTo(-2, 22, 22, 18, 24, 0);
+      g.fillStyle = '#6ae8ff';
+      g.fill();
+      g.lineWidth = 3;
+      g.strokeStyle = '#1a5a7a';
+      g.stroke();
+      blob(8, 0, 8, '#e8ffff');
+      break;
+    }
+    case 'rock': {
+      // 岩(TROLL)
+      g.beginPath();
+      const pts = [[26, -4], [18, -20], [-2, -24], [-20, -14], [-26, 4], [-14, 20], [8, 22], [24, 12]];
+      pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y)));
+      g.closePath();
+      g.fillStyle = '#8a7a68';
+      g.fill();
+      g.lineWidth = 4;
+      g.strokeStyle = ink;
+      g.stroke();
+      g.fillStyle = '#b0a088';
+      g.beginPath();
+      g.moveTo(-14, -12);
+      g.lineTo(4, -18);
+      g.lineTo(12, -8);
+      g.lineTo(-6, -4);
+      g.fill();
+      g.strokeStyle = '#4a3e32';
+      g.lineWidth = 2;
+      g.beginPath();
+      g.moveTo(-6, 6);
+      g.lineTo(6, 10);
+      g.lineTo(10, 2);
+      g.stroke();
+      break;
+    }
+    // ===== 自分の 技(属性ごと) =====
+    case 'fire': {
+      trail(['rgba(255,120,30,0.85)'], 60, 26);
+      g.beginPath();
+      g.moveTo(26, 0);
+      g.bezierCurveTo(24, -20, -4, -22, -14, -12);
+      g.quadraticCurveTo(-4, -6, -24, -2);
+      g.quadraticCurveTo(-6, 4, -14, 12);
+      g.bezierCurveTo(-4, 22, 24, 20, 26, 0);
+      g.fillStyle = '#ff6a1a';
+      g.fill();
+      g.lineWidth = 3;
+      g.strokeStyle = '#7a1a0a';
+      g.stroke();
+      blob(10, 0, 10, '#ffd040');
+      blob(13, 0, 5, '#fff6c0');
+      break;
+    }
+    case 'water': {
+      trail(['rgba(90,190,255,0.8)'], 50, 16);
+      g.beginPath();
+      g.moveTo(26, 0);
+      g.bezierCurveTo(14, -18, -14, -14, -16, 0);
+      g.bezierCurveTo(-14, 14, 14, 18, 26, 0);
+      g.fillStyle = '#3aa8ff';
+      g.fill();
+      g.lineWidth = 4;
+      g.strokeStyle = '#0a3a6a';
+      g.stroke();
+      blob(2, -5, 5, '#d8f0ff');
+      break;
+    }
+    case 'thunder': {
+      g.beginPath();
+      g.moveTo(-56, 2);
+      const z = [[-40, -10], [-28, 6], [-12, -12], [0, 4], [14, -8], [28, 0]];
+      for (const [x, y] of z) g.lineTo(x, y);
+      g.strokeStyle = '#3a6aff';
+      g.lineWidth = 10;
+      g.stroke();
+      g.strokeStyle = '#fff6a0';
+      g.lineWidth = 5;
+      g.stroke();
+      blob(26, 0, 9, '#ffe24a');
+      blob(26, 0, 4, '#ffffff');
+      break;
+    }
+    case 'leaf': {
+      trail(['rgba(110,210,80,0.6)'], 44, 12);
+      g.beginPath();
+      g.moveTo(28, 0);
+      g.quadraticCurveTo(4, -20, -22, 0);
+      g.quadraticCurveTo(4, 20, 28, 0);
+      g.fillStyle = '#6ad04a';
+      g.fill();
+      g.lineWidth = 3;
+      g.strokeStyle = '#1a4a12';
+      g.stroke();
+      g.beginPath();
+      g.moveTo(-22, 0);
+      g.lineTo(24, 0);
+      g.stroke();
+      break;
+    }
+    case 'light': {
+      trail(['rgba(255,240,150,0.8)'], 56, 14);
+      g.beginPath();
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        const r = i % 2 ? 7 : 20;
+        g.lineTo(8 + Math.cos(a) * r, Math.sin(a) * r);
+      }
+      g.closePath();
+      g.fillStyle = '#fff2a0';
+      g.fill();
+      g.lineWidth = 3;
+      g.strokeStyle = '#a07a10';
+      g.stroke();
+      blob(8, 0, 5, '#ffffff');
+      break;
+    }
+    case 'dark': {
+      trail(['rgba(150,70,255,0.8)'], 58, 22);
+      blob(8, 0, 17, '#3a1a5a');
+      g.lineWidth = 4;
+      g.strokeStyle = '#a05aff';
+      g.beginPath();
+      g.arc(8, 0, 17, 0, Math.PI * 2);
+      g.stroke();
+      g.strokeStyle = '#d8a0ff';
+      g.lineWidth = 2;
+      g.beginPath();
+      g.arc(8, 0, 9, 0.4, 4.5);
+      g.stroke();
+      break;
+    }
+    default: {
+      // 無属性: 白い 気の 弾(三日月の 衝撃)
+      trail(['rgba(255,255,255,0.75)'], 52, 18);
+      g.beginPath();
+      g.arc(4, 0, 20, -1.3, 1.3);
+      g.quadraticCurveTo(14, 0, 4 + Math.cos(-1.3) * 20, Math.sin(-1.3) * 20);
+      g.fillStyle = '#ffffff';
+      g.fill();
+      g.lineWidth = 3;
+      g.strokeStyle = '#7a6a90';
+      g.stroke();
+    }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  shotTexs.set(name, t);
+  return t;
+}
+const SHOT_EL: Record<string, string> = { 炎: 'fire', 水: 'water', 雷: 'thunder', 自然: 'leaf', 光: 'light', 闇: 'dark' };
+const MOB_SHOT: Partial<Record<string, string>> = { slime: 'goo', kingslime: 'poison', shroom: 'spore', skele: 'bone', ghost: 'wisp', troll: 'rock' };
+
 /** 床の タイル(はっきりした ふちの 石だたみ。2D の 地図のように) */
 function tileTexture(): THREE.CanvasTexture {
   const c = document.createElement('canvas');
@@ -1521,12 +1816,14 @@ export class DungeonView {
       let o = this.shotObjs.get(sh.id);
       if (!o) {
         const c = EL_HEX[sh.tech.element] ?? 0xffffff;
-        // 2D の 弾: 平らな 光の 玉(色の まわりに 白い しん)
+        // 属性に あった 絵(炎 = 火の玉・水 = しずく・雷 = いなずま・自然 = 葉・光 = 星・闇 = 闇の 玉・無 = 気の 弾)。うしろに うすい 光
         const g = new THREE.Group();
-        const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: c, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending }));
-        glow.scale.setScalar(sh.r * 5);
-        const core = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xffffff, transparent: true, depthWrite: false, depthTest: false }));
-        core.scale.setScalar(sh.r * 2.2);
+        const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: c, transparent: true, opacity: 0.5, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending }));
+        glow.scale.setScalar(sh.r * 3.5);
+        const core = new THREE.Sprite(new THREE.SpriteMaterial({ map: shotTexture(SHOT_EL[sh.tech.element] ?? 'none'), transparent: true, depthWrite: false, depthTest: false }));
+        const sz = Math.max(0.9, sh.r * 3.4);
+        core.scale.set(sz * 2, sz, 1);
+        core.material.rotation = Math.atan2(-sh.vz * 0.71, sh.vx);
         g.add(glow, core);
         this.scene.add(g);
         this.shotObjs.set(sh.id, g);
@@ -1547,13 +1844,17 @@ export class DungeonView {
       let o = this.mobShotObjs.get(sh.id);
       if (!o) {
         const c = sh.kind === 'ghost' ? 0x6ae8ff : sh.slow ? 0xf0f0ff : sh.kind === 'slime' ? 0xb05aff : sh.kind === 'shroom' ? 0xff5ab0 : sh.kind === 'skele' ? 0xf0e8d0 : sh.kind === 'troll' ? 0x9a8a70 : sh.kind === 'kingslime' ? 0x9aff5a : 0xd8d0ff;
+        void c;
         const feather = sh.kind === 'pige';
-        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: feather ? featherTexture() : glowTexture(), color: feather ? 0xffffff : c, transparent: true, depthWrite: false, depthTest: false }));
-        if (feather) {
-          // 進む 向きに 羽の 先を 向ける(画面の 上下は 奥行きが 少し ちぢむ)
-          sp.scale.set(1.3, 0.5, 1);
-          sp.material.rotation = Math.atan2(-sh.vz * 0.71, sh.vx);
-        } else sp.scale.setScalar(sh.r * 3.2);
+        const nm = sh.slow ? 'web' : MOB_SHOT[sh.kind] ?? 'goo';
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: feather ? featherTexture() : shotTexture(nm), transparent: true, depthWrite: false, depthTest: false }));
+        // 進む 向きに 先を 向ける(画面の 上下は 奥行きが 少し ちぢむ)
+        sp.material.rotation = Math.atan2(-sh.vz * 0.71, sh.vx);
+        if (feather) sp.scale.set(1.3, 0.5, 1);
+        else {
+          const sz = Math.max(0.8, sh.r * 3.2);
+          sp.scale.set(sz * 2, sz, 1);
+        }
         this.scene.add(sp);
         this.mobShotObjs.set(sh.id, sp);
         o = sp;
