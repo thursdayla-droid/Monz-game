@@ -55,7 +55,8 @@ if B3D:
             # 2026-11-24 冒険の 敵の 絵(SLIME など)は 冒険の ページだけ
             paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/adventure/*.webp'))
             # 2026-11-26 擬人化RPG の 試作(--rpg): 企画者の BUNK 擬人化 モデル
-            if RPG:
+            # 2026-11-28 企画者「冒険は モンズは 全部 擬人化」→ 冒険の ページも 擬人化(--adv と --rpg は 同じ 中身)
+            if True:
                 # 擬人化RPG の ページは 擬人化の モデルだけ(MONZ の 3D モデルは 入れない。15MB に 入れるため)
                 paths = [p for p in paths if not p.endswith('.glb')]
                 paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/rpg/*.glb') + glob.glob(pub + 'assets/rpg/gear/*.glb') + glob.glob(pub + 'assets/rpg/gear/*.webp') + glob.glob(pub + 'assets/rpg/fx/*.webp'))
@@ -234,7 +235,7 @@ jsons = {p: json.load(open(pub + p)) for p in ['assets/bunk/parts/parts.json', '
 html = open(out).read()
 start = html.index('<script>window.__MONZ_ASSETS') if '__MONZ_ASSETS' in html else html.index('<script type="module">')
 # MYTHCLASH の確認用ページは MYTHCLASH のタイトルから。ゲームの確認用ページはカードの絵を読みにいかない(入れていないので)
-flags = "window.__MONZ_START = 'Adventure'; window.__MONZ_NO_CARD_ART = true;" + (" window.__MONZ_RPG = true;" if RPG else "") if ADV else "window.__MONZ_START = 'SlotTitle'; window.__MONZ_NO_CARD_ART = true;" if SLOT else "window.__MONZ_START = 'MahjongQuest'; window.__MONZ_NO_CARD_ART = true;" if MJ else "window.__MONZ_START = 'RumbleMode'; window.__MONZ_NO_CARD_ART = true;" if B3D else "window.__MONZ_START = 'MythTitle';" if MYTH else 'window.__MONZ_NO_CARD_ART = true;'
+flags = "window.__MONZ_START = 'Adventure'; window.__MONZ_NO_CARD_ART = true; window.__MONZ_RPG = true;" if ADV else "window.__MONZ_START = 'SlotTitle'; window.__MONZ_NO_CARD_ART = true;" if SLOT else "window.__MONZ_START = 'MahjongQuest'; window.__MONZ_NO_CARD_ART = true;" if MJ else "window.__MONZ_START = 'RumbleMode'; window.__MONZ_NO_CARD_ART = true;" if B3D else "window.__MONZ_START = 'MythTitle';" if MYTH else 'window.__MONZ_NO_CARD_ART = true;'
 html = html[:start] + '<script>window.__MONZ_ASSETS = ' + json.dumps(assets) + ';\nwindow.__MONZ_JSON = ' + json.dumps(jsons) + ';\n' + flags + '</script>\n' + \
     '<script type="module">\ndocument.getElementById(\'boot\')?.remove();\n' + js + '\n</script>\n'
 open(out, 'w').write(html)

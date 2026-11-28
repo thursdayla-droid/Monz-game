@@ -14,12 +14,17 @@ import { modelFor } from '../core/roster';
 import { GEAR_ICON, ROLE_OF, RPG_MODEL, RPG_SPECIES, START_WEAPON, rpgLearned, rpgTechDesc } from '../core/rpg/roles';
 
 /** 擬人化RPG の 試作(確認用ページ --rpg)。冒険の 画面を 借りて 試す */
-const rpgTest = () => !!(window as { __MONZ_RPG?: boolean }).__MONZ_RPG;
+// 2026-11-28 企画者「冒険は、モンズは 全部 擬人化して やる」→ 擬人化の モデルが ある 種族は 冒険でも 擬人化(確認用ページは いつも)
+const rpgTest = () => !!(window as { __MONZ_RPG?: boolean }).__MONZ_RPG || RPG_SPECIES.includes(partnerEntrant().entrant.species);
 /** 試作の 見た目: false = 3D(B)・true = 3D から 写した ドット(C) */
 const rpgPixel = { on: false };
 /** 試作で 動かす 擬人化の 種族 */
-const rpgPick = { i: 0 };
-const rpgSp = (): string => RPG_SPECIES[rpgPick.i] ?? 'bunk';
+const rpgPick = { i: -1 };
+const rpgSp = (): string => {
+  // はじめは 自分の MONZ の 種族(擬人化の モデルが あれば)
+  if (rpgPick.i < 0) rpgPick.i = Math.max(0, RPG_SPECIES.indexOf(partnerEntrant().entrant.species));
+  return RPG_SPECIES[rpgPick.i] ?? 'bunk';
+};
 
 /** 技の 名前 → 冒険で 使う 技 */
 function advTech(id: string | undefined): AdvTech | null {
