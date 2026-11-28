@@ -103,3 +103,5 @@ export const START_WEAPON: Record<Role, string> = {
   ネクロマンサー: 'ウッドスタッフ',
 };
 export const WEAPON_MODEL: Record<string, string> = { ストリートソード: 'assets/rpg/gear/w_sword1.glb' };
+/** 装備の 絵(企画者の 絵。名前 → 絵) */
+export const GEAR_ICON: Record<string, string> = { ストリートソード: 'assets/rpg/gear/w_sword1.webp' };

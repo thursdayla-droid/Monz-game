@@ -11,7 +11,7 @@ import { addStats, autoGrowthAt, speciesStats, STAT_LABELS, type StatBlock, type
 import type { SpeciesId } from '../core/species';
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { modelFor } from '../core/roster';
-import { ROLE_OF, RPG_MODEL, RPG_SPECIES, START_WEAPON, rpgLearned, rpgTechDesc } from '../core/rpg/roles';
+import { GEAR_ICON, ROLE_OF, RPG_MODEL, RPG_SPECIES, START_WEAPON, rpgLearned, rpgTechDesc } from '../core/rpg/roles';
 
 /** 擬人化RPG の 試作(確認用ページ --rpg)。冒険の 画面を 借りて 試す */
 const rpgTest = () => !!(window as { __MONZ_RPG?: boolean }).__MONZ_RPG;
@@ -514,6 +514,9 @@ export class AdventureScene extends Phaser.Scene {
   /** 持ち物の 絵(2026-11-26 企画者の 絵) */
   private itemImg(it: AdvItem | GearSlot, px = 34): string {
     const n = typeof it === 'string' ? it : it.kind === 'herb' ? 'herb' : it.slot;
+    // 名前の ある 装備は その 絵(2026-11-28 企画者の 絵)
+    const named = typeof it === 'string' ? (it === 'weapon' ? this.state.gear.weapon?.name : undefined) : it.kind === 'gear' ? it.name : undefined;
+    if (named && GEAR_ICON[named]) return `<img src="${assetUrl(GEAR_ICON[named])}" style="width:${px}px;height:${px}px;object-fit:contain;display:block;pointer-events:none" alt="">`;
     // 武器の 絵は まだ ない(企画者の 絵 待ち)→ 剣の しるし
     if (n === 'weapon') return `<span style="display:block;width:${px}px;height:${px}px;font-size:${Math.round(px * 0.8)}px;line-height:${px}px;text-align:center;pointer-events:none">⚔️</span>`;
     return `<img src="${assetUrl(`assets/adventure/item_${n}.webp`)}" style="width:${px}px;height:${px}px;object-fit:contain;display:block;pointer-events:none" alt="">`;
