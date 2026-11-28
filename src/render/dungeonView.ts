@@ -2757,12 +2757,20 @@ export class DungeonView {
         this.fxBill('pillar', 0xff7a2a, e.x + Math.cos(e.dir) * 1.2, 1.4, e.z + Math.sin(e.dir) * 1.2, 2.6, 0.3, 0.3, 0, 2 / 3);
         this.shake = Math.max(this.shake, 0.25);
         break;
-      case 'wshadow': // 黒影刃: 敵の 所に 紫の 斬撃が 2本 クロス・黒い けむり
-        this.fxSlash(e.x - Math.cos(e.dir) * 0.9, e.z - Math.sin(e.dir) * 0.9, e.dir, 1.7, 0xb06aff, 1, 0.24, e.arc * 0.05);
-        this.fxSlash(e.x - Math.cos(e.dir + 1.6) * 0.9, e.z - Math.sin(e.dir + 1.6) * 0.9, e.dir + 1.6, 1.7, 0x6a2aff, -1, 0.24, e.arc * 0.05 + 0.04);
-        this.fxBill('smoke', 0x2a1040, e.x, 0.6, e.z, 1.8, 0.4, 0.6, e.arc * 0.05);
-        this.shake = Math.max(this.shake, 0.18);
+      case 'wshadow': { // 黒影刃: 自分から 敵へ 影の すじが のびて、敵の 所で 紫の 斬撃が クロス
+        const px = e.x - Math.cos(e.dir) * e.r;
+        const pz = e.z - Math.sin(e.dir) * e.r;
+        const n = Math.max(3, Math.round(e.r / 0.7));
+        for (let i = 1; i <= n; i++) {
+          const d = (e.r * i) / n;
+          this.fxBill('smoke', 0x3a1060, px + Math.cos(e.dir) * d, 0.7, pz + Math.sin(e.dir) * d, 0.7, 0.3, 0.3, i * 0.012);
+        }
+        this.fxSlash(e.x - Math.cos(e.dir) * 0.9, e.z - Math.sin(e.dir) * 0.9, e.dir + 0.8, 1.9, 0xc07aff, 1, 0.26, 0.05);
+        this.fxSlash(e.x - Math.cos(e.dir) * 0.9, e.z - Math.sin(e.dir) * 0.9, e.dir - 0.8, 1.9, 0x7a3aff, -1, 0.26, 0.09);
+        this.fxBill('star', 0xe0c0ff, e.x, 1.0, e.z, 1.6, 0.22, 0.6, 0.06);
+        this.shake = Math.max(this.shake, 0.2);
         break;
+      }
       case 'weruption': // 爆炎ナックル: 大爆発(炎の 柱・大きな 輪・火花)
         this.fxBill('pillar', 0xff6a1a, e.x, 2.0, e.z, 4.4, 0.45, 0.3, 0, 2 / 3);
         this.fxBill('burst', 0xffb03a, e.x, 1.0, e.z, e.r * 1.6, 0.4, 0.7);

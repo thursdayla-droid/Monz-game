@@ -402,6 +402,8 @@ export interface AdvState {
   techSlot: number;
   bag: AdvItem[];
   gear: Partial<Record<GearSlot, AdvItem & { kind: 'gear' }>>;
+  /** 黒影刃の 影(のこりの 敵) */
+  shadows?: { next: number; ids: number[]; mul: number; n: number } | null;
   /** ネオンレイピアの 3段めの 突き(のこりの 回数) */
   thrusts?: { next: number; left: number; mul: number; len: number } | null;
   /** 擬人化RPG: このロールの 武器(弱い 順)。ある 時だけ 武器も 落ちる */
@@ -1055,6 +1057,20 @@ function swordMove(s: AdvState, mv: string, mul: number, tc: AdvTech, ev: (fx: s
 function stepTechs(s: AdvState, dt: number): void {
   const p = s.player;
   const T = ADV.tech;
+  // 黒影刃の 影: 1体ずつ 斬る
+  if (s.shadows && s.t >= s.shadows.next) {
+    const sh = s.shadows;
+    const id = sh.ids.shift();
+    const m = s.mobs.find((o) => o.id === id && o.act !== 'dead');
+    if (m && p.act !== 'dead') {
+      m.awake = true;
+      damage(s, p, m, sh.mul * 0.9, DARK_JAB);
+      // x,z = 敵・dir = 自分から 敵への 向き・r = きょり(影の すじ)
+      s.events.push({ kind: 'mobFx', style: 'wshadow', x: m.x, z: m.z, dir: Math.atan2(m.z - p.z, m.x - p.x), r: Math.hypot(m.x - p.x, m.z - p.z), arc: sh.n++ });
+    }
+    sh.next = s.t + 0.12;
+    if (!sh.ids.length) s.shadows = null;
+  }
   // ネオンレイピアの 突き(0.1秒 ごと)
   if (s.thrusts && s.t >= s.thrusts.next) {
     const th = s.thrusts;
@@ -1265,7 +1281,7 @@ function weaponEvery(s: AdvState, kind: 'burn' | 'blast' | 'drain', m: Actor, mu
       damage(s, p, o, mul * 0.45, FIRE_JAB);
     }
     s.events.push({ kind: 'mobFx', style: 'wblast', x: m.x, z: m.z, dir: p.face, r: 1.4, arc: 0 });
-  } else drainHp(s, p.atk * mul * 0.12);
+  } else drainHp(s, p.atk * mul * 0.04);
 }
 
 /** 武器の さいごの 一撃(2026-11-28 企画者 OK)【仮】 */
@@ -1346,14 +1362,10 @@ function weaponFinish(s: AdvState, kind: NonNullable<(typeof WEAPON_STYLE)[strin
       break;
     }
     case 'shadow': {
-      // 黒影刃: 影が 近くの 敵(4体 まで)を 斬る・HP を すう
-      const list = s.mobs.filter((m) => m.act !== 'dead' && Math.hypot(m.x - p.x, m.z - p.z) < 6.5 && seen(s, p.x, p.z, m)).sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z)).slice(0, 4);
-      list.forEach((m, i) => {
-        m.awake = true;
-        damage(s, p, m, mul * 0.9, DARK_JAB);
-        s.events.push({ kind: 'mobFx', style: 'wshadow', x: m.x, z: m.z, dir: f + i * 1.3, r: 1.6, arc: i });
-      });
-      if (list.length) drainHp(s, p.atk * mul * 0.3);
+      // 黒影刃: 影が 近くの 敵を 1体ずつ 順番に 斬りに いく(3体 まで・0.12秒 ごと)
+      // 2026-11-28 企画者「4体 まで 切るの 分かりにくい」→ 順番に して 影の すじで つなぐ
+      const list = s.mobs.filter((m) => m.act !== 'dead' && Math.hypot(m.x - p.x, m.z - p.z) < 6.5 && seen(s, p.x, p.z, m)).sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z)).slice(0, 3);
+      if (list.length) s.shadows = { next: s.t, ids: list.map((m) => m.id), mul, n: 0 };
       break;
     }
     case 'eruption': {
@@ -1385,7 +1397,7 @@ function weaponFinish(s: AdvState, kind: NonNullable<(typeof WEAPON_STYLE)[strin
           m.stunUntil = Math.max(m.stunUntil ?? 0, s.t + 0.6);
         }
       }
-      if (list.length) drainHp(s, p.atk * mul * 0.3);
+      if (list.length) drainHp(s, p.atk * mul * 0.12);
       fx('wabyss', cx, cz, 4.0);
       break;
     }
