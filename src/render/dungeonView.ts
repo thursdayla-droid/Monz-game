@@ -2658,9 +2658,44 @@ export class DungeonView {
     // 武器ごとの 大きさ(2026-11-28 企画者「武器 変わっても 何が 変わってるか 分からない」)
     const SZ: Record<string, number> = { 鉄骨ブレード: 1.35, ムーンエッジ: 1.3, ブルドッグガントレット: 1.3, キングフィスト: 1.15, ボクサーラップ: 0.85 };
     const sz = (SZ[e.weapon ?? ''] ?? 1) * (e.fx ?? 1);
+    if (!this.fist) {
+      // 剣: 当たる 扇と ぴったり 同じ 弧(外がわ = 届く 長さ・はば = 左右の 広さ)を 光で 描く
+      this.fxArc(e.x, e.z, e.dir, e.range, e.arc, big ? cBig : c, side, big ? 0.22 : 0.16);
+      if (e.weapon === 'ムーンエッジ' || e.weapon === '黒影刃') this.fxArc(e.x, e.z, e.dir, e.range * 0.85, e.arc, e.weapon === '黒影刃' ? 0x6a2aff : 0x8aa8ff, -side, 0.2, 0.04);
+      if (big) this.shake = Math.max(this.shake, 0.12);
+      this.weaponJabFx(e, r);
+      return;
+    }
     this.fxSlash(e.x + Math.cos(e.dir) * r * 0.5, e.z + Math.sin(e.dir) * r * 0.5, e.dir, r * (big ? 1.15 : 1) * sz, big ? cBig : c, side, big ? 0.2 : 0.14);
     if (big) this.shake = Math.max(this.shake, 0.12);
     this.weaponJabFx(e, r);
+  }
+
+  /**
+   * 剣の 通常攻撃の 弧(当たる 扇と 同じ 形)。外がわの 半径 = 届く 長さ・左右 ±arc。
+   * 少し 振りぬく ように 回るが、当たる 扇の 外へは 出ない
+   */
+  private fxArc(x: number, z: number, dir: number, range: number, arc: number, color: number, side: number, life = 0.16, delay = 0): void {
+    const span = arc * 2;
+    const g = new THREE.Group();
+    for (const [col, wd, op] of [[color, Math.min(range * 0.7, 1.6), 0.95], [0xffffff, Math.min(range * 0.25, 0.55), 0.9]] as const) {
+      const mat = new THREE.MeshBasicMaterial({ map: slashTexture(), color: col, transparent: true, opacity: op, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+      mat.color.multiplyScalar(1.7);
+      const m = new THREE.Mesh(crescentGeometry(range, wd, span, 28), mat);
+      m.rotation.x = -Math.PI / 2;
+      g.add(m);
+    }
+    g.position.set(x, 0.5, z);
+    g.renderOrder = 6;
+    this.addFx(g, life + delay, (k) => {
+      const t = Math.max(0, (k * (life + delay) - delay) / life);
+      g.visible = t > 0;
+      const ease = 1 - Math.pow(1 - t, 3);
+      // 弧の まん中が 前(dir)。振りぬく 向きへ ほんの 少し 回る
+      g.rotation.y = -dir - side * 0.15 * (1 - ease);
+      const op = t < 0.15 ? t / 0.15 : Math.max(0, 1 - Math.pow((t - 0.15) / 0.85, 1.5));
+      g.children.forEach((o) => ((o as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = op);
+    });
   }
 
   /** 武器ごとの 通常攻撃の 光(1発めから ちがいが 分かる ように。2026-11-28)【仮】 */
@@ -2674,9 +2709,6 @@ export class DungeonView {
       case '鉄骨ブレード': // 重い: けむりと ゆれ
         this.fxBill('smoke', 0xc0a890, hx, 0.4, hz, 1.4, 0.35, 0.6);
         this.shake = Math.max(this.shake, 0.12);
-        break;
-      case 'ムーンエッジ': // 三日月を 2枚 かさねる
-        this.fxSlash(e.x + Math.cos(e.dir) * r * 0.5, e.z + Math.sin(e.dir) * r * 0.5, e.dir, r * 1.55, 0x8aa8ff, e.chain === 2 ? -1 : 1, 0.2, 0.04);
         break;
       case '雷刃': // 小さな いなずま
         this.fxBill('bolt', 0xffe880, hx, 1.0, hz, 1.2, 0.14, 0.4, 0, 2 / 3);
@@ -2693,9 +2725,6 @@ export class DungeonView {
         break;
       case '紅蓮剣': // 炎の 火の粉
         this.fxBill('ex_fire', 0xff5a1a, hx, 0.9, hz, 1.3 * k, 0.22, 0.5);
-        break;
-      case '黒影刃': // 紫の 三日月を かさねる
-        this.fxSlash(e.x + Math.cos(e.dir) * r * 0.5, e.z + Math.sin(e.dir) * r * 0.5, e.dir, r * 1.5, 0x6a2aff, e.chain === 2 ? -1 : 1, 0.22, 0.04);
         break;
       case '爆炎ナックル':
         this.fxBill('burst', 0xff7a2a, hx, 0.9, hz, 1.4 * k, 0.2, 0.5);

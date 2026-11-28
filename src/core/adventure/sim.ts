@@ -624,8 +624,14 @@ function setStatus(s: AdvState, m: Actor, effect: string, dmg: number): void {
 /** 前の 向きの ±arc の 中・距離 range の モブ */
 // 2026-11-07 企画者「ビームなどの 技は 基本 壁を 貫通しないで」→ 壁の むこうの 敵には 当たらない(出した ところから 見えるか)
 const seen = (s: AdvState, x: number, z: number, m: Actor) => lineOfSight(s.floor, x, z, m.x, m.z);
-function inCone(s: AdvState, x: number, z: number, dir: number, range: number, arc: number): Actor[] {
-  return s.mobs.filter((m) => m.act !== 'dead' && Math.hypot(m.x - x, m.z - z) < range + mobR(m) && Math.abs(angDiff(Math.atan2(m.z - z, m.x - x), dir)) < arc && seen(s, x, z, m));
+function inCone(s: AdvState, x: number, z: number, dir: number, range: number, arc: number, body = false): Actor[] {
+  // body: 敵の 体の はしが 扇に 入れば 当たる(見える 弧と 当たりを そろえる。2026-11-28 企画者「弧の エフェクトに 当たり判定 ないの いや」)
+  return s.mobs.filter((m) => {
+    if (m.act === 'dead') return false;
+    const d = Math.hypot(m.x - x, m.z - z);
+    const extra = body ? Math.atan2(mobR(m), Math.max(0.3, d)) : 0;
+    return d < range + mobR(m) && Math.abs(angDiff(Math.atan2(m.z - z, m.x - x), dir)) < arc + extra && seen(s, x, z, m);
+  });
 }
 const inCircle = (s: AdvState, x: number, z: number, r: number) => s.mobs.filter((m) => m.act !== 'dead' && Math.hypot(m.x - x, m.z - z) < r + mobR(m) && seen(s, x, z, m));
 
@@ -1680,7 +1686,7 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
           const arc = ws?.thrust ? 0.16 : J.arc * (last ? 1.3 : 1);
           // ネオンレイピアの 3段めは 突き 3発 だけ(ふつうの 一撃は なし)
           const triple = last && ws?.last === 'pierce';
-          const hitList = triple ? [] : inCone(s, p.x, p.z, p.face, J.range, arc);
+          const hitList = triple ? [] : inCone(s, p.x, p.z, p.face, J.range, arc, true);
           for (const m of hitList) {
             m.awake = true;
             damage(s, p, m, mul);
