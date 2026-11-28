@@ -5,7 +5,7 @@
  */
 import { mulberry32, type Rng } from '../rng';
 import type { StatBlock } from '../stats';
-import { RPG_SPECIAL, WEAPON_REACH } from '../rpg/roles';
+import { RPG_SPECIAL, WEAPON_LOW, WEAPON_REACH } from '../rpg/roles';
 import { getTech } from '../battle3d/techTable';
 import { CELL, DOOR, FLOOR, fits, generateFloor, lineOfSight, cellToWorld, roomAt, setDoor, walkable, type Floor, type Room } from './dungeon';
 
@@ -398,6 +398,8 @@ export interface AdvState {
   techSlot: number;
   bag: AdvItem[];
   gear: Partial<Record<GearSlot, AdvItem & { kind: 'gear' }>>;
+  /** 擬人化RPG: このロールの 武器(弱い 順)。ある 時だけ 武器も 落ちる */
+  weapons?: string[];
   drops: Drop[];
   seq: number;
   shots: Shot[];
@@ -1168,13 +1170,13 @@ function dropFrom(s: AdvState, m: Actor): void {
   dropAt(s, m.x, m.z, ADV.drop.gear, ADV.drop.herb);
 }
 
-function dropAt(s: AdvState, x: number, z: number, gearP: number, herbP: number): void {
+export function dropAt(s: AdvState, x: number, z: number, gearP: number, herbP: number): void {
   const D = ADV.drop;
   const r = s.rng();
   let item: AdvItem | null = null;
   if (r < gearP) {
-    const slots: GearSlot[] = ['head', 'armor', 'charm'];
-    const slot = slots[Math.floor(s.rng() * 3)];
+    const slots: GearSlot[] = s.weapons?.length ? ['weapon', 'head', 'armor', 'charm'] : ['head', 'armor', 'charm'];
+    const slot = slots[Math.floor(s.rng() * slots.length)];
     const top = D.cap.find(([upTo]) => s.floorNo <= upTo)![1];
     const w = D.rank.slice(0, top + 1);
     let q = s.rng() * w.reduce((a, b) => a + b, 0);
@@ -1184,6 +1186,11 @@ function dropAt(s: AdvState, x: number, z: number, gearP: number, herbP: number)
       break;
     }
     item = { kind: 'gear', slot, rank };
+    if (slot === 'weapon') {
+      // 10階 までは 下位の 武器 だけ(2026-11-28 企画者)
+      const pool = s.floorNo <= WEAPON_LOW.untilFloor ? s.weapons!.slice(0, WEAPON_LOW.count) : s.weapons!;
+      item.name = pool[Math.floor(s.rng() * pool.length)];
+    }
   } else if (r < gearP + herbP) item = { kind: 'herb' };
   if (!item) return;
   const d: Drop = { id: ++s.seq, x, z, item };
@@ -1246,7 +1253,8 @@ function applyGear(s: AdvState): void {
 
 /** 持ち物を 使う(回復の実)/装備する(つけていた 物は 持ち物へ)。できたら true */
 /** 初めから 持つ 武器を 装備する(擬人化RPG。ロールで 決まる。2026-11-28 企画者) */
-export function equipStartWeapon(s: AdvState, name: string): void {
+export function equipStartWeapon(s: AdvState, name: string, list?: string[]): void {
+  if (list) s.weapons = list;
   if (!s.gear.weapon) s.gear.weapon = { kind: 'gear', slot: 'weapon', rank: 'D', name };
   applyGear(s);
 }

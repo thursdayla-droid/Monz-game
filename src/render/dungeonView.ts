@@ -9,7 +9,7 @@ import { assetUrl } from '../assetUrl';
 import { newAnimeBattle, type AnimeEntrant, type AnimeMon } from '../core/battle3d/anime';
 import { CELL, WALL } from '../core/adventure/dungeon';
 import { getTech } from '../core/battle3d/techTable';
-import { WEAPON_MODEL } from '../core/rpg/roles';
+import { GEAR_ICON, WEAPON_MODEL } from '../core/rpg/roles';
 import { ADV, isBoss, MOB_KINDS, mobSpec, RANKS, SELF_KINDS, techWindup, type MobKind, type AimShape, type Actor, type AdvEvent, type AdvItem, type AdvState, type Rank } from '../core/adventure/sim';
 import type { modelFor } from '../core/roster';
 import { MonsterRig } from './monsterRig';
@@ -1250,10 +1250,20 @@ export class DungeonView {
   /** 落ちている 物(2026-11-26 企画者の 絵: 回復の実・アタマ・ヨロイ・オマモリ)。装備は 足もとが ランクの 色に 光る */
   private dropMesh(item: AdvItem): THREE.Object3D {
     const g = new THREE.Group();
-    const name = item.kind === 'herb' ? 'herb' : item.slot;
+    const name = item.kind === 'herb' ? 'herb' : item.name && GEAR_ICON[item.name] ? item.name : item.slot;
     let tex = this.propTex.get(`item_${name}`);
     if (!tex) {
-      tex = new THREE.TextureLoader().load(assetUrl(`assets/adventure/item_${name}.webp`));
+      if (name === 'weapon') {
+        // 武器の 絵が まだ ない 時は ⚔️(企画者の 絵 待ち)
+        const cv = document.createElement('canvas');
+        cv.width = cv.height = 128;
+        const cx = cv.getContext('2d')!;
+        cx.font = '100px sans-serif';
+        cx.textAlign = 'center';
+        cx.textBaseline = 'middle';
+        cx.fillText('⚔️', 64, 70);
+        tex = new THREE.CanvasTexture(cv);
+      } else tex = new THREE.TextureLoader().load(assetUrl(GEAR_ICON[name] ?? `assets/adventure/item_${name}.webp`));
       tex.colorSpace = THREE.SRGBColorSpace;
       this.propTex.set(`item_${name}`, tex);
     }

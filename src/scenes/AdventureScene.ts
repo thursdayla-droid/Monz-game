@@ -11,7 +11,7 @@ import { addStats, autoGrowthAt, speciesStats, STAT_LABELS, type StatBlock, type
 import type { SpeciesId } from '../core/species';
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { modelFor } from '../core/roster';
-import { isChargeTech, GEAR_ICON, ROLE_OF, RPG_MODEL, RPG_SPECIES, START_WEAPON, rpgLearned, rpgTechDesc } from '../core/rpg/roles';
+import { isChargeTech, GEAR_ICON, ROLE_OF, RPG_MODEL, RPG_SPECIES, START_WEAPON, WEAPON_LIST, rpgLearned, rpgTechDesc } from '../core/rpg/roles';
 
 /** 擬人化RPG の 試作(確認用ページ --rpg)。冒険の 画面を 借りて 試す */
 // 2026-11-28 企画者「冒険は、モンズは 全部 擬人化して やる」→ 擬人化の モデルが ある 種族は 冒険でも 擬人化(確認用ページは いつも)
@@ -204,7 +204,7 @@ export class AdventureScene extends Phaser.Scene {
       this.state.gear = advRun.carry.gear;
     }
     // 擬人化RPG: ロールの 初めの 武器
-    if (rpgTest()) equipStartWeapon(this.state, START_WEAPON[ROLE_OF[rpgSp()] ?? '拳闘士']);
+    if (rpgTest()) equipStartWeapon(this.state, START_WEAPON[ROLE_OF[rpgSp()] ?? '拳闘士'], WEAPON_LIST[ROLE_OF[rpgSp()] ?? '拳闘士']);
     this.buildDom(me);
     audio.playBgm('battle');
     window.addEventListener('resize', this.onResize);

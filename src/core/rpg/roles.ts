@@ -135,6 +135,20 @@ export const START_WEAPON: Record<Role, string> = {
   僧侶: 'ウッドスタッフ',
   ネクロマンサー: 'ウッドスタッフ',
 };
+/**
+ * ロールの 武器(弱い 順)。2026-11-28 企画者「ステージ10 までは 下位の 武器しか 落ちない。剣士で いうと ストリートソードと 鉄骨ブレードの 2種類」
+ * → 1〜10階で 落ちるのは はじめの 2つ・11階から 5つ ぜんぶ【仮】。剣士 いがいの 2つめ〜5つめの 名前は【未確定】(決まったら 足す)
+ */
+export const WEAPON_LIST: Record<Role, string[]> = {
+  剣士: ['ストリートソード', '鉄骨ブレード', 'ネオンレイピア', 'ムーンエッジ', '雷刃'],
+  拳闘士: ['レザーグローブ'],
+  弓矢: ['ショートボウ'],
+  魔法使い: ['ウッドスタッフ'],
+  僧侶: ['ウッドスタッフ'],
+  ネクロマンサー: ['ウッドスタッフ'],
+};
+/** 下位の 武器の 数・下位 だけが 落ちる 階 */
+export const WEAPON_LOW = { count: 2, untilFloor: 10 };
 export const WEAPON_MODEL: Record<string, string> = { ストリートソード: 'assets/rpg/gear/w_sword1.glb' };
 /** 装備の 絵(企画者の 絵。名前 → 絵) */
 export const GEAR_ICON: Record<string, string> = { ストリートソード: 'assets/rpg/gear/w_sword1.webp' };

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CELL, DOOR, FLOOR, generateFloor, type Floor } from './dungeon';
-import { RPG_LEARN, rpgLearned } from '../rpg/roles';
-import { ADV, adventureReward, ALLEY_MOBS, ALLEY_TOP, BAG_MAX, BOSS_AT, FLOOR_MOBS, isBoss, MOB_KINDS, newAdventure, type MobKind, stepAdventure, unequip, useBagItem, useHerb, type AdvState } from './sim';
+import { RPG_LEARN, rpgLearned, WEAPON_LIST } from '../rpg/roles';
+import { ADV, adventureReward, dropAt, equipStartWeapon, ALLEY_MOBS, ALLEY_TOP, BAG_MAX, BOSS_AT, FLOOR_MOBS, isBoss, MOB_KINDS, newAdventure, type MobKind, stepAdventure, unequip, useBagItem, useHerb, type AdvState } from './sim';
 
 /** マス(x,y)から 歩いて 行ける マスの 距離(BFS)。doors = しまった 扉も 通れる ことに する */
 function bfs(f: Floor, sx: number, sy: number, doors = false): Int32Array {
@@ -249,6 +249,18 @@ describe('冒険の 動き', () => {
     expect(r.broke).toBe(false);
     expect(r.shook).toBe(true);
     expect(r.open).toBe(false);
+  });
+  it('武器: 10階 までは 下位の 2つ だけ・11階から ぜんぶ(剣士)', () => {
+    const names = (floor: number) => {
+      const s = newAdventure(3, { hp: 10, power: 10, tough: 10, speed: 10, tech: 10 }, floor);
+      equipStartWeapon(s, WEAPON_LIST.剣士[0], WEAPON_LIST.剣士);
+      const got = new Set<string>();
+      for (let i = 0; i < 3000; i++) dropAt(s, 0, 0, 1, 0);
+      for (const d of s.drops) if (d.item.kind === 'gear' && d.item.slot === 'weapon') got.add(d.item.name!);
+      return [...got].sort();
+    };
+    expect(names(10)).toEqual(['ストリートソード', '鉄骨ブレード'].sort());
+    expect(names(11).length).toBe(5);
   });
   it('落とす 装備: 1階は D だけ・ずっと B まで', () => {
     expect(ADV.drop.cap[0]).toEqual([1, 0]);
