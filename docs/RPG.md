@@ -89,3 +89,4 @@
   - 敵・置き物からは 落ちない。ガチャで 出る 確率は【仮】1%。ガチャの 画面は まだ ない【未確定】。弓矢・杖の 炎と 闇の 武器は ロールが 動く ように なってから
   - 確認用の 武器の 名前ボタンで ためせる
 - 2026-11-28 武器② 鉄骨ブレードの 3D と 絵が とどいた（企画者の Tripo。`design/rpg/gear/w_sword2_steel_tripo_original.glb` → `public/assets/rpg/gear/w_sword2.glb` 約 380KB・絵 `design/rpg/gear/icons/w_sword2_steel.png` → `w_sword2.webp`）。大きな 剣 なので 手に 持つ 長さは ストリートソードの 1.25倍。色を つけた 仮の 形を やめて この 3D を 持つ
+- 2026-11-28 企画者「最終的には オンラインで できる ように する」（`docs/VISION.md`）
