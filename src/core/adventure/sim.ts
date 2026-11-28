@@ -172,8 +172,12 @@ export const ADV = {
   type: { powerMul: 1.25, toughHeal: 0.06, toughCut: 0.85, speedCd: 0.75, speedShot: 1.3, techArea: 1.25, techStatus: 0.2 },
   /** 回復の実: 最大HP の 割合 */
   herbHeal: 0.4,
-  /** モブが 落とす: 回復の実 25%・装備 12%【仮】。装備の ランクの 出やすさ D50 C30 B14 A5 S1 */
-  drop: { herb: 0.25, gear: 0.12, rank: [50, 30, 14, 5, 1] },
+  /**
+   * モブが 落とす【仮】: 回復の実 25%・装備 5%(2026-11-28 企画者「装備は 落ちにくく」12% → 5%)。
+   * ランクの 出やすさ D60 C30 B10。階で 上の ランクが ふえる(1階 = D だけ・2〜4階 = C まで・5階〜 = B まで)。
+   * 2026-11-28 企画者「落とす 装備の マックスは B ぐらい・上位は ステージ1では 出さない」。A・S は 落ちない
+   */
+  drop: { herb: 0.25, gear: 0.05, rank: [60, 30, 10], cap: [[1, 0], [4, 1], [Infinity, 2]] as [number, number][] },
   /** 装備の 強さ(ランクごとの 倍)と 1倍の ときの 上がり方 */
   gear: {
     mul: { D: 1, C: 2, B: 3, A: 5, S: 8 } as Record<Rank, number>, head: 2, armor: 3, charm: 8, weapon: 3,
@@ -187,10 +191,13 @@ export const ADV = {
   tcombo: { keep: 1.6, up: 0.2 },
   /** モンスター部屋【仮】: 入って とじるまで 10秒・敵の 数(8〜11)・とじこめの 長さ 60秒 */
   house: { wait: 10, count: 8, time: 60 },
-  /** 木箱【仮】: 2回 たたくと こわれる・回復の実 50%・装備 30% */
-  crate: { hp: 2, herb: 0.5, gear: 0.3 },
-  /** こわせる 置き物と たたく 回数【仮】(2026-11-26 企画者「段ボールと ゴミ箱も 壊せるように」) */
-  breakable: { crate: 2, boxes: 1, trash: 2 } as Record<string, number>,
+  /** 置き物を こわした 時【仮】: 回復の実 50%・装備 8%(2026-11-28 企画者「装備は 落ちにくく」 30% → 8%) */
+  crate: { herb: 0.5, gear: 0.08 },
+  /**
+   * こわせる 置き物【仮】: 一撃の ダメージが この数 以上なら こわれる(足りないと ゆれる だけ)。
+   * 2026-11-28 企画者「一撃の ダメージ数で 壊せるか 判断しよう。全て 壊せるように」
+   */
+  breakable: { boxes: 8, bags: 10, crate: 14, trash: 18, drum: 24, lamp: 30, dumpster: 36 } as Record<string, number>,
   /** スライムの とびかかりの 時間(秒) */
   hop: { dur: 0.32 },
   /** しかけ【仮】: 箱の 半分の 大きさ・スイッチに のる きょり・鍵で 扉を あける きょり・はまった 箱を もどす 秒 */
@@ -563,7 +570,7 @@ export function newAdventure(seed: number, stats: StatBlock, level = 1, techs: (
   const ts = [0, 1, 2, 3].map((i) => techs[i] ?? null);
   return {
     house: floor.sides.find((sd) => sd.house) ? { state: 'idle', t: 0 } : null,
-    floor, crates: floor.props.flatMap((pr, i) => (ADV.breakable[pr.kind] ? [{ cx: pr.cx, cy: pr.cy, hp: ADV.breakable[pr.kind], prop: i }] : [])), puzzles, keys: 0, mobRoom, rng, t: 0, player: p, mobs, tech: stats.tech, exitOpen: true, floorNo: level, result: 'play', kills: 0, events: [],
+    floor, crates: floor.props.map((pr, i) => ({ cx: pr.cx, cy: pr.cy, hp: ADV.breakable[pr.kind] ?? 20, prop: i })), puzzles, keys: 0, mobRoom, rng, t: 0, player: p, mobs, tech: stats.tech, exitOpen: true, floorNo: level, result: 'play', kills: 0, events: [],
     techs: ts, techCd: [0, 0, 0, 0], techSlot: -1, bag: [], gear: {}, drops: [], seq: 0,
     shots: [], mobShots: [], fields: [], shieldUntil: 0, atkUpUntil: 0, dash: null, combo: null, jumpTo: null, aimed: false, growType, jab: jabStyleOf(species), chain: 0, lastAtk: -9,
     base: { atk: p.atk, tough: p.tough, maxHp: p.maxHp },
@@ -897,7 +904,7 @@ function swordMove(s: AdvState, mv: string, mul: number, tc: AdvTech, ev: (fx: s
       // 前の 広い 範囲(半円)を 一度に 斬る
       const r = 2.9 * area;
       hitAll(inCone(s, p.x, p.z, f, r, 1.55));
-      hitCrates(s, inConeAt(p.x, p.z, f, r, 1.55));
+      hitCrates(s, inConeAt(p.x, p.z, f, r, 1.55), mul);
       ev('arcslash', r);
       break;
     }
@@ -922,7 +929,7 @@ function swordMove(s: AdvState, mv: string, mul: number, tc: AdvTech, ev: (fx: s
       const list = inCircle(s, p.x, p.z, r);
       hitAll(list, 0.9);
       for (const m of list) if (m.act !== 'dead') m.stunUntil = Math.max(m.stunUntil ?? 0, s.t + 0.9);
-      hitCrates(s, (x, z) => Math.hypot(x - p.x, z - p.z) < r + 1);
+      hitCrates(s, (x, z) => Math.hypot(x - p.x, z - p.z) < r + 1, mul * 0.9);
       ev('stomp', r);
       break;
     }
@@ -958,7 +965,7 @@ function swordMove(s: AdvState, mv: string, mul: number, tc: AdvTech, ev: (fx: s
         m.vx += Math.cos(f) * 12;
         m.vz += Math.sin(f) * 12;
       }
-      hitCrates(s, inConeAt(p.x, p.z, f, 2.6, 0.75));
+      hitCrates(s, inConeAt(p.x, p.z, f, 2.6, 0.75), mul * 1.2 * k);
       ev('heavy', 2.6 + ch * 1.5, ch);
       break;
     }
@@ -1010,7 +1017,7 @@ function swordMove(s: AdvState, mv: string, mul: number, tc: AdvTech, ev: (fx: s
       // ためて 一瞬で 大きく 斬りはらう(とても 強い)
       const r = 3.8 * area;
       hitAll(inCone(s, p.x, p.z, f, r, 1.0), 2.2);
-      hitCrates(s, inConeAt(p.x, p.z, f, r, 1.0));
+      hitCrates(s, inConeAt(p.x, p.z, f, r, 1.0), mul * 2.2);
       ev('iai', r);
       break;
     }
@@ -1048,14 +1055,14 @@ function stepTechs(s: AdvState, dt: number): void {
           m.awake = true;
           damage(s, p, m, s.dash.mul * 1.3, tc);
         }
-        hitCrates(s, inConeAt(p.x, p.z, p.face, 2.6, 1.2));
+        hitCrates(s, inConeAt(p.x, p.z, p.face, 2.6, 1.2), s.dash.mul * 1.3);
         s.events.push({ kind: 'mobFx', style: 'dashcut', x: p.x, z: p.z, dir: p.face, r: 2.6, arc: 1.2 });
       }
       s.dash = null;
     } else if (s.dash.cut) moveBy(s, p, Math.cos(p.face) * s.dash.speed * dt, Math.sin(p.face) * s.dash.speed * dt, ADV.player.r);
     else {
       moveBy(s, p, Math.cos(p.face) * s.dash.speed * dt, Math.sin(p.face) * s.dash.speed * dt, ADV.player.r);
-      if (s.dash.jab) hitCrates(s, (x, z) => Math.hypot(x - p.x, z - p.z) < T.rush.r + 1.1);
+      if (s.dash.jab) hitCrates(s, (x, z) => Math.hypot(x - p.x, z - p.z) < T.rush.r + 1.1, s.dash.mul);
       for (const m of inCircle(s, p.x, p.z, T.rush.r)) {
         if (s.dash.hit.includes(m.id)) continue;
         s.dash.hit.push(m.id);
@@ -1097,7 +1104,7 @@ function stepTechs(s: AdvState, dt: number): void {
       damage(s, p, m, s.combo.mul * (last ? s.combo.finale! : 1), tc);
     }
     if (last) s.events.push({ kind: 'mobFx', style: 'finale', x: p.x, z: p.z, dir: p.face, r: T.combo.range, arc: T.combo.arc });
-    hitCrates(s, inConeAt(p.x, p.z, p.face, T.combo.range, T.combo.arc));
+    hitCrates(s, inConeAt(p.x, p.z, p.face, T.combo.range, T.combo.arc), s.combo.mul * (last ? s.combo.finale! : 1));
     s.combo.left--;
     s.combo.next = s.t + (s.combo.every ?? T.combo.every);
     if (s.combo.left <= 0) s.combo = null;
@@ -1108,7 +1115,7 @@ function stepTechs(s: AdvState, dt: number): void {
     sh.life -= dt;
     if (!fits(s.floor, sh.x, sh.z, 0.05)) {
       sh.life = 0;
-      hitCrates(s, (x, z) => Math.abs(x - sh.x) < CELL * 0.6 && Math.abs(z - sh.z) < CELL * 0.6);
+      hitCrates(s, (x, z) => Math.abs(x - sh.x) < CELL * 0.6 && Math.abs(z - sh.z) < CELL * 0.6, sh.mul);
     }
     if (sh.pierce) {
       // つらぬく 斬撃: 当てた 敵は 1回だけ・止まらない
@@ -1168,9 +1175,11 @@ function dropAt(s: AdvState, x: number, z: number, gearP: number, herbP: number)
   if (r < gearP) {
     const slots: GearSlot[] = ['head', 'armor', 'charm'];
     const slot = slots[Math.floor(s.rng() * 3)];
-    let q = s.rng() * D.rank.reduce((a, b) => a + b, 0);
+    const top = D.cap.find(([upTo]) => s.floorNo <= upTo)![1];
+    const w = D.rank.slice(0, top + 1);
+    let q = s.rng() * w.reduce((a, b) => a + b, 0);
     let rank: Rank = 'D';
-    for (let i = 0; i < RANKS.length; i++) if ((q -= D.rank[i]) < 0) {
+    for (let i = 0; i < w.length; i++) if ((q -= w[i]) < 0) {
       rank = RANKS[i];
       break;
     }
@@ -1195,14 +1204,17 @@ export function rpgJabReach(role: string, form: number): { range: number; arc: n
 }
 
 /** 木箱を たたく(test = その 場所に 攻撃が とどくか)。こわれたら 通れる ように なり、物が 出る */
-function hitCrates(s: AdvState, test: (x: number, z: number) => boolean): void {
+function hitCrates(s: AdvState, test: (x: number, z: number) => boolean, mul = 1): void {
+  // 一撃の 強さ(防御 なし)。hp は こわすのに いる 一撃の ダメージ
+  const p = s.player;
+  const hit = p.atk * mul * (s.t < s.atkUpUntil ? ADV.tech.buff.up : 1);
   for (const c of s.crates) {
     if (c.hp <= 0) continue;
     const x = (c.cx + 0.5) * CELL;
     const z = (c.cy + 0.5) * CELL;
     if (!test(x, z)) continue;
-    c.hp--;
-    const broken = c.hp <= 0;
+    const broken = hit >= c.hp;
+    if (broken) c.hp = 0;
     s.events.push({ kind: 'crate', x, z, prop: c.prop, broken });
     if (broken) {
       s.floor.tiles[c.cy * s.floor.w + c.cx] = FLOOR;
@@ -1456,7 +1468,7 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
             m.awake = true;
             damage(s, p, m, mul);
           }
-          hitCrates(s, inConeAt(p.x, p.z, p.face, J.range, J.arc * (s.chain === 3 ? 1.3 : 1)));
+          hitCrates(s, inConeAt(p.x, p.z, p.face, J.range, J.arc * (s.chain === 3 ? 1.3 : 1)), mul);
           // 闘魂チャージの 間: 3段めで まわりに 衝撃波
           if ((s.fistShockUntil ?? 0) > s.t && s.chain === 3) {
             for (const m of inCircle(s, p.x, p.z, 2.4)) {

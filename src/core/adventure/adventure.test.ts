@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CELL, DOOR, FLOOR, generateFloor, type Floor } from './dungeon';
 import { RPG_LEARN, rpgLearned } from '../rpg/roles';
-import { adventureReward, ALLEY_MOBS, ALLEY_TOP, BAG_MAX, BOSS_AT, FLOOR_MOBS, isBoss, MOB_KINDS, newAdventure, type MobKind, stepAdventure, unequip, useBagItem, useHerb, type AdvState } from './sim';
+import { ADV, adventureReward, ALLEY_MOBS, ALLEY_TOP, BAG_MAX, BOSS_AT, FLOOR_MOBS, isBoss, MOB_KINDS, newAdventure, type MobKind, stepAdventure, unequip, useBagItem, useHerb, type AdvState } from './sim';
 
 /** マス(x,y)から 歩いて 行ける マスの 距離(BFS)。doors = しまった 扉も 通れる ことに する */
 function bfs(f: Floor, sx: number, sy: number, doors = false): Int32Array {
@@ -203,40 +203,56 @@ describe('冒険の 動き', () => {
     expect(rpgLearned('bunk', 1)).toEqual(['ジャブジャブ', 'バンクバッシュ']);
     expect(rpgLearned('bunk', 99).length).toBe(11);
   });
-  it('こわせる 置き物は 木箱・段ボール・ゴミ箱(ほかは こわれない)', () => {
+  it('置き物は ぜんぶ こわせる(2026-11-28)', () => {
     for (let seed = 1; seed <= 20; seed++) {
       const s = newAdventure(seed, { hp: 10, power: 10, tough: 10, speed: 10, tech: 10 });
-      for (const c of s.crates) expect(['crate', 'boxes', 'trash']).toContain(s.floor.props[c.prop].kind);
-      expect(s.crates.length).toBe(s.floor.props.filter((p) => ['crate', 'boxes', 'trash'].includes(p.kind)).length);
+      expect(s.crates.length).toBe(s.floor.props.length);
+      for (const c of s.crates) expect(c.hp).toBe(ADV.breakable[s.floor.props[c.prop].kind]);
     }
   });
-  it('木箱は 2回 たたくと こわれて 通れる・物が 出る ことが ある', () => {
+  /** 置き物の となりに 立って たたき続ける。こわれたら true */
+  const smash = (power: number, need: number) => {
     let s: AdvState | null = null;
     for (let seed = 1; seed < 50 && !s; seed++) {
-      const t = newAdventure(seed, { hp: 10, power: 10, tough: 10, speed: 10, tech: 10 });
+      const t = newAdventure(seed, { hp: 10, power, tough: 10, speed: 10, tech: 10 });
       if (t.crates.length) s = t;
     }
-    expect(s).toBeTruthy();
     const st = s!;
     st.mobs.length = 0;
     st.mobRoom.length = 0;
     const c = st.crates[0];
+    c.hp = need;
     const f = st.floor;
     expect(f.tiles[c.cy * f.w + c.cx]).toBe(3);
-    // 木箱の となり(部屋の 内がわ)に 立って 木箱を 向く
     const inR = f.rooms.find((r) => c.cx >= r.x && c.cx < r.x + r.w && c.cy >= r.y && c.cy < r.y + r.h)!;
     const nx = c.cx === inR.x ? c.cx + 1 : c.cx === inR.x + inR.w - 1 ? c.cx - 1 : c.cx;
     const ny = nx === c.cx ? c.cy + 1 : c.cy;
     st.player.x = (nx + 0.5) * CELL;
     st.player.z = (ny + 0.5) * CELL;
     let broke = false;
+    let shook = false;
     for (let i = 0; i < 200 && !broke; i++) {
       st.player.face = Math.atan2((c.cy + 0.5) * CELL - st.player.z, (c.cx + 0.5) * CELL - st.player.x);
       stepAdventure(st, { mx: 0, mz: 0, attack: true, tech: null, techDir: null }, 1 / 30);
       if (st.events.some((e) => e.kind === 'crate' && e.broken)) broke = true;
+      if (st.events.some((e) => e.kind === 'crate' && !e.broken)) shook = true;
     }
-    expect(broke).toBe(true);
-    expect(f.tiles[c.cy * f.w + c.cx]).toBe(FLOOR);
+    return { broke, shook, open: f.tiles[c.cy * f.w + c.cx] === FLOOR };
+  };
+  it('一撃の ダメージが 足りれば こわれて 通れる', () => {
+    const r = smash(40, ADV.breakable.crate);
+    expect(r.broke).toBe(true);
+    expect(r.open).toBe(true);
+  });
+  it('一撃の ダメージが 足りないと ゆれる だけ', () => {
+    const r = smash(10, ADV.breakable.dumpster);
+    expect(r.broke).toBe(false);
+    expect(r.shook).toBe(true);
+    expect(r.open).toBe(false);
+  });
+  it('落とす 装備: 1階は D だけ・ずっと B まで', () => {
+    expect(ADV.drop.cap[0]).toEqual([1, 0]);
+    expect(Math.max(...ADV.drop.cap.map((c) => c[1]))).toBe(2);
   });
   const strong = { hp: 40, power: 40, tough: 30, speed: 20, tech: 20 };
   /** しかけを 解きながら 進む ボット: 今の 部屋の しかけ(敵・スイッチ・箱・鍵)→ 扉 → 次の 部屋 → ワープ */

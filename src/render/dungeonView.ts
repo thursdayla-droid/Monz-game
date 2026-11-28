@@ -1258,13 +1258,14 @@ export class DungeonView {
       this.propTex.set(`item_${name}`, tex);
     }
     const c = item.kind === 'herb' ? 0x7aff8a : RANK_HEX[item.rank];
-    const glow = new THREE.Mesh(new THREE.CircleGeometry(0.7, 24), new THREE.MeshBasicMaterial({ map: glowTexture(), color: c, transparent: true, opacity: item.kind === 'herb' ? 0.35 : 0.7, depthWrite: false, blending: THREE.AdditiveBlending }));
+    const glow = new THREE.Mesh(new THREE.CircleGeometry(0.5, 24), new THREE.MeshBasicMaterial({ map: glowTexture(), color: c, transparent: true, opacity: item.kind === 'herb' ? 0.35 : 0.7, depthWrite: false, blending: THREE.AdditiveBlending }));
     glow.rotation.x = -Math.PI / 2;
     glow.position.y = -0.4;
     g.add(glow);
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, alphaTest: 0.1 }));
-    sp.scale.set(1.3, 1.3, 1);
-    sp.position.y = 0.3;
+    // 2026-11-28 企画者「落ちる アイテムは もう少し 小さく」1.3 → 0.85
+    sp.scale.set(0.85, 0.85, 1);
+    sp.position.y = 0.05;
     g.add(sp);
     return g;
   }
@@ -1702,8 +1703,13 @@ export class DungeonView {
       // 押す 箱(木の 箱)
       if (z.box && this.gimTex('box')) {
         const g = new THREE.Group();
-        const bsz = ADV.puzzle.box * 2.4;
-        g.add(this.gimBoard(this.gimTex('box')!, bsz * (246 / 256), bsz * 1.15));
+        // 2026-11-28 企画者「押してる時 体が 飛び出てる・スイッチの 上で 上すぎる」→
+        // 板の 下を 箱の 手前の ふちに 置き、箱の 中を ななめに 通す(当たりの 四角の 外へ 出ない)
+        const hb = ADV.puzzle.box;
+        const bw = hb * 2.35;
+        const board = this.gimBoard(this.gimTex('box')!, bw, bw * (256 / 246));
+        board.position.z = hb;
+        g.add(board);
         this.scene.add(g);
         this.boxObjs.push(g);
       } else if (z.box) {
@@ -1906,10 +1912,12 @@ export class DungeonView {
         glow.scale.set(2.6, 2.6, 1);
         glow.position.set(x + jx, h * 0.83, zz + 0.25);
         this.scene.add(glow);
+        m.userData.extra = [glow];
         const pool = new THREE.Mesh(new THREE.CircleGeometry(2.6, 24), new THREE.MeshBasicMaterial({ map: glowTexture(), color: 0x806030, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
         pool.rotation.x = -Math.PI / 2;
         pool.position.set(x + jx, 0.03, zz + 1.2);
         this.scene.add(pool);
+        m.userData.extra.push(pool);
       }
     }
     // 床の 模様(水たまり・マンホール)。床に ぴったり
@@ -2093,17 +2101,18 @@ export class DungeonView {
           this.groundRing(e.x, e.z, 10, 0xff2040, 0.8, 0.1);
         } else if (e.state === 'done') this.burst(this.houseDoor?.position.x ?? e.x, this.houseDoor?.position.z ?? e.z, 0x7affd0, 24);
       } else if (e.kind === 'tcombo') {
-        // 技コンボ: 頭の 上に「2 COMBO!」(つなぐほど 大きく・赤く)
-        this.pop(`${e.n} COMBO!`, e.n >= 4 ? '#ff4a4a' : e.n >= 3 ? '#ff9a2a' : '#ffd23a', e.x, 3.0, e.z, 0.7 + Math.min(4, e.n) * 0.12);
+        // 技コンボ: 画面を ゆらす だけ(2026-11-28 企画者「コンボ数の 表示も いらない」)
         this.shake = Math.max(this.shake, 0.15 + Math.min(4, e.n) * 0.05);
       } else if (e.kind === 'crate') {
         const m = this.propObjs.get(e.prop);
         // かけらの 色: 木箱 = 木・段ボール = 茶色の 紙・ゴミ箱 = 灰色の 金属
         const kind = s.floor.props[e.prop]?.kind;
-        this.splinters(e.x, e.z, e.broken ? 14 : 4, kind === 'trash' ? [0x9a98a4, 0x5a5866] : kind === 'boxes' ? [0xc09060, 0x8a6038] : undefined);
+        const COL: Record<string, [number, number]> = { trash: [0x9a98a4, 0x5a5866], dumpster: [0x3a7a5a, 0x2a3a34], drum: [0xc0503a, 0x5a5866], lamp: [0x5a5866, 0xffd080], bags: [0x2a2a34, 0x4a4a5a], boxes: [0xc09060, 0x8a6038] };
+        this.splinters(e.x, e.z, e.broken ? 14 : 4, kind ? COL[kind] : undefined);
         this.shake = Math.max(this.shake, e.broken ? 0.25 : 0.12);
         if (m && e.broken) {
           this.scene.remove(m);
+          for (const o of (m.userData.extra ?? []) as THREE.Object3D[]) this.scene.remove(o);
           this.propObjs.delete(e.prop);
         } else if (m) {
           const x0 = m.position.x;
