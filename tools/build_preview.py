@@ -59,7 +59,7 @@ if B3D:
             if True:
                 # 擬人化RPG の ページは 擬人化の モデルだけ(MONZ の 3D モデルは 入れない。15MB に 入れるため)
                 paths = [p for p in paths if not p.endswith('.glb')]
-                paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/rpg/*.glb') + glob.glob(pub + 'assets/rpg/gear/*.glb') + glob.glob(pub + 'assets/rpg/gear/*.webp') + glob.glob(pub + 'assets/rpg/fx/*.webp'))
+                paths += sorted(os.path.relpath(f, pub) for f in glob.glob(pub + 'assets/rpg/*.glb') + glob.glob(pub + 'assets/rpg/gear/*.glb') + glob.glob(pub + 'assets/rpg/gear/*.webp') + glob.glob(pub + 'assets/rpg/fx/fx_circle_*.webp'))  # 2026-11-28 技の 演出は 魔法陣 以外 光(絵は 使わない)
     else:
         paths = [p for p in paths if (is_new(p) or is_bunk(p) or p.endswith(('crownie.glb', 'crownix.glb')))] if B3D2 else [p for p in paths if not is_new(p)]
         # 2026-11-06 CROWNOR は 15MB に 入らないので STREET KING の ページ(--story)だけ

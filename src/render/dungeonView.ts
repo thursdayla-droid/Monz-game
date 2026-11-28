@@ -557,6 +557,128 @@ export function meleeTexture(name: string): THREE.CanvasTexture {
 const SHOT_EL: Record<string, string> = { 炎: 'fire', 水: 'water', 雷: 'thunder', 自然: 'leaf', 光: 'light', 闇: 'dark' };
 const MOB_SHOT: Partial<Record<string, string>> = { slime: 'goo', kingslime: 'poison', shroom: 'spore', skele: 'bone', ghost: 'wisp', troll: 'rock' };
 
+/**
+ * 技の 光の 形(白。色は 材料で 染める・光を 足して 重ねる)。spark = 放射の すじ・burst = 爆発の 光・star = 4本の きらめき・
+ * pillar = 下から 立つ 光の 柱(たて長)・ring = 光の 輪・smoke = やわらかい 光の かたまり
+ */
+const lightTexs = new Map<string, THREE.CanvasTexture>();
+function lightTexture(name: string): THREE.CanvasTexture {
+  const hit = lightTexs.get(name);
+  if (hit) return hit;
+  const c = document.createElement('canvas');
+  const tall = name === 'pillar';
+  c.width = 128;
+  c.height = tall ? 192 : 128;
+  const g = c.getContext('2d')!;
+  const W = c.width;
+  const H = c.height;
+  const glow = (x: number, y: number, r: number, a: number) => {
+    const gr = g.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, `rgba(255,255,255,${a})`);
+    gr.addColorStop(0.35, `rgba(255,255,255,${a * 0.55})`);
+    gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr;
+    g.fillRect(0, 0, W, H);
+  };
+  const rays = (n: number, inner: number, outer: number, wd: number, a: number, jitter = 0.3) => {
+    g.save();
+    g.translate(W / 2, H / 2);
+    for (let i = 0; i < n; i++) {
+      const ang = (i / n) * Math.PI * 2 + Math.sin(i * 7.3) * jitter;
+      const len = outer * (0.6 + 0.4 * Math.abs(Math.sin(i * 3.1)));
+      g.save();
+      g.rotate(ang);
+      const gr = g.createLinearGradient(inner, 0, len, 0);
+      gr.addColorStop(0, `rgba(255,255,255,${a})`);
+      gr.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = gr;
+      g.beginPath();
+      g.moveTo(inner, -wd);
+      g.lineTo(len, 0);
+      g.lineTo(inner, wd);
+      g.closePath();
+      g.fill();
+      g.restore();
+    }
+    g.restore();
+  };
+  switch (name.startsWith('ex_') ? 'burst' : name) {
+    case 'slash': {
+      // 三日月の 光(左へ ふくらむ。先が 細い)
+      g.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 14; i++) {
+        const k = i / 13;
+        g.beginPath();
+        g.arc(W * 0.95, H / 2, W * 0.78 - k * 10, Math.PI * 0.62, Math.PI * 1.38);
+        g.lineWidth = 2 + (1 - k) * 2;
+        g.strokeStyle = `rgba(255,255,255,${0.12 + (1 - k) * 0.25})`;
+        g.stroke();
+      }
+      g.beginPath();
+      g.arc(W * 0.95, H / 2, W * 0.78, Math.PI * 0.7, Math.PI * 1.3);
+      g.lineWidth = 4;
+      g.strokeStyle = 'rgba(255,255,255,1)';
+      g.stroke();
+      break;
+    }
+    case 'spark':
+      glow(W / 2, H / 2, 26, 1);
+      rays(12, 6, 62, 3.5, 1);
+      break;
+    case 'burst':
+      glow(W / 2, H / 2, 60, 0.75);
+      glow(W / 2, H / 2, 22, 1);
+      rays(16, 10, 64, 4, 0.8, 0.15);
+      break;
+    case 'star':
+      glow(W / 2, H / 2, 18, 1);
+      rays(4, 2, 62, 5, 1, 0);
+      g.save();
+      g.translate(W / 2, H / 2);
+      g.rotate(Math.PI / 4);
+      g.translate(-W / 2, -H / 2);
+      rays(4, 2, 34, 3, 0.7, 0);
+      g.restore();
+      break;
+    case 'pillar': {
+      // 下(絵の 下)が 明るく、上へ 細く 消える
+      const gr = g.createLinearGradient(0, H, 0, 0);
+      gr.addColorStop(0, 'rgba(255,255,255,1)');
+      gr.addColorStop(0.5, 'rgba(255,255,255,0.6)');
+      gr.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = gr;
+      g.beginPath();
+      g.moveTo(W * 0.2, H);
+      g.quadraticCurveTo(W * 0.45, H * 0.4, W * 0.5, 0);
+      g.quadraticCurveTo(W * 0.55, H * 0.4, W * 0.8, H);
+      g.closePath();
+      g.fill();
+      g.globalCompositeOperation = 'lighter';
+      g.fillStyle = 'rgba(255,255,255,0.8)';
+      g.fillRect(W * 0.46, H * 0.15, W * 0.08, H * 0.85);
+      break;
+    }
+    case 'ring': {
+      const gr = g.createRadialGradient(W / 2, H / 2, W * 0.32, W / 2, H / 2, W / 2);
+      gr.addColorStop(0, 'rgba(255,255,255,0)');
+      gr.addColorStop(0.7, 'rgba(255,255,255,1)');
+      gr.addColorStop(0.85, 'rgba(255,255,255,0.5)');
+      gr.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = gr;
+      g.fillRect(0, 0, W, H);
+      break;
+    }
+    default:
+      // smoke ほか: やわらかい 光の かたまり
+      glow(W / 2, H / 2, 60, 0.55);
+      glow(W * 0.4, H * 0.45, 30, 0.35);
+      glow(W * 0.6, H * 0.58, 30, 0.35);
+  }
+  const t = new THREE.CanvasTexture(c);
+  lightTexs.set(name, t);
+  return t;
+}
+
 /** 床の タイル(はっきりした ふちの 石だたみ。2D の 地図のように) */
 function tileTexture(): THREE.CanvasTexture {
   const c = document.createElement('canvas');
@@ -2004,7 +2126,7 @@ export class DungeonView {
       } else if (e.kind === 'mobFx' && e.style === 'hookring') {
         // 瞬速スピンの 1回: まわりに 雷の 輪
         this.fxGround('ring', 0xffe24a, e.x, e.z, e.r * 2, 0.25, 0.6);
-        this.fxBill('ex_thunder', 0xffffff, e.x, 0.9, e.z, e.r * 1.2, 0.22, 0.5);
+        this.fxBill('ex_thunder', 0xffe24a, e.x, 0.9, e.z, e.r * 1.2, 0.22, 0.5);
       } else if (e.kind === 'mobFx' && e.style === 'fistshock') {
         this.fxGround('ring', 0xff9a40, e.x, e.z, e.r * 2, 0.35, 0.85);
         this.shake = Math.max(this.shake, 0.2);
@@ -2019,7 +2141,7 @@ export class DungeonView {
       } else if (e.kind === 'mobFx' && e.style === 'bolt') {
         // 千雷一刀: 敵の 上に 雷の 斬撃が 落ちる
         this.fxBill('pillar', 0xffe24a, e.x, 1.8, e.z, 3.6, 0.35, 0.2, Math.random() * 0.25, 2 / 3);
-        this.fxBill('ex_thunder', 0xffffff, e.x, 1.0, e.z, 2.0, 0.3, 0.5, 0.1 + Math.random() * 0.25);
+        this.fxBill('ex_thunder', 0xffe24a, e.x, 1.0, e.z, 2.0, 0.3, 0.5, 0.1 + Math.random() * 0.25);
       } else if (e.kind === 'mobFx' && ['press', 'club', 'spin', 'quake', 'spit', 'summon'].includes(e.style)) {
         const c = e.style === 'quake' ? 0xffb03a : e.style === 'spit' ? 0x9aff5a : e.style === 'summon' ? 0xc07aff : 0xff6a3a;
         if (e.style !== 'spit' && e.style !== 'press') this.groundRing(e.x, e.z, e.r, c, e.style === 'quake' ? 0.6 : 0.4, e.style === 'quake' ? 0.12 : 0.25);
@@ -2305,6 +2427,11 @@ export class DungeonView {
   private lastEl = { el: '無', t: -9 };
   private fxTex(name: string): THREE.Texture {
     let t = this.fxTexs.get(name);
+    if (!t && !name.startsWith('circle_')) {
+      // 2026-11-28 企画者「攻撃の 演出は 絵 やめよう。使って いいのは 魔法の 下の(魔法陣) ぐらい。光 いいよ」→ 魔法陣 以外は 光(プログラムで 描く)
+      t = lightTexture(name);
+      this.fxTexs.set(name, t);
+    }
     if (!t) {
       t = new THREE.TextureLoader().load(assetUrl(`assets/rpg/fx/fx_${name}.webp`));
       t.colorSpace = THREE.SRGBColorSpace;
@@ -2345,11 +2472,12 @@ export class DungeonView {
     return m;
   }
   /** 属性の 爆発の 絵(炎・雷・光・闇 は 企画者の 絵、ほかは 火花を 色で 染める) */
-  private exName(el: string): string {
-    return ({ 炎: 'ex_fire', 雷: 'ex_thunder', 光: 'ex_light', 闇: 'ex_dark' } as Record<string, string>)[el] ?? 'spark';
+  private exName(_el: string): string {
+    // 属性の 爆発も 光(属性の 色で 染める)
+    return 'burst';
   }
   private exColor(el: string): number {
-    return this.exName(el) === 'spark' ? EL_HEX[el] ?? 0xffffff : 0xffffff;
+    return EL_HEX[el] ?? 0xffffff;
   }
   /** 斬撃の 絵を 床に(弧の ふくらみを 前へ)。side = 振る 向き */
   /** 拳闘士(BUNK の 擬人化): 斬撃の 代わりに こぶしの 衝撃 */
@@ -2454,7 +2582,6 @@ export class DungeonView {
         this.fxGround('ring', 0xffc080, e.x, e.z, e.r * 2.2, 0.5, 0.85);
         this.fxGround('ring', 0xffffff, e.x, e.z, e.r * 1.3, 0.35, 0.85);
         this.fxBill('smoke', 0xa89cb0, e.x, 0.5, e.z, e.r * 1.2, 0.6, 0.6);
-        this.enemyFx({ kind: 'mobFx', style: 'smash', x: e.x - Math.cos(dir), z: e.z - Math.sin(dir), dir, r: e.r, arc: 0 });
         this.shake = Math.max(this.shake, 0.4);
         break;
       case 'upper':
