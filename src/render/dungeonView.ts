@@ -2014,11 +2014,28 @@ export class DungeonView {
 
   /** 武器の 3D を 読んで 右手に 持たせる */
   private weaponName = '';
-  private loadWeapon(file: string): void {
+  private loadWeapon(file: string, name = ''): void {
     const url = assetUrl(file);
     const loader = new GLTFLoader();
     loader.setMeshoptDecoder(MeshoptDecoder);
-    const done = (g: { scene: THREE.Object3D }) => this.rig.setWeapon(g.scene, 1.05);
+    // 3D が まだ ない 剣は 形を 借りて 色と 長さで 見分ける【仮】(2026-11-28 企画者「武器 変わっても 分からない」)
+    const LOOK: Record<string, { len: number; thin?: number }> = { 鉄骨ブレード: { len: 1.3, thin: 1.25 }, ネオンレイピア: { len: 1.25, thin: 0.55 }, ムーンエッジ: { len: 1.1, thin: 1.3 }, 雷刃: { len: 1.1 } };
+    const done = (g: { scene: THREE.Object3D }) => {
+      const st = WEAPON_STYLE[name];
+      if (!WEAPON_MODEL[name] && st) {
+        g.scene.traverse((o) => {
+          const m = o as THREE.Mesh;
+          if (!m.isMesh) return;
+          const mat = (m.material as THREE.MeshStandardMaterial).clone();
+          mat.color = new THREE.Color(0xffffff).lerp(new THREE.Color(st.color), 0.55);
+          mat.emissive = new THREE.Color(st.color);
+          mat.emissiveIntensity = 0.45;
+          m.material = mat;
+        });
+      }
+      const lk = WEAPON_MODEL[name] ? undefined : LOOK[name];
+      this.rig.setWeapon(g.scene, 1.05 * (lk?.len ?? 1), lk?.thin ?? 1);
+    };
     try {
       if (url.startsWith('data:')) {
         const bin = atob(url.slice(url.indexOf(',') + 1));
@@ -2285,9 +2302,11 @@ export class DungeonView {
     const wName = s.gear.weapon?.name ?? '';
     if (wName !== this.weaponName && this.ready) {
       this.weaponName = wName;
+      // 拳闘士は 両手に グローブ(仮の 形)
+      this.rig.setGloves(s.weapons && WEAPON_LIST.拳闘士.includes(wName) ? wName : '');
       // 3D が まだ ない 剣は ストリートソードの 形で 代わりに 持つ【仮】(トリポで 作るまで)
       const file = WEAPON_MODEL[wName] ?? (WEAPON_LIST.剣士.includes(wName) ? WEAPON_MODEL.ストリートソード : undefined);
-      if (file) this.loadWeapon(file);
+      if (file) this.loadWeapon(file, wName);
       else this.rig.setWeapon(null);
     }
     // 装備の ランクの 光(いちばん 高い ランク)
@@ -2583,7 +2602,8 @@ export class DungeonView {
     if (this.fist) {
       const d = r * 0.75;
       const off = side * 0.25;
-      this.fxBill('spark', color, x + Math.cos(dir + off * 0.3) * d, 0.9, z + Math.sin(dir + off * 0.3) * d, r * 0.9, life, 0.5, delay);
+      // 2026-11-28 企画者「拳闘の 通常攻撃の エフェクト 若干 大きく」0.9 → 1.2
+      this.fxBill('spark', color, x + Math.cos(dir + off * 0.3) * d, 0.9, z + Math.sin(dir + off * 0.3) * d, r * 1.2, life, 0.5, delay);
       return;
     }
     const m = new THREE.Mesh(new THREE.PlaneGeometry(r * 2, r * 2), this.fxMat('slash', color));
@@ -2621,8 +2641,43 @@ export class DungeonView {
     // 武器ごとの 光の 色(2026-11-28)。ふつうは 白・3段めは 少し 濃く
     const c = e.color ?? 0xfff0d8;
     const cBig = e.color != null ? new THREE.Color(e.color).lerp(new THREE.Color(0xffffff), 0.25).getHex() : 0xffc080;
-    this.fxSlash(e.x + Math.cos(e.dir) * r * 0.5, e.z + Math.sin(e.dir) * r * 0.5, e.dir, r * (big ? 1.15 : 1), big ? cBig : c, side, big ? 0.2 : 0.14);
+    // 武器ごとの 大きさ(2026-11-28 企画者「武器 変わっても 何が 変わってるか 分からない」)
+    const SZ: Record<string, number> = { 鉄骨ブレード: 1.35, ムーンエッジ: 1.3, ブルドッグガントレット: 1.3, キングフィスト: 1.15, ボクサーラップ: 0.85 };
+    const sz = SZ[e.weapon ?? ''] ?? 1;
+    this.fxSlash(e.x + Math.cos(e.dir) * r * 0.5, e.z + Math.sin(e.dir) * r * 0.5, e.dir, r * (big ? 1.15 : 1) * sz, big ? cBig : c, side, big ? 0.2 : 0.14);
     if (big) this.shake = Math.max(this.shake, 0.12);
+    this.weaponJabFx(e, r);
+  }
+
+  /** 武器ごとの 通常攻撃の 光(1発めから ちがいが 分かる ように。2026-11-28)【仮】 */
+  private weaponJabFx(e: Extract<AdvEvent, { kind: 'jab' }>, r: number): void {
+    const hx = e.x + Math.cos(e.dir) * r * 1.1;
+    const hz = e.z + Math.sin(e.dir) * r * 1.1;
+    switch (e.weapon) {
+      case '鉄骨ブレード': // 重い: けむりと ゆれ
+        this.fxBill('smoke', 0xc0a890, hx, 0.4, hz, 1.4, 0.35, 0.6);
+        this.shake = Math.max(this.shake, 0.12);
+        break;
+      case 'ムーンエッジ': // 三日月を 2枚 かさねる
+        this.fxSlash(e.x + Math.cos(e.dir) * r * 0.5, e.z + Math.sin(e.dir) * r * 0.5, e.dir, r * 1.55, 0x8aa8ff, e.chain === 2 ? -1 : 1, 0.2, 0.04);
+        break;
+      case '雷刃': // 小さな いなずま
+        this.fxBill('bolt', 0xffe880, hx, 1.0, hz, 1.2, 0.14, 0.4, 0, 2 / 3);
+        break;
+      case 'スパイクナックル': // 赤い トゲの 火花
+        this.fxBill('star', 0xff3a3a, hx, 0.9, hz, 1.1, 0.18, 0.6);
+        break;
+      case 'ボクサーラップ': // 速い 小さな 火花が 2つ
+        this.fxBill('spark', 0xd8ff8a, hx + Math.cos(e.dir) * 0.3, 1.0, hz + Math.sin(e.dir) * 0.3, 0.8, 0.12, 0.5, 0.04);
+        break;
+      case 'ブルドッグガントレット': // 足もとに 衝撃の 輪
+        this.fxGround('ring', 0xd0d0e0, hx, hz, 2.2, 0.3, 0.7);
+        this.shake = Math.max(this.shake, 0.1);
+        break;
+      case 'キングフィスト': // 金の 光の 玉
+        this.fxBill('burst', 0xffd23a, hx, 0.9, hz, 1.6, 0.2, 0.5);
+        break;
+    }
   }
 
   /** 武器の さいごの 一撃の 光(2026-11-28)【仮】 */

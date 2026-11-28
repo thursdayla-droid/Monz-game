@@ -324,7 +324,12 @@ export class MonsterRig {
     this.creature = cb?.ok ? cb : null;
     if (this.weaponSrc) {
       const w = this.weaponSrc;
-      this.setWeapon(w.obj, w.len);
+      this.setWeapon(w.obj, w.len, w.thin);
+    }
+    if (this.gloveKey) {
+      const k = this.gloveKey;
+      this.gloveKey = '';
+      this.setGloves(k);
     }
     // 口(技を撃つ所)を、モデルの顔の前に
     this.mouth.position.set(size.x * k * 0.55, height * 0.42, 0);
@@ -332,7 +337,7 @@ export class MonsterRig {
 
   /** 手に 持つ 武器(擬人化RPG・2026-11-28)。モデルが まだ ない 時は 待つ */
   private weapon: THREE.Object3D | null = null;
-  private weaponSrc: { obj: THREE.Object3D; len: number } | null = null;
+  private weaponSrc: { obj: THREE.Object3D; len: number; thin: number } | null = null;
   /**
    * 武器を 右手に 持たせる(企画者の Tripo の 武器)。武器の いちばん 長い 向きを さがし、上(y が 大きい)の はしを 先、反対を 持つ ところに する。
    * len = 先から 柄までの 長さ(世界の 長さ)。持つ 向きは 体の 前・少し 下
@@ -363,8 +368,8 @@ export class MonsterRig {
     w.quaternion.copy(this.weaponQ).slerp(local, this.wAim);
   }
 
-  setWeapon(obj: THREE.Object3D | null, len = 1.1): void {
-    this.weaponSrc = obj ? { obj, len } : null;
+  setWeapon(obj: THREE.Object3D | null, len = 1.1, thin = 1): void {
+    this.weaponSrc = obj ? { obj, len, thin } : null;
     this.weapon?.removeFromParent();
     this.weapon = null;
     if (this.bones) this.bones.sword = !!obj;
@@ -399,8 +404,12 @@ export class MonsterRig {
     inner.position.sub(grip);
     fix.add(inner);
     fix.quaternion.setFromUnitVectors(axis, new THREE.Vector3(0, 1, 0));
+    // 太さ(刃の 向き いがい)を 変える 時は あいだに 1つ はさむ
+    const mid = new THREE.Group();
+    mid.scale.set(thin, 1, thin);
+    mid.add(fix);
     const holder = new THREE.Group();
-    holder.add(fix);
+    holder.add(mid);
     holder.scale.setScalar(len / L);
     // 体の 前へ 少し 下向き(体の 中の 向き → 世界)
     const bq = this.body.getWorldQuaternion(new THREE.Quaternion());
@@ -413,6 +422,62 @@ export class MonsterRig {
     hand.attach(holder);
     this.weapon = holder;
     this.weaponQ = holder.quaternion.clone();
+  }
+
+  /**
+   * 拳闘士の グローブ(3D が まだ ない 間の 仮の 形。2026-11-28 企画者「武器 変わっても 何が 変わってるか 分からない」)。
+   * 両手に 武器の 色の 玉。スパイク = トゲ・ブルドッグ = 大きい 鉄・キング = 金に 光る【仮】
+   */
+  private gloveObjs: THREE.Object3D[] = [];
+  private gloveKey = '';
+  setGloves(name: string): void {
+    if (name === this.gloveKey) return;
+    this.gloveKey = name;
+    for (const o of this.gloveObjs) o.removeFromParent();
+    this.gloveObjs = [];
+    if (!name || !this.model) return;
+    const LOOK: Record<string, { c: number; r: number; glow: number; spike?: boolean; metal?: number }> = {
+      レザーグローブ: { c: 0x8a5a3a, r: 1, glow: 0 },
+      スパイクナックル: { c: 0x3a3440, r: 1.05, glow: 0.15, spike: true, metal: 0.5 },
+      ボクサーラップ: { c: 0x9aff5a, r: 0.9, glow: 0.35 },
+      ブルドッグガントレット: { c: 0x9a9aaa, r: 1.5, glow: 0.05, metal: 0.7 },
+      キングフィスト: { c: 0xffc83a, r: 1.15, glow: 0.6, metal: 0.6 },
+    };
+    const lk = LOOK[name];
+    if (!lk) return;
+    this.bones?.resetBind();
+    this.root.updateMatrixWorld(true);
+    const R = 0.19 * lk.r;
+    for (const side of ['R_Hand', 'L_Hand']) {
+      const hand = this.model.getObjectByName(side);
+      if (!hand) continue;
+      const g = new THREE.Group();
+      const mat = new THREE.MeshStandardMaterial({ color: lk.c, roughness: 0.5, metalness: lk.metal ?? 0, emissive: lk.c, emissiveIntensity: lk.glow });
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(R, 14, 10), mat);
+      ball.castShadow = true;
+      g.add(ball);
+      // 手首の ふち(黒)
+      const cuff = new THREE.Mesh(new THREE.TorusGeometry(R * 0.75, R * 0.18, 6, 14), new THREE.MeshStandardMaterial({ color: 0x1a1420, roughness: 0.8 }));
+      cuff.rotation.x = Math.PI / 2;
+      cuff.position.y = R * 0.6;
+      g.add(cuff);
+      if (lk.spike) {
+        const sm = new THREE.MeshStandardMaterial({ color: 0xff4a4a, roughness: 0.4, metalness: 0.4, emissive: 0xff2a2a, emissiveIntensity: 0.4 });
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * Math.PI * 2;
+          const sp = new THREE.Mesh(new THREE.ConeGeometry(R * 0.25, R * 0.7, 6), sm);
+          const n = new THREE.Vector3(Math.cos(a), -0.3, Math.sin(a)).normalize();
+          sp.position.copy(n.clone().multiplyScalar(R));
+          sp.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
+          g.add(sp);
+        }
+      }
+      g.position.copy(hand.getWorldPosition(new THREE.Vector3()));
+      this.root.parent?.add(g);
+      g.updateMatrixWorld(true);
+      hand.attach(g);
+      this.gloveObjs.push(g);
+    }
   }
 
   /** 冒険の 装備の 3D(2026-11-26)。key が 変わった 時だけ 作り直す */

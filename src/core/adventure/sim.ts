@@ -327,7 +327,7 @@ export type AdvEvent =
   | { kind: 'open'; x: number; z: number }
   | { kind: 'tech'; slot: number; x: number; z: number; fx: string; dir: number; r: number; len: number; element: string; tx: number; tz: number }
   | { kind: 'status'; target: number; x: number; z: number; effect: string }
-  | { kind: 'jab'; style: string; chain: number; x: number; z: number; dir: number; range: number; arc: number; color?: number }
+  | { kind: 'jab'; style: string; chain: number; x: number; z: number; dir: number; range: number; arc: number; color?: number; weapon?: string }
   | { kind: 'heal'; amount: number; x: number; z: number }
   | { kind: 'drop'; drop: Drop }
   | { kind: 'pick'; drop: Drop }
@@ -1611,7 +1611,7 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
         }
       }
       // range・arc = 当たる 広さ(モブの 中心まで range + モブの 大きさ・左右 arc)
-      if (!(last && ws?.last === 'pierce')) s.events.push({ kind: 'jab', style: ws?.thrust ? 'thrust' : s.jab, chain: last ? 3 : s.chain === 3 ? 1 : s.chain, x: p.x, z: p.z, dir: p.face, range: J.range + ADV.mob.r, arc: ws?.thrust ? 0.16 : J.arc * (last ? 1.3 : 1), color: ws?.color });
+      if (!(last && ws?.last === 'pierce')) s.events.push({ kind: 'jab', style: ws?.thrust ? 'thrust' : s.jab, chain: last ? 3 : s.chain === 3 ? 1 : s.chain, x: p.x, z: p.z, dir: p.face, range: J.range + ADV.mob.r, arc: ws?.thrust ? 0.16 : J.arc * (last ? 1.3 : 1), color: ws?.color, weapon: ws ? s.gear.weapon?.name : undefined });
     }
   }
   stepTechs(s, dt);
