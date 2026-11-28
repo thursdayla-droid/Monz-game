@@ -398,6 +398,8 @@ export interface AdvState {
   techSlot: number;
   bag: AdvItem[];
   gear: Partial<Record<GearSlot, AdvItem & { kind: 'gear' }>>;
+  /** ネオンレイピアの 3段めの 突き(のこりの 回数) */
+  thrusts?: { next: number; left: number; mul: number; len: number } | null;
   /** 擬人化RPG: このロールの 武器(弱い 順)。ある 時だけ 武器も 落ちる */
   weapons?: string[];
   drops: Drop[];
@@ -1048,6 +1050,22 @@ function swordMove(s: AdvState, mv: string, mul: number, tc: AdvTech, ev: (fx: s
 function stepTechs(s: AdvState, dt: number): void {
   const p = s.player;
   const T = ADV.tech;
+  // ネオンレイピアの 突き(0.1秒 ごと)
+  if (s.thrusts && s.t >= s.thrusts.next) {
+    const th = s.thrusts;
+    if (p.act === 'dead') s.thrusts = null;
+    else {
+      for (const m of inCone(s, p.x, p.z, p.face, th.len, 0.16)) {
+        m.awake = true;
+        damage(s, p, m, th.mul * 0.6);
+      }
+      hitCrates(s, inConeAt(p.x, p.z, p.face, th.len, 0.16), th.mul * 0.6);
+      s.events.push({ kind: 'mobFx', style: 'wpierce', x: p.x, z: p.z, dir: p.face, r: th.len, arc: 0 });
+      th.left--;
+      th.next = s.t + 0.1;
+      if (th.left <= 0) s.thrusts = null;
+    }
+  }
   if (s.dash) {
     if (s.t >= s.dash.until || p.act === 'dead') {
       // 瞬歩斬り: 走り終わりに 前を 大きく 斬る
@@ -1236,16 +1254,13 @@ function weaponFinish(s: AdvState, kind: NonNullable<(typeof WEAPON_STYLE)[strin
       break;
     }
     case 'pierce': {
-      // ネオンレイピア: 一直線に つらぬく(後ろの 敵にも)
-      const len = J.range + 2.4;
-      hit(inCone(s, p.x, p.z, f, len, 0.16).filter((m) => !hitList.includes(m)), 1);
-      hitCrates(s, inConeAt(p.x, p.z, f, len, 0.16), mul);
-      fx('wpierce', p.x, p.z, len);
+      // ネオンレイピア: 一直線に つらぬく 突きを 3回(2026-11-28 企画者「3段めの 攻撃 3発で いい。真っ直ぐ 攻撃 だから」)
+      s.thrusts = { next: s.t, left: 3, mul, len: J.range + 2.4 };
       break;
     }
     case 'spin': {
-      // ムーンエッジ: まわりを ぐるっと 一回転
-      const r = J.range;
+      // ムーンエッジ: まわりを ぐるっと 一回転(2026-11-28 企画者「もう少し 広範囲で」→ 届く 長さの 1.6倍)
+      const r = J.range * 1.6;
       hit(inCircle(s, p.x, p.z, r).filter((m) => !hitList.includes(m)), 1);
       hitCrates(s, (x, z) => Math.hypot(x - p.x, z - p.z) < r + 1, mul);
       fx('wspin', p.x, p.z, r);
