@@ -181,6 +181,8 @@ export const ADV = {
     reach: { D: { range: 0, arc: 0 }, C: { range: 0.1, arc: 0.05 }, B: { range: 0.2, arc: 0.1 }, A: { range: 0.35, arc: 0.15 }, S: { range: 0.5, arc: 0.22 } } as Record<Rank, { range: number; arc: number }>,
   },
   pickR: 1.1,
+  /** ためる 技【仮】: いちばん ためるまでの 秒・ためきると 強さ ×2.6 */
+  charge: { full: 1.2, max: 2.6 },
   /** 拳闘士の 技コンボ【仮】: つながる 秒・1つ ごとの ダメージ アップ */
   tcombo: { keep: 1.6, up: 0.2 },
   /** モンスター部屋【仮】: 入って とじるまで 10秒・敵の 数(8〜11)・とじこめの 長さ 60秒 */
@@ -413,6 +415,8 @@ export interface AdvState {
    */
   brawler?: boolean;
   tcombo?: { n: number; until: number };
+  /** ためた 量(0〜1。ためる 技を 出した とき) */
+  charge?: number;
   /** 千雷一刀: 順番に 落ちる 雷(のこりの 場所・次の 時刻) */
   storm?: { left: { id: number; x: number; z: number }[]; next: number; mul: number; tech: AdvTech } | null;
   /** 闘魂チャージ(擬人化 拳闘士): 通常攻撃 3段めで 衝撃波(時刻) */
@@ -446,6 +450,8 @@ export interface AdvInput {
   tech?: number | null;
   /** 技を うつ 向き(長押しで ねらった 向き。null = いちばん 近い 敵へ。2026-11-07 企画者) */
   techDir?: number | null;
+  /** 技ボタンを 押して いた 秒(ためる 技。2026-11-28 企画者「ためて 放つ 一撃」) */
+  techHold?: number;
 }
 
 function actor(id: number, x: number, z: number): Actor {
@@ -661,6 +667,31 @@ export function aimPreview(s: AdvState, slot: number, dir: number | null): AimSh
     const k = wallDist(s, p.x, p.z, d, reach * 0.6);
     return { cx: p.x + Math.cos(d) * k, cz: p.z + Math.sin(d) * k };
   };
+  // 擬人化の 技(拳闘士・剣士): 本当の 当たる 形を 見せる
+  const mv = RPG_SPECIAL[techName(tc.id)]?.move;
+  if (mv) {
+    const band = (len: number, w: number) => ({ ...base, shape: 'band' as const, len: Math.max(0.6, wallDist(s, p.x, p.z, d, len)), w });
+    const fan = (len: number, arc: number) => ({ ...base, shape: 'fan' as const, len, arc });
+    const circle = (r: number, c?: { cx: number; cz: number }) => ({ ...base, shape: 'circle' as const, r, ...(c ?? {}) });
+    switch (mv) {
+      case 'jabs': return band(5.6, 1.0);
+      case 'tackle': return band(4.5, 2.0);
+      case 'stomp': return circle(3.3 * area);
+      case 'upper': return fan(1.9, 1.6);
+      case 'hopcombo': return band(4.6, 1.8);
+      case 'spinhook': return circle(2.6 * area);
+      case 'heavy': return fan(2.6, 1.5);
+      case 'arc': return fan(2.9 * area, 3.1);
+      case 'dashcut': return band(7, 1.4);
+      case 'through': return band(6, 1.8);
+      case 'thrust': return band(6, 1.1 * area);
+      case 'flurry': return circle(1.7, at(7));
+      case 'xcut': return circle(1.9 * area, at(7));
+      case 'iai': return fan(3.8 * area, 2.0);
+      case 'wave': return band(12, 2.6);
+      case 'storm': return circle(8.5 * area);
+    }
+  }
   switch (tc.kind) {
     case 'beam': {
       const bx = p.x + Math.cos(d) * 0.9;
@@ -872,8 +903,12 @@ function swordMove(s: AdvState, mv: string, mul: number, tc: AdvTech, ev: (fx: s
     }
     // ===== 拳闘士(2026-11-28) =====
     case 'jabs':
-      // 目にも 止まらない 2連パンチ(短い・すぐ 次)
-      s.combo = { left: 2, next: s.t, mul: mul * 0.7, every: 0.07 };
+      // 拳の 気弾を 2発(左・右)。遠くへ 届く(2026-11-28 企画者「遠くへ 届く 拳」)
+      for (let i = 0; i < 2; i++) {
+        const a = f + (i ? -0.08 : 0.08);
+        const sp = 13;
+        s.shots.push({ id: ++s.seq, x: p.x + Math.cos(a) * 0.8, z: p.z + Math.sin(a) * 0.8, vx: Math.cos(a) * sp, vz: Math.sin(a) * sp, r: 0.5, life: 0.42 + i * 0.04, mul: mul * 0.65, tech: tc, art: 'fist' });
+      }
       ev('jabs', 1.6);
       break;
     case 'tackle':
@@ -910,15 +945,21 @@ function swordMove(s: AdvState, mv: string, mul: number, tc: AdvTech, ev: (fx: s
       ev('spinhook', 2.6 * area);
       break;
     case 'heavy': {
-      // ためた 重い ストレート: 前を 大きく ふき飛ばす
+      // ためて 放つ 重い ストレート(2026-11-28 企画者「ためて 放つ 一撃」): 押して いた 長さで 強く なる。ためきると 前へ 衝撃波が 飛ぶ
+      const ch = s.charge ?? 0;
+      const k = 1 + (ADV.charge.max - 1) * ch;
       const list = inCone(s, p.x, p.z, f, 2.6, 0.75);
-      hitAll(list, 2.4);
+      hitAll(list, 1.2 * k);
+      if (ch >= 1) {
+        const sp = 12;
+        s.shots.push({ id: ++s.seq, x: p.x + Math.cos(f) * 1.2, z: p.z + Math.sin(f) * 1.2, vx: Math.cos(f) * sp, vz: Math.sin(f) * sp, r: 1.1, life: 0.6, mul: mul * 1.6, tech: tc, pierce: list.map((m) => m.id), art: 'fistbig' });
+      }
       for (const m of list) if (!isBoss(m)) {
         m.vx += Math.cos(f) * 12;
         m.vz += Math.sin(f) * 12;
       }
       hitCrates(s, inConeAt(p.x, p.z, f, 2.6, 0.75));
-      ev('heavy', 2.6);
+      ev('heavy', 2.6 + ch * 1.5, ch);
       break;
     }
     case 'dashcut': {
@@ -1371,6 +1412,7 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
       p.actT = 0;
       p.struck = false;
       s.techSlot = ti;
+      s.charge = Math.min(1, (inp.techHold ?? 0) / ADV.charge.full);
       if (tc.kind === 'drop') {
         const m = s.aimed ? aimedMob(s, p.face, T.drop.reach) : nearestMob(s, T.drop.reach);
         // とぶ きょりは 短く(敵が 遠くても 2.8 まで。瞬間移動に 見えないように)

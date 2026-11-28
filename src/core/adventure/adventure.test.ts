@@ -133,6 +133,37 @@ describe('冒険の 動き', () => {
       if (n === 'アッパーカット' && m.act !== 'dead') expect(stunned).toBe(true);
     }
   });
+  it('擬人化: 剛力クラッシュは ためるほど 強い・ためきると 衝撃波・ジャブジャブは 気弾が 飛ぶ', () => {
+    const run = (hold: number) => {
+      const t = getTech('剛力クラッシュ');
+      const s = newAdventure(5, { hp: 10, power: 10, tough: 10, speed: 10, tech: 10 }, 3, [{ id: '剛力クラッシュ', kind: t.kind, power: t.power, cooldown: 2, element: t.element, effect: 'なし', strength: t.strength }]);
+      const m = s.mobs[0];
+      m.x = s.player.x + 1.4;
+      m.z = s.player.z;
+      m.maxHp = m.hp = 1e6;
+      m.tough = 0;
+      s.player.face = 0;
+      let big = false;
+      for (let i = 0; i < 20; i++) {
+        stepAdventure(s, { mx: 0, mz: 0, attack: false, tech: i === 0 ? 0 : null, techDir: null, techHold: hold }, 1 / 30);
+        if (s.shots.some((x) => x.art === 'fistbig')) big = true;
+      }
+      return { dmg: 1e6 - m.hp, big };
+    };
+    const a = run(0);
+    const b = run(2);
+    expect(b.dmg).toBeGreaterThan(a.dmg * 1.8);
+    expect(a.big).toBe(false);
+    expect(b.big).toBe(true);
+    const t = getTech('ジャブジャブ');
+    const s = newAdventure(5, { hp: 10, power: 10, tough: 10, speed: 10, tech: 10 }, 3, [{ id: 'ジャブジャブ', kind: t.kind, power: t.power, cooldown: 2, element: t.element, effect: 'なし', strength: t.strength }]);
+    let fist = 0;
+    for (let i = 0; i < 10; i++) {
+      stepAdventure(s, { mx: 0, mz: 0, attack: false, tech: i === 0 ? 0 : null, techDir: null }, 1 / 30);
+      fist = Math.max(fist, s.shots.filter((x) => x.art === 'fist').length);
+    }
+    expect(fist).toBe(2);
+  });
   it('擬人化: 拳闘士の 技コンボ(当てた あと すぐ 次の 技へ・数が ふえる)', () => {
     const mk = (n: string) => {
       const t = getTech(n);

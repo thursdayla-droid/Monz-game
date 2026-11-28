@@ -1198,6 +1198,23 @@ export class DungeonView {
   }
 
   /** 技を ねらっている 間の 範囲(null = かくす) */
+  /** ためる 技の ため具合(0〜1。-1 = ためて いない)。体の まわりに オレンジの 光が 集まる */
+  private chargeObj: THREE.Group | null = null;
+  private chargeK = -1;
+  setCharge(k: number): void {
+    this.chargeK = k;
+    if (!this.chargeObj) {
+      const g = new THREE.Group();
+      const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: lightTexture('burst'), color: 0xff8a2a, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending }));
+      const ring = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: lightTexture('ring'), color: 0xffb060, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending }));
+      ring.rotation.x = -Math.PI / 2;
+      g.add(glow, ring);
+      this.scene.add(g);
+      this.chargeObj = g;
+    }
+    this.chargeObj.visible = k >= 0;
+  }
+
   setAim(a: (AimShape & { auto: boolean; dir: number }) | null): void {
     this.aimState = a;
   }
@@ -2210,6 +2227,22 @@ export class DungeonView {
     // とびおり・地面の 技は とび上がる
     if (tc && (tc.kind === 'drop' || tc.kind === 'quake') && p.actT < tw) f.y = Math.sin(Math.PI * (p.actT / tw)) * (tc.kind === 'drop' ? 3 : 0.9);
     if (this.pixelOpt) this.rpgCast(s, dt);
+    if (this.chargeObj && this.chargeK >= 0) {
+      const k = this.chargeK;
+      const full = k >= 1;
+      const [glow, ring] = this.chargeObj.children as [THREE.Sprite, THREE.Mesh];
+      this.chargeObj.position.set(s.player.x, 0, s.player.z);
+      glow.position.y = 0.9;
+      glow.renderOrder = 8;
+      glow.scale.setScalar(1.6 + k * 2.4 + (full ? Math.sin(now * 30) * 0.25 : 0));
+      glow.material.opacity = 0.35 + k * 0.5;
+      glow.material.color.setHex(full ? 0xffe080 : 0xff8a2a);
+      ring.position.y = 0.06;
+      // 輪が 外から 内へ すいこまれる(ためて いる 感じ)
+      ring.scale.setScalar(3.5 - ((now * 2.5) % 1) * 2.4);
+      (ring.material as THREE.MeshBasicMaterial).opacity = 0.3 + k * 0.5;
+      if (full) this.shake = Math.max(this.shake, 0.05);
+    }
     this.rig.guard = (s.counterUntil ?? 0) > s.t ? 1 : 0;
     // ドットの 見た目は 8方向(昔の MMORPG の キャラの 絵と 同じ)
     if (this.pixelOpt?.on) f.face = Math.round(f.face / (Math.PI / 4)) * (Math.PI / 4);
@@ -2284,6 +2317,25 @@ export class DungeonView {
         const c = EL_HEX[sh.tech.element] ?? 0xffffff;
         // 属性に あった 絵(炎 = 火の玉・水 = しずく・雷 = いなずま・自然 = 葉・光 = 星・闇 = 闇の 玉・無 = 気の 弾)。うしろに うすい 光
         const g = new THREE.Group();
+        if (sh.art === 'fist' || sh.art === 'fistbig') {
+          // 拳の 気弾(光): オレンジの 光の 玉 + 白い 芯 + 前に 輪
+          const big = sh.art === 'fistbig';
+          const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: lightTexture('burst'), color: big ? 0xff6a1a : 0xffa040, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending }));
+          glow.scale.setScalar(big ? 3.2 : 1.4);
+          const core = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xffffff, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending }));
+          core.scale.setScalar(big ? 1.4 : 0.6);
+          g.add(glow, core);
+          if (big) {
+            const ring = new THREE.Mesh(new THREE.PlaneGeometry(3, 3), new THREE.MeshBasicMaterial({ map: lightTexture('ring'), color: 0xffb060, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+            ring.rotation.set(0, -Math.atan2(sh.vz, sh.vx) + Math.PI / 2, 0);
+            g.add(ring);
+          }
+          this.scene.add(g);
+          this.shotObjs.set(sh.id, g);
+          o = g;
+          o.position.set(sh.x, 0.8, sh.z);
+          continue;
+        }
         if (sh.art || (this.pixelOpt && !this.fist)) {
           // 剣士の 飛ぶ 斬撃は 光(2026-11-28 企画者「斬撃 飛んでくの 良いけど、絵は やめよう。光の が 良い」):
           // 先が 細い 三日月の 光を 床と 平らに、進む 向きへ ふくらませる。白い 芯 + 雷の 色
@@ -2620,8 +2672,9 @@ export class DungeonView {
         this.fxGround('circle_atk', c, e.x, e.z, e.r * 1.6, 0.4, 0.3, 4);
         break;
       case 'heavy':
-        // 重い ストレート: 炎の 爆発・ふき飛ばしの 衝撃
-        this.fxBill(ex, exC, e.x + Math.cos(dir) * 1.8, 1.0, e.z + Math.sin(dir) * 1.8, 3.2, 0.4, 0.6);
+        // 重い ストレート: 炎の 爆発・ふき飛ばしの 衝撃(ためた ぶん 大きく。e.len = ため 0〜1)
+        this.fxBill(ex, exC, e.x + Math.cos(dir) * 1.8, 1.0, e.z + Math.sin(dir) * 1.8, 2.2 + e.len * 2.2, 0.4, 0.6);
+        if (e.len >= 1) this.fxGround('ring', 0xffffff, e.x, e.z, 7, 0.4, 0.9);
         this.fxGround('ring', c, e.x + Math.cos(dir) * 1.8, e.z + Math.sin(dir) * 1.8, 3.6, 0.4, 0.8);
         this.fxBill('smoke', 0x9a8a80, e.x + Math.cos(dir) * 2.6, 0.7, e.z + Math.sin(dir) * 2.6, 2.4, 0.6, 0.5, 0.05);
         this.shake = Math.max(this.shake, 0.5);

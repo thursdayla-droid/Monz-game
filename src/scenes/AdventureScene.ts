@@ -11,7 +11,7 @@ import { addStats, autoGrowthAt, speciesStats, STAT_LABELS, type StatBlock, type
 import type { SpeciesId } from '../core/species';
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { modelFor } from '../core/roster';
-import { GEAR_ICON, ROLE_OF, RPG_MODEL, RPG_SPECIES, START_WEAPON, rpgLearned, rpgTechDesc } from '../core/rpg/roles';
+import { isChargeTech, GEAR_ICON, ROLE_OF, RPG_MODEL, RPG_SPECIES, START_WEAPON, rpgLearned, rpgTechDesc } from '../core/rpg/roles';
 
 /** 擬人化RPG の 試作(確認用ページ --rpg)。冒険の 画面を 借りて 試す */
 // 2026-11-28 企画者「冒険は、モンズは 全部 擬人化して やる」→ 擬人化の モデルが ある 種族は 冒険でも 擬人化(確認用ページは いつも)
@@ -132,6 +132,9 @@ export class AdventureScene extends Phaser.Scene {
   private press = false;
   /** 当てた 瞬間の 止まる 時間(秒) */
   private hitStop = 0;
+  /** 技ボタンを 押して いた 秒(ためる 技) */
+  private techHold = 0;
+  private holdStart = 0;
   /** 押した 技(0〜3) */
   private techPress: number | null = null;
   private bagOpen = false;
@@ -277,6 +280,7 @@ export class AdventureScene extends Phaser.Scene {
       // 2026-11-07 企画者「技は 長押し しながら 打つ 方向 決めたい。離すと 発動」:
       // ボタンを おさえて 指を ずらすと その向きを ねらう(床に 矢印)。はなすと 発動。ずらさずに はなすと いちばん 近い 敵へ
       let pid: number | null = null;
+      let holdT = 0;
       let ox = 0;
       let oy = 0;
       b.addEventListener('pointerdown', (e) => {
@@ -288,6 +292,8 @@ export class AdventureScene extends Phaser.Scene {
         ox = e.clientX;
         oy = e.clientY;
         this.aim = { slot: i, dir: null };
+        holdT = performance.now();
+        this.holdStart = holdT;
       });
       // ドラッグ 中だけ こうげきの 上に キャンセル(そこで はなすと うたない。2026-11-07 企画者)
       const cancel = $('.cancel');
@@ -313,6 +319,7 @@ export class AdventureScene extends Phaser.Scene {
         if (fire && this.aim && !canceled) {
           this.techPress = i;
           this.techDir = this.aim.dir;
+          this.techHold = (performance.now() - holdT) / 1000;
         }
         this.aim = null;
       };
@@ -440,7 +447,11 @@ export class AdventureScene extends Phaser.Scene {
       this.view.render(s, [], 0);
       return;
     }
-    stepAdventure(s, { mx: this.stick.x, mz: this.stick.y, attack: this.attack || this.press, tech: this.techPress, techDir: this.techDir }, dt);
+    stepAdventure(s, { mx: this.stick.x, mz: this.stick.y, attack: this.attack || this.press, tech: this.techPress, techDir: this.techDir, techHold: this.techHold }, dt);
+    // ためる 技を 押して いる 間: 体の まわりに 光が 集まる
+    const holdSlot = this.aim?.slot;
+    const ht = holdSlot != null && s.techs[holdSlot] && isChargeTech(getTech(s.techs[holdSlot]!.id).name) && (s.techCd[holdSlot] ?? 0) <= s.t ? Math.min(1, (performance.now() - this.holdStart) / 1200) : -1;
+    this.view.setCharge(ht);
     if (s.events.some((e) => e.kind === 'attack' && e.id === 0)) this.press = false;
     if (s.player.act === 'tech' || this.techPress === null || (s.techCd[this.techPress] ?? 0) > s.t) {
       this.techPress = null;
