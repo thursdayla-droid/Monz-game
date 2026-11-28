@@ -316,8 +316,70 @@ export class MonsterRig {
     // 人の形の骨でなければ、生き物用の骨として動かす(触角・足)
     const cb = useBones && !this.bones && !special ? new CreatureBones(model) : null;
     this.creature = cb?.ok ? cb : null;
+    if (this.weaponSrc) {
+      const w = this.weaponSrc;
+      this.setWeapon(w.obj, w.len);
+    }
     // 口(技を撃つ所)を、モデルの顔の前に
     this.mouth.position.set(size.x * k * 0.55, height * 0.42, 0);
+  }
+
+  /** 手に 持つ 武器(擬人化RPG・2026-11-28)。モデルが まだ ない 時は 待つ */
+  private weapon: THREE.Object3D | null = null;
+  private weaponSrc: { obj: THREE.Object3D; len: number } | null = null;
+  /**
+   * 武器を 右手に 持たせる(企画者の Tripo の 武器)。武器の いちばん 長い 向きを さがし、上(y が 大きい)の はしを 先、反対を 持つ ところに する。
+   * len = 先から 柄までの 長さ(世界の 長さ)。持つ 向きは 体の 前・少し 下
+   */
+  setWeapon(obj: THREE.Object3D | null, len = 1.1): void {
+    this.weaponSrc = obj ? { obj, len } : null;
+    this.weapon?.removeFromParent();
+    this.weapon = null;
+    if (this.bones) this.bones.sword = !!obj;
+    if (!obj || !this.model) return;
+    const hand = this.model.getObjectByName('R_Hand');
+    if (!hand) return;
+    this.bones?.resetBind();
+    this.root.updateMatrixWorld(true);
+    // 武器の 長い 向き(いちばん はなれた 2点)
+    const inner = obj.clone(true);
+    inner.updateMatrixWorld(true);
+    const pts: THREE.Vector3[] = [];
+    inner.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      const pos = m.geometry.attributes.position;
+      for (let i = 0; i < pos.count; i += 5) pts.push(new THREE.Vector3().fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld));
+    });
+    if (pts.length < 2) return;
+    const c = pts.reduce((a, b) => a.add(b), new THREE.Vector3()).multiplyScalar(1 / pts.length);
+    let a = pts[0];
+    for (const p of pts) if (p.distanceTo(c) > a.distanceTo(c)) a = p;
+    let b = pts[0];
+    for (const p of pts) if (p.distanceTo(a) > b.distanceTo(a)) b = p;
+    const tip = a.y >= b.y ? a : b;
+    const end = tip === a ? b : a;
+    const L = tip.distanceTo(end);
+    const grip = end.clone().lerp(tip, 0.12);
+    const axis = tip.clone().sub(end).normalize();
+    // 持つ ところを 原点・刃を +y に
+    const fix = new THREE.Group();
+    inner.position.sub(grip);
+    fix.add(inner);
+    fix.quaternion.setFromUnitVectors(axis, new THREE.Vector3(0, 1, 0));
+    const holder = new THREE.Group();
+    holder.add(fix);
+    holder.scale.setScalar(len / L);
+    // 体の 前へ 少し 下向き(体の 中の 向き → 世界)
+    const bq = this.body.getWorldQuaternion(new THREE.Quaternion());
+    const dir = new THREE.Vector3(1, -0.35, 0.15).normalize().applyQuaternion(bq);
+    holder.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+    holder.position.copy(hand.getWorldPosition(new THREE.Vector3()));
+    holder.traverse((o) => ((o as THREE.Mesh).castShadow = true));
+    this.root.parent?.add(holder);
+    holder.updateMatrixWorld(true);
+    hand.attach(holder);
+    this.weapon = holder;
   }
 
   /** 冒険の 装備の 3D(2026-11-26)。key が 変わった 時だけ 作り直す */

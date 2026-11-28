@@ -76,6 +76,8 @@ const HUMAN_SAFE: Record<string, number> = { ...SAFE, L_Thigh: 0.9, R_Thigh: 0.9
 export class BunkBones {
   /** 人の 形の 体(擬人化RPG): 人の 歩き方・自然に 立つ(2026-11-26 企画者「歩き方 じゃっかん 違和感」) */
   human = false;
+  /** 剣を 持つ(剣士): パンチの 代わりに 横に 振る */
+  sword = false;
   /** 構え(スウェイカウンター): 0〜1 */
   guard = 0;
   private bones = new Map<string, Driven>();
@@ -105,6 +107,16 @@ export class BunkBones {
       for (const k of Object.keys(AX) as AxisName[]) axis[k] = AX[k].clone().applyQuaternion(pInv).normalize();
       this.bones.set(name, { bone, bind: bone.quaternion.clone(), bindScale: bone.scale.clone(), bindPos: bone.position.clone(), axis });
     }
+  }
+
+  /** 骨を 入れた ときの 形に もどす(武器を 手に 付ける 前) */
+  resetBind(): void {
+    for (const d of this.bones.values()) {
+      d.bone.quaternion.copy(d.bind);
+      d.bone.scale.copy(d.bindScale);
+      d.bone.position.copy(d.bindPos);
+    }
+    this.modelRoot.updateMatrixWorld(true);
   }
 
   /** 骨がそろっているか(足りないときは、骨を使わずに体全体だけで動かす) */
@@ -307,7 +319,31 @@ export class BunkBones {
   private humanAttack(a: AttackPose, w: number): void {
     const ease = (x: number) => 1 - (1 - x) * (1 - x);
     // まっすぐの パンチ: ため = ひじを 曲げて 引く → のばす = 腕を 前へ 水平に・体を ひねる。反対の 手は 顔の 前で ガード
+    // 剣の 横振り(剣士。2026-11-28): ため = 剣を 反対の 肩の 上へ 引く → 振る = 腕を 前へ 上げたまま 横へ 大きく 振りぬく
+    const slash = (sd: 1 | -1, p: number): void => {
+      const t = p < 0 ? 0 : ease(p);
+      const pull = p < 0 ? -p : 0;
+      const up = sd > 0 ? 'R_Upperarm' : 'L_Upperarm';
+      const fo = sd > 0 ? 'R_Forearm' : 'L_Forearm';
+      // 右手で 持つ: 1段め = 右から 左へ・2段め = 左から 右へ
+      const from = sd > 0 ? 1 : -1;
+      const sweep = (from * (1 - 2 * t) + pull * from * 0.3);
+      this.rot(up, 'side', (1.25 + 0.2 * pull) * w);
+      this.rot(up, 'up', sweep * 0.9 * w);
+      this.rot(fo, 'side', (0.35 + 0.6 * pull) * w);
+      this.rot('Spine01', 'up', -sweep * 0.35 * w);
+      this.rot('Spine02', 'up', -sweep * 0.2 * w);
+      this.rot('L_Thigh', 'side', 0.25 * t * w);
+      this.rot('L_Calf', 'side', -0.3 * t * w);
+      const e2 = t * w;
+      this.lunge = Math.max(this.lunge, e2 * 0.4);
+      if (e2 > this.punchExt) {
+        this.punchExt = e2;
+        this.punchSide = sd;
+      }
+    };
     const punch = (sd: 1 | -1, p: number) => {
+      if (this.sword) return slash(sd, p);
       const ext = p < 0 ? 0 : ease(p);
       const pull = p < 0 ? -p : 0;
       const up = sd > 0 ? 'R_Upperarm' : 'L_Upperarm';

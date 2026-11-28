@@ -1802,6 +1802,8 @@ export class DungeonView {
       try {
         this.rig.useModel(g.scene, m.height, m.hue ?? 0, m.bones, m.amp, m.rig);
         this.rig.setModelFile(m.file);
+        // 擬人化RPG の 剣士: 剣を 持つ(2026-11-28 企画者の 武器①ストリートソード)
+        if (this.pixelOpt?.role === '剣士') this.loadWeapon('assets/rpg/gear/w_sword1.glb');
       } catch {
         // 使えない モデルは 仮の 形の まま
       }
@@ -1830,6 +1832,31 @@ export class DungeonView {
       } else loader.load(url, done, undefined, fail);
     } catch {
       fail();
+    }
+  }
+
+  /** 武器の 3D を 読んで 右手に 持たせる */
+  private loadWeapon(file: string): void {
+    const url = assetUrl(file);
+    const loader = new GLTFLoader();
+    loader.setMeshoptDecoder(MeshoptDecoder);
+    const done = (g: { scene: THREE.Object3D }) => this.rig.setWeapon(g.scene, 1.05);
+    try {
+      if (url.startsWith('data:')) {
+        const bin = atob(url.slice(url.indexOf(',') + 1));
+        const buf = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+        const w = window as unknown as { createImageBitmap?: unknown };
+        const cib = w.createImageBitmap;
+        w.createImageBitmap = undefined;
+        try {
+          loader.parse(buf.buffer, '', done, () => {});
+        } finally {
+          w.createImageBitmap = cib;
+        }
+      } else loader.load(url, done);
+    } catch {
+      // 武器が 読めない ときは 手ぶら
     }
   }
 
