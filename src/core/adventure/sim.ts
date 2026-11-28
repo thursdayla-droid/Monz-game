@@ -172,6 +172,8 @@ export const ADV = {
   type: { powerMul: 1.25, toughHeal: 0.06, toughCut: 0.85, speedCd: 0.75, speedShot: 1.3, techArea: 1.25, techStatus: 0.2 },
   /** 回復の実: 最大HP の 割合 */
   herbHeal: 0.4,
+  /** 回復の 物を 使った あと 次に 使える までの 秒【仮】(2026-11-28 企画者「アイテム 連打 できない ように」・どの 物も 共通) */
+  useCd: 3,
   /**
    * 落とし物。回復の実 10%(別の 抽選)。
    * 敵の 装備(2026-11-28 企画者「装備ドロップ 仕様」・ラグナロク の ような ハクスラ): table = D・C・B・A・S の %(のこりは なし)。
@@ -430,6 +432,8 @@ export interface AdvState {
   bag: AdvItem[];
   /** 持ち物の 枠(無い = 20。課金で 増やす【未確定】) */
   bagMax?: number;
+  /** 回復の 物を 次に 使える 時刻 */
+  useCdUntil?: number;
   /** すぐ 使う 枠 2つ(消費アイテムの 種類。無い = 木の実・なし) */
   quick?: (UseKind | null)[];
   gear: Partial<Record<GearSlot, AdvItem & { kind: 'gear' }>>;
@@ -1565,6 +1569,9 @@ export function useBagItem(s: AdvState, index: number): boolean {
   if (!it || s.result !== 'play' || s.player.act === 'dead') return false;
   if (it.kind === 'herb') {
     if (s.player.hp >= s.player.maxHp) return false;
+    // 連打 できない ように 待ち時間(2026-11-28 企画者「アイテム 連打 できない ように クールタイム」)
+    if (s.t < (s.useCdUntil ?? 0)) return false;
+    s.useCdUntil = s.t + ADV.useCd;
     s.bag.splice(index, 1);
     heal(s, Math.round(s.player.maxHp * USE_ITEMS[it.use ?? 'berry'].heal));
     return true;

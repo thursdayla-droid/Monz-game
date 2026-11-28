@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
-import { RANKS, equipStartWeapon, rpgJabReach, ALLEY_TOP, isBoss, MOB_KINDS, newAdventure, stepAdventure, playerRoom, adventureReward, aimPreview, unequip, useBagItem, discardBagItem, useQuick, setQuick, quickOf, useKindOf, USE_ITEMS, bagCap, SELF_KINDS, SLOT_NAMES, type AdvItem, type AdvState, type AdvTech, type GearSlot, type UseKind } from '../core/adventure/sim';
+import { ADV, RANKS, equipStartWeapon, rpgJabReach, ALLEY_TOP, isBoss, MOB_KINDS, newAdventure, stepAdventure, playerRoom, adventureReward, aimPreview, unequip, useBagItem, discardBagItem, useQuick, setQuick, quickOf, useKindOf, USE_ITEMS, bagCap, SELF_KINDS, SLOT_NAMES, type AdvItem, type AdvState, type AdvTech, type GearSlot, type UseKind } from '../core/adventure/sim';
 import { getTech, techDesc } from '../core/battle3d/techTable';
 import { RANK_HEX } from '../render/dungeonView';
 import { assetUrl } from '../assetUrl';
@@ -544,6 +544,16 @@ export class AdventureScene extends Phaser.Scene {
         ic.innerHTML = kind ? this.itemImg({ kind: 'herb', use: kind }, 34) : '<span style="font-size:11px;line-height:34px;display:block;text-align:center;opacity:.7">なし</span>';
       }
       ib.disabled = n === 0;
+      // 待ち時間の 暗い 円(技と 同じ)
+      let cd = ib.querySelector('.cd') as HTMLElement | null;
+      if (!cd) {
+        cd = document.createElement('i');
+        cd.className = 'cd';
+        cd.style.cssText = 'position:absolute;inset:0;border-radius:50%;pointer-events:none';
+        ib.appendChild(cd);
+      }
+      const rest = Math.max(0, (s.useCdUntil ?? 0) - s.t) / ADV.useCd;
+      cd.style.background = rest > 0 ? `conic-gradient(#000a ${rest * 360}deg, transparent 0)` : 'none';
     });
     (root.querySelector('.bagBtn') as HTMLElement).textContent = `持ち物&技 ${s.bag.length}/${bagCap(s)}`;
     // 今の 部屋の めあて(2026-11-24 しかけ)

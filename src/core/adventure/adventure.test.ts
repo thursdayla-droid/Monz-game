@@ -324,6 +324,9 @@ describe('冒険の 動き', () => {
     expect(s.bag).toEqual([{ kind: 'herb' }]);
     expect(useQuick(s, 0)).toBe(false);
     p.hp = 1;
+    // 待ち時間の 間は 使えない
+    expect(useQuick(s, 1)).toBe(false);
+    s.t += ADV.useCd;
     expect(useQuick(s, 1)).toBe(true);
     expect(p.hp).toBe(1 + Math.round(p.maxHp * USE_ITEMS.berry.heal));
     expect(USE_ITEMS.potion.heal).toBeGreaterThan(USE_ITEMS.berry.heal);
