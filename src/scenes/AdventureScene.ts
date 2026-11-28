@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
-import { RANKS, equipStartWeapon, rpgJabReach, ALLEY_TOP, isBoss, MOB_KINDS, newAdventure, stepAdventure, playerRoom, adventureReward, aimPreview, unequip, useBagItem, discardBagItem, useHerb, bagCap, SELF_KINDS, SLOT_NAMES, type AdvItem, type AdvState, type AdvTech, type GearSlot } from '../core/adventure/sim';
+import { RANKS, equipStartWeapon, rpgJabReach, ALLEY_TOP, isBoss, MOB_KINDS, newAdventure, stepAdventure, playerRoom, adventureReward, aimPreview, unequip, useBagItem, discardBagItem, useQuick, setQuick, quickOf, useKindOf, USE_ITEMS, bagCap, SELF_KINDS, SLOT_NAMES, type AdvItem, type AdvState, type AdvTech, type GearSlot, type UseKind } from '../core/adventure/sim';
 import { getTech, techDesc } from '../core/battle3d/techTable';
 import { RANK_HEX } from '../render/dungeonView';
 import { assetUrl } from '../assetUrl';
@@ -75,10 +75,10 @@ const CSS = `
 .adv .bag{position:absolute;inset:0;z-index:20;background:#0b0712e6;display:none;align-items:center;justify-content:center;padding:calc(env(safe-area-inset-top) + 8px) calc(env(safe-area-inset-right) + 14px) calc(env(safe-area-inset-bottom) + 8px) calc(env(safe-area-inset-left) + 14px)}
 .adv .bag .box{width:min(100%,720px);max-height:100%;overflow:auto;background:#1e1430;border:3px solid #ffd23a;border-radius:16px;padding:10px 14px;display:flex;flex-direction:column;gap:8px;box-sizing:border-box}
 .adv .bag h3{margin:0;font-size:16px;color:#ffd23a;display:flex;justify-content:space-between;align-items:center}
-.adv .bag .gear{display:flex;gap:8px}
+.adv .bag .gear{display:flex;gap:8px;flex-shrink:0}
 .adv .bag .gs{flex:1;border:2px dashed #ffffff60;border-radius:10px;padding:3px 6px;line-height:1.15;text-align:center;font-size:12px;font-weight:900;background:#ffffff10;color:#fff}
 .adv .bag .gs.on{border-style:solid}
-.adv .bag .grid{display:grid;grid-template-columns:repeat(10,1fr);gap:5px;max-height:var(--bagH,none);overflow-y:auto}
+.adv .bag .grid{display:grid;grid-template-columns:repeat(10,1fr);gap:5px;flex-shrink:0;max-height:var(--bagH,none);overflow-y:auto}
 .adv .bag .it{aspect-ratio:1;border-radius:9px;border:2px solid #ffffff40;background:#ffffff10;color:#fff;font:900 11px ${UI_FONT};display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0;line-height:1.1}
 .adv .bag .it b{font-size:15px}
 .adv .bag .note{font-size:11px;color:#c8bcd8}
@@ -119,7 +119,10 @@ const DEV_LEVELS = [1, 10, 20, 25, 45, 70];
  * 今の 階(2026-11-24 企画者「次の 階に 行ける ワープ」・1〜10階 路地裏)。
  * 【仮】クリアで 次の 階へ(HP は 満タンに もどる・持ち物と 装備は 持ちこす)。負けたら 同じ 階から。もどるで 1階から
  */
-const advRun: { floor: number; carry: Pick<AdvState, 'bag' | 'gear'> | null } = { floor: 1, carry: null };
+const advRun: { floor: number; carry: Pick<AdvState, 'bag' | 'gear' | 'quick'> | null } = { floor: 1, carry: null };
+/** 回復の 物の しるし・色(ポーション・救急箱の 絵は まだ)【仮】 */
+const USE_ICON: Record<UseKind, string> = { berry: '🍏', potion: '🧪', kit: '🩹' };
+const USE_CSS: Record<UseKind, string> = { berry: '#5ad05a', potion: '#ff6ab0', kit: '#ff4a4a' };
 const DEV_TYPES = ['power', 'tough', 'speed', 'tech'];
 
 const START_PROFICIENCY: Proficiency = { attack: 2, defense: 2, evasion: 2, counter: 2, spacing: 2 };
@@ -206,6 +209,7 @@ export class AdventureScene extends Phaser.Scene {
     if (advRun.carry) {
       this.state.bag = advRun.carry.bag;
       this.state.gear = advRun.carry.gear;
+      this.state.quick = advRun.carry.quick;
     }
     // 擬人化RPG: ロールの 初めの 武器
     if (rpgTest()) equipStartWeapon(this.state, START_WEAPON[ROLE_OF[rpgSp()] ?? '拳闘士'], WEAPON_LIST[ROLE_OF[rpgSp()] ?? '拳闘士']);
@@ -232,7 +236,8 @@ export class AdventureScene extends Phaser.Scene {
        <button class="atk">こうげき</button>
        ${[0, 1, 2, 3].map((i) => `<button class="tb" data-i="${i}"><span class="cd"></span><span class="lb">${'ABCD'[i]}</span></button>`).join('')}
        <div class="cancel">キャンセル</div>
-       <button class="ib"><img src="${assetUrl('assets/adventure/item_herb.webp')}" alt="" style="position:absolute;left:6px;top:4px;width:34px;height:34px;object-fit:contain;pointer-events:none"><span class="lb" style="position:absolute;right:2px;bottom:0;text-shadow:0 0 3px #000,0 0 3px #000"><b>0</b></span></button>
+       <button class="ib" data-q="0"><span class="ic" style="position:absolute;left:6px;top:4px;width:34px;height:34px;display:block;pointer-events:none"></span><span class="lb" style="position:absolute;right:2px;bottom:0;text-shadow:0 0 3px #000,0 0 3px #000"><b>0</b></span></button>
+       <button class="ib" data-q="1"><span class="ic" style="position:absolute;left:6px;top:4px;width:34px;height:34px;display:block;pointer-events:none"></span><span class="lb" style="position:absolute;right:2px;bottom:0;text-shadow:0 0 3px #000,0 0 3px #000"><b>0</b></span></button>
        <div class="bag"><div class="box"></div></div>
        <div class="msg"></div>
        <div class="result"><h1></h1><p class="prize"></p><div class="row"><button class="again">もう一度</button><button class="leave">もどる</button></div></div>
@@ -250,7 +255,7 @@ export class AdventureScene extends Phaser.Scene {
       // クリア → 次の 階へ(持ち物と 装備を 持ちこす)。負け → 同じ 階を もう一度
       if (this.state.result === 'clear' && advRun.floor < ALLEY_TOP) {
         advRun.floor++;
-        advRun.carry = { bag: this.state.bag, gear: this.state.gear };
+        advRun.carry = { bag: this.state.bag, gear: this.state.gear, quick: this.state.quick };
       } else if (this.state.result === 'clear') {
         advRun.floor = 1;
         advRun.carry = null;
@@ -330,14 +335,18 @@ export class AdventureScene extends Phaser.Scene {
       b.addEventListener('pointerup', (e) => up(e, true));
       b.addEventListener('pointercancel', (e) => up(e, false));
     });
-    const ib = $('.ib');
-    ib.style.right = 'calc(env(safe-area-inset-right) + 222px)';
-    ib.style.bottom = 'calc(env(safe-area-inset-bottom) + 12px)';
-    ib.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      audio.unlock();
-      if (useHerb(this.state)) audio.se('mcHeal');
-      else audio.se('back');
+    // すぐ 使う 枠 2つ(2026-11-28 企画者「消費アイテムは 2つ 使える ように」)
+    this.root!.querySelectorAll('.ib').forEach((el) => {
+      const ib = el as HTMLElement;
+      const k = Number(ib.dataset.q);
+      ib.style.right = `calc(env(safe-area-inset-right) + ${222 + (1 - k) * 58}px)`;
+      ib.style.bottom = 'calc(env(safe-area-inset-bottom) + 12px)';
+      ib.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        audio.unlock();
+        if (useQuick(this.state, k)) audio.se('mcHeal');
+        else audio.se('back');
+      });
     });
     $('.bagBtn').addEventListener('click', () => this.openBag());
     if (isPreview()) {
@@ -522,9 +531,20 @@ export class AdventureScene extends Phaser.Scene {
       const rest = t ? Math.max(0, s.techCd[i] - s.t) / t.cooldown : 0;
       cd.style.background = rest > 0 ? `conic-gradient(#000a ${rest * 360}deg, transparent 0)` : 'none';
     });
-    const herbs = s.bag.filter((b) => b.kind === 'herb').length;
-    (root.querySelector('.ib b') as HTMLElement).textContent = String(herbs);
-    (root.querySelector('.ib') as HTMLButtonElement).disabled = herbs === 0;
+    const q = quickOf(s);
+    root.querySelectorAll('.ib').forEach((el) => {
+      const ib = el as HTMLButtonElement;
+      const kind = q[Number(ib.dataset.q)];
+      const n = kind ? s.bag.filter((b) => useKindOf(b) === kind).length : 0;
+      (ib.querySelector('b') as HTMLElement).textContent = kind ? String(n) : '';
+      const ic = ib.querySelector('.ic') as HTMLElement;
+      const key = kind ?? '';
+      if (ic.dataset.k !== key) {
+        ic.dataset.k = key;
+        ic.innerHTML = kind ? this.itemImg({ kind: 'herb', use: kind }, 34) : '<span style="font-size:11px;line-height:34px;display:block;text-align:center;opacity:.7">なし</span>';
+      }
+      ib.disabled = n === 0;
+    });
     (root.querySelector('.bagBtn') as HTMLElement).textContent = `持ち物&技 ${s.bag.length}/${bagCap(s)}`;
     // 今の 部屋の めあて(2026-11-24 しかけ)
     const ri = playerRoom(s);
@@ -557,6 +577,9 @@ export class AdventureScene extends Phaser.Scene {
 
   /** 持ち物の 絵(2026-11-26 企画者の 絵) */
   private itemImg(it: AdvItem | GearSlot, px = 34): string {
+    // ポーション・救急箱は 絵が まだ ない(企画者の 絵 待ち)→ しるし
+    const uk = typeof it === 'string' ? null : useKindOf(it);
+    if (uk && uk !== 'berry') return `<span style="display:block;width:${px}px;height:${px}px;font-size:${Math.round(px * 0.78)}px;line-height:${px}px;text-align:center;pointer-events:none">${USE_ICON[uk]}</span>`;
     const n = typeof it === 'string' ? it : it.kind === 'herb' ? 'herb' : it.slot;
     // 名前の ある 装備は その 絵(2026-11-28 企画者の 絵)
     const named = typeof it === 'string' ? (it === 'weapon' ? this.state.gear.weapon?.name : undefined) : it.kind === 'gear' ? it.name : undefined;
@@ -568,7 +591,7 @@ export class AdventureScene extends Phaser.Scene {
 
   /** 持ち物の 名前(2文字くらい)と 色 */
   private itemLabel(it: AdvItem): { top: string; sub: string; color: string } {
-    if (it.kind === 'herb') return { top: '実', sub: '回復', color: '#5ad05a' };
+    if (it.kind === 'herb') return { top: '実', sub: '回復', color: USE_CSS[it.use ?? 'berry'] };
     return { top: it.rank, sub: SLOT_NAMES[it.slot], color: `#${RANK_HEX[it.rank].toString(16).padStart(6, '0')}` };
   }
 
@@ -585,6 +608,8 @@ export class AdventureScene extends Phaser.Scene {
     // すてる モード: さわった 物を えらんで(赤)、「すてる」で 消す
     let trash = false;
     let trashSel: number | null = null;
+    // すぐ 使う 枠を えらんで いる 時(その あと 回復の 物を さわると セット)
+    let qSel: number | null = null;
     const EL_CSS: Record<string, string> = { 炎: '#ff6a2a', 水: '#3aa8ff', 自然: '#6ad04a', 雷: '#ffd23a', 光: '#fff2a0', 闇: '#a05aff', 無: '#e0e0f0' };
     const close = () => {
       audio.se('back');
@@ -678,6 +703,13 @@ export class AdventureScene extends Phaser.Scene {
             return `<button class="gs ${g ? 'on' : ''}" data-g="${k}" style="${g ? `border-color:${this.itemLabel(g).color}` : ''}"><span style="display:flex;justify-content:center;opacity:${g ? 1 : 0.35}">${this.itemImg(k, 24)}</span>${SLOT_NAMES[k]}${g?.name ? `・<span style="font-size:11px">${g.name}</span>` : ''}<br>${g ? `<b style="color:${this.itemLabel(g).color};font-size:14px">${g.rank}ランク</b>` : 'なし'}</button>`;
           })
           .join('')}</div>
+        <h3><span>すぐ使う <span style="font-size:12px;color:#fff">${qSel === null ? '枠を さわって 回復の 物を えらぶ' : `${qSel + 1} に セットする 物を さわる（もう一度 さわると からに）`}</span></span></h3>
+        <div class="gear">${quickOf(s)
+          .map((kind, k) => {
+            const n = kind ? s.bag.filter((b) => useKindOf(b) === kind).length : 0;
+            return `<button class="gs qs ${kind ? 'on' : ''}" data-q="${k}" style="${qSel === k ? 'border-color:#ffd23a;background:#ffd23a33' : kind ? `border-color:${USE_CSS[kind]}` : ''}"><span style="display:flex;justify-content:center;opacity:${kind ? 1 : 0.35}">${kind ? this.itemImg({ kind: 'herb', use: kind }, 24) : ''}</span>${k + 1}・${kind ? `${USE_ITEMS[kind].name} ×${n}` : 'なし'}</button>`;
+          })
+          .join('')}</div>
         <h3><span>もちもの <span style="font-size:12px;color:#fff">${s.bag.length} / ${bagCap(s)}</span></span><span style="display:flex;gap:6px"><button class="trashBtn" style="padding:4px 12px;${trash ? 'background:#ff4a5a;color:#fff' : ''}">${trash ? 'やめる' : 'すてる'}</button><button class="techBtn" style="padding:4px 18px">技</button></span></h3>
         <div class="grid" style="${bagCap(s) > 20 ? '--bagH:34vh' : ''}">${Array.from({ length: bagCap(s) }, (_, i) => {
           const it = s.bag[i];
@@ -706,8 +738,31 @@ export class AdventureScene extends Phaser.Scene {
         trashSel = null;
         draw();
       });
+      box.querySelectorAll('.qs').forEach((el) =>
+        el.addEventListener('click', () => {
+          const k = Number((el as HTMLElement).dataset.q);
+          audio.se('tap');
+          if (qSel === k) {
+            // もう一度 さわると から
+            setQuick(this.state, k, null);
+            qSel = null;
+          } else qSel = k;
+          draw();
+        }),
+      );
       box.querySelectorAll('.it[data-i]').forEach((el) =>
         el.addEventListener('click', () => {
+          if (qSel !== null) {
+            const it = this.state.bag[Number((el as HTMLElement).dataset.i)];
+            const kind = it ? useKindOf(it) : null;
+            if (kind) {
+              setQuick(this.state, qSel, kind);
+              audio.se('select');
+              qSel = null;
+            } else audio.se('back');
+            draw();
+            return;
+          }
           if (trash) {
             const i = Number((el as HTMLElement).dataset.i);
             trashSel = trashSel === i ? null : i;
@@ -720,7 +775,7 @@ export class AdventureScene extends Phaser.Scene {
           draw();
         }),
       );
-      box.querySelectorAll('.gs').forEach((el) =>
+      box.querySelectorAll('.gs:not(.qs)').forEach((el) =>
         el.addEventListener('click', () => {
           const ok = unequip(this.state, (el as HTMLElement).dataset.g as GearSlot);
           audio.se(ok ? 'tap' : 'back');

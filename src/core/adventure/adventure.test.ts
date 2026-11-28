@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CELL, DOOR, FLOOR, generateFloor, type Floor } from './dungeon';
 import { isGachaWeapon, RPG_LEARN, rpgLearned, WEAPON_LIST } from '../rpg/roles';
-import { ADV, adventureReward, bagCap, discardBagItem, nextBagCap, dropAt, equipStartWeapon, rollGearRank, ALLEY_MOBS, ALLEY_TOP, BAG_MAX, BOSS_AT, FLOOR_MOBS, isBoss, MOB_KINDS, newAdventure, type MobKind, stepAdventure, unequip, useBagItem, useHerb, type AdvState } from './sim';
+import { ADV, adventureReward, quickOf, setQuick, useQuick, USE_ITEMS, bagCap, discardBagItem, nextBagCap, dropAt, equipStartWeapon, rollGearRank, ALLEY_MOBS, ALLEY_TOP, BAG_MAX, BOSS_AT, FLOOR_MOBS, isBoss, MOB_KINDS, newAdventure, type MobKind, stepAdventure, unequip, useBagItem, useHerb, type AdvState } from './sim';
 
 /** マス(x,y)から 歩いて 行ける マスの 距離(BFS)。doors = しまった 扉も 通れる ことに する */
 function bfs(f: Floor, sx: number, sy: number, doors = false): Int32Array {
@@ -305,6 +305,29 @@ describe('冒険の 動き', () => {
     expect(discardBagItem(s, 0)).toBe(true);
     expect(s.bag).toEqual([{ kind: 'gear', slot: 'head', rank: 'S' }]);
     expect(discardBagItem(s, 5)).toBe(false);
+  });
+  it('すぐ 使う 枠 2つ: セット・入れかえ・使う(ポーション・救急箱は 木の実より 多く 回復)', () => {
+    const s = newAdventure(3, { hp: 10, power: 10, tough: 10, speed: 10, tech: 10 });
+    expect(quickOf(s)).toEqual(['berry', null]);
+    setQuick(s, 1, 'potion');
+    expect(quickOf(s)).toEqual(['berry', 'potion']);
+    setQuick(s, 0, 'potion');
+    expect(quickOf(s)).toEqual(['potion', 'berry']);
+    setQuick(s, 0, 'potion');
+    expect(quickOf(s)).toEqual([null, 'berry']);
+    setQuick(s, 0, 'kit');
+    s.bag.push({ kind: 'herb' }, { kind: 'herb', use: 'kit' });
+    const p = s.player;
+    p.hp = 1;
+    expect(useQuick(s, 0)).toBe(true);
+    expect(p.hp).toBe(p.maxHp);
+    expect(s.bag).toEqual([{ kind: 'herb' }]);
+    expect(useQuick(s, 0)).toBe(false);
+    p.hp = 1;
+    expect(useQuick(s, 1)).toBe(true);
+    expect(p.hp).toBe(1 + Math.round(p.maxHp * USE_ITEMS.berry.heal));
+    expect(USE_ITEMS.potion.heal).toBeGreaterThan(USE_ITEMS.berry.heal);
+    expect(USE_ITEMS.kit.heal).toBeGreaterThan(USE_ITEMS.potion.heal);
   });
   it('ガチャの 武器は 落ちない', () => {
     const s = newAdventure(3, { hp: 10, power: 10, tough: 10, speed: 10, tech: 10 }, 20);

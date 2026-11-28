@@ -1250,24 +1250,26 @@ export class DungeonView {
   /** 落ちている 物(2026-11-26 企画者の 絵: 回復の実・アタマ・ヨロイ・オマモリ)。装備は 足もとが ランクの 色に 光る */
   private dropMesh(item: AdvItem): THREE.Object3D {
     const g = new THREE.Group();
-    const name = item.kind === 'herb' ? 'herb' : item.name && GEAR_ICON[item.name] ? item.name : item.slot;
+    const use = item.kind === 'herb' ? item.use ?? 'berry' : null;
+    const name = item.kind === 'herb' ? (use === 'berry' ? 'herb' : use!) : item.name && GEAR_ICON[item.name] ? item.name : item.slot;
     let tex = this.propTex.get(`item_${name}`);
     if (!tex) {
-      if (name === 'weapon') {
-        // 武器の 絵が まだ ない 時は ⚔️(企画者の 絵 待ち)
+      const MARK: Record<string, string> = { weapon: '⚔️', potion: '🧪', kit: '🩹' };
+      if (MARK[name]) {
+        // 絵が まだ ない 時は しるし(企画者の 絵 待ち)
         const cv = document.createElement('canvas');
         cv.width = cv.height = 128;
         const cx = cv.getContext('2d')!;
         cx.font = '100px sans-serif';
         cx.textAlign = 'center';
         cx.textBaseline = 'middle';
-        cx.fillText('⚔️', 64, 70);
+        cx.fillText(MARK[name], 64, 70);
         tex = new THREE.CanvasTexture(cv);
       } else tex = new THREE.TextureLoader().load(assetUrl(GEAR_ICON[name] ?? `assets/adventure/item_${name}.webp`));
       tex.colorSpace = THREE.SRGBColorSpace;
       this.propTex.set(`item_${name}`, tex);
     }
-    const c = item.kind === 'herb' ? 0x7aff8a : RANK_HEX[item.rank];
+    const c = item.kind === 'herb' ? ({ berry: 0x7aff8a, potion: 0xff6ab0, kit: 0xff4a4a } as Record<string, number>)[use!] : RANK_HEX[item.rank];
     const glow = new THREE.Mesh(new THREE.CircleGeometry(0.5, 24), new THREE.MeshBasicMaterial({ map: glowTexture(), color: c, transparent: true, opacity: item.kind === 'herb' ? 0.35 : 0.7, depthWrite: false, blending: THREE.AdditiveBlending }));
     glow.rotation.x = -Math.PI / 2;
     glow.position.y = -0.4;

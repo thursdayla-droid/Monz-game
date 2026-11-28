@@ -181,6 +181,8 @@ export const ADV = {
    */
   drop: {
     herb: 0.1, // 敵が 回復の実を 落とす 25% → 10%(2026-11-28 企画者)
+    /** 回復の 物の 中の 種類の 割合 %: 木の実・ポーション・救急箱【仮】 */
+    use: [80, 16, 4],
     table: { mob: [5, 2, 0.5, 0.1, 0.02], mid: [20, 10, 5, 1, 0.2], boss: [30, 20, 10, 3, 1] } as Record<'mob' | 'mid' | 'boss', number[]>,
     rank: [60, 30, 10],
     cap: [[1, 0], [4, 1], [Infinity, 2]] as [number, number][],
@@ -245,7 +247,18 @@ export const SLOT_NAMES: Record<GearSlot, string> = { head: 'アタマ', armor: 
 
 /** 持ち物(1つ)。herb = 回復の実(冒険の 中で 使う)・gear = 装備 */
 /** name = 装備の 名前(武器: ストリートソード など。なし = ふつうの 装備) */
-export type AdvItem = { kind: 'herb' } | { kind: 'gear'; slot: GearSlot; rank: Rank; name?: string };
+/**
+ * 回復の 消費アイテム(2026-11-28 企画者「木の実の 上位互換で ポーションや 救急箱」)。
+ * 古い 物(use なし)は 木の実。heal = 最大HP の 割合【仮】
+ */
+export type UseKind = 'berry' | 'potion' | 'kit';
+export const USE_ITEMS: Record<UseKind, { name: string; heal: number }> = {
+  berry: { name: '木の実', heal: 0.4 },
+  potion: { name: 'ポーション', heal: 0.7 },
+  kit: { name: '救急箱', heal: 1 },
+};
+export type AdvItem = { kind: 'herb'; use?: UseKind } | { kind: 'gear'; slot: GearSlot; rank: Rank; name?: string };
+export const useKindOf = (it: AdvItem): UseKind | null => (it.kind === 'herb' ? it.use ?? 'berry' : null);
 
 /** 持ち物は 20個まで(企画者 2026-11-07) */
 export const BAG_MAX = 20;
@@ -417,6 +430,8 @@ export interface AdvState {
   bag: AdvItem[];
   /** 持ち物の 枠(無い = 20。課金で 増やす【未確定】) */
   bagMax?: number;
+  /** すぐ 使う 枠 2つ(消費アイテムの 種類。無い = 木の実・なし) */
+  quick?: (UseKind | null)[];
   gear: Partial<Record<GearSlot, AdvItem & { kind: 'gear' }>>;
   /** 闇の 武器の HP を すう 量の たまり(1 未満の はした) */
   drainAcc?: number;
@@ -1260,10 +1275,17 @@ function dropFrom(s: AdvState, m: Actor): void {
   const tier: DropTier = !isBoss(m) ? 'mob' : m.mobKind === BOSS_AT[ALLEY_TOP] ? 'boss' : 'mid';
   const rank = rollGearRank(s, ADV.drop.table[tier]);
   if (rank) putDrop(s, m.x, m.z, gearItem(s, rank));
-  if (s.rng() < ADV.drop.herb) putDrop(s, m.x + (rank ? 0.6 : 0), m.z, { kind: 'herb' });
+  if (s.rng() < ADV.drop.herb) putDrop(s, m.x + (rank ? 0.6 : 0), m.z, { kind: 'herb', use: rollUse(s) });
 }
 
 export type DropTier = 'mob' | 'mid' | 'boss';
+
+/** 回復の 物が 出た 時の 種類(木の実 80%・ポーション 16%・救急箱 4%)【仮】 */
+function rollUse(s: AdvState): UseKind {
+  const r = s.rng() * 100;
+  const [b, p] = ADV.drop.use;
+  return r < b ? 'berry' : r < b + p ? 'potion' : 'kit';
+}
 
 /** 装備の ランクの 抽選(1回・排他)。table = D〜S の %。なし なら null */
 export function rollGearRank(s: AdvState, table: readonly number[]): Rank | null {
@@ -1306,7 +1328,7 @@ export function dropAt(s: AdvState, x: number, z: number, gearP: number, herbP: 
       break;
     }
     item = gearItem(s, rank);
-  } else if (r < gearP + herbP) item = { kind: 'herb' };
+  } else if (r < gearP + herbP) item = { kind: 'herb', use: rollUse(s) };
   if (item) putDrop(s, x, z, item);
 }
 
@@ -1544,7 +1566,7 @@ export function useBagItem(s: AdvState, index: number): boolean {
   if (it.kind === 'herb') {
     if (s.player.hp >= s.player.maxHp) return false;
     s.bag.splice(index, 1);
-    heal(s, Math.round(s.player.maxHp * ADV.herbHeal));
+    heal(s, Math.round(s.player.maxHp * USE_ITEMS[it.use ?? 'berry'].heal));
     return true;
   }
   const old = s.gear[it.slot];
@@ -1568,6 +1590,27 @@ export function unequip(s: AdvState, slot: GearSlot): boolean {
 /** アイテムの ボタン: 回復の実を 1つ 使う */
 export function useHerb(s: AdvState): boolean {
   const i = s.bag.findIndex((b) => b.kind === 'herb');
+  return i >= 0 && useBagItem(s, i);
+}
+
+/** すぐ 使う 枠(2つ。2026-11-28 企画者「消費アイテムは 2つ 使える ように。持ち物から セット できる ように」)。ふだんは 木の実 だけ */
+export const quickOf = (s: AdvState): (UseKind | null)[] => s.quick ?? ['berry', null];
+/** 枠 k に 消費アイテムの 種類を セット(同じ 種類が もう 一方に あれば 入れかえ・同じ 枠に 同じ 物なら はずす) */
+export function setQuick(s: AdvState, k: number, kind: UseKind | null): void {
+  const q = [...quickOf(s)];
+  if (q[k] === kind) q[k] = null;
+  else {
+    const o = q.indexOf(kind);
+    if (kind && o >= 0 && o !== k) q[o] = q[k];
+    q[k] = kind;
+  }
+  s.quick = q;
+}
+/** 枠 k の 物を 1つ 使う(持ち物の 中の 同じ 種類) */
+export function useQuick(s: AdvState, k: number): boolean {
+  const kind = quickOf(s)[k];
+  if (!kind) return false;
+  const i = s.bag.findIndex((b) => useKindOf(b) === kind);
   return i >= 0 && useBagItem(s, i);
 }
 
