@@ -5,7 +5,7 @@
  */
 import { mulberry32, type Rng } from '../rng';
 import type { StatBlock } from '../stats';
-import { RPG_SPECIAL, WEAPON_LOW, WEAPON_REACH } from '../rpg/roles';
+import { RPG_SPECIAL, WEAPON_LOW, WEAPON_POWER, WEAPON_REACH } from '../rpg/roles';
 import { getTech } from '../battle3d/techTable';
 import { CELL, DOOR, FLOOR, fits, generateFloor, lineOfSight, cellToWorld, roomAt, setDoor, walkable, type Floor, type Room } from './dungeon';
 
@@ -1238,7 +1238,7 @@ function applyGear(s: AdvState): void {
   const G = ADV.gear;
   const m = (slot: GearSlot) => (s.gear[slot] ? G.mul[s.gear[slot]!.rank] : 0);
   const rate = p.hp / p.maxHp;
-  p.atk = s.base.atk + G.head * m('head') + G.weapon * m('weapon');
+  p.atk = s.base.atk + G.head * m('head') + G.weapon * m('weapon') * (WEAPON_POWER[s.gear.weapon?.name ?? ''] ?? 1);
   p.tough = s.base.tough + G.armor * m('armor');
   p.maxHp = s.base.maxHp + G.charm * m('charm');
   p.hp = Math.max(1, Math.round(p.maxHp * rate));
