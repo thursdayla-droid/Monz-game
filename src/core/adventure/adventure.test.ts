@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CELL, DOOR, FLOOR, generateFloor, type Floor } from './dungeon';
 import { isGachaWeapon, RPG_LEARN, rpgLearned, WEAPON_LIST } from '../rpg/roles';
-import { ADV, adventureReward, quickOf, setQuick, useQuick, USE_ITEMS, bagCap, discardBagItem, nextBagCap, dropAt, equipStartWeapon, rollGearRank, ALLEY_MOBS, ALLEY_TOP, BAG_MAX, BOSS_AT, FLOOR_MOBS, isBoss, MOB_KINDS, newAdventure, type MobKind, stepAdventure, unequip, useBagItem, useHerb, type AdvState } from './sim';
+import { ADV, rpgJabReach, adventureReward, quickOf, setQuick, useQuick, USE_ITEMS, bagCap, discardBagItem, nextBagCap, dropAt, equipStartWeapon, rollGearRank, ALLEY_MOBS, ALLEY_TOP, BAG_MAX, BOSS_AT, FLOOR_MOBS, isBoss, MOB_KINDS, newAdventure, type MobKind, stepAdventure, unequip, useBagItem, useHerb, type AdvState } from './sim';
 
 /** マス(x,y)から 歩いて 行ける マスの 距離(BFS)。doors = しまった 扉も 通れる ことに する */
 function bfs(f: Floor, sx: number, sy: number, doors = false): Int32Array {
@@ -331,6 +331,21 @@ describe('冒険の 動き', () => {
     expect(p.hp).toBe(1 + Math.round(p.maxHp * USE_ITEMS.berry.heal));
     expect(USE_ITEMS.potion.heal).toBeGreaterThan(USE_ITEMS.berry.heal);
     expect(USE_ITEMS.kit.heal).toBeGreaterThan(USE_ITEMS.potion.heal);
+  });
+  it('擬人化RPG: SNEK(弓矢)の 技は 10こ・どれも 使える・通常攻撃は 矢', () => {
+    expect(RPG_LEARN.snek.length).toBe(10);
+    for (const [n] of RPG_LEARN.snek) expect(getTech(n).name).toBe(n);
+    const s = newAdventure(3, { hp: 10, power: 10, tough: 10, speed: 10, tech: 10 }, 1, [], null, 'snek');
+    s.jab = 'arrow';
+    s.jabBase = s.jabReach = rpgJabReach('弓矢', 1);
+    s.mobs.length = 0;
+    s.mobRoom.length = 0;
+    let arrows = 0;
+    for (let i = 0; i < 30; i++) {
+      stepAdventure(s, { mx: 0, mz: 0, attack: true, tech: null, techDir: null }, 1 / 60);
+      arrows = Math.max(arrows, s.shots.filter((x) => x.art === 'arrow').length);
+    }
+    expect(arrows).toBeGreaterThan(0);
   });
   it('ガチャの 武器は 落ちない', () => {
     const s = newAdventure(3, { hp: 10, power: 10, tough: 10, speed: 10, tech: 10 }, 20);

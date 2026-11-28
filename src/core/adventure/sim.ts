@@ -437,6 +437,12 @@ export interface AdvState {
   /** すぐ 使う 枠 2つ(消費アイテムの 種類。無い = 木の実・なし) */
   quick?: (UseKind | null)[];
   gear: Partial<Record<GearSlot, AdvItem & { kind: 'gear' }>>;
+  /** 弓矢: 鷹の目の 間(ふつうの 矢が つらぬく) */
+  hawkUntil?: number;
+  /** 弓矢: 矢の 雨(のこりの 回数) */
+  rain?: { x: number; z: number; r: number; next: number; left: number; mul: number; tech: AdvTech } | null;
+  /** 弓矢: 後ろへ すべる(影すべり) */
+  slide?: { vx: number; vz: number; until: number } | null;
   /** 闇の 武器の HP を すう 量の たまり(1 未満の はした) */
   drainAcc?: number;
   /** 黒影刃の 影(のこりの 敵) */
@@ -770,6 +776,11 @@ export function aimPreview(s: AdvState, slot: number, dir: number | null): AimSh
       case 'iai': return fan(3.8 * area, 2.0);
       case 'wave': return band(12, 2.6);
       case 'storm': return circle(8.5 * area);
+      case 'arrow1': return band(9, 0.8);
+      case 'volley': return (RPG_SPECIAL[techName(tc.id)]?.shots ?? 2) <= 2 ? band(8, 1.2) : fan(8, 1.5);
+      case 'backstep': return fan(8, 0.6);
+      case 'rain': return circle(2.4 * area, at(8));
+      case 'charged': return band(9 + (s.charge ?? 0) * 5, 1.2);
     }
   }
   switch (tc.kind) {
@@ -848,6 +859,7 @@ function fireTech(s: AdvState, slot: number): void {
     return;
   }
   if (SP?.swordWave) s.swordWaveUntil = s.t + T.buff.time;
+  if (SP?.hawk) s.hawkUntil = s.t + T.buff.time;
   if (SP?.fistShock) s.fistShockUntil = s.t + T.buff.time;
   switch (tc.kind) {
     case 'rush':
@@ -979,6 +991,44 @@ function swordMove(s: AdvState, mv: string, mul: number, tc: AdvTech, ev: (fx: s
       hitAll(inCone(s, p.x, p.z, f, r, 1.55));
       hitCrates(s, inConeAt(p.x, p.z, f, r, 1.55), mul);
       ev('arcslash', r);
+      break;
+    }
+    // ===== 弓矢(2026-11-28 SNEK)【案】 =====
+    case 'arrow1':
+      // 毒の 矢を 1本(強め)
+      shootArrow(s, f, mul * 1.3, tc, { len: 9 });
+      ev('arrow1', 1);
+      break;
+    case 'volley': {
+      // 何本も 扇に(2本 = せまく・9本 = 広く)
+      const n = RPG_SPECIAL[techName(tc.id)]?.shots ?? 2;
+      const spread = n <= 2 ? 0.12 : 0.75;
+      for (let i = 0; i < n; i++) shootArrow(s, f + (n > 1 ? (i / (n - 1) - 0.5) * spread * 2 : 0), mul * (n <= 2 ? 0.75 : 0.5), tc, { len: 8 });
+      ev('volley', spread);
+      break;
+    }
+    case 'backstep': {
+      // 後ろへ すべり ながら 矢を 3本
+      const sp = 11;
+      s.slide = { vx: -Math.cos(f) * sp, vz: -Math.sin(f) * sp, until: s.t + 0.28 };
+      for (let i = -1; i <= 1; i++) shootArrow(s, f + i * 0.14, mul * 0.6, tc, { len: 8 });
+      ev('backstep', 1);
+      break;
+    }
+    case 'rain': {
+      // ねらった 所に 矢の 雨(6回・0.12秒 ごと)
+      const g = target(8);
+      const r = 2.4 * area;
+      s.rain = { x: g.x, z: g.z, r, next: s.t + 0.1, left: 6, mul: mul * 0.4, tech: tc };
+      ev('rain', r, 0, g.x, g.z);
+      break;
+    }
+    case 'charged': {
+      // 引きしぼった 長さで 強く(ためきると 太く 長く)
+      const ch = s.charge ?? 0;
+      const k = 1 + 1.6 * ch;
+      shootArrow(s, f, mul * 1.1 * k, tc, { len: 9 + ch * 5, speed: 22, pierce: true, big: ch >= 1 });
+      ev('charged', ch);
       break;
     }
     // ===== 拳闘士(2026-11-28) =====
@@ -1119,6 +1169,23 @@ function swordMove(s: AdvState, mv: string, mul: number, tc: AdvTech, ev: (fx: s
 function stepTechs(s: AdvState, dt: number): void {
   const p = s.player;
   const T = ADV.tech;
+  // 弓矢: 矢の 雨
+  if (s.rain && s.t >= s.rain.next) {
+    const rn = s.rain;
+    for (const m of inCircle(s, rn.x, rn.z, rn.r)) {
+      m.awake = true;
+      damage(s, p, m, rn.mul, rn.tech);
+    }
+    s.events.push({ kind: 'mobFx', style: 'arrowrain', x: rn.x, z: rn.z, dir: 0, r: rn.r, arc: rn.left });
+    rn.left--;
+    rn.next = s.t + 0.12;
+    if (rn.left <= 0) s.rain = null;
+  }
+  // 弓矢: 後ろへ すべる
+  if (s.slide) {
+    if (s.t >= s.slide.until || p.act === 'dead') s.slide = null;
+    else moveBy(s, p, s.slide.vx * dt, s.slide.vz * dt, ADV.player.r);
+  }
   // 黒影刃の 影: 1体ずつ 斬る
   if (s.shadows && s.t >= s.shadows.next) {
     const sh = s.shadows;
@@ -1344,7 +1411,8 @@ export function rpgJabReach(role: string, form: number): { range: number; arc: n
   // 2026-11-27 企画者「レベル 低い 時は 前の 一マス ぐらいで いい」→ 1.8 → 1.2(敵の 大きさを 足して 約 1マス)
   // 2026-11-27 同じ日「攻撃が ほんの少しだけ 長く」→ 1.4。2026-11-28「剣士 ストリートソード なのに 範囲 広すぎ」→ 剣士 1.7/0.75 → 1.45/0.5
   // 同じ日「1番 下は 一マス 前 ぐらい」→ 剣士 1.45 → 1.1(敵の 大きさを 足して 約 1マス)
-  const base = ({ 拳闘士: { range: 1.4, arc: 0.6 }, 剣士: { range: 1.1, arc: 0.5 } } as Record<string, { range: number; arc: number }>)[role] ?? { range: 1.4, arc: 0.6 };
+  // 弓矢: 矢が 遠くまで 飛ぶ(range = 飛ぶ 長さ)【仮】
+  const base = ({ 拳闘士: { range: 1.4, arc: 0.6 }, 剣士: { range: 1.1, arc: 0.5 }, 弓矢: { range: 6.5, arc: 0.2 } } as Record<string, { range: number; arc: number }>)[role] ?? { range: 1.4, arc: 0.6 };
   return { range: base.range + (form - 1) * 0.4, arc: base.arc };
 }
 
@@ -1352,6 +1420,14 @@ export function rpgJabReach(role: string, form: number): { range: number; arc: n
 /** 装備して いる 武器の 打ち方(擬人化RPG の 時 だけ) */
 const weaponStyle = (s: AdvState) => (s.weapons && s.gear.weapon?.name ? WEAPON_STYLE[s.gear.weapon.name] : undefined);
 
+const ARROW_JAB: AdvTech = { id: 'punch', kind: 'jab', power: 7, cooldown: 0, element: '無', effect: 'なし', strength: '弱' };
+/** 矢を 1本 飛ばす(弓矢)。art: arrow(ふつう)・arrowbig(大きい)。pierce = つらぬく */
+function shootArrow(s: AdvState, a: number, mul: number, tech: AdvTech, o: { len?: number; speed?: number; pierce?: boolean; big?: boolean } = {}): void {
+  const p = s.player;
+  const sp = o.speed ?? 18;
+  const len = o.len ?? 7;
+  s.shots.push({ id: ++s.seq, x: p.x + Math.cos(a) * 0.7, z: p.z + Math.sin(a) * 0.7, vx: Math.cos(a) * sp, vz: Math.sin(a) * sp, r: o.big ? 0.9 : 0.4, life: len / sp, mul, tech, pierce: o.pierce ? [] : undefined, art: o.big ? 'arrowbig' : 'arrow' });
+}
 const FIRE_JAB: AdvTech = { id: 'punch', kind: 'jab', power: 7, cooldown: 0, element: '炎', effect: 'やけど', strength: '弱' };
 const DARK_JAB: AdvTech = { id: 'punch', kind: 'jab', power: 7, cooldown: 0, element: '闇', effect: 'なし', strength: '弱' };
 
@@ -1798,7 +1874,11 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
       const ws = weaponStyle(s);
       const last = s.chain === (ws?.hits ?? 3);
       const mul = last ? ADV.chain.last : 1;
-      if (s.jab === 'shot') {
+      if (s.jab === 'arrow') {
+        // 弓矢: 矢を 飛ばす。3段めは 強く つらぬく。鷹の目の 間は いつも つらぬく
+        const hawk = (s.hawkUntil ?? 0) > s.t;
+        shootArrow(s, p.face, mul, ARROW_JAB, { len: J.range, pierce: last || hawk });
+      } else if (s.jab === 'shot') {
         const sp = ADV.tech.shot.speed;
         s.shots.push({ id: ++s.seq, x: p.x + Math.cos(p.face) * 0.8, z: p.z + Math.sin(p.face) * 0.8, vx: Math.cos(p.face) * sp, vz: Math.sin(p.face) * sp, r: 0.35, life: 0.6, mul: 0.9 * mul, tech: WATER_JAB });
       } else {

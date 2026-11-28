@@ -44,6 +44,12 @@ const RPG_ROWS: TechRow[] = [
   { species: 'zipp_rpg', name: '剣気解放', type: '強化', element: '雷', strength: '中', level: 45, condition: 'なし', effect: 'なし', memo: 'しばらく 攻撃が 上がり、ふつうの 攻撃でも 小さな 斬撃が 飛ぶ' },
   { species: 'zipp_rpg', name: '天裂き', type: '連射', element: '雷', strength: '大技', level: 60, condition: 'なし', effect: 'まひ', memo: '剣を 振り下ろして、敵を つらぬいて 進む 巨大な 斬撃を 飛ばす' },
   { species: 'zipp_rpg', name: '千雷一刀', type: '火柱', element: '雷', strength: '大技', level: 70, condition: 'なし', effect: 'まひ', memo: '剣を 天に かかげて 雷を 呼び、まわりの 敵 1体ずつに 近い 順で 雷を 落とす' },
+  // SNEK(弓矢)の 専用技(2026-11-28 企画者「他の キャラの 技とか ロールの 動き 確認」→ SNEK から・今までと 同じ 形)【案】
+  { species: 'snek_rpg', name: 'ダブルショット', type: '連射', element: '闇', strength: '弱', level: 1, condition: 'なし', effect: 'なし', memo: '矢を 2本 いっしょに 撃つ' },
+  { species: 'snek_rpg', name: 'アローレイン', type: '火柱', element: '闇', strength: '中', level: 20, condition: 'なし', effect: 'どく', memo: 'ねらった 所に 毒の 矢を 雨の ように ふらせる' },
+  { species: 'snek_rpg', name: 'チャージショット', type: 'ビーム', element: '闇', strength: '強', level: 30, condition: 'なし', effect: 'なし', memo: 'ボタンを 押して いる 間 弓を 引きしぼる。はなすと 敵を つらぬく 大きな 矢' },
+  { species: 'snek_rpg', name: '鷹の目', type: '強化', element: '無', strength: '中', level: 45, condition: 'なし', effect: 'なし', memo: 'しばらく 攻撃が 上がり、ふつうの 矢が 敵を つらぬく' },
+  { species: 'snek_rpg', name: '千本矢', type: '連射', element: '闇', strength: '大技', level: 60, condition: 'なし', effect: 'どく', memo: '前に 広く 9本の 毒矢を いっきに 放つ' },
 ];
 addTechRows(RPG_ROWS);
 
@@ -77,10 +83,24 @@ export const RPG_LEARN: Record<string, [string, number][]> = {
     ['天裂き', 60],
     ['千雷一刀', 70],
   ],
+  // 2026-11-28 Claude の 案【案】: 弓矢の 専用技 5 ＋ しぼった SNEK の 技 5
+  snek: [
+    ['毒牙', 1],
+    ['ダブルショット', 1],
+    ['影すべり', 10],
+    ['毒のしずく', 15],
+    ['アローレイン', 20],
+    ['見切りの影', 25],
+    ['チャージショット', 30],
+    ['鷹の目', 45],
+    ['千本矢', 60],
+    ['蛇行黒閃', 70],
+  ],
 };
 
 /** 擬人化の 3D モデル(企画者の Tripo・軽くした もの) */
-export const RPG_MODEL: Record<string, string> = { bunk: 'assets/rpg/bunk_rpg.glb', zipp: 'assets/rpg/zipp_rpg.glb' };
+// snek は 3D が まだ ない ので ZIPP の 体を 借りる【仮】(2026-11-28 企画者「今 できて いるの 仮で 使って」)
+export const RPG_MODEL: Record<string, string> = { bunk: 'assets/rpg/bunk_rpg.glb', zipp: 'assets/rpg/zipp_rpg.glb', snek: 'assets/rpg/zipp_rpg.glb' };
 /** 擬人化の モデルが ある 種族(試作で 切りかえる 順) */
 export const RPG_SPECIES = Object.keys(RPG_MODEL);
 
@@ -92,6 +112,12 @@ const RPG_DESC: Record<string, string> = {
   瞬速スピン: '雷を まとって 回りながら フックを 2回。まわりの 敵 ぜんぶに 当たる',
   剛力クラッシュ: 'ボタンを 押して いる 間 力を ためる。はなすと 重い ストレート。ためきると 炎の 衝撃波が 前へ 飛ぶ',
   煉獄崩拳: '地面を なぐって、ねらった 所に 炎の 柱を 立てる',
+  // SNEK(弓矢)
+  毒牙: '毒を ぬった 矢を 1本 撃つ。当たると どくに なる ことが ある',
+  影すべり: '後ろへ すべって 下がり ながら 矢を 3本 撃つ',
+  毒のしずく: '毒の 矢を 地面に 撃ちこみ、しばらく 毒の 場を つくる',
+  見切りの影: 'かまえて、攻撃 されたら よけて 反撃 する',
+  蛇行黒閃: '黒い 光の 矢を 放ち、まっすぐ 前の 敵を ぜんぶ つらぬく',
 };
 /** 技の 説明(擬人化RPG の 専用技は ここ・ほかは 技の 表の メモ) */
 export const rpgTechDesc = (name: string): string | null => RPG_DESC[name] ?? RPG_ROWS.find((r) => r.name === name)?.memo ?? null;
@@ -101,8 +127,9 @@ export const rpgLearned = (species: string, level: number): string[] => (RPG_LEA
 
 /** 技ごとの 特別な 動き【仮】: combo = 連打の 回数・finale = 最後の 一発の 倍・counter = 構えて 反撃・haste = 速さの 倍 */
 /** 剣士の 技の 動き方(拳闘士と ちがう 中身): arc 広く 斬る・through 走りぬけ・thrust 突き・flurry ねらった 敵に 連続・xcut はなれた 所に X・iai ため斬り・wave つらぬく 斬撃・storm まわり 全部に 落雷 */
-export type SwordMove = 'tackle' | 'stomp' | 'upper' | 'hopcombo' | 'spinhook' | 'heavy' | 'jabs' | 'arc' | 'dashcut' | 'through' | 'thrust' | 'flurry' | 'xcut' | 'iai' | 'wave' | 'storm';
-export const RPG_SPECIAL: Record<string, { combo?: number; finale?: number; counter?: boolean; haste?: number; shots?: number; move?: SwordMove; windup?: number; swordWave?: boolean; fistShock?: boolean; charge?: boolean }> = {
+/** 弓矢の 動き方: arrow1 矢 1本・volley 何本も 扇に・backstep 下がり ながら 撃つ・rain 矢の 雨・charged 引きしぼって 大きな 矢 */
+export type SwordMove = 'tackle' | 'stomp' | 'upper' | 'hopcombo' | 'spinhook' | 'heavy' | 'jabs' | 'arc' | 'dashcut' | 'through' | 'thrust' | 'flurry' | 'xcut' | 'iai' | 'wave' | 'storm' | 'arrow1' | 'volley' | 'backstep' | 'rain' | 'charged';
+export const RPG_SPECIAL: Record<string, { combo?: number; finale?: number; counter?: boolean; haste?: number; shots?: number; move?: SwordMove; windup?: number; swordWave?: boolean; fistShock?: boolean; charge?: boolean; hawk?: boolean }> = {
   // 拳闘士(BUNK)の 技(2026-11-28 企画者「まずは 拳闘士 直して いこう」→ 剣士と 同じく 技ごとに ちがう 中身・動き・見た目)【案】
   ジャブジャブ: { move: 'jabs', windup: 0.08 },
   バンクバッシュ: { move: 'tackle' },
@@ -124,6 +151,15 @@ export const RPG_SPECIAL: Record<string, { combo?: number; finale?: number; coun
   剣気解放: { swordWave: true },
   天裂き: { move: 'wave', windup: 0.45 },
   千雷一刀: { move: 'storm', windup: 0.6 },
+  // 弓矢(SNEK)【案】
+  毒牙: { move: 'arrow1', windup: 0.12 },
+  ダブルショット: { move: 'volley', shots: 2, windup: 0.1 },
+  影すべり: { move: 'backstep', windup: 0.05 },
+  アローレイン: { move: 'rain', windup: 0.3 },
+  見切りの影: { counter: true },
+  チャージショット: { move: 'charged', windup: 0.12, charge: true },
+  鷹の目: { hawk: true },
+  千本矢: { move: 'volley', shots: 9, windup: 0.35 },
 };
 
 /** ロールの 初めの 武器(2026-11-28 企画者「ロールに よって 武器だけは 初期の 装備」)。3D は 武器の ファイル(まだ ない 武器は なし) */

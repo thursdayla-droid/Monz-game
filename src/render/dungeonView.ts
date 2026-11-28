@@ -2216,6 +2216,16 @@ export class DungeonView {
         this.fxSlash(e.x - Math.cos(e.dir) * 0.9, e.z - Math.sin(e.dir) * 0.9, e.dir, 1.6, Math.random() < 0.5 ? 0xffffff : 0xffe24a, Math.random() < 0.5 ? 1 : -1, 0.18);
       } else if (e.kind === 'mobFx' && e.style.startsWith('w') && ['wslam', 'wpierce', 'wspin', 'wbolt', 'wbleed', 'wupper', 'wquake', 'wblast', 'wshadow', 'weruption', 'wabyss', 'wflame'].includes(e.style)) {
         this.weaponFx(e);
+      } else if (e.kind === 'mobFx' && e.style === 'arrowrain') {
+        // 矢の 雨の 1回: 円の 中に 上から 矢が 3本 ささる
+        for (let i = 0; i < 3; i++) {
+          const a = Math.random() * Math.PI * 2;
+          const d = Math.sqrt(Math.random()) * e.r;
+          const x = e.x + Math.cos(a) * d;
+          const z = e.z + Math.sin(a) * d;
+          this.fxBill('bolt', 0xd8a0ff, x, 1.6, z, 3.2, 0.12, 0, i * 0.03, 0.25);
+          this.fxBill('spark', 0xb06aff, x, 0.2, z, 0.8, 0.18, 0.5, 0.06 + i * 0.03);
+        }
       } else if (e.kind === 'mobFx' && e.style === 'bolt') {
         // 千雷一刀の 1本: 空から 敵へ 太い いなずまが 落ち、地面で はじける(1本ずつ 順番に)
         this.fxBill('bolt', 0xffe880, e.x, 3.2, e.z, 6.4, 0.3, 0, 0, 2 / 3);
@@ -2314,6 +2324,7 @@ export class DungeonView {
     }
     this.rig.setGear(gearLook);
     this.rig.jabThrust = !!(s.weapons && WEAPON_STYLE[s.gear.weapon?.name ?? '']?.thrust);
+    this.rig.jabBow = s.jab === 'arrow';
     // 武器(擬人化RPG): 装備している 武器を 手に 持つ(3D の ある 武器だけ)
     const wName = s.gear.weapon?.name ?? '';
     if (wName !== this.weaponName && this.ready) {
@@ -2375,6 +2386,28 @@ export class DungeonView {
         const c = EL_HEX[sh.tech.element] ?? 0xffffff;
         // 属性に あった 絵(炎 = 火の玉・水 = しずく・雷 = いなずま・自然 = 葉・光 = 星・闇 = 闇の 玉・無 = 気の 弾)。うしろに うすい 光
         const g = new THREE.Group();
+        if (sh.art === 'arrow' || sh.art === 'arrowbig') {
+          // 弓矢の 矢(光): 進む 向きに 細長い 光の すじ + 先に 光る 点(2026-11-28 SNEK)
+          const big = sh.art === 'arrowbig';
+          const col = sh.tech.element === '無' ? 0xfff2d0 : c;
+          const L = big ? 2.6 : 1.3;
+          for (const [cc, w, op] of [[col, big ? 0.5 : 0.22, 0.85], [0xffffff, big ? 0.16 : 0.07, 1]] as const) {
+            const geo = new THREE.PlaneGeometry(L, w);
+            geo.translate(-L / 2, 0, 0);
+            const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: glowTexture(), color: cc, transparent: true, opacity: op, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+            m.rotation.x = -Math.PI / 2;
+            g.add(m);
+          }
+          const tip = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: col, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending }));
+          tip.scale.setScalar(big ? 1.4 : 0.6);
+          g.add(tip);
+          g.rotation.y = -Math.atan2(sh.vz, sh.vx);
+          this.scene.add(g);
+          this.shotObjs.set(sh.id, g);
+          o = g;
+          o.position.set(sh.x, 0.9, sh.z);
+          continue;
+        }
         if (sh.art === 'fist' || sh.art === 'fistbig') {
           // 拳の 気弾(光): オレンジの 光の 玉 + 白い 芯 + 前に 輪
           const big = sh.art === 'fistbig';
@@ -2640,6 +2673,11 @@ export class DungeonView {
   /** 通常攻撃(擬人化RPG): 当たる 範囲の 扇 + 斬撃の 絵 */
   private rpgJab(e: Extract<AdvEvent, { kind: 'jab' }>): void {
     if (e.style === 'shot') return;
+    // 弓矢: 矢 そのものが 見える ので 手もとに 小さな 光 だけ
+    if (e.style === 'arrow') {
+      this.fxBill('spark', 0xfff2d0, e.x + Math.cos(e.dir) * 0.7, 0.9, e.z + Math.sin(e.dir) * 0.7, 0.7, 0.12, 0.5);
+      return;
+    }
     // 2026-11-27 企画者「エフェクト でかすぎて 1レベルで 強そう」→ 当たる 範囲(前の 1マス)と 同じ 大きさ・控えめに
     const big = e.chain === 3;
     const side = e.chain === 2 ? -1 : 1;
@@ -2949,6 +2987,25 @@ export class DungeonView {
     const exC = this.exColor(e.element);
     const dir = e.dir;
     switch (e.fx) {
+      // ===== 弓矢の 技(2026-11-28 SNEK) =====
+      case 'arrow1':
+      case 'volley':
+      case 'backstep':
+        // 矢 そのものが 見える。弓を 放つ 手もとに 光
+        this.fxBill('burst', c, e.x + Math.cos(dir) * 0.8, 0.9, e.z + Math.sin(dir) * 0.8, 1.1, 0.16, 0.5);
+        if (e.fx === 'backstep') this.fxBill('smoke', 0x8a7a9a, e.x, 0.4, e.z, 1.4, 0.4, 0.6);
+        break;
+      case 'rain':
+        // ねらった 所に 紫の 輪(ここに 矢が ふる)
+        this.fxGround('ring', 0xb06aff, e.tx, e.tz, e.r * 2, 0.9, 0.1);
+        this.fxGround('ring', 0xffffff, e.tx, e.tz, e.r * 2, 0.3, 0.3, 0, 0, 0.6);
+        break;
+      case 'charged':
+        // 引きしぼって 放つ: 手もとで 大きく はじける(ためきると もっと 大きく)
+        this.fxBill('burst', c, e.x + Math.cos(dir) * 0.9, 0.9, e.z + Math.sin(dir) * 0.9, 1.6 + e.r * 1.6, 0.25, 0.6);
+        this.fxGround('ring', c, e.x + Math.cos(dir) * 0.9, e.z + Math.sin(dir) * 0.9, 1.6 + e.r * 2, 0.3, 0.8);
+        if (e.r >= 1) this.shake = Math.max(this.shake, 0.3);
+        break;
       // ===== 拳闘士の 技(2026-11-28 技ごとに ちがう 見た目) =====
       case 'jabs':
         // 小さな 火花が 左右 交互に 2つ

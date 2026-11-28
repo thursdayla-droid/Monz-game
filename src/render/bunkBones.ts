@@ -41,7 +41,7 @@ export const SAFE_ATTACK: Record<string, number> = { L_Upperarm: 1.0, R_Upperarm
 
 /** 攻撃の動きに要るもの(MonsterRig から) */
 export interface AttackPose {
-  kind: 'rush' | 'combo' | 'shot' | 'slam' | 'shot1' | 'roar' | 'thrust' | 'overhead' | 'iai' | 'raise' | 'upper' | 'heavy';
+  kind: 'rush' | 'combo' | 'shot' | 'slam' | 'shot1' | 'roar' | 'thrust' | 'overhead' | 'iai' | 'raise' | 'upper' | 'heavy' | 'bow';
   /** ため(0〜1)・出している(true)・もどり(0〜1) */
   wind: number;
   active: boolean;
@@ -371,7 +371,23 @@ export class BunkBones {
         this.punchSide = sd;
       }
     };
-    if (a.kind === 'combo') {
+    if (a.kind === 'bow') {
+      // 弓(2026-11-28 SNEK): 左手を 前へ のばして 弓を 持ち、右手で 弦を 顔の 横まで 引く → はなすと 右手が 後ろへ ぬける
+      const draw = a.active || (a.wind === 0 && a.recover > 0) ? 0 : 1;
+      const k = a.active ? 1 : a.wind > 0 ? a.wind : Math.max(0, 1 - a.recover);
+      this.rot('L_Upperarm', 'side', 1.5 * w);
+      this.rot('L_Upperarm', 'up', 0.2 * w);
+      this.rot('L_Forearm', 'side', 0.1 * w);
+      this.rot('R_Upperarm', 'side', (1.3 + 0.1 * draw) * w);
+      this.rot('R_Upperarm', 'up', (-0.35 - 0.35 * (1 - draw) * k) * w);
+      this.rot('R_Forearm', 'side', (2.0 * draw + 0.6 * (1 - draw)) * w);
+      this.rot('Spine01', 'up', -0.45 * w);
+      this.rot('Spine02', 'up', -0.25 * w);
+      this.rot('Head', 'up', 0.4 * w);
+      this.rot('L_Thigh', 'side', 0.2 * w);
+      this.punchExt = (1 - draw) * w;
+      this.punchSide = -1;
+    } else if (a.kind === 'combo') {
       if (a.n === 0) this.humanGuard(w);
       else {
         const sd = a.n % 2 === 1 ? 1 : -1;

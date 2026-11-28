@@ -203,7 +203,8 @@ export class AdventureScene extends Phaser.Scene {
     this.state.bagMax = life.advBag;
     // 擬人化RPG の 試作: BUNK は 拳闘士。進化で 通常攻撃が 少し 長く なる(姿は 変わらない)
     // 擬人化は 武器で 打つ(MONZ の 電撃ダッシュ・ムチ などは 使わない)
-    if (rpgTest()) this.state.jab = 'punch';
+    // 弓矢は 矢を 飛ばす(2026-11-28 SNEK)
+    if (rpgTest()) this.state.jab = ROLE_OF[rpgSp()] === '弓矢' ? 'arrow' : 'punch';
     if (rpgTest()) this.state.brawler = ROLE_OF[rpgSp()] === '拳闘士';
     if (rpgTest()) this.state.jabBase = this.state.jabReach = rpgJabReach(ROLE_OF[rpgSp()] ?? '拳闘士', formAt(this.level));
     if (advRun.carry) {
