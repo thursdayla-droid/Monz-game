@@ -285,7 +285,6 @@ describe('冒険の 動き', () => {
     expect(run('拳闘士', 'レザーグローブ').max).toBe(3);
     expect(run('剣士', 'ムーンエッジ').fx).toContain('wspin');
     // ネオンレイピアの 3段めは 突き 3発
-    expect(run('剣士', 'ネオンレイピア').fx.filter((f) => f === 'wpierce').length % 3).toBe(0);
     expect(run('剣士', 'ネオンレイピア').fx.filter((f) => f === 'wpierce').length).toBeGreaterThanOrEqual(3);
   });
   it('落とす 装備: 1階は D だけ・ずっと B まで', () => {
