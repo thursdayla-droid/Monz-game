@@ -1993,6 +1993,11 @@ export class DungeonView {
           this.fxGround('ring', 0xffb060, fx, fz, 3.2, 0.45, 0.8);
           this.shake = Math.max(this.shake, 0.45);
         }
+      } else if (e.kind === 'mobFx' && e.style === 'dashcut') {
+        // 瞬歩斬りの 斬る 瞬間: 大きな 三日月 2枚
+        this.fxSlash(e.x, e.z, e.dir, e.r, 0xffffff, 1, 0.24);
+        this.fxSlash(e.x, e.z, e.dir, e.r * 1.05, 0xffe24a, 1, 0.3, 0.03);
+        this.shake = Math.max(this.shake, 0.25);
       } else if (e.kind === 'mobFx' && e.style === 'flurryhit') {
         // 残影連斬の 1回: ねらった 所に 斬撃が ばらばらの 向きで
         this.fxSlash(e.x - Math.cos(e.dir) * 0.9, e.z - Math.sin(e.dir) * 0.9, e.dir, 1.6, Math.random() < 0.5 ? 0xffffff : 0xffe24a, Math.random() < 0.5 ? 1 : -1, 0.18);
@@ -2403,6 +2408,16 @@ export class DungeonView {
         this.fxSlash(e.x, e.z, dir, e.r * 0.95, 0xffffff, 1, 0.22, 0.03);
         this.fxGround('ring', c, e.x + Math.cos(dir) * e.r * 0.5, e.z + Math.sin(dir) * e.r * 0.5, e.r * 1.4, 0.3, 0.6, 0, 0, 0.4);
         break;
+      case 'dashcut': {
+        // 踏みこみ: 足もとに けむり・走る 道に 細い 光
+        this.fxBill('smoke', 0xc0c8e0, e.x, 0.4, e.z, 1.4, 0.4, 0.5);
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(Math.max(0.5, e.len), 0.22), this.fxMat('slash', c));
+        m.rotation.x = -Math.PI / 2;
+        m.rotation.z = -dir;
+        m.position.set(e.x + Math.cos(dir) * e.len / 2, 0.4, e.z + Math.sin(dir) * e.len / 2);
+        this.addFx(m, 0.35, (k) => ((m.material as THREE.MeshBasicMaterial).opacity = 1 - k));
+        break;
+      }
       case 'through': {
         // 走った 道に 雷の 線と 残像の 斬撃
         const m = new THREE.Mesh(new THREE.PlaneGeometry(e.len, 0.35), this.fxMat('slash', c));

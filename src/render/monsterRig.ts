@@ -13,7 +13,7 @@ import { BunkBones, type AttackPose } from './bunkBones';
 import { armorMesh, charmMesh, helmetMesh } from './gearMeshes';
 import { RPG_SPECIAL } from '../core/rpg/roles';
 /** 剣士の 技の 動き(技の 動き方 → 体の 動き) */
-const SWORD_POSE: Record<string, AttackPose['kind']> = { arc: 'iai', through: 'rush', thrust: 'thrust', flurry: 'combo', xcut: 'overhead', iai: 'iai', wave: 'overhead', storm: 'raise' };
+const SWORD_POSE: Record<string, AttackPose['kind']> = { dashcut: 'iai', arc: 'iai', through: 'rush', thrust: 'thrust', flurry: 'combo', xcut: 'overhead', iai: 'iai', wave: 'overhead', storm: 'raise' };
 const SWORD_POSE_KIND: Record<string, AttackPose['kind']> = { drop: 'overhead', buff: 'raise', barrage: 'combo' };
 import { getTech } from '../core/battle3d/techTable';
 import type { AnimeMon } from '../core/battle3d/anime';

@@ -34,6 +34,7 @@ const RPG_ROWS: TechRow[] = [
   // ZIPP(剣士)の 技(2026-11-28 企画者「スキルは 剣士ぽく」→ 同じ日「拳闘士と 技が 一緒すぎる(見た目・動き・中身)」→ 剣士だけの 動き方に 作り直し)【案】
   { species: 'zipp_rpg', name: '一閃', type: '連続攻撃', element: '雷', strength: '弱', level: 1, condition: 'なし', effect: 'なし', memo: '剣を 大きく 振って、前の 広い 範囲を まとめて 斬る' },
   { species: 'zipp_rpg', name: '雷光斬り', type: '突進', element: '雷', strength: '弱', level: 1, condition: 'なし', effect: 'なし', memo: '敵の 間を 一瞬で 走りぬけ、通った 敵を ぜんぶ 斬る' },
+  { species: 'zipp_rpg', name: '瞬歩斬り', type: '突進', element: '雷', strength: '中', level: 5, condition: 'なし', effect: 'なし', memo: 'ねらった 敵の 前まで 一瞬で 踏みこんで、そのまま 斬る' },
   { species: 'zipp_rpg', name: '飛燕三連', type: '連射', element: '雷', strength: '中', level: 10, condition: 'なし', effect: 'まひ', memo: '剣を 振って、三日月の 斬撃を 3つ 飛ばす' },
   { species: 'zipp_rpg', name: '疾風突き', type: 'ビーム', element: '雷', strength: '中', level: 15, condition: 'なし', effect: 'なし', memo: '一歩 踏みこんで まっすぐ 突く。並んだ 敵を つらぬいて 遠くへ 飛ばす' },
   { species: 'zipp_rpg', name: '残影連斬', type: '連続攻撃', element: '雷', strength: '中', level: 20, condition: 'なし', effect: 'なし', memo: 'ねらった 敵の まわりに 残像が 出て、4回 斬りつける' },
@@ -65,6 +66,7 @@ export const RPG_LEARN: Record<string, [string, number][]> = {
   zipp: [
     ['一閃', 1],
     ['雷光斬り', 1],
+    ['瞬歩斬り', 5],
     ['飛燕三連', 10],
     ['疾風突き', 15],
     ['残影連斬', 20],
@@ -90,7 +92,7 @@ export const rpgLearned = (species: string, level: number): string[] => (RPG_LEA
 
 /** 技ごとの 特別な 動き【仮】: combo = 連打の 回数・finale = 最後の 一発の 倍・counter = 構えて 反撃・haste = 速さの 倍 */
 /** 剣士の 技の 動き方(拳闘士と ちがう 中身): arc 広く 斬る・through 走りぬけ・thrust 突き・flurry ねらった 敵に 連続・xcut はなれた 所に X・iai ため斬り・wave つらぬく 斬撃・storm まわり 全部に 落雷 */
-export type SwordMove = 'arc' | 'through' | 'thrust' | 'flurry' | 'xcut' | 'iai' | 'wave' | 'storm';
+export type SwordMove = 'arc' | 'dashcut' | 'through' | 'thrust' | 'flurry' | 'xcut' | 'iai' | 'wave' | 'storm';
 export const RPG_SPECIAL: Record<string, { combo?: number; finale?: number; counter?: boolean; haste?: number; shots?: number; move?: SwordMove; windup?: number; swordWave?: boolean }> = {
   ジャブジャブ: { combo: 2 },
   アッパーカット: { combo: 1, finale: 2.2 },
@@ -98,6 +100,7 @@ export const RPG_SPECIAL: Record<string, { combo?: number; finale?: number; coun
   'ラッシュ・ザ・キング': { combo: 6, finale: 2.5 },
   一閃: { move: 'arc', windup: 0.12 },
   雷光斬り: { move: 'through' },
+  瞬歩斬り: { move: 'dashcut' },
   飛燕三連: { shots: 3 },
   疾風突き: { move: 'thrust', windup: 0.2 },
   残影連斬: { move: 'flurry', combo: 4 },

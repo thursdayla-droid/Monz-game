@@ -392,7 +392,8 @@ export interface AdvState {
   shieldUntil: number;
   atkUpUntil: number;
   /** とっしん 中(当てた モブは 1回だけ) */
-  dash: { until: number; hit: number[]; mul: number; speed: number; jab?: boolean } | null;
+  /** cut = 走り終わりに 斬る(瞬歩斬り。走っている 間は 当てない) */
+  dash: { until: number; hit: number[]; mul: number; speed: number; jab?: boolean; cut?: boolean } | null;
   /** とびおりる 技の おちる ところ(ため の 間に 近づく) */
   jumpTo: { x: number; z: number; sx: number; sz: number } | null;
   /** 今の 技を ねらって うったか */
@@ -843,6 +844,16 @@ function swordMove(s: AdvState, mv: string, mul: number, tc: AdvTech, ev: (fx: s
       ev('arcslash', r);
       break;
     }
+    case 'dashcut': {
+      // 瞬歩斬り: ねらった 敵の 手前まで 素早く 走って、着いたら 斬る(2026-11-28 企画者「素早く 前に ダッシュしてから 切る 技」)
+      const m = s.aimed ? aimedMob(s, f, 7) : nearestMob(s, 7);
+      const d = m ? Math.max(0.3, Math.hypot(m.x - p.x, m.z - p.z) - 1.3) : 4;
+      if (m) p.face = Math.atan2(m.z - p.z, m.x - p.x);
+      const sp = 22;
+      s.dash = { until: s.t + Math.min(6, d) / sp, hit: [], mul, speed: sp, cut: true };
+      ev('dashcut', 0.9, Math.min(6, d));
+      break;
+    }
     case 'through':
       // 敵の 間を 走りぬける(速く 長く。通った 敵を ぜんぶ)
       s.dash = { until: s.t + 6 / 20, hit: [], mul, speed: 20 };
@@ -908,7 +919,19 @@ function stepTechs(s: AdvState, dt: number): void {
   const p = s.player;
   const T = ADV.tech;
   if (s.dash) {
-    if (s.t >= s.dash.until || p.act === 'dead') s.dash = null;
+    if (s.t >= s.dash.until || p.act === 'dead') {
+      // 瞬歩斬り: 走り終わりに 前を 大きく 斬る
+      if (s.dash.cut && p.act !== 'dead') {
+        const tc = s.techs[s.techSlot] ?? undefined;
+        for (const m of inCone(s, p.x, p.z, p.face, 2.6, 1.2)) {
+          m.awake = true;
+          damage(s, p, m, s.dash.mul * 1.3, tc);
+        }
+        hitCrates(s, inConeAt(p.x, p.z, p.face, 2.6, 1.2));
+        s.events.push({ kind: 'mobFx', style: 'dashcut', x: p.x, z: p.z, dir: p.face, r: 2.6, arc: 1.2 });
+      }
+      s.dash = null;
+    } else if (s.dash.cut) moveBy(s, p, Math.cos(p.face) * s.dash.speed * dt, Math.sin(p.face) * s.dash.speed * dt, ADV.player.r);
     else {
       moveBy(s, p, Math.cos(p.face) * s.dash.speed * dt, Math.sin(p.face) * s.dash.speed * dt, ADV.player.r);
       if (s.dash.jab) hitCrates(s, (x, z) => Math.hypot(x - p.x, z - p.z) < T.rush.r + 1.1);

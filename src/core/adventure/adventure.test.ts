@@ -116,8 +116,8 @@ describe('冒険の ダンジョン', () => {
 });
 
 describe('冒険の 動き', () => {
-  it('擬人化: ZIPP(剣士)の 技は 11こ・どれも 使える・剣士だけの 動き方を 出しても こわれない', () => {
-    expect(RPG_LEARN.zipp.length).toBe(11);
+  it('擬人化: ZIPP(剣士)の 技は 12こ・どれも 使える・剣士だけの 動き方を 出しても こわれない', () => {
+    expect(RPG_LEARN.zipp.length).toBe(12);
     for (const [n] of RPG_LEARN.zipp) {
       const t = getTech(n);
       const s = newAdventure(5, { hp: 10, power: 10, tough: 10, speed: 10, tech: 10 }, 3, [{ id: n, kind: t.kind, power: t.power, cooldown: 2, element: t.element, effect: t.effect, strength: t.strength }]);
