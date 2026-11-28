@@ -169,9 +169,11 @@ export const isGlove = (name: string): boolean => WEAPON_LIST.拳闘士.includes
 export const isGachaWeapon = (name: string): boolean => Object.values(GACHA_WEAPONS).some((l) => l.includes(name));
 /** 下位の 武器の 数・下位 だけが 落ちる 階 */
 export const WEAPON_LOW = { count: 2, untilFloor: 10 };
-export const WEAPON_MODEL: Record<string, string> = { ストリートソード: 'assets/rpg/gear/w_sword1.glb' };
+export const WEAPON_MODEL: Record<string, string> = { ストリートソード: 'assets/rpg/gear/w_sword1.glb', 鉄骨ブレード: 'assets/rpg/gear/w_sword2.glb' };
+/** 3D の 武器の 手に 持つ 長さの 倍(ふつう 1)。鉄骨ブレードは 大きな 剣 */
+export const WEAPON_MODEL_LEN: Record<string, number> = { 鉄骨ブレード: 1.25 };
 /** 装備の 絵(企画者の 絵。名前 → 絵) */
-export const GEAR_ICON: Record<string, string> = { ストリートソード: 'assets/rpg/gear/w_sword1.webp' };
+export const GEAR_ICON: Record<string, string> = { ストリートソード: 'assets/rpg/gear/w_sword1.webp', 鉄骨ブレード: 'assets/rpg/gear/w_sword2.webp' };
 /** 武器ごとの 通常攻撃の 範囲の ちがい(ロールの ふつうに 足す)【仮】。ストリートソード・レザーグローブ = ふつう */
 export const WEAPON_REACH: Record<string, { range: number; arc: number }> = {
   ストリートソード: { range: 0, arc: 0 },

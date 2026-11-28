@@ -9,7 +9,7 @@ import { assetUrl } from '../assetUrl';
 import { newAnimeBattle, type AnimeEntrant, type AnimeMon } from '../core/battle3d/anime';
 import { CELL, WALL } from '../core/adventure/dungeon';
 import { getTech } from '../core/battle3d/techTable';
-import { GACHA_WEAPONS, GEAR_ICON, isGachaWeapon, isGlove, WEAPON_LIST, WEAPON_MODEL, WEAPON_STYLE } from '../core/rpg/roles';
+import { GACHA_WEAPONS, GEAR_ICON, isGachaWeapon, isGlove, WEAPON_LIST, WEAPON_MODEL, WEAPON_MODEL_LEN, WEAPON_STYLE } from '../core/rpg/roles';
 import { ADV, isBoss, MOB_KINDS, mobSpec, RANKS, SELF_KINDS, techWindup, type MobKind, type AimShape, type Actor, type AdvEvent, type AdvItem, type AdvState, type Rank } from '../core/adventure/sim';
 import type { modelFor } from '../core/roster';
 import { MonsterRig } from './monsterRig';
@@ -2035,7 +2035,7 @@ export class DungeonView {
         });
       }
       const lk = WEAPON_MODEL[name] ? undefined : LOOK[name];
-      this.rig.setWeapon(g.scene, 1.05 * (lk?.len ?? 1), lk?.thin ?? 1);
+      this.rig.setWeapon(g.scene, 1.05 * (lk?.len ?? WEAPON_MODEL_LEN[name] ?? 1), lk?.thin ?? 1);
     };
     try {
       if (url.startsWith('data:')) {
