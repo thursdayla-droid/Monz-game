@@ -2658,6 +2658,8 @@ export class DungeonView {
     if (!this.fist) {
       // 剣: 当たる 扇と ぴったり 同じ 弧(外がわ = 届く 長さ・はば = 左右の 広さ)を 光で 描く
       this.fxArc(e.x, e.z, e.dir, e.range, e.arc, big ? cBig : c, side, big ? 0.22 : 0.16);
+      // ムーンエッジ: 当たる 扇の 中も うすく ぬって 広さが 分かる ように(2026-11-28 企画者「ムーンエッジの 範囲も 分かりやすく」)
+      if (e.weapon === 'ムーンエッジ') this.fxSector(e.x, e.z, e.dir, e.range, e.arc, 0x8aa8ff, big ? 0.22 : 0.16);
       if (e.weapon === 'ムーンエッジ' || e.weapon === '黒影刃') this.fxArc(e.x, e.z, e.dir, e.range * 0.85, e.arc, e.weapon === '黒影刃' ? 0x6a2aff : 0x8aa8ff, -side, 0.2, 0.04);
       if (big) this.shake = Math.max(this.shake, 0.12);
       this.weaponJabFx(e, r);
@@ -2695,12 +2697,28 @@ export class DungeonView {
     });
   }
 
+  /** 当たる 扇(または 円)の 中を うすく ぬる 光。外がわ = 届く 長さ・左右 ±arc(PI で 円) */
+  private fxSector(x: number, z: number, dir: number, range: number, arc: number, color: number, life: number): void {
+    const geo = new THREE.CircleGeometry(range, 40, -arc, arc * 2);
+    const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.28, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+    const m = new THREE.Mesh(geo, mat);
+    m.rotation.x = -Math.PI / 2;
+    const g = new THREE.Group();
+    g.add(m);
+    g.position.set(x, 0.12, z);
+    g.rotation.y = -dir;
+    g.renderOrder = 5;
+    this.addFx(g, life, (k) => {
+      mat.opacity = 0.28 * (k < 0.2 ? k / 0.2 : Math.max(0, 1 - (k - 0.2) / 0.8));
+    });
+  }
+
   /**
    * 突きの 光: はば 一定の まっすぐな 光の 帯(当たる 帯と 同じ)で、先が とがる。
    * 手もと(0.4)から 届く 長さ まで すっと のびて 消える
    */
-  private fxThrust(x: number, z: number, dir: number, len: number, _arc: number, color: number, life: number): void {
-    const hw = 0.35;
+  private fxThrust(x: number, z: number, dir: number, len: number, hw: number, color: number, life: number): void {
+    // hw = 帯の 半分の はば(ランクで 太く なる)
     const g = new THREE.Group();
     const tipL = Math.min(0.9, len * 0.3);
     for (const [col, w, op] of [[color, hw, 0.55], [0xffffff, hw * 0.35, 0.95]] as const) {
@@ -2778,11 +2796,11 @@ export class DungeonView {
         this.shake = Math.max(this.shake, 0.35);
         break;
       case 'wpierce': // ネオンレイピア: 3段めの 突き(当たる 細い 扇と 同じ くさび)
-        this.fxThrust(e.x, e.z, e.dir, e.r + ADV.mob.r, 0.16, 0x6ae8ff, 0.14);
+        this.fxThrust(e.x, e.z, e.dir, e.r + ADV.mob.r, e.arc || 0.35, 0x6ae8ff, 0.14);
         break;
-      case 'wspin': // ムーンエッジ: まわりに 青白い 三日月を 4枚
-        for (let i = 0; i < 4; i++) this.fxSlash(e.x, e.z, e.dir + (i * Math.PI) / 2, e.r * 0.6, 0xc8d8ff, 1, 0.22, i * 0.03);
-        this.fxGround('ring', 0xc8d8ff, e.x, e.z, e.r * 2, 0.3, 0.5);
+      case 'wspin': // ムーンエッジ: 当たる 円 ぜんぶを うすく ぬり、ふちを 三日月の 光が ぐるっと 回る
+        this.fxSector(e.x, e.z, e.dir, e.r + ADV.mob.r, Math.PI, 0xc8d8ff, 0.3);
+        for (let i = 0; i < 4; i++) this.fxArc(e.x, e.z, e.dir + (i * Math.PI) / 2, e.r + ADV.mob.r, Math.PI / 4, 0xc8d8ff, 1, 0.24, i * 0.04);
         this.shake = Math.max(this.shake, 0.2);
         break;
       case 'wbolt': // 雷刃: 敵に 雷

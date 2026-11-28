@@ -651,8 +651,9 @@ function inBand(s: AdvState, x: number, z: number, dir: number, len: number, hw:
     return along > -0.3 && along < len + mobR(m) && side < hw + mobR(m) && seen(s, x, z, m);
   });
 }
-/** 突きの 帯の 半分の はば */
+/** 突きの 帯の 半分の はば(D)。ランクで 太く なる(2026-11-28 企画者「レイピアの ランクは 攻撃 変わらない」) */
 const THRUST_HW = 0.35;
+const thrustHw = (s: AdvState) => THRUST_HW * (s.gear.weapon ? ADV.gear.fxFist[s.gear.weapon.rank] : 1);
 const inCircle = (s: AdvState, x: number, z: number, r: number) => s.mobs.filter((m) => m.act !== 'dead' && Math.hypot(m.x - x, m.z - z) < r + mobR(m) && seen(s, x, z, m));
 
 /** その 向きに 壁まで 何メートル あるか(max まで) */
@@ -1102,12 +1103,12 @@ function stepTechs(s: AdvState, dt: number): void {
     const th = s.thrusts;
     if (p.act === 'dead') s.thrusts = null;
     else {
-      for (const m of inBand(s, p.x, p.z, p.face, th.len, THRUST_HW)) {
+      for (const m of inBand(s, p.x, p.z, p.face, th.len, thrustHw(s))) {
         m.awake = true;
         damage(s, p, m, th.mul * 0.6);
       }
       hitCrates(s, inConeAt(p.x, p.z, p.face, th.len, 0.16), th.mul * 0.6);
-      s.events.push({ kind: 'mobFx', style: 'wpierce', x: p.x, z: p.z, dir: p.face, r: th.len, arc: 0 });
+      s.events.push({ kind: 'mobFx', style: 'wpierce', x: p.x, z: p.z, dir: p.face, r: th.len, arc: thrustHw(s) });
       th.left--;
       th.next = s.t + 0.1;
       if (th.left <= 0) s.thrusts = null;
@@ -1709,7 +1710,7 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
           const arc = ws?.thrust ? 0.16 : J.arc * (last ? 1.3 : 1);
           // ネオンレイピアの 3段めは 突き 3発 だけ(ふつうの 一撃は なし)
           const triple = last && ws?.last === 'pierce';
-          const hitList = triple ? [] : ws?.thrust ? inBand(s, p.x, p.z, p.face, J.range, THRUST_HW) : inCone(s, p.x, p.z, p.face, J.range, arc, true);
+          const hitList = triple ? [] : ws?.thrust ? inBand(s, p.x, p.z, p.face, J.range, thrustHw(s)) : inCone(s, p.x, p.z, p.face, J.range, arc, true);
           for (const m of hitList) {
             m.awake = true;
             damage(s, p, m, mul);
@@ -1737,7 +1738,7 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
         }
       }
       // range・arc = 当たる 広さ(モブの 中心まで range + モブの 大きさ・左右 arc)
-      if (!(last && ws?.last === 'pierce')) s.events.push({ kind: 'jab', style: ws?.thrust ? 'thrust' : s.jab, chain: last ? 3 : s.chain === 3 ? 1 : s.chain, x: p.x, z: p.z, dir: p.face, range: J.range + ADV.mob.r, arc: ws?.thrust ? 0.16 : J.arc * (last ? 1.3 : 1), color: ws?.color, weapon: ws ? s.gear.weapon?.name : undefined, fx: ws ? ADV.gear.fxFist[s.gear.weapon!.rank] : undefined });
+      if (!(last && ws?.last === 'pierce')) s.events.push({ kind: 'jab', style: ws?.thrust ? 'thrust' : s.jab, chain: last ? 3 : s.chain === 3 ? 1 : s.chain, x: p.x, z: p.z, dir: p.face, range: J.range + ADV.mob.r, arc: ws?.thrust ? thrustHw(s) : J.arc * (last ? 1.3 : 1), color: ws?.color, weapon: ws ? s.gear.weapon?.name : undefined, fx: ws ? ADV.gear.fxFist[s.gear.weapon!.rank] : undefined });
     }
   }
   stepTechs(s, dt);
