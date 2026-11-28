@@ -557,17 +557,18 @@ export function newAdventure(seed: number, stats: StatBlock, level = 1, techs: (
     mobs.push(m);
     mobRoom.push(room);
   };
-  // 敵: 倒す 部屋は 3〜4体・ほかの 部屋は 0〜2体・はじまりと ワープと ボスの 部屋は なし【仮】
+  // 敵: 倒す 部屋は 4〜5体・ほかの 部屋は 1〜3体・はじまりと ワープと ボスの 部屋は なし【仮】
+  // (2026-11-28 企画者「敵 もう少し 気持ち 多く」3〜4・0〜2 → 4〜5・1〜3)
   floor.rooms.forEach((r, i) => {
     if (i === 0 || i === floor.rooms.length - 1 || (boss && i === bossRoom)) return;
     const kind = puzzles[i]?.kind;
-    const n = kind === 'kill' ? 3 + Math.floor(rng() * 2) : Math.floor(rng() * 3);
+    const n = kind === 'kill' ? 4 + Math.floor(rng() * 2) : 1 + Math.floor(rng() * 3);
     for (let k = 0; k < n; k++) addMob(r, i);
   });
-  // わき道の 部屋: 敵 1〜3体(モンスター部屋は はじめ からっぽ)【仮】
+  // わき道の 部屋: 敵 2〜3体(モンスター部屋は はじめ からっぽ)【仮】(2026-11-28 1〜3 → 2〜3)
   floor.sides.forEach((sd, k) => {
     if (sd.house) return;
-    const n = 1 + Math.floor(rng() * 3);
+    const n = 2 + Math.floor(rng() * 2);
     for (let i = 0; i < n; i++) addMob(sd.room, SIDE_ROOM - k);
   });
   // ボスの 階: ワープの 前の 部屋に ボス。たおすまで ワープの 部屋への 扉は ひらかない(2026-11-24 企画者)
