@@ -1082,7 +1082,7 @@ function stepTechs(s: AdvState, dt: number): void {
     const th = s.thrusts;
     if (p.act === 'dead') s.thrusts = null;
     else {
-      for (const m of inCone(s, p.x, p.z, p.face, th.len, 0.16)) {
+      for (const m of inCone(s, p.x, p.z, p.face, th.len, 0.16, true)) {
         m.awake = true;
         damage(s, p, m, th.mul * 0.6);
       }
