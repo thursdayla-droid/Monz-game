@@ -1109,12 +1109,16 @@ function stepTechs(s: AdvState, dt: number): void {
     st.next = s.t + 0.14;
     if (!st.left.length) s.storm = null;
   }
+  // 跳ねつき連撃: 前へ なめらかに すすむ(2026-11-28 企画者「瞬間移動は やめて」。1回ごとに とぶのを やめた)
+  if (s.combo?.step && p.act !== 'dead') {
+    const v = s.combo.step / (s.combo.every ?? ADV.tech.combo.every);
+    moveBy(s, p, Math.cos(p.face) * v * dt, Math.sin(p.face) * v * dt, ADV.player.r);
+  }
   if (s.combo && s.t >= s.combo.next) {
     const tc = s.techs[s.techSlot] ?? undefined;
     const last = s.combo.left === 1 && s.combo.finale;
     const at = s.combo.at;
     if (s.combo.step) {
-      moveBy(s, p, Math.cos(p.face) * s.combo.step, Math.sin(p.face) * s.combo.step, ADV.player.r);
       s.events.push({ kind: 'mobFx', style: 'hop', x: p.x, z: p.z, dir: p.face, r: 1, arc: 0 });
     }
     if (s.combo.ring) s.events.push({ kind: 'mobFx', style: 'hookring', x: p.x, z: p.z, dir: p.face, r: s.combo.ring, arc: 0 });

@@ -337,6 +337,32 @@ export class MonsterRig {
    * 武器を 右手に 持たせる(企画者の Tripo の 武器)。武器の いちばん 長い 向きを さがし、上(y が 大きい)の はしを 先、反対を 持つ ところに する。
    * len = 先から 柄までの 長さ(世界の 長さ)。持つ 向きは 体の 前・少し 下
    */
+  /** 武器を 手に 付けた 時の 向き(手から 見た)・突きや かかげる 時に 向きを 合わせる 強さ */
+  private weaponQ: THREE.Quaternion | null = null;
+  private wAim = 0;
+  private aimDir = new THREE.Vector3(1, 0, 0);
+  /**
+   * 剣の 向きを 動きに 合わせる(2026-11-28 企画者「剣の 向きも 直して」)。
+   * 突き = 刃を 前へ まっすぐ・かかげる = 刃を 上へ。ほかは 手に 付けた ままの 向き
+   */
+  private aimWeapon(kind: string | undefined, dt: number): void {
+    const w = this.weapon;
+    const hand = w?.parent;
+    if (!w || !hand || !this.weaponQ) return;
+    const want = kind === 'thrust' ? new THREE.Vector3(1, -0.05, 0) : kind === 'raise' ? new THREE.Vector3(0.15, 1, 0) : null;
+    if (want) this.aimDir.copy(want).normalize();
+    this.wAim += ((want ? 1 : 0) - this.wAim) * Math.min(1, dt * 25);
+    if (this.wAim < 0.01) {
+      w.quaternion.copy(this.weaponQ);
+      return;
+    }
+    hand.updateWorldMatrix(true, false);
+    const dirW = this.aimDir.clone().applyQuaternion(this.body.getWorldQuaternion(new THREE.Quaternion()));
+    const qW = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dirW);
+    const local = hand.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(qW);
+    w.quaternion.copy(this.weaponQ).slerp(local, this.wAim);
+  }
+
   setWeapon(obj: THREE.Object3D | null, len = 1.1): void {
     this.weaponSrc = obj ? { obj, len } : null;
     this.weapon?.removeFromParent();
@@ -386,6 +412,7 @@ export class MonsterRig {
     holder.updateMatrixWorld(true);
     hand.attach(holder);
     this.weapon = holder;
+    this.weaponQ = holder.quaternion.clone();
   }
 
   /** 冒険の 装備の 3D(2026-11-26)。key が 変わった 時だけ 作り直す */
@@ -820,6 +847,7 @@ export class MonsterRig {
       this.bones.human = this.human;
       this.bones.guard += (this.guard - this.bones.guard) * Math.min(1, dt * 14);
       this.bones.update(mode, this.hop, f.speed, now, dt, f.side * 1.3, atk, f.speed > 0.3 ? side / f.speed : 0);
+      this.aimWeapon(atk?.kind, dt);
       // パンチに合わせて、体ごと前へ出る(腕だけだと小さく見えるため。2026-11-02)
       // パンチは体ごと前へは出ない(腕が前へ出るのを見せる)
       const jabbing = a.k === 'tech' && (getTech(a.id).kind === 'jab' || getTech(a.id).kind === 'combo');
