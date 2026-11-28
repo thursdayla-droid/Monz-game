@@ -476,7 +476,7 @@ export class AdventureScene extends Phaser.Scene {
       else if (e.kind === 'hit') audio.se(e.target === 0 ? 'punch' : 'b3dPunchHit', e.crit ? { pitch: 0.8 } : undefined);
       else if (e.kind === 'die') audio.se('burst');
       else if (e.kind === 'crate') audio.se(e.broken ? 'punchHeavy' : 'b3dPunchHit');
-      else if (e.kind === 'open') this.message('ボスを たおした！ とびらが ひらいた');
+      else if (e.kind === 'open') this.message('ボスを たおした！ DOOR OPENED!');
       else if (e.kind === 'house') {
         if (e.state === 'wait') this.message('…なにか いやな 予感が する');
         else if (e.state === 'locked') {
@@ -484,12 +484,12 @@ export class AdventureScene extends Phaser.Scene {
           this.message('モンスターハウスだ！ 出られない！');
         } else {
           audio.se('cheer');
-          this.message('とびらが ひらいた！');
+          this.message('DOOR OPENED!');
         }
       }
       else if (e.kind === 'door') {
         audio.se('cheer');
-        this.message('とびらが ひらいた！');
+        this.message('DOOR OPENED!');
       } else if (e.kind === 'press') audio.se('select');
       else if (e.kind === 'key') {
         audio.se('select');
