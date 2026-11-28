@@ -402,6 +402,8 @@ export interface AdvState {
   techSlot: number;
   bag: AdvItem[];
   gear: Partial<Record<GearSlot, AdvItem & { kind: 'gear' }>>;
+  /** 闇の 武器の HP を すう 量の たまり(1 未満の はした) */
+  drainAcc?: number;
   /** 黒影刃の 影(のこりの 敵) */
   shadows?: { next: number; ids: number[]; mul: number; n: number } | null;
   /** ネオンレイピアの 3段めの 突き(のこりの 回数) */
@@ -1269,8 +1271,11 @@ const DARK_JAB: AdvTech = { id: 'punch', kind: 'jab', power: 7, cooldown: 0, ele
 /** HP を すう(闇の 武器)【仮】 */
 function drainHp(s: AdvState, amount: number): void {
   const p = s.player;
-  const got = Math.min(p.maxHp - p.hp, Math.max(1, Math.round(amount)));
-  if (got <= 0) return;
+  // 小さな 量は ためて、1 に なったら 回復(毎回 1 ずつ ふえない ように)
+  s.drainAcc = (s.drainAcc ?? 0) + amount;
+  const got = Math.min(p.maxHp - p.hp, Math.floor(s.drainAcc));
+  if (got < 1) return;
+  s.drainAcc -= got;
   p.hp += got;
   s.events.push({ kind: 'heal', amount: got, x: p.x, z: p.z });
 }
@@ -1287,7 +1292,7 @@ function weaponEvery(s: AdvState, kind: 'burn' | 'blast' | 'drain', m: Actor, mu
       damage(s, p, o, mul * 0.45, FIRE_JAB);
     }
     s.events.push({ kind: 'mobFx', style: 'wblast', x: m.x, z: m.z, dir: p.face, r: 1.4, arc: 0 });
-  } else drainHp(s, p.atk * mul * 0.04);
+  } else drainHp(s, p.atk * mul * 0.015); // 2026-11-28 企画者「黒影刃 回復 強すぎ。もっと 少し で いい」0.04 → 0.015
 }
 
 /** 武器の さいごの 一撃(2026-11-28 企画者 OK)【仮】 */
