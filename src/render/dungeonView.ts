@@ -2125,9 +2125,31 @@ export class DungeonView {
         const c = EL_HEX[sh.tech.element] ?? 0xffffff;
         // 属性に あった 絵(炎 = 火の玉・水 = しずく・雷 = いなずま・自然 = 葉・光 = 星・闇 = 闇の 玉・無 = 気の 弾)。うしろに うすい 光
         const g = new THREE.Group();
+        if (sh.art || (this.pixelOpt && !this.fist)) {
+          // 剣士の 飛ぶ 斬撃は 光(2026-11-28 企画者「斬撃 飛んでくの 良いけど、絵は やめよう。光の が 良い」):
+          // 先が 細い 三日月の 光を 床と 平らに、進む 向きへ ふくらませる。白い 芯 + 雷の 色
+          const big = sh.art === 'big' ? 2.6 : sh.art === 'small' ? 0.9 : 1.4;
+          const dir = Math.atan2(sh.vz, sh.vx);
+          for (const [col, rr, wd, op] of [[c, big, big * 0.55, 1], [0xffffff, big * 0.98, big * 0.2, 1]] as const) {
+            const mat = new THREE.MeshBasicMaterial({ map: slashTexture(), color: col, transparent: true, opacity: op, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+            mat.color.multiplyScalar(1.6);
+            const m = new THREE.Mesh(crescentGeometry(rr, wd, 2.2), mat);
+            m.rotation.set(-Math.PI / 2, 0, -dir);
+            m.position.x = -Math.cos(dir) * rr * 0.6;
+            m.position.z = -Math.sin(dir) * rr * 0.6;
+            g.add(m);
+          }
+          const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: c, transparent: true, opacity: 0.45, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending }));
+          glow.scale.setScalar(big * 1.6);
+          g.add(glow);
+          this.scene.add(g);
+          this.shotObjs.set(sh.id, g);
+          o = g;
+          o.position.set(sh.x, 0.5, sh.z);
+          continue;
+        }
         const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: c, transparent: true, opacity: 0.5, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending }));
         glow.scale.setScalar(sh.r * 3.5);
-        // 剣士の 技の 弾は 斬撃(三日月の 気の 刃)
         const enm = sh.art || (this.pixelOpt && !this.fist) ? 'none' : SHOT_EL[sh.tech.element] ?? 'none';
         // 2026-11-27 企画者の 絵(design/adventure/shots)。なければ プログラムの 絵
         const core = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.shotArt(enm) ?? shotTexture(enm), transparent: true, depthWrite: false, depthTest: false }));
@@ -2139,7 +2161,7 @@ export class DungeonView {
         this.shotObjs.set(sh.id, g);
         o = g;
       }
-      o.position.set(sh.x, 0.8, sh.z);
+      o.position.set(sh.x, o.position.y === 0.5 ? 0.5 : 0.8, sh.z);
     }
     for (const [id, o] of this.shotObjs)
       if (!live.has(id)) {
