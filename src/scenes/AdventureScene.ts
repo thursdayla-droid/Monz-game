@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
-import { RANKS, equipStartWeapon, rpgJabReach, ALLEY_TOP, isBoss, MOB_KINDS, newAdventure, stepAdventure, playerRoom, adventureReward, aimPreview, unequip, useBagItem, useHerb, bagCap, SELF_KINDS, SLOT_NAMES, type AdvItem, type AdvState, type AdvTech, type GearSlot } from '../core/adventure/sim';
+import { RANKS, equipStartWeapon, rpgJabReach, ALLEY_TOP, isBoss, MOB_KINDS, newAdventure, stepAdventure, playerRoom, adventureReward, aimPreview, unequip, useBagItem, discardBagItem, useHerb, bagCap, SELF_KINDS, SLOT_NAMES, type AdvItem, type AdvState, type AdvTech, type GearSlot } from '../core/adventure/sim';
 import { getTech, techDesc } from '../core/battle3d/techTable';
 import { RANK_HEX } from '../render/dungeonView';
 import { assetUrl } from '../assetUrl';
@@ -83,6 +83,8 @@ const CSS = `
 .adv .bag .it b{font-size:15px}
 .adv .bag .note{font-size:11px;color:#c8bcd8}
 .adv .bag .techBtn{border:2px solid #ffd23a;border-radius:9px;background:#3a2a6a;color:#ffd23a;font:900 15px ${UI_FONT}}
+.adv .bag .trashOk{font:900 13px ${UI_FONT};padding:3px 14px;border-radius:9px;border:2px solid #16101c;background:#ff4a5a;color:#fff}
+.adv .bag .trashBtn{border:2px solid #ff8a94;border-radius:9px;background:#3a1a2a;color:#ff8a94;font:900 15px ${UI_FONT}}
 .adv .bag .tslots{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .adv .bag .ts{border:2px dashed #ffffff60;border-radius:10px;padding:6px 4px;background:#ffffff10;color:#fff;font:900 12px ${UI_FONT};min-height:52px}
 .adv .bag .ts.on{border-style:solid;border-color:#ffd23a;background:#ffd23a30}
@@ -580,6 +582,9 @@ export class AdventureScene extends Phaser.Scene {
     // 2026-11-26 企画者「持ち物の とこ、技 入れ替えられる ように。持ち物と 別に なる ように 技って ボタン」
     let mode: 'items' | 'techs' = 'items';
     let sel: number | null = null;
+    // すてる モード: さわった 物を えらんで(赤)、「すてる」で 消す
+    let trash = false;
+    let trashSel: number | null = null;
     const EL_CSS: Record<string, string> = { 炎: '#ff6a2a', 水: '#3aa8ff', 自然: '#6ad04a', 雷: '#ffd23a', 光: '#fff2a0', 闇: '#a05aff', 無: '#e0e0f0' };
     const close = () => {
       audio.se('back');
@@ -673,14 +678,15 @@ export class AdventureScene extends Phaser.Scene {
             return `<button class="gs ${g ? 'on' : ''}" data-g="${k}" style="${g ? `border-color:${this.itemLabel(g).color}` : ''}"><span style="display:flex;justify-content:center;opacity:${g ? 1 : 0.35}">${this.itemImg(k, 24)}</span>${SLOT_NAMES[k]}${g?.name ? `・<span style="font-size:11px">${g.name}</span>` : ''}<br>${g ? `<b style="color:${this.itemLabel(g).color};font-size:14px">${g.rank}ランク</b>` : 'なし'}</button>`;
           })
           .join('')}</div>
-        <h3><span>もちもの <span style="font-size:12px;color:#fff">${s.bag.length} / ${bagCap(s)}</span></span><button class="techBtn" style="padding:4px 18px">技</button></h3>
+        <h3><span>もちもの <span style="font-size:12px;color:#fff">${s.bag.length} / ${bagCap(s)}</span></span><span style="display:flex;gap:6px"><button class="trashBtn" style="padding:4px 12px;${trash ? 'background:#ff4a5a;color:#fff' : ''}">${trash ? 'やめる' : 'すてる'}</button><button class="techBtn" style="padding:4px 18px">技</button></span></h3>
         <div class="grid" style="${bagCap(s) > 20 ? '--bagH:34vh' : ''}">${Array.from({ length: bagCap(s) }, (_, i) => {
           const it = s.bag[i];
           if (!it) return `<div class="it"></div>`;
           const l = this.itemLabel(it);
-          return `<button class="it" data-i="${i}" style="border-color:${l.color};position:relative">${this.itemImg(it)}${it.kind === 'gear' ? `<b style="color:${l.color};position:absolute;right:3px;bottom:1px;font-size:13px;text-shadow:0 0 3px #000,0 0 3px #000">${l.top}</b>` : ''}</button>`;
+          const marked = trash && trashSel === i;
+          return `<button class="it" data-i="${i}" style="border-color:${marked ? '#ff4a5a' : l.color};position:relative;${marked ? 'background:#ff4a5a55;box-shadow:0 0 0 2px #ff4a5a' : trash ? 'opacity:.75' : ''}">${this.itemImg(it)}${it.kind === 'gear' ? `<b style="color:${l.color};position:absolute;right:3px;bottom:1px;font-size:13px;text-shadow:0 0 3px #000,0 0 3px #000">${l.top}</b>` : ''}</button>`;
         }).join('')}</div>
-        <div class="note">さわると 使う・装備する（装備を さわると はずす）。S が いちばん 強い</div>
+        <div class="note">${trash ? (trashSel === null ? 'すてる 物を さわる' : `<span style="color:#ff8a94">えらんだ 物を すてる？</span> <button class="trashOk">すてる</button>`) : 'さわると 使う・装備する（装備を さわると はずす）。S が いちばん 強い'}</div>
         <button class="close">とじる</button>`;
       (box.querySelector('.close') as HTMLElement).addEventListener('click', close);
       (box.querySelector('.techBtn') as HTMLElement).addEventListener('click', () => {
@@ -688,8 +694,27 @@ export class AdventureScene extends Phaser.Scene {
         mode = 'techs';
         drawTechs();
       });
+      (box.querySelector('.trashBtn') as HTMLElement).addEventListener('click', () => {
+        audio.se('tap');
+        trash = !trash;
+        trashSel = null;
+        draw();
+      });
+      box.querySelector('.trashOk')?.addEventListener('click', () => {
+        const ok = trashSel !== null && discardBagItem(this.state, trashSel);
+        audio.se(ok ? 'select' : 'back');
+        trashSel = null;
+        draw();
+      });
       box.querySelectorAll('.it[data-i]').forEach((el) =>
         el.addEventListener('click', () => {
+          if (trash) {
+            const i = Number((el as HTMLElement).dataset.i);
+            trashSel = trashSel === i ? null : i;
+            audio.se('tap');
+            draw();
+            return;
+          }
           const ok = useBagItem(this.state, Number((el as HTMLElement).dataset.i));
           audio.se(ok ? 'select' : 'back');
           draw();

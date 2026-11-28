@@ -1531,6 +1531,13 @@ export function equipStartWeapon(s: AdvState, name: string, list?: string[]): vo
   applyGear(s);
 }
 
+/** 持ち物を すてる(2026-11-28 企画者「持ち物から アイテムを 捨てる 事が できる ように」)。床には 落とさず 消える。できたら true */
+export function discardBagItem(s: AdvState, index: number): boolean {
+  if (!s.bag[index]) return false;
+  s.bag.splice(index, 1);
+  return true;
+}
+
 export function useBagItem(s: AdvState, index: number): boolean {
   const it = s.bag[index];
   if (!it || s.result !== 'play' || s.player.act === 'dead') return false;
