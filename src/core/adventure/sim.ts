@@ -5,7 +5,7 @@
  */
 import { mulberry32, type Rng } from '../rng';
 import type { StatBlock } from '../stats';
-import { RPG_SPECIAL, WEAPON_LOW, WEAPON_POWER, WEAPON_REACH } from '../rpg/roles';
+import { RPG_SPECIAL, WEAPON_LOW, WEAPON_POWER, WEAPON_REACH, WEAPON_STYLE } from '../rpg/roles';
 import { getTech } from '../battle3d/techTable';
 import { CELL, DOOR, FLOOR, fits, generateFloor, lineOfSight, cellToWorld, roomAt, setDoor, walkable, type Floor, type Room } from './dungeon';
 
@@ -327,7 +327,7 @@ export type AdvEvent =
   | { kind: 'open'; x: number; z: number }
   | { kind: 'tech'; slot: number; x: number; z: number; fx: string; dir: number; r: number; len: number; element: string; tx: number; tz: number }
   | { kind: 'status'; target: number; x: number; z: number; effect: string }
-  | { kind: 'jab'; style: string; chain: number; x: number; z: number; dir: number; range: number; arc: number }
+  | { kind: 'jab'; style: string; chain: number; x: number; z: number; dir: number; range: number; arc: number; color?: number }
   | { kind: 'heal'; amount: number; x: number; z: number }
   | { kind: 'drop'; drop: Drop }
   | { kind: 'pick'; drop: Drop }
@@ -1211,6 +1211,91 @@ export function rpgJabReach(role: string, form: number): { range: number; arc: n
 }
 
 /** 木箱を たたく(test = その 場所に 攻撃が とどくか)。こわれたら 通れる ように なり、物が 出る */
+/** 装備して いる 武器の 打ち方(擬人化RPG の 時 だけ) */
+const weaponStyle = (s: AdvState) => (s.weapons && s.gear.weapon?.name ? WEAPON_STYLE[s.gear.weapon.name] : undefined);
+
+/** 武器の さいごの 一撃(2026-11-28 企画者 OK)【仮】 */
+function weaponFinish(s: AdvState, kind: NonNullable<(typeof WEAPON_STYLE)[string]['last']>, J: { range: number; arc: number }, mul: number, hitList: Actor[]): void {
+  const p = s.player;
+  const f = p.face;
+  const hit = (list: Actor[], k: number) => list.forEach((m) => {
+    m.awake = true;
+    damage(s, p, m, mul * k);
+  });
+  const fx = (style: string, x: number, z: number, r: number, arc = 0) => s.events.push({ kind: 'mobFx', style, x, z, dir: f, r, arc });
+  switch (kind) {
+    case 'slam': {
+      // 鉄骨ブレード: 前の 地面に たたきつけ、まわりを ふらつかせる
+      const cx = p.x + Math.cos(f) * J.range * 0.6;
+      const cz = p.z + Math.sin(f) * J.range * 0.6;
+      const list = inCircle(s, cx, cz, 2.2).filter((m) => !hitList.includes(m));
+      hit(list, 0.8);
+      for (const m of [...list, ...hitList]) if (m.act !== 'dead' && !isBoss(m)) m.stunUntil = Math.max(m.stunUntil ?? 0, s.t + 0.8);
+      hitCrates(s, (x, z) => Math.hypot(x - cx, z - cz) < 3.2, mul);
+      fx('wslam', cx, cz, 2.2);
+      break;
+    }
+    case 'pierce': {
+      // ネオンレイピア: 一直線に つらぬく(後ろの 敵にも)
+      const len = J.range + 2.4;
+      hit(inCone(s, p.x, p.z, f, len, 0.16).filter((m) => !hitList.includes(m)), 1);
+      hitCrates(s, inConeAt(p.x, p.z, f, len, 0.16), mul);
+      fx('wpierce', p.x, p.z, len);
+      break;
+    }
+    case 'spin': {
+      // ムーンエッジ: まわりを ぐるっと 一回転
+      const r = J.range;
+      hit(inCircle(s, p.x, p.z, r).filter((m) => !hitList.includes(m)), 1);
+      hitCrates(s, (x, z) => Math.hypot(x - p.x, z - p.z) < r + 1, mul);
+      fx('wspin', p.x, p.z, r);
+      break;
+    }
+    case 'bolt': {
+      // 雷刃: 前の 敵に 雷が 落ちる(しびれる ことが ある)
+      const t = aimedMob(s, f, J.range + 3);
+      if (!t) break;
+      t.awake = true;
+      damage(s, p, t, mul * 0.9);
+      if (s.rng() < 0.5) setStatus(s, t, 'まひ', 0);
+      fx('wbolt', t.x, t.z, 1.6);
+      break;
+    }
+    case 'bleed': {
+      // スパイクナックル: トゲの 傷で 少しずつ ダメージ
+      for (const m of hitList) if (m.act !== 'dead') setStatus(s, m, 'どく', p.atk * mul);
+      if (hitList.length) fx('wbleed', hitList[0].x, hitList[0].z, 1);
+      break;
+    }
+    case 'upper': {
+      // ボクサーラップ: 4発めの アッパーで ふらつかせる
+      for (const m of hitList) if (m.act !== 'dead' && !isBoss(m)) m.stunUntil = Math.max(m.stunUntil ?? 0, s.t + 1.0);
+      fx('wupper', p.x, p.z, J.range);
+      break;
+    }
+    case 'quake': {
+      // ブルドッグガントレット: 両手で たたきつけ、まわりを ふき飛ばす
+      const r = 2.6;
+      const list = inCircle(s, p.x, p.z, r);
+      hit(list.filter((m) => !hitList.includes(m)), 0.8);
+      for (const m of list) if (!isBoss(m)) {
+        const a = Math.atan2(m.z - p.z, m.x - p.x);
+        m.vx += Math.cos(a) * 10;
+        m.vz += Math.sin(a) * 10;
+      }
+      hitCrates(s, (x, z) => Math.hypot(x - p.x, z - p.z) < r + 1, mul);
+      fx('wquake', p.x, p.z, r);
+      break;
+    }
+    case 'wave': {
+      // キングフィスト: 拳の 衝撃波が 前へ 飛ぶ
+      const sp = 12;
+      s.shots.push({ id: ++s.seq, x: p.x + Math.cos(f) * 1.0, z: p.z + Math.sin(f) * 1.0, vx: Math.cos(f) * sp, vz: Math.sin(f) * sp, r: 0.8, life: 0.4, mul: mul * 0.8, tech: WATER_JAB, pierce: hitList.map((m) => m.id), art: 'fist' });
+      break;
+    }
+  }
+}
+
 function hitCrates(s: AdvState, test: (x: number, z: number) => boolean, mul = 1): void {
   // 一撃の 強さ(防御 なし)。hp は こわすのに いる 一撃の ダメージ
   const p = s.player;
@@ -1409,9 +1494,11 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
       p.actT = 0;
       p.struck = false;
       // 続けて 押すと 1・2・3段め(動きが 変わる。3段めは 強い。2026-11-07 企画者「通常攻撃の モーションが 全部 一緒」)
-      s.chain = s.t - s.lastAtk < ADV.chain.keep ? (s.chain % 3) + 1 : 1;
+      const ws = weaponStyle(s);
+      const hits = ws?.hits ?? 3;
+      s.chain = s.t - s.lastAtk < ADV.chain.keep ? (s.chain % hits) + 1 : 1;
       s.lastAtk = s.t;
-      p.coolUntil = s.t + P.cool * (1 - Math.min(0.3, s.tech / 500)) * (s.chain === 3 ? 1.6 : 1);
+      p.coolUntil = s.t + P.cool * (1 - Math.min(0.3, s.tech / 500)) * (s.chain === hits ? 1.6 : 1) * (ws?.cool ?? 1);
       s.events.push({ kind: 'attack', id: 0 });
     }
     // 技(A〜D)
@@ -1464,7 +1551,9 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
       p.struck = true;
       // 種族ごとの 通常攻撃(MONZ RUMBLE と 同じ 考え): ムチ = 遠くまで 細く・水の玉 = 飛ばす・電撃ダッシュ = 少し 前へ・ほかは 目の前
       const J = s.jabReach ?? ADV.jab[s.jab] ?? ADV.jab.punch;
-      const mul = s.chain === 3 ? ADV.chain.last : 1;
+      const ws = weaponStyle(s);
+      const last = s.chain === (ws?.hits ?? 3);
+      const mul = last ? ADV.chain.last : 1;
       if (s.jab === 'shot') {
         const sp = ADV.tech.shot.speed;
         s.shots.push({ id: ++s.seq, x: p.x + Math.cos(p.face) * 0.8, z: p.z + Math.sin(p.face) * 0.8, vx: Math.cos(p.face) * sp, vz: Math.sin(p.face) * sp, r: 0.35, life: 0.6, mul: 0.9 * mul, tech: WATER_JAB });
@@ -1472,11 +1561,17 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
         // ZIPP の 電撃ダッシュ: 速く 走って ぶつかる(瞬間移動に しない。2026-11-07 企画者「早くても いい」)
         if (s.jab === 'dash') s.dash = { until: s.t + 0.16, hit: [], mul, speed: 13, jab: true };
         else {
-          for (const m of inCone(s, p.x, p.z, p.face, J.range, J.arc * (s.chain === 3 ? 1.3 : 1))) {
+          const hitList = inCone(s, p.x, p.z, p.face, J.range, J.arc * (last ? 1.3 : 1));
+          for (const m of hitList) {
             m.awake = true;
             damage(s, p, m, mul);
+            if (ws?.knock && !isBoss(m)) {
+              m.vx += Math.cos(p.face) * ws.knock;
+              m.vz += Math.sin(p.face) * ws.knock;
+            }
           }
-          hitCrates(s, inConeAt(p.x, p.z, p.face, J.range, J.arc * (s.chain === 3 ? 1.3 : 1)), mul);
+          hitCrates(s, inConeAt(p.x, p.z, p.face, J.range, J.arc * (last ? 1.3 : 1)), mul);
+          if (last && ws?.last) weaponFinish(s, ws.last, J, mul, hitList);
           // 闘魂チャージの 間: 3段めで まわりに 衝撃波
           if ((s.fistShockUntil ?? 0) > s.t && s.chain === 3) {
             for (const m of inCircle(s, p.x, p.z, 2.4)) {
@@ -1493,7 +1588,7 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
         }
       }
       // range・arc = 当たる 広さ(モブの 中心まで range + モブの 大きさ・左右 arc)
-      s.events.push({ kind: 'jab', style: s.jab, chain: s.chain, x: p.x, z: p.z, dir: p.face, range: J.range + ADV.mob.r, arc: J.arc * (s.chain === 3 ? 1.3 : 1) });
+      s.events.push({ kind: 'jab', style: s.jab, chain: last ? 3 : s.chain === 3 ? 1 : s.chain, x: p.x, z: p.z, dir: p.face, range: J.range + ADV.mob.r, arc: J.arc * (last ? 1.3 : 1), color: ws?.color });
     }
   }
   stepTechs(s, dt);

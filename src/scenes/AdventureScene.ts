@@ -222,7 +222,7 @@ export class AdventureScene extends Phaser.Scene {
     root.insertAdjacentHTML(
       'beforeend',
       `<div class="top"><button class="back">◀ もどる</button><div class="me"><div class="nm">${me.name}　Lv.${this.level}　<b style="color:#ffd23a">${advRun.floor}F</b></div><div class="bar"><i></i></div><div class="num"></div></div><div class="goal"></div><button class="bagBtn">持ち物&amp;技</button></div>
-       ${isPreview() ? `<div class="dev" style="position:absolute;z-index:5;left:calc(env(safe-area-inset-left) + 12px);top:calc(env(safe-area-inset-top) + 62px);display:flex;gap:6px"><button class="back devLv">確認 Lv.${advDev.level}</button><button class="back devTy">型：${STAT_LABELS[advDev.type as StatKey]}</button><button class="back devFl">確認 ${advRun.floor}F</button><button class="back devSp">${rpgTest() ? `${rpgSp().toUpperCase()}（${ROLE_OF[rpgSp()]}）` : (advDev.species ?? '自分').toUpperCase()}</button>${rpgTest() ? `<button class="back devPx">見た目：${rpgPixel.on ? 'ドット' : '3D'}</button><button class="back devWr">ブキ ${this.state.gear.weapon?.rank ?? '-'}</button>` : ''}</div>` : ''}
+       ${isPreview() ? `<div class="dev" style="position:absolute;z-index:5;left:calc(env(safe-area-inset-left) + 12px);top:calc(env(safe-area-inset-top) + 62px);display:flex;gap:6px"><button class="back devLv">確認 Lv.${advDev.level}</button><button class="back devTy">型：${STAT_LABELS[advDev.type as StatKey]}</button><button class="back devFl">確認 ${advRun.floor}F</button><button class="back devSp">${rpgTest() ? `${rpgSp().toUpperCase()}（${ROLE_OF[rpgSp()]}）` : (advDev.species ?? '自分').toUpperCase()}</button>${rpgTest() ? `<button class="back devPx">見た目：${rpgPixel.on ? 'ドット' : '3D'}</button><button class="back devWr">ブキ ${this.state.gear.weapon?.rank ?? '-'}</button><button class="back devWn">${this.state.gear.weapon?.name ?? '-'}</button>` : ''}</div>` : ''}
        <div class="stickZone"><div class="stickBase"><div class="stickKnob"></div></div></div>
        <div class="stickHint">ここを<br>さわって<br>うごかす</div>
        <button class="atk">こうげき</button>
@@ -365,6 +365,16 @@ export class AdventureScene extends Phaser.Scene {
           w.rank = RANKS[(RANKS.indexOf(w.rank) + 1) % RANKS.length];
           equipStartWeapon(this.state, w.name ?? '');
           $('.devWr').textContent = `ブキ ${w.rank}`;
+        });
+      if (rpgTest())
+        // 確認用: 武器の 種類を ロールの 中で 切りかえ(打ち方の ちがいを ためす)
+        $('.devWn').addEventListener('click', () => {
+          const w = this.state.gear.weapon;
+          const list = this.state.weapons ?? [];
+          if (!w || !list.length) return;
+          w.name = list[(list.indexOf(w.name ?? '') + 1) % list.length];
+          equipStartWeapon(this.state, w.name);
+          $('.devWn').textContent = w.name;
         });
       if (rpgTest())
         $('.devPx').addEventListener('click', () => {

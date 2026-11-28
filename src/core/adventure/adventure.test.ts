@@ -262,6 +262,29 @@ describe('冒険の 動き', () => {
     expect(names(10)).toEqual(['ストリートソード', '鉄骨ブレード'].sort());
     expect(names(11).length).toBe(5);
   });
+  it('武器の 打ち方: ボクサーラップは 4段・ムーンエッジは さいごに 一回転', () => {
+    const run = (role: '拳闘士' | '剣士', name: string) => {
+      const s = newAdventure(5, { hp: 40, power: 20, tough: 20, speed: 10, tech: 10 }, 1, [], null, role === '剣士' ? 'zipp' : 'bunk');
+      equipStartWeapon(s, WEAPON_LIST[role][0], WEAPON_LIST[role]);
+      s.gear.weapon!.name = name;
+      s.jab = 'punch';
+      s.mobs.length = 0;
+      s.mobRoom.length = 0;
+      const chains: number[] = [];
+      const fx: string[] = [];
+      for (let i = 0; i < 240; i++) {
+        stepAdventure(s, { mx: 0, mz: 0, attack: true, tech: null, techDir: null }, 1 / 60);
+        for (const e of s.events) {
+          if (e.kind === 'attack') chains.push(s.chain);
+          if (e.kind === 'mobFx') fx.push(e.style);
+        }
+      }
+      return { max: Math.max(...chains), fx };
+    };
+    expect(run('拳闘士', 'ボクサーラップ').max).toBe(4);
+    expect(run('拳闘士', 'レザーグローブ').max).toBe(3);
+    expect(run('剣士', 'ムーンエッジ').fx).toContain('wspin');
+  });
   it('落とす 装備: 1階は D だけ・ずっと B まで', () => {
     expect(ADV.drop.cap[0]).toEqual([1, 0]);
     expect(Math.max(...ADV.drop.cap.map((c) => c[1]))).toBe(2);

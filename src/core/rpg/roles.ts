@@ -176,5 +176,22 @@ export const WEAPON_REACH: Record<string, { range: number; arc: number }> = {
 };
 /** 武器ごとの 攻撃の 上がり方の 倍(ふつう = 1)【仮】。スパイクナックル = 一発が 重い */
 export const WEAPON_POWER: Record<string, number> = { スパイクナックル: 1.5, キングフィスト: 1.3, ほうき星の杖: 1.4, 鉄骨ブレード: 1.1 };
+/**
+ * 武器ごとの 通常攻撃の 打ち方(2026-11-28 企画者 OK)。ランクでは 変わらない【仮】
+ * cool = 次を 打てる までの 倍・hits = 何段 まで 続くか(ふつう 3)・knock = 敵を 押す 強さ・last = さいごの 一撃・color = 光の 色
+ */
+export interface WeaponStyle { cool?: number; hits?: number; knock?: number; last?: 'slam' | 'pierce' | 'spin' | 'bolt' | 'bleed' | 'upper' | 'quake' | 'wave'; color: number }
+export const WEAPON_STYLE: Record<string, WeaponStyle> = {
+  ストリートソード: { color: 0xfff0d8 },
+  鉄骨ブレード: { cool: 1.25, knock: 3, last: 'slam', color: 0xff9a3a },
+  ネオンレイピア: { cool: 0.8, last: 'pierce', color: 0x6ae8ff },
+  ムーンエッジ: { last: 'spin', color: 0xc8d8ff },
+  雷刃: { last: 'bolt', color: 0xffe24a },
+  レザーグローブ: { color: 0xfff0d8 },
+  スパイクナックル: { cool: 1.15, last: 'bleed', color: 0xff4a4a },
+  ボクサーラップ: { cool: 0.7, hits: 4, last: 'upper', color: 0xa8ff5a },
+  ブルドッグガントレット: { knock: 6, last: 'quake', color: 0xb8b8c8 },
+  キングフィスト: { last: 'wave', color: 0xffd23a },
+};
 /** ためる 技か(押して いる 間 ためる) */
 export const isChargeTech = (name: string): boolean => !!RPG_SPECIAL[name]?.charge;

@@ -9,7 +9,7 @@ import { assetUrl } from '../assetUrl';
 import { newAnimeBattle, type AnimeEntrant, type AnimeMon } from '../core/battle3d/anime';
 import { CELL, WALL } from '../core/adventure/dungeon';
 import { getTech } from '../core/battle3d/techTable';
-import { GEAR_ICON, WEAPON_MODEL } from '../core/rpg/roles';
+import { GEAR_ICON, WEAPON_LIST, WEAPON_MODEL } from '../core/rpg/roles';
 import { ADV, isBoss, MOB_KINDS, mobSpec, RANKS, SELF_KINDS, techWindup, type MobKind, type AimShape, type Actor, type AdvEvent, type AdvItem, type AdvState, type Rank } from '../core/adventure/sim';
 import type { modelFor } from '../core/roster';
 import { MonsterRig } from './monsterRig';
@@ -2194,6 +2194,8 @@ export class DungeonView {
       } else if (e.kind === 'mobFx' && e.style === 'flurryhit') {
         // 残影連斬の 1回: ねらった 所に 斬撃が ばらばらの 向きで
         this.fxSlash(e.x - Math.cos(e.dir) * 0.9, e.z - Math.sin(e.dir) * 0.9, e.dir, 1.6, Math.random() < 0.5 ? 0xffffff : 0xffe24a, Math.random() < 0.5 ? 1 : -1, 0.18);
+      } else if (e.kind === 'mobFx' && e.style.startsWith('w') && ['wslam', 'wpierce', 'wspin', 'wbolt', 'wbleed', 'wupper', 'wquake'].includes(e.style)) {
+        this.weaponFx(e);
       } else if (e.kind === 'mobFx' && e.style === 'bolt') {
         // 千雷一刀の 1本: 空から 敵へ 太い いなずまが 落ち、地面で はじける(1本ずつ 順番に)
         this.fxBill('bolt', 0xffe880, e.x, 3.2, e.z, 6.4, 0.3, 0, 0, 2 / 3);
@@ -2282,7 +2284,8 @@ export class DungeonView {
     const wName = s.gear.weapon?.name ?? '';
     if (wName !== this.weaponName && this.ready) {
       this.weaponName = wName;
-      const file = WEAPON_MODEL[wName];
+      // 3D が まだ ない 剣は ストリートソードの 形で 代わりに 持つ【仮】(トリポで 作るまで)
+      const file = WEAPON_MODEL[wName] ?? (WEAPON_LIST.剣士.includes(wName) ? WEAPON_MODEL.ストリートソード : undefined);
       if (file) this.loadWeapon(file);
       else this.rig.setWeapon(null);
     }
@@ -2605,8 +2608,56 @@ export class DungeonView {
     const side = e.chain === 2 ? -1 : 1;
     // 2026-11-28 企画者「白い エフェクトが 長い。1番 下(D)は 一マス 前 ぐらい」→ 斬撃の 光は 当たる 長さに おさまる 大きさ(自分の 前 から 届く ところまで)
     const r = e.range * 0.5;
-    this.fxSlash(e.x + Math.cos(e.dir) * r * 0.5, e.z + Math.sin(e.dir) * r * 0.5, e.dir, r * (big ? 1.15 : 1), big ? 0xffc080 : 0xfff0d8, side, big ? 0.2 : 0.14);
+    // 武器ごとの 光の 色(2026-11-28)。ふつうは 白・3段めは 少し 濃く
+    const c = e.color ?? 0xfff0d8;
+    const cBig = e.color != null ? new THREE.Color(e.color).lerp(new THREE.Color(0xffffff), 0.25).getHex() : 0xffc080;
+    this.fxSlash(e.x + Math.cos(e.dir) * r * 0.5, e.z + Math.sin(e.dir) * r * 0.5, e.dir, r * (big ? 1.15 : 1), big ? cBig : c, side, big ? 0.2 : 0.14);
     if (big) this.shake = Math.max(this.shake, 0.12);
+  }
+
+  /** 武器の さいごの 一撃の 光(2026-11-28)【仮】 */
+  private weaponFx(e: Extract<AdvEvent, { kind: 'mobFx' }>): void {
+    const fx = e.x + Math.cos(e.dir);
+    const fz = e.z + Math.sin(e.dir);
+    switch (e.style) {
+      case 'wslam': // 鉄骨ブレード: オレンジの 地割れの 輪と けむり
+        this.fxGround('ring', 0xff9a3a, e.x, e.z, e.r * 2, 0.4, 0.7);
+        this.fxBill('smoke', 0xc0a890, e.x, 0.4, e.z, 2.2, 0.45, 0.6);
+        this.fxBill('spark', 0xffc080, e.x, 0.6, e.z, 2.0, 0.25, 0.5);
+        this.shake = Math.max(this.shake, 0.35);
+        break;
+      case 'wpierce': { // ネオンレイピア: 前へ のびる 細い 水色の 光の 列
+        const len = e.r;
+        for (let i = 1; i <= 6; i++) {
+          const d = (len * i) / 6;
+          this.fxBill(i === 6 ? 'star' : 'spark', i === 6 ? 0xbaf4ff : 0x6ae8ff, e.x + Math.cos(e.dir) * d, 0.9, e.z + Math.sin(e.dir) * d, i === 6 ? 1.3 : 0.8, 0.18, 0.5, i * 0.02);
+        }
+        break;
+      }
+      case 'wspin': // ムーンエッジ: まわりに 青白い 三日月を 4枚
+        for (let i = 0; i < 4; i++) this.fxSlash(e.x, e.z, e.dir + (i * Math.PI) / 2, e.r * 0.6, 0xc8d8ff, 1, 0.22, i * 0.03);
+        this.fxGround('ring', 0xc8d8ff, e.x, e.z, e.r * 2, 0.3, 0.5);
+        this.shake = Math.max(this.shake, 0.2);
+        break;
+      case 'wbolt': // 雷刃: 敵に 雷
+        this.fxBill('bolt', 0xffe880, e.x, 2.6, e.z, 5.2, 0.25, 0, 0, 2 / 3);
+        this.fxBill('burst', 0xffe24a, e.x, 0.8, e.z, 1.8, 0.25, 0.6);
+        this.shake = Math.max(this.shake, 0.2);
+        break;
+      case 'wbleed': // スパイクナックル: 赤い 火花
+        this.fxBill('spark', 0xff4a4a, e.x, 1.0, e.z, 1.6, 0.25, 0.6);
+        break;
+      case 'wupper': // ボクサーラップ: 前に 黄緑の 光の 柱
+        this.fxBill('pillar', 0xa8ff5a, fx + Math.cos(e.dir) * 0.3, 1.4, fz + Math.sin(e.dir) * 0.3, 2.8, 0.3, 0.3, 0, 2 / 3);
+        this.fxBill('spark', 0xffffff, fx, 1.0, fz, 1.6, 0.2, 0.6);
+        this.shake = Math.max(this.shake, 0.2);
+        break;
+      case 'wquake': // ブルドッグガントレット: 灰色の 大きな 輪と けむり
+        this.fxGround('ring', 0xd0d0e0, e.x, e.z, e.r * 2, 0.4, 0.8);
+        this.fxBill('smoke', 0xb8b8c8, e.x, 0.4, e.z, 2.8, 0.45, 0.6);
+        this.shake = Math.max(this.shake, 0.4);
+        break;
+    }
   }
 
   /** 技が 当たった(擬人化RPG): 属性の 爆発 */
