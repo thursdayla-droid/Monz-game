@@ -2646,7 +2646,7 @@ export class DungeonView {
     // 突きの 武器(ネオンレイピア): 斬らずに 前へ まっすぐ 光の 列
     if (e.style === 'thrust') {
       // 2026-11-28 企画者「レイピアの 範囲 わかりづらい」→ 当たる 細い 扇を そのまま 光の くさびで 描く(先に 星)
-      this.fxThrust(e.x, e.z, e.dir, e.range, e.arc, e.color ?? 0x6ae8ff, 0.16);
+      this.fxThrust(e.x, e.z, e.dir, e.range, e.arc, e.color ?? 0xff4ae8, 0.16);
       return;
     }
     // 武器ごとの 光の 色(2026-11-28)。ふつうは 白・3段めは 少し 濃く
@@ -2740,7 +2740,7 @@ export class DungeonView {
       const op = k < 0.3 ? 1 : Math.max(0, 1 - (k - 0.3) / 0.7);
       g.children.forEach((o, i) => (((o as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = (i ? 0.95 : 0.55) * op));
     });
-    this.fxBill('star', 0xdaf8ff, x + Math.cos(dir) * len, 0.6, z + Math.sin(dir) * len, 0.9, life, 0.5, life * 0.25);
+    this.fxBill('star', 0xffd8f8, x + Math.cos(dir) * len, 0.6, z + Math.sin(dir) * len, 0.9, life, 0.5, life * 0.25);
   }
 
   /** 武器ごとの 通常攻撃の 光(1発めから ちがいが 分かる ように。2026-11-28)【仮】 */
@@ -2796,7 +2796,7 @@ export class DungeonView {
         this.shake = Math.max(this.shake, 0.35);
         break;
       case 'wpierce': // ネオンレイピア: 3段めの 突き(当たる 細い 扇と 同じ くさび)
-        this.fxThrust(e.x, e.z, e.dir, e.r + ADV.mob.r, e.arc || 0.35, 0x6ae8ff, 0.14);
+        this.fxThrust(e.x, e.z, e.dir, e.r + ADV.mob.r, e.arc || 0.35, 0xff4ae8, 0.14);
         break;
       case 'wspin': // ムーンエッジ: 当たる 円 ぜんぶを うすく ぬり、ふちを 三日月の 光が ぐるっと 回る
         this.fxSector(e.x, e.z, e.dir, e.r + ADV.mob.r, Math.PI, 0xc8d8ff, 0.3);

@@ -173,7 +173,7 @@ export const WEAPON_MODEL: Record<string, string> = { ストリートソード: 
 /** 3D の 武器の 手に 持つ 長さの 倍(ふつう 1)。鉄骨ブレードは 大きな 剣 */
 export const WEAPON_MODEL_LEN: Record<string, number> = { 鉄骨ブレード: 1.25 };
 /** 装備の 絵(企画者の 絵。名前 → 絵) */
-export const GEAR_ICON: Record<string, string> = { ストリートソード: 'assets/rpg/gear/w_sword1.webp', 鉄骨ブレード: 'assets/rpg/gear/w_sword2.webp' };
+export const GEAR_ICON: Record<string, string> = { ストリートソード: 'assets/rpg/gear/w_sword1.webp', 鉄骨ブレード: 'assets/rpg/gear/w_sword2.webp', ネオンレイピア: 'assets/rpg/gear/w_sword3.webp' };
 /** 武器ごとの 通常攻撃の 範囲の ちがい(ロールの ふつうに 足す)【仮】。ストリートソード・レザーグローブ = ふつう */
 export const WEAPON_REACH: Record<string, { range: number; arc: number }> = {
   ストリートソード: { range: 0, arc: 0 },
@@ -218,7 +218,7 @@ export const WEAPON_STYLE: Record<string, WeaponStyle> = {
   ストリートソード: { color: 0xfff0d8 },
   鉄骨ブレード: { cool: 1.25, knock: 3, last: 'slam', color: 0xff9a3a },
   // 2026-11-28 企画者「1発め 2発めも 切れなくて 良い。真っ直ぐ だけ」→ ぜんぶ 突き(細く 長く まっすぐ)
-  ネオンレイピア: { thrust: true, cool: 0.8, last: 'pierce', color: 0x6ae8ff },
+  ネオンレイピア: { thrust: true, cool: 0.8, last: 'pierce', color: 0xff4ae8 }, // 色は 企画者の 絵(ネオンの ピンク・2026-11-28)
   ムーンエッジ: { last: 'spin', color: 0xc8d8ff },
   雷刃: { last: 'bolt', color: 0xffe24a },
   レザーグローブ: { color: 0xfff0d8 },
