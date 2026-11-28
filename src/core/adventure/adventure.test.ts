@@ -133,6 +133,26 @@ describe('冒険の 動き', () => {
       if (n === 'アッパーカット' && m.act !== 'dead') expect(stunned).toBe(true);
     }
   });
+  it('擬人化: 拳闘士の 技コンボ(当てた あと すぐ 次の 技へ・数が ふえる)', () => {
+    const mk = (n: string) => {
+      const t = getTech(n);
+      return { id: n, kind: t.kind, power: t.power, cooldown: 2, element: t.element, effect: t.effect, strength: t.strength };
+    };
+    const s = newAdventure(5, { hp: 10, power: 10, tough: 10, speed: 10, tech: 10 }, 3, [mk('アッパーカット'), mk('剛力クラッシュ'), mk('ジャブジャブ')]);
+    s.brawler = true;
+    const m = s.mobs[0];
+    m.x = s.player.x + 1.4;
+    m.z = s.player.z;
+    m.maxHp = m.hp = 1e6;
+    s.player.face = 0;
+    let best = 0;
+    for (let i = 0; i < 45; i++) {
+      const tech = i === 0 ? 0 : i === 12 ? 1 : i === 34 ? 2 : null;
+      stepAdventure(s, { mx: 0, mz: 0, attack: false, tech, techDir: null }, 1 / 30);
+      for (const e of s.events) if (e.kind === 'tcombo') best = Math.max(best, e.n);
+    }
+    expect(best).toBeGreaterThanOrEqual(2);
+  });
   it('擬人化: ZIPP(剣士)の 技は 12こ・どれも 使える・剣士だけの 動き方を 出しても こわれない', () => {
     expect(RPG_LEARN.zipp.length).toBe(12);
     for (const [n] of RPG_LEARN.zipp) {

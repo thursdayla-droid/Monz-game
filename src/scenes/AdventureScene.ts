@@ -194,6 +194,7 @@ export class AdventureScene extends Phaser.Scene {
     // 擬人化RPG の 試作: BUNK は 拳闘士。進化で 通常攻撃が 少し 長く なる(姿は 変わらない)
     // 擬人化は 武器で 打つ(MONZ の 電撃ダッシュ・ムチ などは 使わない)
     if (rpgTest()) this.state.jab = 'punch';
+    if (rpgTest()) this.state.brawler = ROLE_OF[rpgSp()] === '拳闘士';
     if (rpgTest()) this.state.jabReach = rpgJabReach(ROLE_OF[rpgSp()] ?? '拳闘士', formAt(this.level));
     if (advRun.carry) {
       this.state.bag = advRun.carry.bag;
@@ -438,7 +439,8 @@ export class AdventureScene extends Phaser.Scene {
     }
     const shape = this.aim ? aimPreview(s, this.aim.slot, this.aim.dir) : null;
     this.view.setAim(shape && this.aim ? { ...shape, dir: this.aim.dir ?? s.player.face, auto: this.aim.dir === null } : null);
-    for (const e of s.events) if (e.kind === 'hit' && e.target !== 0) this.hitStop = Math.max(this.hitStop, e.crit || s.chain === 3 ? 0.09 : 0.05);
+    // 拳闘士の 技は 1発 1発 重く(長めに 止める)
+    for (const e of s.events) if (e.kind === 'hit' && e.target !== 0) this.hitStop = Math.max(this.hitStop, s.brawler && s.player.act === 'tech' ? 0.12 : e.crit || s.chain === 3 ? 0.09 : 0.05);
     for (const e of s.events) {
       if (e.kind === 'attack' && e.id === 0) audio.se('swing');
       else if (e.kind === 'hit') audio.se(e.target === 0 ? 'punch' : 'b3dPunchHit', e.crit ? { pitch: 0.8 } : undefined);

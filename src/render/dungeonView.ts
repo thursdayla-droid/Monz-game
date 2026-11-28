@@ -1933,6 +1933,10 @@ export class DungeonView {
           this.shake = Math.max(this.shake, 0.5);
           this.groundRing(e.x, e.z, 10, 0xff2040, 0.8, 0.1);
         } else if (e.state === 'done') this.burst(this.houseDoor?.position.x ?? e.x, this.houseDoor?.position.z ?? e.z, 0x7affd0, 24);
+      } else if (e.kind === 'tcombo') {
+        // 技コンボ: 頭の 上に「2 COMBO!」(つなぐほど 大きく・赤く)
+        this.pop(`${e.n} COMBO!`, e.n >= 4 ? '#ff4a4a' : e.n >= 3 ? '#ff9a2a' : '#ffd23a', e.x, 3.0, e.z, 0.7 + Math.min(4, e.n) * 0.12);
+        this.shake = Math.max(this.shake, 0.15 + Math.min(4, e.n) * 0.05);
       } else if (e.kind === 'crate') {
         const m = this.propObjs.get(e.prop);
         // かけらの 色: 木箱 = 木・段ボール = 茶色の 紙・ゴミ箱 = 灰色の 金属

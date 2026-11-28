@@ -177,6 +177,8 @@ export const ADV = {
   /** 装備の 強さ(ランクごとの 倍)と 1倍の ときの 上がり方 */
   gear: { mul: { D: 1, C: 2, B: 3, A: 5, S: 8 } as Record<Rank, number>, head: 2, armor: 3, charm: 8, weapon: 3 },
   pickR: 1.1,
+  /** 拳闘士の 技コンボ【仮】: つながる 秒・1つ ごとの ダメージ アップ */
+  tcombo: { keep: 1.6, up: 0.2 },
   /** モンスター部屋【仮】: 入って とじるまで 10秒・敵の 数(8〜11)・とじこめの 長さ 60秒 */
   house: { wait: 10, count: 8, time: 60 },
   /** 木箱【仮】: 2回 たたくと こわれる・回復の実 50%・装備 30% */
@@ -324,6 +326,7 @@ export type AdvEvent =
   | { kind: 'boxReset'; x: number; z: number }
   | { kind: 'bossWarn'; move: BossMove; x: number; z: number; dir: number; r: number; time: number }
   | { kind: 'mobFx'; style: string; x: number; z: number; dir: number; r: number; arc: number }
+  | { kind: 'tcombo'; n: number; x: number; z: number }
   | { kind: 'house'; state: 'wait' | 'locked' | 'done'; x: number; z: number }
   | { kind: 'crate'; x: number; z: number; prop: number; broken: boolean }
   | { kind: 'lose' };
@@ -400,6 +403,12 @@ export interface AdvState {
   aimed: boolean;
   /** 連続で 打つ 技(のこりの 回数・次の 時刻) */
   combo: { left: number; next: number; mul: number; finale?: number; at?: { x: number; z: number }; step?: number; ring?: number; every?: number } | null;
+  /**
+   * 拳闘士の 技コンボ(2026-11-28 企画者「バンクの 拳闘士は コンボ とか ほしい。1発 1発 重いの。スキルで」):
+   * 技が 当たった あと すぐ 次の 技を 出せる(技の もどりを 打ち消す)。続けるほど ダメージが 上がる
+   */
+  brawler?: boolean;
+  tcombo?: { n: number; until: number };
   /** 闘魂チャージ(擬人化 拳闘士): 通常攻撃 3段めで 衝撃波(時刻) */
   fistShockUntil?: number;
   /** 剣気解放(擬人化 剣士): ふつうの 攻撃で 斬撃が 飛ぶ(時刻) */
@@ -707,6 +716,12 @@ function fireTech(s: AdvState, slot: number): void {
     const d = wallDist(s, p.x, p.z, p.face, reach * 0.6);
     return { x: p.x + Math.cos(p.face) * d, z: p.z + Math.sin(p.face) * d };
   };
+  // 拳闘士の 技コンボ: 前の 技から 1.6秒 以内なら つながる
+  if (s.brawler) {
+    const c = s.tcombo && s.t < s.tcombo.until ? s.tcombo.n + 1 : 1;
+    s.tcombo = { n: c, until: s.t + ADV.tcombo.keep };
+    if (c >= 2) s.events.push({ kind: 'tcombo', n: c, x: p.x, z: p.z });
+  }
   const SP = RPG_SPECIAL[techName(tc.id)];
   if (SP?.move) {
     swordMove(s, SP.move, mul, tc, ev, area, target);
@@ -1217,6 +1232,8 @@ function damage(s: AdvState, from: Actor, to: Actor, mul = 1, tech?: AdvTech): v
   if (from.id === 0) {
     if (s.t < s.atkUpUntil) m *= ADV.tech.buff.up;
     if (tech && s.growType === 'power') m *= Y.powerMul;
+    // 技コンボ: つなぐほど 重く(2つめ +20%・3つめ +40% … 5つめ以上 +80%)
+    if (tech && s.brawler && s.tcombo && s.t < s.tcombo.until) m *= 1 + ADV.tcombo.up * Math.min(4, s.tcombo.n - 1);
   } else {
     if (to.id === 0 && (s.counterUntil ?? 0) > s.t) {
       // よけて 反撃(ダメージ なし)
@@ -1307,7 +1324,9 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
     // 技(A〜D)
     const ti = inp.tech;
     const T = ADV.tech;
-    if (ti != null && s.techs[ti] && s.t >= s.techCd[ti] && p.act !== 'attack' && p.act !== 'tech') {
+    // 拳闘士: 技を 出した あと(当たった あと)は すぐ 次の 技へ つなげる
+    const chainOk = !!s.brawler && (p.act === 'tech' || p.act === 'attack') && p.struck && !s.dash && !s.combo && ti != null && ti !== s.techSlot;
+    if (ti != null && s.techs[ti] && s.t >= s.techCd[ti] && ((p.act !== 'attack' && p.act !== 'tech') || chainOk)) {
       const tc = s.techs[ti]!;
       // 長押しで ねらった 向き(はなすと 発動)。ねらわずに 押した 時は いちばん 近い 敵へ
       s.aimed = inp.techDir != null;
