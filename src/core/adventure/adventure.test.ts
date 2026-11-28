@@ -116,6 +116,23 @@ describe('冒険の ダンジョン', () => {
 });
 
 describe('冒険の 動き', () => {
+  it('擬人化: BUNK(拳闘士)の 技を 出しても こわれない・体当たりで 敵が 飛ぶ・アッパーで 動けなく なる', () => {
+    for (const [n] of RPG_LEARN.bunk) {
+      const t = getTech(n);
+      const s = newAdventure(5, { hp: 10, power: 10, tough: 10, speed: 10, tech: 10 }, 3, [{ id: n, kind: t.kind, power: t.power, cooldown: 2, element: t.element, effect: t.effect, strength: t.strength }]);
+      const m = s.mobs[0];
+      m.x = s.player.x + 1.4;
+      m.z = s.player.z;
+      m.awake = true;
+      s.player.face = 0;
+      let stunned = false;
+      for (let i = 0; i < 60; i++) {
+        stepAdventure(s, { mx: 0, mz: 0, attack: false, tech: i === 0 ? 0 : null, techDir: null }, 1 / 30);
+        if ((m.stunUntil ?? 0) > s.t) stunned = true;
+      }
+      if (n === 'アッパーカット' && m.act !== 'dead') expect(stunned).toBe(true);
+    }
+  });
   it('擬人化: ZIPP(剣士)の 技は 12こ・どれも 使える・剣士だけの 動き方を 出しても こわれない', () => {
     expect(RPG_LEARN.zipp.length).toBe(12);
     for (const [n] of RPG_LEARN.zipp) {

@@ -41,7 +41,7 @@ export const SAFE_ATTACK: Record<string, number> = { L_Upperarm: 1.0, R_Upperarm
 
 /** 攻撃の動きに要るもの(MonsterRig から) */
 export interface AttackPose {
-  kind: 'rush' | 'combo' | 'shot' | 'slam' | 'shot1' | 'roar' | 'thrust' | 'overhead' | 'iai' | 'raise';
+  kind: 'rush' | 'combo' | 'shot' | 'slam' | 'shot1' | 'roar' | 'thrust' | 'overhead' | 'iai' | 'raise' | 'upper' | 'heavy';
   /** ため(0〜1)・出している(true)・もどり(0〜1) */
   wind: number;
   active: boolean;
@@ -394,6 +394,46 @@ export class BunkBones {
       this.rot('L_Thigh', 'side', 0.4 * k * w);
       this.rot('R_Thigh', 'side', -0.35 * k * w);
       this.rot('L_Calf', 'side', -0.4 * k * w);
+    } else if (a.kind === 'upper' || a.kind === 'heavy') {
+      // 拳闘士(2026-11-28): アッパー = 低く かがんで 右こぶしを 下から 頭の 上まで 振り上げる／重い ストレート = 右腕を 大きく うしろへ 引いて 体ごと 打ちこむ
+      const k = a.active ? 1 : a.wind > 0 ? a.wind : Math.max(0, 1 - a.recover);
+      const go = a.active || (a.wind === 0 && a.recover > 0) ? 1 : 0;
+      this.humanGuard(0.6 * w);
+      if (a.kind === 'upper') {
+        if (go) {
+          this.rot('R_Upperarm', 'side', 2.2 * w);
+          this.rot('R_Forearm', 'side', 0.9 * w);
+          this.rot('Spine01', 'side', -0.25 * w);
+          this.rot('Head', 'side', -0.15 * w);
+          this.rot('L_Thigh', 'side', 0.2 * w);
+        } else {
+          this.rot('R_Upperarm', 'side', -0.3 * k * w);
+          this.rot('R_Forearm', 'side', 1.2 * k * w);
+          this.rot('Spine01', 'side', 0.3 * k * w);
+          this.rot('L_Thigh', 'side', 0.5 * k * w);
+          this.rot('R_Thigh', 'side', 0.5 * k * w);
+          this.rot('L_Calf', 'side', -0.9 * k * w);
+          this.rot('R_Calf', 'side', -0.9 * k * w);
+        }
+      } else if (go) {
+        this.rot('R_Upperarm', 'side', 1.5 * w);
+        this.rot('R_Upperarm', 'up', 0.2 * w);
+        this.rot('R_Forearm', 'side', -0.1 * w);
+        this.rot('Spine01', 'up', 0.45 * w);
+        this.rot('Spine02', 'up', 0.3 * w);
+        this.rot('L_Thigh', 'side', 0.6 * w);
+        this.rot('L_Calf', 'side', -0.5 * w);
+        this.rot('R_Thigh', 'side', -0.4 * w);
+        this.lunge = w;
+      } else {
+        this.rot('R_Upperarm', 'side', -0.6 * k * w);
+        this.rot('R_Forearm', 'side', 1.6 * k * w);
+        this.rot('Spine01', 'up', -0.45 * k * w);
+        this.rot('Spine02', 'up', -0.3 * k * w);
+        this.rot('R_Thigh', 'side', -0.3 * k * w);
+      }
+      this.punchExt = go * w;
+      this.punchSide = 1;
     } else if (a.kind === 'thrust' || a.kind === 'overhead' || a.kind === 'iai' || a.kind === 'raise') {
       // 剣士の 動き(2026-11-28 企画者「拳闘士と 一緒すぎる」): 両手で 柄を にぎって
       const k = a.active ? 1 : a.wind > 0 ? a.wind : Math.max(0, 1 - a.recover);

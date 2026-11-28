@@ -25,11 +25,11 @@ export const ROLE_OF: Record<string, Role> = {
 /** 擬人化RPG だけの 技(企画者 OK 2026-11-27)。数字は 型と 強さから 計算【仮】 */
 const RPG_ROWS: TechRow[] = [
   // BUNK(拳闘士)の 専用技
-  { species: 'bunk_rpg', name: 'ジャブジャブ', type: '連続攻撃', element: '無', strength: '弱', level: 1, condition: 'なし', effect: 'なし', memo: '素早い 2連パンチ' },
+  { species: 'bunk_rpg', name: 'ジャブジャブ', type: '連続攻撃', element: '無', strength: '弱', level: 1, condition: 'なし', effect: 'なし', memo: '目にも 止まらない 2連パンチ。すぐ 次が 打てる' },
   // 2026-11-27 企画者「スウェイなんとかって 技 分かりにくすぎる」→ アッパーカットに 替えた
-  { species: 'bunk_rpg', name: 'アッパーカット', type: '連続攻撃', element: '無', strength: '中', level: 15, condition: 'なし', effect: 'ふらつき', memo: '前の 敵を 下から 打ち上げる。当たると ふらつく' },
+  { species: 'bunk_rpg', name: 'アッパーカット', type: '連続攻撃', element: '無', strength: '中', level: 15, condition: 'なし', effect: 'ふらつき', memo: '下から 打ち上げる 一発。敵を 浮かせて しばらく 動けなく する' },
   { species: 'bunk_rpg', name: 'ブロウクラッシュ', type: 'ビーム', element: '無', strength: '強', level: 30, condition: 'なし', effect: 'ふらつき', memo: '地面を なぐり、前へ 一直線に 衝撃が 走る' },
-  { species: 'bunk_rpg', name: '闘魂チャージ', type: '強化', element: '無', strength: '中', level: 45, condition: 'なし', effect: 'なし', memo: '気合を ためて 攻撃と 速さが 上がる' },
+  { species: 'bunk_rpg', name: '闘魂チャージ', type: '強化', element: '無', strength: '中', level: 45, condition: 'なし', effect: 'なし', memo: '気合を ためて 攻撃と 速さが 上がる。ふつうの 攻撃の 3段めで 衝撃波が 出る' },
   { species: 'bunk_rpg', name: 'ラッシュ・ザ・キング', type: '連続攻撃', element: '無', strength: '大技', level: 60, condition: 'なし', effect: 'ふらつき', memo: 'こぶしの 連打、最後に 大きな アッパー' },
   // ZIPP(剣士)の 技(2026-11-28 企画者「スキルは 剣士ぽく」→ 同じ日「拳闘士と 技が 一緒すぎる(見た目・動き・中身)」→ 剣士だけの 動き方に 作り直し)【案】
   { species: 'zipp_rpg', name: '一閃', type: '連続攻撃', element: '雷', strength: '弱', level: 1, condition: 'なし', effect: 'なし', memo: '剣を 大きく 振って、前の 広い 範囲を まとめて 斬る' },
@@ -84,19 +84,34 @@ export const RPG_MODEL: Record<string, string> = { bunk: 'assets/rpg/bunk_rpg.gl
 /** 擬人化の モデルが ある 種族(試作で 切りかえる 順) */
 export const RPG_SPECIES = Object.keys(RPG_MODEL);
 
+/** 擬人化での 説明(MONZ の 技を 擬人化で 使う ときの 中身) */
+const RPG_DESC: Record<string, string> = {
+  バンクバッシュ: '肩から 体当たり。ぶつかった 敵を 大きく ふき飛ばす',
+  ドスンパクト: '跳び上がって 地面を 踏みつけ、まわりの 敵を ふらつかせる',
+  跳ねつき連撃: '前へ 跳ねながら 3回 なぐる。1回ごとに 前へ 進む',
+  瞬速スピン: '雷を まとって 回りながら フックを 2回。まわりの 敵 ぜんぶに 当たる',
+  剛力クラッシュ: '腕に 炎を ためて、とても 重い ストレート。前の 敵を ふき飛ばす',
+  煉獄崩拳: '地面を なぐって、ねらった 所に 炎の 柱を 立てる',
+};
 /** 技の 説明(擬人化RPG の 専用技は ここ・ほかは 技の 表の メモ) */
-export const rpgTechDesc = (name: string): string | null => RPG_ROWS.find((r) => r.name === name)?.memo ?? null;
+export const rpgTechDesc = (name: string): string | null => RPG_DESC[name] ?? RPG_ROWS.find((r) => r.name === name)?.memo ?? null;
 
 /** その レベルで 覚えている 技(覚える 順) */
 export const rpgLearned = (species: string, level: number): string[] => (RPG_LEARN[species] ?? []).filter(([, l]) => level >= l).map(([n]) => n);
 
 /** 技ごとの 特別な 動き【仮】: combo = 連打の 回数・finale = 最後の 一発の 倍・counter = 構えて 反撃・haste = 速さの 倍 */
 /** 剣士の 技の 動き方(拳闘士と ちがう 中身): arc 広く 斬る・through 走りぬけ・thrust 突き・flurry ねらった 敵に 連続・xcut はなれた 所に X・iai ため斬り・wave つらぬく 斬撃・storm まわり 全部に 落雷 */
-export type SwordMove = 'arc' | 'dashcut' | 'through' | 'thrust' | 'flurry' | 'xcut' | 'iai' | 'wave' | 'storm';
-export const RPG_SPECIAL: Record<string, { combo?: number; finale?: number; counter?: boolean; haste?: number; shots?: number; move?: SwordMove; windup?: number; swordWave?: boolean }> = {
-  ジャブジャブ: { combo: 2 },
-  アッパーカット: { combo: 1, finale: 2.2 },
-  闘魂チャージ: { haste: 1.25 },
+export type SwordMove = 'tackle' | 'stomp' | 'upper' | 'hopcombo' | 'spinhook' | 'heavy' | 'jabs' | 'arc' | 'dashcut' | 'through' | 'thrust' | 'flurry' | 'xcut' | 'iai' | 'wave' | 'storm';
+export const RPG_SPECIAL: Record<string, { combo?: number; finale?: number; counter?: boolean; haste?: number; shots?: number; move?: SwordMove; windup?: number; swordWave?: boolean; fistShock?: boolean }> = {
+  // 拳闘士(BUNK)の 技(2026-11-28 企画者「まずは 拳闘士 直して いこう」→ 剣士と 同じく 技ごとに ちがう 中身・動き・見た目)【案】
+  ジャブジャブ: { move: 'jabs', windup: 0.06 },
+  バンクバッシュ: { move: 'tackle' },
+  ドスンパクト: { move: 'stomp', windup: 0.35 },
+  アッパーカット: { move: 'upper', windup: 0.25 },
+  跳ねつき連撃: { move: 'hopcombo' },
+  瞬速スピン: { move: 'spinhook' },
+  剛力クラッシュ: { move: 'heavy', windup: 0.55 },
+  闘魂チャージ: { haste: 1.25, fistShock: true },
   'ラッシュ・ザ・キング': { combo: 6, finale: 2.5 },
   一閃: { move: 'arc', windup: 0.12 },
   雷光斬り: { move: 'through' },

@@ -1993,6 +1993,17 @@ export class DungeonView {
           this.fxGround('ring', 0xffb060, fx, fz, 3.2, 0.45, 0.8);
           this.shake = Math.max(this.shake, 0.45);
         }
+      } else if (e.kind === 'mobFx' && e.style === 'hop') {
+        // 跳ねつき連撃の 1回: 足もとに けむり・前に 火花
+        this.fxBill('smoke', 0xc0b8c8, e.x, 0.3, e.z, 0.9, 0.3, 0.5);
+        this.fxBill('spark', 0xffe0a0, e.x + Math.cos(e.dir) * 1.3, 0.9, e.z + Math.sin(e.dir) * 1.3, 1.3, 0.18, 0.5);
+      } else if (e.kind === 'mobFx' && e.style === 'hookring') {
+        // 瞬速スピンの 1回: まわりに 雷の 輪
+        this.fxGround('ring', 0xffe24a, e.x, e.z, e.r * 2, 0.25, 0.6);
+        this.fxBill('ex_thunder', 0xffffff, e.x, 0.9, e.z, e.r * 1.2, 0.22, 0.5);
+      } else if (e.kind === 'mobFx' && e.style === 'fistshock') {
+        this.fxGround('ring', 0xff9a40, e.x, e.z, e.r * 2, 0.35, 0.85);
+        this.shake = Math.max(this.shake, 0.2);
       } else if (e.kind === 'mobFx' && e.style === 'dashcut') {
         // 瞬歩斬りの 斬る 瞬間: 大きな 三日月 2枚
         this.fxSlash(e.x, e.z, e.dir, e.r, 0xffffff, 1, 0.24);
@@ -2423,6 +2434,43 @@ export class DungeonView {
     const exC = this.exColor(e.element);
     const dir = e.dir;
     switch (e.fx) {
+      // ===== 拳闘士の 技(2026-11-28 技ごとに ちがう 見た目) =====
+      case 'jabs':
+        // 小さな 火花が 左右 交互に 2つ
+        for (let i = 0; i < 2; i++) this.fxBill('spark', i ? c : 0xffffff, e.x + Math.cos(dir + (i ? -0.25 : 0.25)) * 1.2, 0.9, e.z + Math.sin(dir + (i ? -0.25 : 0.25)) * 1.2, 0.9, 0.14, 0.5, i * 0.07);
+        break;
+      case 'tackle': {
+        // 肩から ぶつかる: 走る 道に 土けむり・前に 衝撃の 輪
+        for (let i = 0; i < 3; i++) this.fxBill('smoke', 0xb0a090, e.x + Math.cos(dir) * i * 1.3, 0.45, e.z + Math.sin(dir) * i * 1.3, 1.2, 0.45, 0.5, i * 0.08);
+        this.fxGround('ring', 0xffffff, e.x + Math.cos(dir) * e.len, e.z + Math.sin(dir) * e.len, 2.6, 0.35, 0.8, 0, 0, 0.8);
+        break;
+      }
+      case 'stomp':
+        // 踏みつけ: 地割れの 絵・土けむり・衝撃の 輪 2重
+        this.fxGround('ring', 0xffc080, e.x, e.z, e.r * 2.2, 0.5, 0.85);
+        this.fxGround('ring', 0xffffff, e.x, e.z, e.r * 1.3, 0.35, 0.85);
+        this.fxBill('smoke', 0xa89cb0, e.x, 0.5, e.z, e.r * 1.2, 0.6, 0.6);
+        this.enemyFx({ kind: 'mobFx', style: 'smash', x: e.x - Math.cos(dir), z: e.z - Math.sin(dir), dir, r: e.r, arc: 0 });
+        this.shake = Math.max(this.shake, 0.4);
+        break;
+      case 'upper':
+        // 打ち上げ: 前に 下から 上へ 光の 柱・星
+        this.fxBill('pillar', 0xfff0c0, e.x + Math.cos(dir) * 1.3, 1.6, e.z + Math.sin(dir) * 1.3, 3.2, 0.35, 0.3, 0, 2 / 3);
+        this.fxBill('star', 0xffffff, e.x + Math.cos(dir) * 1.3, 2.4, e.z + Math.sin(dir) * 1.3, 1.4, 0.4, 0.5, 0.08);
+        this.shake = Math.max(this.shake, 0.3);
+        break;
+      case 'hopcombo':
+        break;
+      case 'spinhook':
+        this.fxGround('circle_atk', c, e.x, e.z, e.r * 1.6, 0.4, 0.3, 4);
+        break;
+      case 'heavy':
+        // 重い ストレート: 炎の 爆発・ふき飛ばしの 衝撃
+        this.fxBill(ex, exC, e.x + Math.cos(dir) * 1.8, 1.0, e.z + Math.sin(dir) * 1.8, 3.2, 0.4, 0.6);
+        this.fxGround('ring', c, e.x + Math.cos(dir) * 1.8, e.z + Math.sin(dir) * 1.8, 3.6, 0.4, 0.8);
+        this.fxBill('smoke', 0x9a8a80, e.x + Math.cos(dir) * 2.6, 0.7, e.z + Math.sin(dir) * 2.6, 2.4, 0.6, 0.5, 0.05);
+        this.shake = Math.max(this.shake, 0.5);
+        break;
       // ===== 剣士の 技(2026-11-28 拳闘士と ちがう 見た目) =====
       case 'arcslash':
         // 大きな 半円の 斬撃(白い 芯 + 雷の 色)

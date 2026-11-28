@@ -393,13 +393,15 @@ export interface AdvState {
   atkUpUntil: number;
   /** とっしん 中(当てた モブは 1回だけ) */
   /** cut = 走り終わりに 斬る(瞬歩斬り。走っている 間は 当てない) */
-  dash: { until: number; hit: number[]; mul: number; speed: number; jab?: boolean; cut?: boolean } | null;
+  dash: { until: number; hit: number[]; mul: number; speed: number; jab?: boolean; cut?: boolean; knock?: number } | null;
   /** とびおりる 技の おちる ところ(ため の 間に 近づく) */
   jumpTo: { x: number; z: number; sx: number; sz: number } | null;
   /** 今の 技を ねらって うったか */
   aimed: boolean;
   /** 連続で 打つ 技(のこりの 回数・次の 時刻) */
-  combo: { left: number; next: number; mul: number; finale?: number; at?: { x: number; z: number } } | null;
+  combo: { left: number; next: number; mul: number; finale?: number; at?: { x: number; z: number }; step?: number; ring?: number; every?: number } | null;
+  /** 闘魂チャージ(擬人化 拳闘士): 通常攻撃 3段めで 衝撃波(時刻) */
+  fistShockUntil?: number;
   /** 剣気解放(擬人化 剣士): ふつうの 攻撃で 斬撃が 飛ぶ(時刻) */
   swordWaveUntil?: number;
   /** 擬人化RPG: 構えて 反撃(時刻)・速さ アップ(時刻と 倍) */
@@ -712,6 +714,7 @@ function fireTech(s: AdvState, slot: number): void {
     return;
   }
   if (SP?.swordWave) s.swordWaveUntil = s.t + T.buff.time;
+  if (SP?.fistShock) s.fistShockUntil = s.t + T.buff.time;
   switch (tc.kind) {
     case 'rush':
       // とっしん: 前へ 走って、ぶつかった 敵を 打つ
@@ -844,6 +847,57 @@ function swordMove(s: AdvState, mv: string, mul: number, tc: AdvTech, ev: (fx: s
       ev('arcslash', r);
       break;
     }
+    // ===== 拳闘士(2026-11-28) =====
+    case 'jabs':
+      // 目にも 止まらない 2連パンチ(短い・すぐ 次)
+      s.combo = { left: 2, next: s.t, mul: mul * 0.7, every: 0.07 };
+      ev('jabs', 1.6);
+      break;
+    case 'tackle':
+      // 肩から 体当たり: ぶつかった 敵を 大きく ふき飛ばす
+      s.dash = { until: s.t + 4.5 / 15, hit: [], mul, speed: 15, knock: 11 };
+      ev('tackle', 1.0, 4.5);
+      break;
+    case 'stomp': {
+      // 跳んで 踏みつけ: まわりを ふらつかせる
+      const r = 3.3 * area;
+      const list = inCircle(s, p.x, p.z, r);
+      hitAll(list, 0.9);
+      for (const m of list) if (m.act !== 'dead') m.stunUntil = Math.max(m.stunUntil ?? 0, s.t + 0.9);
+      hitCrates(s, (x, z) => Math.hypot(x - p.x, z - p.z) < r + 1);
+      ev('stomp', r);
+      break;
+    }
+    case 'upper': {
+      // 打ち上げ: 前の 敵を 浮かせて 動けなく する
+      const list = inCone(s, p.x, p.z, f, 1.9, 0.8);
+      hitAll(list, 2.0);
+      for (const m of list) if (m.act !== 'dead' && !isBoss(m)) m.stunUntil = Math.max(m.stunUntil ?? 0, s.t + 1.3);
+      ev('upper', 1.9);
+      break;
+    }
+    case 'hopcombo':
+      // 跳ねながら 3回: 1回ごとに 前へ
+      s.combo = { left: 3, next: s.t, mul: mul * 0.6, step: 0.9, every: 0.17 };
+      ev('hopcombo', 2.0);
+      break;
+    case 'spinhook':
+      // 回りながら フック 2回(まわり ぜんぶ)
+      s.combo = { left: 2, next: s.t, mul: mul * 0.7, ring: 2.6 * area, every: 0.16 };
+      ev('spinhook', 2.6 * area);
+      break;
+    case 'heavy': {
+      // ためた 重い ストレート: 前を 大きく ふき飛ばす
+      const list = inCone(s, p.x, p.z, f, 2.6, 0.75);
+      hitAll(list, 2.4);
+      for (const m of list) if (!isBoss(m)) {
+        m.vx += Math.cos(f) * 12;
+        m.vz += Math.sin(f) * 12;
+      }
+      hitCrates(s, inConeAt(p.x, p.z, f, 2.6, 0.75));
+      ev('heavy', 2.6);
+      break;
+    }
     case 'dashcut': {
       // 瞬歩斬り: ねらった 敵の 手前まで 素早く 走って、着いたら 斬る(2026-11-28 企画者「素早く 前に ダッシュしてから 切る 技」)
       const m = s.aimed ? aimedMob(s, f, 7) : nearestMob(s, 7);
@@ -940,6 +994,10 @@ function stepTechs(s: AdvState, dt: number): void {
         s.dash.hit.push(m.id);
         m.awake = true;
         damage(s, p, m, s.dash.mul, s.dash.jab ? undefined : s.techs[s.techSlot] ?? undefined);
+        if (s.dash.knock && !isBoss(m)) {
+          m.vx += Math.cos(p.face) * s.dash.knock;
+          m.vz += Math.sin(p.face) * s.dash.knock;
+        }
       }
     }
   }
@@ -947,15 +1005,20 @@ function stepTechs(s: AdvState, dt: number): void {
     const tc = s.techs[s.techSlot] ?? undefined;
     const last = s.combo.left === 1 && s.combo.finale;
     const at = s.combo.at;
+    if (s.combo.step) {
+      moveBy(s, p, Math.cos(p.face) * s.combo.step, Math.sin(p.face) * s.combo.step, ADV.player.r);
+      s.events.push({ kind: 'mobFx', style: 'hop', x: p.x, z: p.z, dir: p.face, r: 1, arc: 0 });
+    }
+    if (s.combo.ring) s.events.push({ kind: 'mobFx', style: 'hookring', x: p.x, z: p.z, dir: p.face, r: s.combo.ring, arc: 0 });
     if (at) s.events.push({ kind: 'mobFx', style: 'flurryhit', x: at.x, z: at.z, dir: s.rng() * Math.PI * 2, r: 1.6, arc: 0 });
-    for (const m of at ? inCircle(s, at.x, at.z, 1.7) : inCone(s, p.x, p.z, p.face, T.combo.range, T.combo.arc)) {
+    for (const m of at ? inCircle(s, at.x, at.z, 1.7) : s.combo.ring ? inCircle(s, p.x, p.z, s.combo.ring) : inCone(s, p.x, p.z, p.face, T.combo.range, T.combo.arc)) {
       m.awake = true;
       damage(s, p, m, s.combo.mul * (last ? s.combo.finale! : 1), tc);
     }
     if (last) s.events.push({ kind: 'mobFx', style: 'finale', x: p.x, z: p.z, dir: p.face, r: T.combo.range, arc: T.combo.arc });
     hitCrates(s, inConeAt(p.x, p.z, p.face, T.combo.range, T.combo.arc));
     s.combo.left--;
-    s.combo.next = s.t + T.combo.every;
+    s.combo.next = s.t + (s.combo.every ?? T.combo.every);
     if (s.combo.left <= 0) s.combo = null;
   }
   for (const sh of s.shots) {
@@ -1301,6 +1364,14 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
             damage(s, p, m, mul);
           }
           hitCrates(s, inConeAt(p.x, p.z, p.face, J.range, J.arc * (s.chain === 3 ? 1.3 : 1)));
+          // 闘魂チャージの 間: 3段めで まわりに 衝撃波
+          if ((s.fistShockUntil ?? 0) > s.t && s.chain === 3) {
+            for (const m of inCircle(s, p.x, p.z, 2.4)) {
+              m.awake = true;
+              damage(s, p, m, 0.8 * mul);
+            }
+            s.events.push({ kind: 'mobFx', style: 'fistshock', x: p.x, z: p.z, dir: p.face, r: 2.4, arc: 0 });
+          }
           // 剣気解放の 間: 小さな 斬撃が 飛ぶ
           if ((s.swordWaveUntil ?? 0) > s.t) {
             const sp = 13;
