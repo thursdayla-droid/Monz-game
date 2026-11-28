@@ -2697,6 +2697,37 @@ export class DungeonView {
     });
   }
 
+  /** 円の 光の 柱(下から のびて、上に いくほど うすく なる) */
+  private fxColumn(x: number, z: number, r: number, h: number, color: number, life: number): void {
+    if (!this.columnTex) {
+      const c = document.createElement('canvas');
+      c.width = 8;
+      c.height = 128;
+      const g = c.getContext('2d')!;
+      const gr = g.createLinearGradient(0, 128, 0, 0);
+      gr.addColorStop(0, 'rgba(255,255,255,1)');
+      gr.addColorStop(0.55, 'rgba(255,255,255,0.65)');
+      gr.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = gr;
+      g.fillRect(0, 0, 8, 128);
+      this.columnTex = new THREE.CanvasTexture(c);
+    }
+    const geo = new THREE.CylinderGeometry(r, r * 0.85, h, 28, 1, true);
+    geo.translate(0, h / 2, 0);
+    const mat = new THREE.MeshBasicMaterial({ map: this.columnTex, color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+    mat.color.multiplyScalar(1.4);
+    const m = new THREE.Mesh(geo, mat);
+    m.position.set(x, 0.02, z);
+    m.renderOrder = 6;
+    this.addFx(m, life, (k) => {
+      // 下から 一気に のびて、横に 少し ふくらみ ながら 消える
+      m.scale.set(0.7 + 0.4 * k, Math.min(1, k * 5), 0.7 + 0.4 * k);
+      m.rotation.y += 0.15;
+      mat.opacity = k < 0.2 ? 1 : Math.max(0, 1 - (k - 0.2) / 0.8);
+    });
+  }
+  private columnTex: THREE.CanvasTexture | null = null;
+
   /** 当たる 扇(または 円)の 中を うすく ぬる 光。外がわ = 届く 長さ・左右 ±arc(PI で 円) */
   private fxSector(x: number, z: number, dir: number, range: number, arc: number, color: number, life: number): void {
     const geo = new THREE.CircleGeometry(range, 40, -arc, arc * 2);
@@ -2841,7 +2872,9 @@ export class DungeonView {
         break;
       }
       case 'weruption': // 爆炎ナックル: 大爆発(炎の 柱・大きな 輪・火花)
-        this.fxBill('pillar', 0xff6a1a, e.x, 2.0, e.z, 4.4, 0.45, 0.3, 0, 2 / 3);
+        // 2026-11-28 企画者「3段目の 柱は 三角 じゃなくて 円の 柱」→ 丸い 炎の 柱(外 オレンジ・内 黄色)
+        this.fxColumn(e.x, e.z, 1.3, 5.0, 0xff5a1a, 0.5);
+        this.fxColumn(e.x, e.z, 0.7, 5.6, 0xffd060, 0.42);
         this.fxBill('burst', 0xffb03a, e.x, 1.0, e.z, e.r * 1.6, 0.4, 0.7);
         this.fxBill('ex_fire', 0xff4a1a, e.x, 0.8, e.z, e.r * 1.3, 0.45, 0.6);
         this.fxGround('ring', 0xff6a1a, e.x, e.z, e.r * 2.2, 0.45, 0.9);
