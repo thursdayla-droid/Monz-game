@@ -288,6 +288,9 @@ export interface Shot {
   life: number;
   mul: number;
   tech: AdvTech;
+  /** 敵を つらぬく(当てた 敵は 1回だけ)・見た目(剣の 斬撃) */
+  pierce?: number[];
+  art?: string;
 }
 
 /** 床に 残る 場(魔法陣 など) */
@@ -395,7 +398,9 @@ export interface AdvState {
   /** 今の 技を ねらって うったか */
   aimed: boolean;
   /** 連続で 打つ 技(のこりの 回数・次の 時刻) */
-  combo: { left: number; next: number; mul: number; finale?: number } | null;
+  combo: { left: number; next: number; mul: number; finale?: number; at?: { x: number; z: number } } | null;
+  /** 剣気解放(擬人化 剣士): ふつうの 攻撃で 斬撃が 飛ぶ(時刻) */
+  swordWaveUntil?: number;
   /** 擬人化RPG: 構えて 反撃(時刻)・速さ アップ(時刻と 倍) */
   counterUntil?: number;
   hasteUntil?: number;
@@ -676,7 +681,7 @@ export function aimPreview(s: AdvState, slot: number, dir: number | null): AimSh
 }
 
 /** その技の ため(秒) */
-export const techWindup = (kind: string): number => ADV.tech.windups[kind] ?? ADV.tech.windup;
+export const techWindup = (kind: string, id?: string): number => (id ? RPG_SPECIAL[techName(id)]?.windup : undefined) ?? ADV.tech.windups[kind] ?? ADV.tech.windup;
 
 /** 技を 出す(ためが 終わった 時)。種類ごとに 効き方を 変える【仮】 */
 function fireTech(s: AdvState, slot: number): void {
@@ -699,6 +704,13 @@ function fireTech(s: AdvState, slot: number): void {
     const d = wallDist(s, p.x, p.z, p.face, reach * 0.6);
     return { x: p.x + Math.cos(p.face) * d, z: p.z + Math.sin(p.face) * d };
   };
+  const SP = RPG_SPECIAL[techName(tc.id)];
+  if (SP?.move) {
+    swordMove(s, SP.move, mul, tc, ev, area, target);
+    if (s.growType === 'tough') heal(s, Math.round(p.maxHp * Y.toughHeal));
+    return;
+  }
+  if (SP?.swordWave) s.swordWaveUntil = s.t + T.buff.time;
   switch (tc.kind) {
     case 'rush':
       // とっしん: 前へ 走って、ぶつかった 敵を 打つ
@@ -814,6 +826,83 @@ function fireTech(s: AdvState, slot: number): void {
   if (s.growType === 'tough') heal(s, Math.round(p.maxHp * Y.toughHeal));
 }
 
+/** 剣士の 技(擬人化。2026-11-28 企画者「拳闘士と 一緒すぎる」→ 剣士だけの 動き方)【仮】 */
+function swordMove(s: AdvState, mv: string, mul: number, tc: AdvTech, ev: (fx: string, r?: number, len?: number, tx?: number, tz?: number) => void, area: number, target: (reach: number) => { x: number; z: number }): void {
+  const p = s.player;
+  const hitAll = (list: Actor[], k = 1) => list.forEach((m) => {
+    m.awake = true;
+    damage(s, p, m, mul * k, tc);
+  });
+  const f = p.face;
+  switch (mv) {
+    case 'arc': {
+      // 前の 広い 範囲(半円)を 一度に 斬る
+      const r = 2.9 * area;
+      hitAll(inCone(s, p.x, p.z, f, r, 1.55));
+      hitCrates(s, inConeAt(p.x, p.z, f, r, 1.55));
+      ev('arcslash', r);
+      break;
+    }
+    case 'through':
+      // 敵の 間を 走りぬける(速く 長く。通った 敵を ぜんぶ)
+      s.dash = { until: s.t + 6 / 20, hit: [], mul, speed: 20 };
+      ev('through', 0.9, 6);
+      break;
+    case 'thrust': {
+      // 一歩 踏みこんで 細く 長く 突く。つらぬいて 遠くへ 飛ばす
+      moveBy(s, p, Math.cos(f) * 1.0, Math.sin(f) * 1.0, ADV.player.r);
+      const len = Math.max(1, wallDist(s, p.x, p.z, f, 5));
+      const list = inLine(s, p.x, p.z, f, len, 0.55 * area);
+      hitAll(list, 1.25);
+      for (const m of list) if (!isBoss(m)) {
+        m.vx += Math.cos(f) * 9;
+        m.vz += Math.sin(f) * 9;
+      }
+      ev('thrust', 0.55, len);
+      break;
+    }
+    case 'flurry': {
+      // ねらった 敵の まわりに 残像 → 4回(その 場所を 斬る)
+      const g = target(7);
+      s.combo = { left: RPG_SPECIAL[techName(tc.id)]?.combo ?? 4, next: s.t + 0.05, mul: mul * 0.5, at: g };
+      ev('flurry', 1.6, 0, g.x, g.z);
+      break;
+    }
+    case 'xcut': {
+      // はなれた 敵の 場所に X の 斬撃(2回 当たる)
+      const g = target(7);
+      const list = inCircle(s, g.x, g.z, 1.9 * area);
+      hitAll(list, 0.75);
+      hitAll(list.filter((m) => m.act !== 'dead'), 0.75);
+      ev('xcut', 1.9 * area, 0, g.x, g.z);
+      break;
+    }
+    case 'iai': {
+      // ためて 一瞬で 大きく 斬りはらう(とても 強い)
+      const r = 3.8 * area;
+      hitAll(inCone(s, p.x, p.z, f, r, 1.0), 2.2);
+      hitCrates(s, inConeAt(p.x, p.z, f, r, 1.0));
+      ev('iai', r);
+      break;
+    }
+    case 'wave': {
+      // 敵を つらぬいて 進む 巨大な 斬撃
+      const sp = 11;
+      s.shots.push({ id: ++s.seq, x: p.x + Math.cos(f) * 1, z: p.z + Math.sin(f) * 1, vx: Math.cos(f) * sp, vz: Math.sin(f) * sp, r: 1.3, life: 1.1, mul: mul * 1.1, tech: tc, pierce: [], art: 'big' });
+      ev('skywave', 1.3);
+      break;
+    }
+    case 'storm': {
+      // まわりの 見える 敵 すべてに 雷の 斬撃
+      const list = inCircle(s, p.x, p.z, 8.5 * area);
+      hitAll(list, 1.1);
+      for (const m of list) s.events.push({ kind: 'mobFx', style: 'bolt', x: m.x, z: m.z, dir: 0, r: 1.5, arc: 0 });
+      ev('storm', 8.5 * area);
+      break;
+    }
+  }
+}
+
 /** 弾・場・とっしん・連続 打ち・状態の 時間を すすめる */
 function stepTechs(s: AdvState, dt: number): void {
   const p = s.player;
@@ -834,7 +923,9 @@ function stepTechs(s: AdvState, dt: number): void {
   if (s.combo && s.t >= s.combo.next) {
     const tc = s.techs[s.techSlot] ?? undefined;
     const last = s.combo.left === 1 && s.combo.finale;
-    for (const m of inCone(s, p.x, p.z, p.face, T.combo.range, T.combo.arc)) {
+    const at = s.combo.at;
+    if (at) s.events.push({ kind: 'mobFx', style: 'flurryhit', x: at.x, z: at.z, dir: s.rng() * Math.PI * 2, r: 1.6, arc: 0 });
+    for (const m of at ? inCircle(s, at.x, at.z, 1.7) : inCone(s, p.x, p.z, p.face, T.combo.range, T.combo.arc)) {
       m.awake = true;
       damage(s, p, m, s.combo.mul * (last ? s.combo.finale! : 1), tc);
     }
@@ -851,6 +942,16 @@ function stepTechs(s: AdvState, dt: number): void {
     if (!fits(s.floor, sh.x, sh.z, 0.05)) {
       sh.life = 0;
       hitCrates(s, (x, z) => Math.abs(x - sh.x) < CELL * 0.6 && Math.abs(z - sh.z) < CELL * 0.6);
+    }
+    if (sh.pierce) {
+      // つらぬく 斬撃: 当てた 敵は 1回だけ・止まらない
+      for (const m of inCircle(s, sh.x, sh.z, sh.r)) {
+        if (sh.pierce.includes(m.id)) continue;
+        sh.pierce.push(m.id);
+        m.awake = true;
+        damage(s, p, m, sh.mul, sh.tech);
+      }
+      continue;
     }
     const m = inCircle(s, sh.x, sh.z, sh.r)[0];
     if (m && sh.life > 0) {
@@ -1143,7 +1244,7 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
       s.techCd[ti] = s.t + tc.cooldown * (1 - Math.min(0.3, s.tech / 500)) * (s.growType === 'speed' ? ADV.type.speedCd : 1);
     }
     if (p.act === 'tech') {
-      const wu = techWindup(s.techs[s.techSlot]!.kind);
+      const wu = techWindup(s.techs[s.techSlot]!.kind, s.techs[s.techSlot]!.id);
       // とびおり: ため(空中)の 間に おちる ところへ 近づく(壁の 中には 入らない)
       if (s.jumpTo && !p.struck) {
         const k = Math.min(1, p.actT / wu);
@@ -1177,6 +1278,11 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
             damage(s, p, m, mul);
           }
           hitCrates(s, inConeAt(p.x, p.z, p.face, J.range, J.arc * (s.chain === 3 ? 1.3 : 1)));
+          // 剣気解放の 間: 小さな 斬撃が 飛ぶ
+          if ((s.swordWaveUntil ?? 0) > s.t) {
+            const sp = 13;
+            s.shots.push({ id: ++s.seq, x: p.x + Math.cos(p.face) * 0.9, z: p.z + Math.sin(p.face) * 0.9, vx: Math.cos(p.face) * sp, vz: Math.sin(p.face) * sp, r: 0.5, life: 0.45, mul: 0.6 * mul, tech: WATER_JAB, pierce: [], art: 'small' });
+          }
         }
       }
       // range・arc = 当たる 広さ(モブの 中心まで range + モブの 大きさ・左右 arc)

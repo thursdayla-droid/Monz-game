@@ -116,6 +116,19 @@ describe('冒険の ダンジョン', () => {
 });
 
 describe('冒険の 動き', () => {
+  it('擬人化: ZIPP(剣士)の 技は 11こ・どれも 使える・剣士だけの 動き方を 出しても こわれない', () => {
+    expect(RPG_LEARN.zipp.length).toBe(11);
+    for (const [n] of RPG_LEARN.zipp) {
+      const t = getTech(n);
+      const s = newAdventure(5, { hp: 10, power: 10, tough: 10, speed: 10, tech: 10 }, 3, [{ id: n, kind: t.kind, power: t.power, cooldown: 2, element: t.element, effect: t.effect, strength: t.strength }]);
+      const m = s.mobs[0];
+      m.x = s.player.x + 1.5;
+      m.z = s.player.z;
+      s.player.face = 0;
+      for (let i = 0; i < 60; i++) stepAdventure(s, { mx: 0, mz: 0, attack: false, tech: i === 0 ? 0 : null, techDir: null }, 1 / 30);
+      expect(s.events).toBeDefined();
+    }
+  });
   it('擬人化RPG: BUNK(拳闘士)の 技は 11こ・どれも 使える・レベルで ふえる', () => {
     expect(RPG_LEARN.bunk.length).toBe(11);
     for (const [n] of RPG_LEARN.bunk) expect(getTech(n).name).toBe(n);

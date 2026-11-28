@@ -41,7 +41,7 @@ export const SAFE_ATTACK: Record<string, number> = { L_Upperarm: 1.0, R_Upperarm
 
 /** 攻撃の動きに要るもの(MonsterRig から) */
 export interface AttackPose {
-  kind: 'rush' | 'combo' | 'shot' | 'slam' | 'shot1' | 'roar';
+  kind: 'rush' | 'combo' | 'shot' | 'slam' | 'shot1' | 'roar' | 'thrust' | 'overhead' | 'iai' | 'raise';
   /** ため(0〜1)・出している(true)・もどり(0〜1) */
   wind: number;
   active: boolean;
@@ -394,6 +394,63 @@ export class BunkBones {
       this.rot('L_Thigh', 'side', 0.4 * k * w);
       this.rot('R_Thigh', 'side', -0.35 * k * w);
       this.rot('L_Calf', 'side', -0.4 * k * w);
+    } else if (a.kind === 'thrust' || a.kind === 'overhead' || a.kind === 'iai' || a.kind === 'raise') {
+      // 剣士の 動き(2026-11-28 企画者「拳闘士と 一緒すぎる」): 両手で 柄を にぎって
+      const k = a.active ? 1 : a.wind > 0 ? a.wind : Math.max(0, 1 - a.recover);
+      const go = a.active || (a.wind === 0 && a.recover > 0) ? 1 : 0;
+      const both = (side: number, up: number, fore: number) => {
+        this.rot('R_Upperarm', 'side', side * w);
+        this.rot('L_Upperarm', 'side', side * w);
+        this.rot('R_Upperarm', 'up', up * w);
+        this.rot('L_Upperarm', 'up', -up * w);
+        this.rot('R_Forearm', 'side', fore * w);
+        this.rot('L_Forearm', 'side', (fore + 0.15) * w);
+      };
+      if (a.kind === 'thrust') {
+        // 突き: 引いて(ひじを 曲げ 腰に) → 両腕を まっすぐ 前へ・大きく 踏みこむ
+        if (go) both(1.5, 0.5, 0.05);
+        else both(0.6 * k, 0.4, 1.4 * k);
+        this.rot('Spine01', 'side', (go ? -0.2 : 0.1 * k) * w);
+        this.rot('L_Thigh', 'side', (go ? 0.7 : 0.2 * k) * w);
+        this.rot('L_Calf', 'side', (go ? -0.5 : -0.2 * k) * w);
+        this.rot('R_Thigh', 'side', (go ? -0.4 : 0) * w);
+        this.lunge = go * w;
+      } else if (a.kind === 'overhead') {
+        // 振り下ろし: 頭の 上へ 振りかぶり → 前へ 一気に 振り下ろす
+        if (go) both(0.9, 0.45, 0.1);
+        else both(2.6 * k, 0.4, 0.9 * k);
+        this.rot('Spine01', 'side', (go ? -0.35 : 0.2 * k) * w);
+        this.rot('Spine02', 'side', (go ? -0.2 : 0.1 * k) * w);
+        this.rot('L_Thigh', 'side', 0.4 * go * w);
+        this.rot('L_Calf', 'side', -0.4 * go * w);
+        this.lunge = 0.5 * go * w;
+      } else if (a.kind === 'iai') {
+        // 居合: 腰に 剣を 引いて 低く 構え(ため) → 一瞬で 反対側まで 振りぬく
+        if (go) {
+          both(1.3, 0.45, 0.2);
+          this.rot('R_Upperarm', 'up', -1.1 * w);
+          this.rot('L_Upperarm', 'up', -1.1 * w);
+          this.rot('Spine01', 'up', -0.45 * w);
+          this.rot('Spine02', 'up', -0.35 * w);
+        } else {
+          both(0.5 * k, 0.6, 0.9 * k);
+          this.rot('R_Upperarm', 'up', 0.8 * k * w);
+          this.rot('L_Upperarm', 'up', 0.8 * k * w);
+          this.rot('Spine01', 'up', 0.45 * k * w);
+          this.rot('L_Thigh', 'side', 0.5 * k * w);
+          this.rot('L_Calf', 'side', -0.8 * k * w);
+          this.rot('R_Calf', 'side', -0.8 * k * w);
+          this.rot('R_Thigh', 'side', 0.2 * k * w);
+        }
+        this.lunge = 0.7 * go * w;
+      } else {
+        // かかげる: 剣を 両手で 天へ
+        both(2.9 * k, 0.45, 0.2);
+        this.rot('Spine01', 'side', 0.15 * k * w);
+        this.rot('Head', 'side', 0.2 * k * w);
+      }
+      this.punchExt = go * w;
+      this.punchSide = 1;
     } else if (a.kind === 'slam') {
       // 地面なぐり: 右こぶしを 頭の 上へ 振り上げ → 足もとへ 振り下ろす(体ごと しゃがむ)
       let raise = 0;

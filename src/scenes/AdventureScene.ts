@@ -192,6 +192,8 @@ export class AdventureScene extends Phaser.Scene {
     this.techNames = techs.map((t) => (t ? getTech(t.id).name : ''));
     this.state = newAdventure(seed, me.stats, advRun.floor, techs, growType, me.species);
     // 擬人化RPG の 試作: BUNK は 拳闘士。進化で 通常攻撃が 少し 長く なる(姿は 変わらない)
+    // 擬人化は 武器で 打つ(MONZ の 電撃ダッシュ・ムチ などは 使わない)
+    if (rpgTest()) this.state.jab = 'punch';
     if (rpgTest()) this.state.jabReach = rpgJabReach(ROLE_OF[rpgSp()] ?? '拳闘士', formAt(this.level));
     if (advRun.carry) {
       this.state.bag = advRun.carry.bag;

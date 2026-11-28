@@ -31,18 +31,18 @@ const RPG_ROWS: TechRow[] = [
   { species: 'bunk_rpg', name: 'ブロウクラッシュ', type: 'ビーム', element: '無', strength: '強', level: 30, condition: 'なし', effect: 'ふらつき', memo: '地面を なぐり、前へ 一直線に 衝撃が 走る' },
   { species: 'bunk_rpg', name: '闘魂チャージ', type: '強化', element: '無', strength: '中', level: 45, condition: 'なし', effect: 'なし', memo: '気合を ためて 攻撃と 速さが 上がる' },
   { species: 'bunk_rpg', name: 'ラッシュ・ザ・キング', type: '連続攻撃', element: '無', strength: '大技', level: 60, condition: 'なし', effect: 'ふらつき', memo: 'こぶしの 連打、最後に 大きな アッパー' },
-  // ZIPP(剣士)の 技(2026-11-28 企画者「スキルは もう少し 剣士ぽく。ソードを 使った 技に」→ 11こ 全部 剣の 技。雷は ZIPP らしさ)【案】
-  { species: 'zipp_rpg', name: '一閃', type: '連続攻撃', element: '雷', strength: '弱', level: 1, condition: 'なし', effect: 'なし', memo: '素早い 横斬り。当てやすい' },
-  { species: 'zipp_rpg', name: '雷光斬り', type: '突進', element: '雷', strength: '弱', level: 1, condition: 'なし', effect: 'なし', memo: '雷を まとって 走りぬけながら 斬る' },
-  { species: 'zipp_rpg', name: '飛燕三連', type: '連射', element: '雷', strength: '中', level: 10, condition: 'なし', effect: 'まひ', memo: '剣を 3回 振って、斬撃を 3つ 飛ばす' },
-  { species: 'zipp_rpg', name: '疾風突き', type: 'ビーム', element: '雷', strength: '中', level: 15, condition: 'なし', effect: 'なし', memo: '前へ 一気に 踏みこんで、一直線に 突く' },
-  { species: 'zipp_rpg', name: '残影連斬', type: '連続攻撃', element: '雷', strength: '中', level: 20, condition: 'なし', effect: 'なし', memo: '残像を 残しながら 4回 斬る' },
+  // ZIPP(剣士)の 技(2026-11-28 企画者「スキルは 剣士ぽく」→ 同じ日「拳闘士と 技が 一緒すぎる(見た目・動き・中身)」→ 剣士だけの 動き方に 作り直し)【案】
+  { species: 'zipp_rpg', name: '一閃', type: '連続攻撃', element: '雷', strength: '弱', level: 1, condition: 'なし', effect: 'なし', memo: '剣を 大きく 振って、前の 広い 範囲を まとめて 斬る' },
+  { species: 'zipp_rpg', name: '雷光斬り', type: '突進', element: '雷', strength: '弱', level: 1, condition: 'なし', effect: 'なし', memo: '敵の 間を 一瞬で 走りぬけ、通った 敵を ぜんぶ 斬る' },
+  { species: 'zipp_rpg', name: '飛燕三連', type: '連射', element: '雷', strength: '中', level: 10, condition: 'なし', effect: 'まひ', memo: '剣を 振って、三日月の 斬撃を 3つ 飛ばす' },
+  { species: 'zipp_rpg', name: '疾風突き', type: 'ビーム', element: '雷', strength: '中', level: 15, condition: 'なし', effect: 'なし', memo: '一歩 踏みこんで まっすぐ 突く。並んだ 敵を つらぬいて 遠くへ 飛ばす' },
+  { species: 'zipp_rpg', name: '残影連斬', type: '連続攻撃', element: '雷', strength: '中', level: 20, condition: 'なし', effect: 'なし', memo: 'ねらった 敵の まわりに 残像が 出て、4回 斬りつける' },
   { species: 'zipp_rpg', name: '雷鳴落とし', type: '落下', element: '雷', strength: '中', level: 25, condition: 'なし', effect: 'まひ', memo: '跳び上がって 剣を 地面に 突き立て、雷を 落とす' },
-  { species: 'zipp_rpg', name: '十字斬り', type: '連続攻撃', element: '雷', strength: '強', level: 30, condition: 'なし', effect: '防御ダウン', memo: 'X の 字に 2回 斬る。当たると 敵の 守りが 下がる' },
-  { species: 'zipp_rpg', name: '迅雷剣舞', type: '回転', element: '雷', strength: '強', level: 40, condition: 'なし', effect: 'まひ', memo: '剣を 振り回して 回り、まわりの 敵を 斬る' },
-  { species: 'zipp_rpg', name: '剣気解放', type: '強化', element: '雷', strength: '中', level: 45, condition: 'なし', effect: 'なし', memo: '剣が 光って、しばらく 攻撃と 速さが 上がる' },
-  { species: 'zipp_rpg', name: '天裂き', type: 'ビーム', element: '雷', strength: '大技', level: 60, condition: 'なし', effect: 'まひ', memo: '剣を 振り下ろして、前へ 大きな 斬撃を 飛ばす' },
-  { species: 'zipp_rpg', name: '千雷一刀', type: '火柱', element: '雷', strength: '大技', level: 70, condition: 'なし', effect: 'まひ', memo: '剣を 天に かかげて 雷を 集め、ねらった 所へ 巨大な 落雷' },
+  { species: 'zipp_rpg', name: '十字斬り', type: '連続攻撃', element: '雷', strength: '強', level: 30, condition: 'なし', effect: '防御ダウン', memo: 'はなれた 敵の 場所に X の 字の 斬撃を 刻む。当たると 守りが 下がる' },
+  { species: 'zipp_rpg', name: '居合・雷切', type: '連続攻撃', element: '雷', strength: '強', level: 40, condition: 'なし', effect: 'まひ', memo: '剣を 構えて ためて、一瞬で 大きく 斬りはらう。とても 強い 一撃' },
+  { species: 'zipp_rpg', name: '剣気解放', type: '強化', element: '雷', strength: '中', level: 45, condition: 'なし', effect: 'なし', memo: 'しばらく 攻撃が 上がり、ふつうの 攻撃でも 小さな 斬撃が 飛ぶ' },
+  { species: 'zipp_rpg', name: '天裂き', type: '連射', element: '雷', strength: '大技', level: 60, condition: 'なし', effect: 'まひ', memo: '剣を 振り下ろして、敵を つらぬいて 進む 巨大な 斬撃を 飛ばす' },
+  { species: 'zipp_rpg', name: '千雷一刀', type: '火柱', element: '雷', strength: '大技', level: 70, condition: 'なし', effect: 'まひ', memo: '剣を 天に かかげ、まわりの 敵 すべてに 雷の 斬撃を 落とす' },
 ];
 addTechRows(RPG_ROWS);
 
@@ -70,7 +70,7 @@ export const RPG_LEARN: Record<string, [string, number][]> = {
     ['残影連斬', 20],
     ['雷鳴落とし', 25],
     ['十字斬り', 30],
-    ['迅雷剣舞', 40],
+    ['居合・雷切', 40],
     ['剣気解放', 45],
     ['天裂き', 60],
     ['千雷一刀', 70],
@@ -89,16 +89,23 @@ export const rpgTechDesc = (name: string): string | null => RPG_ROWS.find((r) =>
 export const rpgLearned = (species: string, level: number): string[] => (RPG_LEARN[species] ?? []).filter(([, l]) => level >= l).map(([n]) => n);
 
 /** 技ごとの 特別な 動き【仮】: combo = 連打の 回数・finale = 最後の 一発の 倍・counter = 構えて 反撃・haste = 速さの 倍 */
-export const RPG_SPECIAL: Record<string, { combo?: number; finale?: number; counter?: boolean; haste?: number; shots?: number }> = {
+/** 剣士の 技の 動き方(拳闘士と ちがう 中身): arc 広く 斬る・through 走りぬけ・thrust 突き・flurry ねらった 敵に 連続・xcut はなれた 所に X・iai ため斬り・wave つらぬく 斬撃・storm まわり 全部に 落雷 */
+export type SwordMove = 'arc' | 'through' | 'thrust' | 'flurry' | 'xcut' | 'iai' | 'wave' | 'storm';
+export const RPG_SPECIAL: Record<string, { combo?: number; finale?: number; counter?: boolean; haste?: number; shots?: number; move?: SwordMove; windup?: number; swordWave?: boolean }> = {
   ジャブジャブ: { combo: 2 },
   アッパーカット: { combo: 1, finale: 2.2 },
   闘魂チャージ: { haste: 1.25 },
   'ラッシュ・ザ・キング': { combo: 6, finale: 2.5 },
-  一閃: { combo: 1 },
-  十字斬り: { combo: 2 },
-  剣気解放: { haste: 1.15 },
-  残影連斬: { combo: 4 },
+  一閃: { move: 'arc', windup: 0.12 },
+  雷光斬り: { move: 'through' },
   飛燕三連: { shots: 3 },
+  疾風突き: { move: 'thrust', windup: 0.2 },
+  残影連斬: { move: 'flurry', combo: 4 },
+  十字斬り: { move: 'xcut', windup: 0.3 },
+  '居合・雷切': { move: 'iai', windup: 0.7 },
+  剣気解放: { swordWave: true },
+  天裂き: { move: 'wave', windup: 0.45 },
+  千雷一刀: { move: 'storm', windup: 0.6 },
 };
 
 /** ロールの 初めの 武器(2026-11-28 企画者「ロールに よって 武器だけは 初期の 装備」)。3D は 武器の ファイル(まだ ない 武器は なし) */

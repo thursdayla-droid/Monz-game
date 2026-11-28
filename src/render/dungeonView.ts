@@ -1993,6 +1993,13 @@ export class DungeonView {
           this.fxGround('ring', 0xffb060, fx, fz, 3.2, 0.45, 0.8);
           this.shake = Math.max(this.shake, 0.45);
         }
+      } else if (e.kind === 'mobFx' && e.style === 'flurryhit') {
+        // 残影連斬の 1回: ねらった 所に 斬撃が ばらばらの 向きで
+        this.fxSlash(e.x - Math.cos(e.dir) * 0.9, e.z - Math.sin(e.dir) * 0.9, e.dir, 1.6, Math.random() < 0.5 ? 0xffffff : 0xffe24a, Math.random() < 0.5 ? 1 : -1, 0.18);
+      } else if (e.kind === 'mobFx' && e.style === 'bolt') {
+        // 千雷一刀: 敵の 上に 雷の 斬撃が 落ちる
+        this.fxBill('pillar', 0xffe24a, e.x, 1.8, e.z, 3.6, 0.35, 0.2, Math.random() * 0.25, 2 / 3);
+        this.fxBill('ex_thunder', 0xffffff, e.x, 1.0, e.z, 2.0, 0.3, 0.5, 0.1 + Math.random() * 0.25);
       } else if (e.kind === 'mobFx' && ['press', 'club', 'spin', 'quake', 'spit', 'summon'].includes(e.style)) {
         const c = e.style === 'quake' ? 0xffb03a : e.style === 'spit' ? 0x9aff5a : e.style === 'summon' ? 0xc07aff : 0xff6a3a;
         if (e.style !== 'spit' && e.style !== 'press') this.groundRing(e.x, e.z, e.r, c, e.style === 'quake' ? 0.6 : 0.4, e.style === 'quake' ? 0.12 : 0.25);
@@ -2024,7 +2031,7 @@ export class DungeonView {
     const W = ADV.player.windup;
     const tc = p.act === 'tech' ? s.techs[s.techSlot] : null;
     // 技は その技の 動き(MONZ RUMBLE の 体の 動き)で 見せる(2026-11-07 企画者「技の モーションが 全部 一緒」)
-    const tw = tc ? techWindup(tc.kind) : W;
+    const tw = tc ? techWindup(tc.kind, tc.id) : W;
     f.act =
       tc
         ? { k: 'tech', id: tc.id, t: p.actT, dir: p.face, fired: p.actT >= tw, hit: p.actT >= tw, tx: p.x, tz: p.z, windup: tw, n: p.actT >= tw ? 1 : 0, next: 0 }
@@ -2116,10 +2123,10 @@ export class DungeonView {
         const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: c, transparent: true, opacity: 0.5, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending }));
         glow.scale.setScalar(sh.r * 3.5);
         // 剣士の 技の 弾は 斬撃(三日月の 気の 刃)
-        const enm = this.pixelOpt && !this.fist ? 'none' : SHOT_EL[sh.tech.element] ?? 'none';
+        const enm = sh.art || (this.pixelOpt && !this.fist) ? 'none' : SHOT_EL[sh.tech.element] ?? 'none';
         // 2026-11-27 企画者の 絵(design/adventure/shots)。なければ プログラムの 絵
         const core = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.shotArt(enm) ?? shotTexture(enm), transparent: true, depthWrite: false, depthTest: false }));
-        const sz = Math.max(0.9, sh.r * 3.4);
+        const sz = sh.art === 'big' ? 3.2 : sh.art === 'small' ? 1.1 : Math.max(0.9, sh.r * 3.4);
         core.scale.set(sz * 2, sz, 1);
         core.material.rotation = Math.atan2(-sh.vz * 0.71, sh.vx);
         g.add(glow, core);
@@ -2364,7 +2371,7 @@ export class DungeonView {
     const mat = m.material as THREE.MeshBasicMaterial;
     mat.map = this.fxTex(tex);
     mat.color.setHex(self ? 0x9affc0 : EL_HEX[tc.element] ?? 0xffffff);
-    const w = Math.min(1, p.actT / Math.max(0.05, techWindup(tc.kind)));
+    const w = Math.min(1, p.actT / Math.max(0.05, techWindup(tc.kind, tc.id)));
     m.visible = true;
     m.position.set(p.x, 0.07, p.z);
     m.rotation.z += dt * 2.5;
@@ -2389,6 +2396,70 @@ export class DungeonView {
     const exC = this.exColor(e.element);
     const dir = e.dir;
     switch (e.fx) {
+      // ===== 剣士の 技(2026-11-28 拳闘士と ちがう 見た目) =====
+      case 'arcslash':
+        // 大きな 半円の 斬撃(白い 芯 + 雷の 色)
+        this.fxSlash(e.x, e.z, dir, e.r, c, 1, 0.26);
+        this.fxSlash(e.x, e.z, dir, e.r * 0.95, 0xffffff, 1, 0.22, 0.03);
+        this.fxGround('ring', c, e.x + Math.cos(dir) * e.r * 0.5, e.z + Math.sin(dir) * e.r * 0.5, e.r * 1.4, 0.3, 0.6, 0, 0, 0.4);
+        break;
+      case 'through': {
+        // 走った 道に 雷の 線と 残像の 斬撃
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(e.len, 0.35), this.fxMat('slash', c));
+        m.rotation.x = -Math.PI / 2;
+        m.rotation.z = -dir;
+        m.position.set(e.x + Math.cos(dir) * e.len / 2, 0.5, e.z + Math.sin(dir) * e.len / 2);
+        this.addFx(m, 0.45, (k) => ((m.material as THREE.MeshBasicMaterial).opacity = 1 - k));
+        for (let i = 1; i <= 3; i++) this.fxSlash(e.x + Math.cos(dir) * e.len * (i / 3.5), e.z + Math.sin(dir) * e.len * (i / 3.5), dir + Math.PI / 2, 1.3, i % 2 ? 0xffffff : c, i % 2 ? 1 : -1, 0.22, i * 0.06);
+        break;
+      }
+      case 'thrust': {
+        // 細く 鋭い 突きの 光(先が とがる)・先で 火花
+        const g = new THREE.Group();
+        const core = new THREE.Mesh(new THREE.PlaneGeometry(e.len, e.r * 0.5), this.glowMat(0xffffff, 1, THREE.DoubleSide));
+        const glow = new THREE.Mesh(new THREE.PlaneGeometry(e.len, e.r * 1.4), this.glowMat(c, 0.7, THREE.DoubleSide));
+        for (const m of [glow, core]) {
+          m.rotation.x = -Math.PI / 2;
+          m.position.x = e.len / 2;
+          g.add(m);
+        }
+        g.rotation.y = -dir;
+        g.position.set(e.x, 0.9, e.z);
+        this.addFx(g, 0.28, (k) => {
+          g.scale.set(Math.min(1, k * 4), 1, 1 - k * 0.8);
+          for (const m of [glow, core]) (m.material as THREE.MeshBasicMaterial).opacity = 1 - k;
+        });
+        this.fxBill('spark', 0xffffff, e.x + Math.cos(dir) * e.len, 0.9, e.z + Math.sin(dir) * e.len, 1.6, 0.25, 0.5, 0.05);
+        this.shake = Math.max(this.shake, 0.2);
+        break;
+      }
+      case 'flurry':
+        // ねらった 所に 残像(けむり + キラリ)
+        this.fxBill('smoke', 0xb0c0ff, e.tx, 0.8, e.tz, 1.6, 0.4, 0.4);
+        this.fxBill('star', c, e.tx, 1.2, e.tz, 1.2, 0.3, 0.4);
+        break;
+      case 'xcut':
+        // はなれた 所に X の 斬撃 2本
+        this.fxSlash(e.tx - Math.cos(dir) * e.r * 0.4, e.tz - Math.sin(dir) * e.r * 0.4, dir + Math.PI / 4, e.r * 1.1, c, 1, 0.3);
+        this.fxSlash(e.tx - Math.cos(dir) * e.r * 0.4, e.tz - Math.sin(dir) * e.r * 0.4, dir - Math.PI / 4, e.r * 1.1, 0xffffff, -1, 0.3, 0.1);
+        this.fxBill(ex, exC, e.tx, 1.0, e.tz, e.r * 1.2, 0.3, 0.5, 0.15);
+        break;
+      case 'iai':
+        // ため斬り: 一瞬 画面が 止まった ように 白く 光り、巨大な 三日月が 走る
+        this.fxSlash(e.x, e.z, dir, e.r, 0xffffff, -1, 0.3);
+        this.fxSlash(e.x, e.z, dir, e.r * 1.05, c, -1, 0.36, 0.04);
+        this.fxBill('spark', 0xffffff, e.x + Math.cos(dir) * e.r * 0.6, 1.0, e.z + Math.sin(dir) * e.r * 0.6, e.r * 1.2, 0.2, 0.6);
+        this.shake = Math.max(this.shake, 0.4);
+        break;
+      case 'skywave':
+        this.fxBill('spark', 0xffffff, e.x + Math.cos(dir), 1.0, e.z + Math.sin(dir), 2.2, 0.25, 0.5);
+        this.shake = Math.max(this.shake, 0.3);
+        break;
+      case 'storm':
+        this.fxGround('circle_atk', c, e.x, e.z, 3.4, 0.7, 0.3, 2);
+        this.fxBill('pillar', c, e.x, 2.2, e.z, 4.4, 0.5, 0.3, 0, 2 / 3);
+        this.shake = Math.max(this.shake, 0.45);
+        break;
       case 'melee':
       case 'drain':
         this.fxSlash(e.x, e.z, dir, e.r * 1.1, c, 1, 0.28);

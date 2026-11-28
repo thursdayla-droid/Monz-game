@@ -11,6 +11,10 @@ import { SnakeBones } from './snakeBones';
 import type { ModelRig } from '../core/roster';
 import { BunkBones, type AttackPose } from './bunkBones';
 import { armorMesh, charmMesh, helmetMesh } from './gearMeshes';
+import { RPG_SPECIAL } from '../core/rpg/roles';
+/** 剣士の 技の 動き(技の 動き方 → 体の 動き) */
+const SWORD_POSE: Record<string, AttackPose['kind']> = { arc: 'iai', through: 'rush', thrust: 'thrust', flurry: 'combo', xcut: 'overhead', iai: 'iai', wave: 'overhead', storm: 'raise' };
+const SWORD_POSE_KIND: Record<string, AttackPose['kind']> = { drop: 'overhead', buff: 'raise', barrage: 'combo' };
 import { getTech } from '../core/battle3d/techTable';
 import type { AnimeMon } from '../core/battle3d/anime';
 import { ANIME } from '../core/battle3d/animeConfig';
@@ -789,7 +793,9 @@ export class MonsterRig {
       if (a.k === 'tech') {
         const tech = getTech(a.id);
         const bigDrop = tech.kind === 'drop' && tech.strength !== '中';
-        const kind =
+        // 剣士の 技は 技ごとの 動き(2026-11-28)
+        const sm = this.bones.sword ? SWORD_POSE[RPG_SPECIAL[tech.name]?.move ?? ''] ?? SWORD_POSE_KIND[tech.kind] : undefined;
+        const kind: AttackPose['kind'] | null = sm ? sm :
           tech.kind === 'rush' || a.sp || (bigDrop && a.fired && f.y > 0) ? 'rush'
           : tech.kind === 'jab' && f.jab.whip ? 'shot1'
           : tech.kind === 'combo' || tech.kind === 'jab' ? 'combo'
@@ -801,8 +807,8 @@ export class MonsterRig {
         if (kind) {
           const wind = bigDrop && kind === 'rush' ? (f.vy > 0 ? 1 : 0) : a.fired ? 0 : Math.min(1, a.t / a.windup);
           const run = a.t - a.windup;
-          const activeT = kind === 'shot' || kind === 'shot1' ? (tech.kind === 'beam' ? tech.duration : 0.35) : kind === 'slam' ? 0.3 : kind === 'roar' ? 0.6 : 0;
-          const active = bigDrop && kind === 'rush' ? f.vy <= 0 : a.fired && (kind === 'rush' ? !a.hit : tech.kind === 'jab' ? !a.hit || a.t < a.next : kind === 'combo' ? a.n < tech.hits || run < 0.1 : run < activeT);
+          const activeT = kind === 'shot' || kind === 'shot1' ? (tech.kind === 'beam' ? tech.duration : 0.35) : kind === 'slam' ? 0.3 : kind === 'roar' ? 0.6 : kind === 'thrust' || kind === 'overhead' || kind === 'iai' || kind === 'raise' ? 0.25 : 0;
+          const active = bigDrop && kind === 'rush' ? f.vy <= 0 : a.fired && (kind === 'rush' ? !a.hit : tech.kind === 'jab' ? !a.hit || a.t < a.next : kind === 'combo' && !sm ? a.n < tech.hits || run < 0.1 : run < activeT);
           const recover = a.fired && !active ? Math.min(1, (run - activeT) / Math.max(0.1, tech.recovery)) : 0;
           const punch = kind === 'combo' && a.n > 0 ? Math.min(1, Math.max(0, 1 - (a.next - a.t) / Math.max(0.05, tech.duration))) : 0;
           atk = { kind, wind, active, recover, n: a.n, punch };
