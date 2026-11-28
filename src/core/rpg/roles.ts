@@ -92,3 +92,14 @@ export const RPG_SPECIAL: Record<string, { combo?: number; finale?: number; coun
   十字斬り: { combo: 2 },
   剣気解放: { haste: 1.15 },
 };
+
+/** ロールの 初めの 武器(2026-11-28 企画者「ロールに よって 武器だけは 初期の 装備」)。3D は 武器の ファイル(まだ ない 武器は なし) */
+export const START_WEAPON: Record<Role, string> = {
+  剣士: 'ストリートソード',
+  拳闘士: 'レザーグローブ',
+  弓矢: 'ショートボウ',
+  魔法使い: 'ウッドスタッフ',
+  僧侶: 'ウッドスタッフ',
+  ネクロマンサー: 'ウッドスタッフ',
+};
+export const WEAPON_MODEL: Record<string, string> = { ストリートソード: 'assets/rpg/gear/w_sword1.glb' };

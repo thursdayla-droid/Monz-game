@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
-import { rpgJabReach, ALLEY_TOP, isBoss, MOB_KINDS, newAdventure, stepAdventure, playerRoom, adventureReward, aimPreview, unequip, useBagItem, useHerb, BAG_MAX, SELF_KINDS, SLOT_NAMES, type AdvItem, type AdvState, type AdvTech, type GearSlot } from '../core/adventure/sim';
+import { equipStartWeapon, rpgJabReach, ALLEY_TOP, isBoss, MOB_KINDS, newAdventure, stepAdventure, playerRoom, adventureReward, aimPreview, unequip, useBagItem, useHerb, BAG_MAX, SELF_KINDS, SLOT_NAMES, type AdvItem, type AdvState, type AdvTech, type GearSlot } from '../core/adventure/sim';
 import { getTech, techDesc } from '../core/battle3d/techTable';
 import { RANK_HEX } from '../render/dungeonView';
 import { assetUrl } from '../assetUrl';
@@ -11,7 +11,7 @@ import { addStats, autoGrowthAt, speciesStats, STAT_LABELS, type StatBlock, type
 import type { SpeciesId } from '../core/species';
 import { LifeRecord, loadLife } from '../core/lifeSave';
 import { modelFor } from '../core/roster';
-import { ROLE_OF, RPG_MODEL, RPG_SPECIES, rpgLearned, rpgTechDesc } from '../core/rpg/roles';
+import { ROLE_OF, RPG_MODEL, RPG_SPECIES, START_WEAPON, rpgLearned, rpgTechDesc } from '../core/rpg/roles';
 
 /** 擬人化RPG の 試作(確認用ページ --rpg)。冒険の 画面を 借りて 試す */
 const rpgTest = () => !!(window as { __MONZ_RPG?: boolean }).__MONZ_RPG;
@@ -192,6 +192,8 @@ export class AdventureScene extends Phaser.Scene {
       this.state.bag = advRun.carry.bag;
       this.state.gear = advRun.carry.gear;
     }
+    // 擬人化RPG: ロールの 初めの 武器
+    if (rpgTest()) equipStartWeapon(this.state, START_WEAPON[ROLE_OF[rpgSp()] ?? '拳闘士']);
     this.buildDom(me);
     audio.playBgm('battle');
     window.addEventListener('resize', this.onResize);
@@ -512,6 +514,8 @@ export class AdventureScene extends Phaser.Scene {
   /** 持ち物の 絵(2026-11-26 企画者の 絵) */
   private itemImg(it: AdvItem | GearSlot, px = 34): string {
     const n = typeof it === 'string' ? it : it.kind === 'herb' ? 'herb' : it.slot;
+    // 武器の 絵は まだ ない(企画者の 絵 待ち)→ 剣の しるし
+    if (n === 'weapon') return `<span style="display:block;width:${px}px;height:${px}px;font-size:${Math.round(px * 0.8)}px;line-height:${px}px;text-align:center;pointer-events:none">⚔️</span>`;
     return `<img src="${assetUrl(`assets/adventure/item_${n}.webp`)}" style="width:${px}px;height:${px}px;object-fit:contain;display:block;pointer-events:none" alt="">`;
   }
 
@@ -615,13 +619,13 @@ export class AdventureScene extends Phaser.Scene {
     const draw = () => {
       if (mode === 'techs') return drawTechs();
       const s = this.state;
-      const slots: GearSlot[] = ['head', 'armor', 'charm'];
+      const slots: GearSlot[] = rpgTest() ? ['weapon', 'head', 'armor', 'charm'] : ['head', 'armor', 'charm'];
       const p = s.player;
       box.innerHTML = `<h3>そうび<span style="font-size:12px;color:#fff">こうげき ${Math.round(p.atk)}・まもり ${Math.round(p.tough)}・HP ${p.hp}/${p.maxHp}</span></h3>
         <div class="gear">${slots
           .map((k) => {
             const g = s.gear[k];
-            return `<button class="gs ${g ? 'on' : ''}" data-g="${k}" style="${g ? `border-color:${this.itemLabel(g).color}` : ''}"><span style="display:flex;justify-content:center;opacity:${g ? 1 : 0.35}">${this.itemImg(k, 30)}</span>${SLOT_NAMES[k]}<br>${g ? `<b style="color:${this.itemLabel(g).color};font-size:16px">${g.rank}ランク</b>` : 'なし'}</button>`;
+            return `<button class="gs ${g ? 'on' : ''}" data-g="${k}" style="${g ? `border-color:${this.itemLabel(g).color}` : ''}"><span style="display:flex;justify-content:center;opacity:${g ? 1 : 0.35}">${this.itemImg(k, 30)}</span>${SLOT_NAMES[k]}<br>${g ? `${g.name ? `<span style="font-size:11px">${g.name}</span><br>` : ''}<b style="color:${this.itemLabel(g).color};font-size:16px">${g.rank}ランク</b>` : 'なし'}</button>`;
           })
           .join('')}</div>
         <h3><span>もちもの <span style="font-size:12px;color:#fff">${s.bag.length} / ${BAG_MAX}</span></span><button class="techBtn" style="padding:4px 18px">技</button></h3>

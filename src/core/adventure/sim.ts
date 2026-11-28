@@ -175,7 +175,7 @@ export const ADV = {
   /** モブが 落とす: 回復の実 25%・装備 12%【仮】。装備の ランクの 出やすさ D50 C30 B14 A5 S1 */
   drop: { herb: 0.25, gear: 0.12, rank: [50, 30, 14, 5, 1] },
   /** 装備の 強さ(ランクごとの 倍)と 1倍の ときの 上がり方 */
-  gear: { mul: { D: 1, C: 2, B: 3, A: 5, S: 8 } as Record<Rank, number>, head: 2, armor: 3, charm: 8 },
+  gear: { mul: { D: 1, C: 2, B: 3, A: 5, S: 8 } as Record<Rank, number>, head: 2, armor: 3, charm: 8, weapon: 3 },
   pickR: 1.1,
   /** モンスター部屋【仮】: 入って とじるまで 10秒・敵の 数(8〜11)・とじこめの 長さ 60秒 */
   house: { wait: 10, count: 8, time: 60 },
@@ -211,13 +211,15 @@ export interface AdvTech {
 export const SELF_KINDS = new Set(['heal', 'barrier', 'buff']);
 
 /** 装備の 場所(企画者 2026-11-07 案【仮】): アタマ = 攻撃(2026-11-07 企画者「爪じゃなくて 頭」)・ヨロイ = 守り・オマモリ = HP */
-export type GearSlot = 'head' | 'armor' | 'charm';
+/** 装備の 場所。weapon = 武器(擬人化RPG だけ。2026-11-28 企画者「装備、武器も 増やして」) */
+export type GearSlot = 'head' | 'armor' | 'charm' | 'weapon';
 export type Rank = 'D' | 'C' | 'B' | 'A' | 'S';
 export const RANKS: Rank[] = ['D', 'C', 'B', 'A', 'S'];
-export const SLOT_NAMES: Record<GearSlot, string> = { head: 'アタマ', armor: 'ヨロイ', charm: 'オマモリ' };
+export const SLOT_NAMES: Record<GearSlot, string> = { head: 'アタマ', armor: 'ヨロイ', charm: 'オマモリ', weapon: 'ブキ' };
 
 /** 持ち物(1つ)。herb = 回復の実(冒険の 中で 使う)・gear = 装備 */
-export type AdvItem = { kind: 'herb' } | { kind: 'gear'; slot: GearSlot; rank: Rank };
+/** name = 装備の 名前(武器: ストリートソード など。なし = ふつうの 装備) */
+export type AdvItem = { kind: 'herb' } | { kind: 'gear'; slot: GearSlot; rank: Rank; name?: string };
 
 /** 持ち物は 20個まで(企画者 2026-11-07) */
 export const BAG_MAX = 20;
@@ -948,13 +950,20 @@ function applyGear(s: AdvState): void {
   const G = ADV.gear;
   const m = (slot: GearSlot) => (s.gear[slot] ? G.mul[s.gear[slot]!.rank] : 0);
   const rate = p.hp / p.maxHp;
-  p.atk = s.base.atk + G.head * m('head');
+  p.atk = s.base.atk + G.head * m('head') + G.weapon * m('weapon');
   p.tough = s.base.tough + G.armor * m('armor');
   p.maxHp = s.base.maxHp + G.charm * m('charm');
   p.hp = Math.max(1, Math.round(p.maxHp * rate));
 }
 
 /** 持ち物を 使う(回復の実)/装備する(つけていた 物は 持ち物へ)。できたら true */
+/** 初めから 持つ 武器を 装備する(擬人化RPG。ロールで 決まる。2026-11-28 企画者) */
+export function equipStartWeapon(s: AdvState, name: string): void {
+  if (s.gear.weapon) return;
+  s.gear.weapon = { kind: 'gear', slot: 'weapon', rank: 'D', name };
+  applyGear(s);
+}
+
 export function useBagItem(s: AdvState, index: number): boolean {
   const it = s.bag[index];
   if (!it || s.result !== 'play' || s.player.act === 'dead') return false;

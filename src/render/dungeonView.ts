@@ -9,6 +9,7 @@ import { assetUrl } from '../assetUrl';
 import { newAnimeBattle, type AnimeEntrant, type AnimeMon } from '../core/battle3d/anime';
 import { CELL, WALL } from '../core/adventure/dungeon';
 import { getTech } from '../core/battle3d/techTable';
+import { WEAPON_MODEL } from '../core/rpg/roles';
 import { ADV, isBoss, MOB_KINDS, mobSpec, RANKS, SELF_KINDS, techWindup, type MobKind, type AimShape, type Actor, type AdvEvent, type AdvItem, type AdvState, type Rank } from '../core/adventure/sim';
 import type { modelFor } from '../core/roster';
 import { MonsterRig } from './monsterRig';
@@ -1802,8 +1803,7 @@ export class DungeonView {
       try {
         this.rig.useModel(g.scene, m.height, m.hue ?? 0, m.bones, m.amp, m.rig);
         this.rig.setModelFile(m.file);
-        // 擬人化RPG の 剣士: 剣を 持つ(2026-11-28 企画者の 武器①ストリートソード)
-        if (this.pixelOpt?.role === '剣士') this.loadWeapon('assets/rpg/gear/w_sword1.glb');
+
       } catch {
         // 使えない モデルは 仮の 形の まま
       }
@@ -1836,6 +1836,7 @@ export class DungeonView {
   }
 
   /** 武器の 3D を 読んで 右手に 持たせる */
+  private weaponName = '';
   private loadWeapon(file: string): void {
     const url = assetUrl(file);
     const loader = new GLTFLoader();
@@ -2054,6 +2055,14 @@ export class DungeonView {
       if (g) gearLook[k] = [RANK_HEX[g.rank], RANKS.indexOf(g.rank)];
     }
     this.rig.setGear(gearLook);
+    // 武器(擬人化RPG): 装備している 武器を 手に 持つ(3D の ある 武器だけ)
+    const wName = s.gear.weapon?.name ?? '';
+    if (wName !== this.weaponName && this.ready) {
+      this.weaponName = wName;
+      const file = WEAPON_MODEL[wName];
+      if (file) this.loadWeapon(file);
+      else this.rig.setWeapon(null);
+    }
     // 装備の ランクの 光(いちばん 高い ランク)
     const best = (['head', 'armor', 'charm'] as const).reduce((r, k) => Math.max(r, s.gear[k] ? RANKS.indexOf(s.gear[k]!.rank) : -1), -1);
     this.auraMat.opacity = best < 0 ? 0 : 0.25 + best * 0.1 + Math.sin(now * 4) * 0.08;
