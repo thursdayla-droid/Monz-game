@@ -2695,14 +2695,21 @@ export class DungeonView {
     });
   }
 
-  /** 突きの 光: 自分から 届く 長さ まで、左右 ±arc の 細い くさび(当たる 所 そのまま)と 先の 星 */
-  private fxThrust(x: number, z: number, dir: number, len: number, arc: number, color: number, life: number): void {
-    const w = len * Math.tan(arc) + 0.25;
+  /**
+   * 突きの 光: はば 一定の まっすぐな 光の 帯(当たる 帯と 同じ)で、先が とがる。
+   * 手もと(0.4)から 届く 長さ まで すっと のびて 消える
+   */
+  private fxThrust(x: number, z: number, dir: number, len: number, _arc: number, color: number, life: number): void {
+    const hw = 0.35;
     const g = new THREE.Group();
-    for (const [col, ww, op] of [[color, w, 0.55], [0xffffff, w * 0.3, 0.95]] as const) {
+    const tipL = Math.min(0.9, len * 0.3);
+    for (const [col, w, op] of [[color, hw, 0.55], [0xffffff, hw * 0.35, 0.95]] as const) {
+      const x0 = 0.4;
+      const x1 = len - tipL;
       const geo = new THREE.BufferGeometry();
-      geo.setAttribute('position', new THREE.Float32BufferAttribute([0.3, 0, 0, len, 0, -ww, len, 0, ww], 3));
-      geo.setIndex([0, 2, 1]);
+      // 帯(四角) + 先の とがり(三角)
+      geo.setAttribute('position', new THREE.Float32BufferAttribute([x0, 0, -w, x1, 0, -w, x1, 0, w, x0, 0, w, len, 0, 0], 3));
+      geo.setIndex([0, 2, 1, 0, 3, 2, 1, 2, 4]);
       const mat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: op, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
       mat.color.multiplyScalar(1.4);
       g.add(new THREE.Mesh(geo, mat));
@@ -2711,12 +2718,11 @@ export class DungeonView {
     g.rotation.y = -dir;
     g.renderOrder = 6;
     this.addFx(g, life, (k) => {
-      // のびて → 消える
-      g.scale.set(Math.min(1, k * 4), 1, 1);
-      const op = k < 0.25 ? 1 : Math.max(0, 1 - (k - 0.25) / 0.75);
+      g.scale.set(Math.min(1, 0.3 + k * 3), 1, 1);
+      const op = k < 0.3 ? 1 : Math.max(0, 1 - (k - 0.3) / 0.7);
       g.children.forEach((o, i) => (((o as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = (i ? 0.95 : 0.55) * op));
     });
-    this.fxBill('star', 0xdaf8ff, x + Math.cos(dir) * len, 0.6, z + Math.sin(dir) * len, 1.0, life, 0.5, life * 0.2);
+    this.fxBill('star', 0xdaf8ff, x + Math.cos(dir) * len, 0.6, z + Math.sin(dir) * len, 0.9, life, 0.5, life * 0.25);
   }
 
   /** 武器ごとの 通常攻撃の 光(1発めから ちがいが 分かる ように。2026-11-28)【仮】 */

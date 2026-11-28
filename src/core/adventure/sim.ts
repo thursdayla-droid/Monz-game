@@ -635,6 +635,24 @@ function inCone(s: AdvState, x: number, z: number, dir: number, range: number, a
     return d < range + mobR(m) && Math.abs(angDiff(Math.atan2(m.z - z, m.x - x), dir)) < arc + extra && seen(s, x, z, m);
   });
 }
+/**
+ * まっすぐな 帯(突き。2026-11-28 企画者「レイピアの 攻撃が 変」→ 先に 広がる 扇を やめ、はば 一定の 帯)。
+ * 前へ len・左右 hw(+ 敵の 体)
+ */
+function inBand(s: AdvState, x: number, z: number, dir: number, len: number, hw: number): Actor[] {
+  const c = Math.cos(dir);
+  const sn = Math.sin(dir);
+  return s.mobs.filter((m) => {
+    if (m.act === 'dead') return false;
+    const dx = m.x - x;
+    const dz = m.z - z;
+    const along = dx * c + dz * sn;
+    const side = Math.abs(-dx * sn + dz * c);
+    return along > -0.3 && along < len + mobR(m) && side < hw + mobR(m) && seen(s, x, z, m);
+  });
+}
+/** 突きの 帯の 半分の はば */
+const THRUST_HW = 0.35;
 const inCircle = (s: AdvState, x: number, z: number, r: number) => s.mobs.filter((m) => m.act !== 'dead' && Math.hypot(m.x - x, m.z - z) < r + mobR(m) && seen(s, x, z, m));
 
 /** その 向きに 壁まで 何メートル あるか(max まで) */
@@ -1084,7 +1102,7 @@ function stepTechs(s: AdvState, dt: number): void {
     const th = s.thrusts;
     if (p.act === 'dead') s.thrusts = null;
     else {
-      for (const m of inCone(s, p.x, p.z, p.face, th.len, 0.16, true)) {
+      for (const m of inBand(s, p.x, p.z, p.face, th.len, THRUST_HW)) {
         m.awake = true;
         damage(s, p, m, th.mul * 0.6);
       }
@@ -1691,7 +1709,7 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
           const arc = ws?.thrust ? 0.16 : J.arc * (last ? 1.3 : 1);
           // ネオンレイピアの 3段めは 突き 3発 だけ(ふつうの 一撃は なし)
           const triple = last && ws?.last === 'pierce';
-          const hitList = triple ? [] : inCone(s, p.x, p.z, p.face, J.range, arc, true);
+          const hitList = triple ? [] : ws?.thrust ? inBand(s, p.x, p.z, p.face, J.range, THRUST_HW) : inCone(s, p.x, p.z, p.face, J.range, arc, true);
           for (const m of hitList) {
             m.awake = true;
             damage(s, p, m, mul);
