@@ -1255,7 +1255,7 @@ function weaponFinish(s: AdvState, kind: NonNullable<(typeof WEAPON_STYLE)[strin
     }
     case 'pierce': {
       // ネオンレイピア: 一直線に つらぬく 突きを 3回(2026-11-28 企画者「3段めの 攻撃 3発で いい。真っ直ぐ 攻撃 だから」)
-      s.thrusts = { next: s.t, left: 3, mul, len: J.range + 2.4 };
+      s.thrusts = { next: s.t, left: 3, mul: mul * 1.1, len: J.range + 2.4 };
       break;
     }
     case 'spin': {
@@ -1576,7 +1576,11 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
         // ZIPP の 電撃ダッシュ: 速く 走って ぶつかる(瞬間移動に しない。2026-11-07 企画者「早くても いい」)
         if (s.jab === 'dash') s.dash = { until: s.t + 0.16, hit: [], mul, speed: 13, jab: true };
         else {
-          const hitList = inCone(s, p.x, p.z, p.face, J.range, J.arc * (last ? 1.3 : 1));
+          // 突きの 武器は 細く まっすぐ(横は 当たらない)
+          const arc = ws?.thrust ? 0.16 : J.arc * (last ? 1.3 : 1);
+          // ネオンレイピアの 3段めは 突き 3発 だけ(ふつうの 一撃は なし)
+          const triple = last && ws?.last === 'pierce';
+          const hitList = triple ? [] : inCone(s, p.x, p.z, p.face, J.range, arc);
           for (const m of hitList) {
             m.awake = true;
             damage(s, p, m, mul);
@@ -1585,7 +1589,7 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
               m.vz += Math.sin(p.face) * ws.knock;
             }
           }
-          hitCrates(s, inConeAt(p.x, p.z, p.face, J.range, J.arc * (last ? 1.3 : 1)), mul);
+          if (!triple) hitCrates(s, inConeAt(p.x, p.z, p.face, J.range, arc), mul);
           if (last && ws?.last) weaponFinish(s, ws.last, J, mul, hitList);
           // 闘魂チャージの 間: 3段めで まわりに 衝撃波
           if ((s.fistShockUntil ?? 0) > s.t && s.chain === 3) {
@@ -1603,7 +1607,7 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
         }
       }
       // range・arc = 当たる 広さ(モブの 中心まで range + モブの 大きさ・左右 arc)
-      s.events.push({ kind: 'jab', style: s.jab, chain: last ? 3 : s.chain === 3 ? 1 : s.chain, x: p.x, z: p.z, dir: p.face, range: J.range + ADV.mob.r, arc: J.arc * (last ? 1.3 : 1), color: ws?.color });
+      if (!(last && ws?.last === 'pierce')) s.events.push({ kind: 'jab', style: ws?.thrust ? 'thrust' : s.jab, chain: last ? 3 : s.chain === 3 ? 1 : s.chain, x: p.x, z: p.z, dir: p.face, range: J.range + ADV.mob.r, arc: ws?.thrust ? 0.16 : J.arc * (last ? 1.3 : 1), color: ws?.color });
     }
   }
   stepTechs(s, dt);

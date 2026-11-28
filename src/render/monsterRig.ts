@@ -178,6 +178,8 @@ export class MonsterRig {
   private hop = 0;
   /** 人の 形の 体(擬人化RPG): 跳ねない・つぶれない・人の 歩き方(2026-11-26) */
   human = false;
+  /** 通常攻撃を 突きで 見せる(ネオンレイピア。2026-11-28 企画者「切れなくて 良い 真っ直ぐ だけ」) */
+  jabThrust = false;
   /** 構え(スウェイカウンター。擬人化RPG) */
   guard = 0;
   flash = 0;
@@ -794,7 +796,7 @@ export class MonsterRig {
         const tech = getTech(a.id);
         const bigDrop = tech.kind === 'drop' && tech.strength !== '中';
         // 剣士の 技は 技ごとの 動き(2026-11-28)
-        const mv = RPG_SPECIAL[tech.name]?.move ?? '';
+        const mv = a.id === 'punch' && this.jabThrust ? 'thrust' : RPG_SPECIAL[tech.name]?.move ?? '';
         const sm = this.bones.sword ? SWORD_POSE[mv] ?? SWORD_POSE_KIND[tech.kind] : this.human ? SWORD_POSE[mv] : undefined;
         const kind: AttackPose['kind'] | null = sm ? sm :
           tech.kind === 'rush' || a.sp || (bigDrop && a.fired && f.y > 0) ? 'rush'

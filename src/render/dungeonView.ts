@@ -9,7 +9,7 @@ import { assetUrl } from '../assetUrl';
 import { newAnimeBattle, type AnimeEntrant, type AnimeMon } from '../core/battle3d/anime';
 import { CELL, WALL } from '../core/adventure/dungeon';
 import { getTech } from '../core/battle3d/techTable';
-import { GEAR_ICON, WEAPON_LIST, WEAPON_MODEL } from '../core/rpg/roles';
+import { GEAR_ICON, WEAPON_LIST, WEAPON_MODEL, WEAPON_STYLE } from '../core/rpg/roles';
 import { ADV, isBoss, MOB_KINDS, mobSpec, RANKS, SELF_KINDS, techWindup, type MobKind, type AimShape, type Actor, type AdvEvent, type AdvItem, type AdvState, type Rank } from '../core/adventure/sim';
 import type { modelFor } from '../core/roster';
 import { MonsterRig } from './monsterRig';
@@ -2280,6 +2280,7 @@ export class DungeonView {
       if (g) gearLook[k] = [RANK_HEX[g.rank], RANKS.indexOf(g.rank)];
     }
     this.rig.setGear(gearLook);
+    this.rig.jabThrust = !!(s.weapons && WEAPON_STYLE[s.gear.weapon?.name ?? '']?.thrust);
     // 武器(擬人化RPG): 装備している 武器を 手に 持つ(3D の ある 武器だけ)
     const wName = s.gear.weapon?.name ?? '';
     if (wName !== this.weaponName && this.ready) {
@@ -2608,6 +2609,15 @@ export class DungeonView {
     const side = e.chain === 2 ? -1 : 1;
     // 2026-11-28 企画者「白い エフェクトが 長い。1番 下(D)は 一マス 前 ぐらい」→ 斬撃の 光は 当たる 長さに おさまる 大きさ(自分の 前 から 届く ところまで)
     const r = e.range * 0.5;
+    // 突きの 武器(ネオンレイピア): 斬らずに 前へ まっすぐ 光の 列
+    if (e.style === 'thrust') {
+      const n = 4;
+      for (let i = 1; i <= n; i++) {
+        const d = (e.range * 0.85 * i) / n;
+        this.fxBill(i === n ? 'star' : 'spark', e.color ?? 0x6ae8ff, e.x + Math.cos(e.dir) * d, 0.9, e.z + Math.sin(e.dir) * d, i === n ? 1.0 : 0.6, 0.14, 0.5, i * 0.015);
+      }
+      return;
+    }
     // 武器ごとの 光の 色(2026-11-28)。ふつうは 白・3段めは 少し 濃く
     const c = e.color ?? 0xfff0d8;
     const cBig = e.color != null ? new THREE.Color(e.color).lerp(new THREE.Color(0xffffff), 0.25).getHex() : 0xffc080;

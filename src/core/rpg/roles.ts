@@ -180,11 +180,12 @@ export const WEAPON_POWER: Record<string, number> = { スパイクナックル: 
  * 武器ごとの 通常攻撃の 打ち方(2026-11-28 企画者 OK)。ランクでは 変わらない【仮】
  * cool = 次を 打てる までの 倍・hits = 何段 まで 続くか(ふつう 3)・knock = 敵を 押す 強さ・last = さいごの 一撃・color = 光の 色
  */
-export interface WeaponStyle { cool?: number; hits?: number; knock?: number; last?: 'slam' | 'pierce' | 'spin' | 'bolt' | 'bleed' | 'upper' | 'quake' | 'wave'; color: number }
+export interface WeaponStyle { thrust?: boolean; cool?: number; hits?: number; knock?: number; last?: 'slam' | 'pierce' | 'spin' | 'bolt' | 'bleed' | 'upper' | 'quake' | 'wave'; color: number }
 export const WEAPON_STYLE: Record<string, WeaponStyle> = {
   ストリートソード: { color: 0xfff0d8 },
   鉄骨ブレード: { cool: 1.25, knock: 3, last: 'slam', color: 0xff9a3a },
-  ネオンレイピア: { cool: 0.8, last: 'pierce', color: 0x6ae8ff },
+  // 2026-11-28 企画者「1発め 2発めも 切れなくて 良い。真っ直ぐ だけ」→ ぜんぶ 突き(細く 長く まっすぐ)
+  ネオンレイピア: { thrust: true, cool: 0.8, last: 'pierce', color: 0x6ae8ff },
   ムーンエッジ: { last: 'spin', color: 0xc8d8ff },
   雷刃: { last: 'bolt', color: 0xffe24a },
   レザーグローブ: { color: 0xfff0d8 },
