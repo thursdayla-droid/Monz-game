@@ -2510,7 +2510,9 @@ export class DungeonView {
     // 2026-11-27 企画者「エフェクト でかすぎて 1レベルで 強そう」→ 当たる 範囲(前の 1マス)と 同じ 大きさ・控えめに
     const big = e.chain === 3;
     const side = e.chain === 2 ? -1 : 1;
-    this.fxSlash(e.x, e.z, e.dir, e.range * (big ? 1.0 : 0.8), big ? 0xffc080 : 0xfff0d8, side, big ? 0.22 : 0.16);
+    // 2026-11-28 企画者「白い エフェクトが 長い。1番 下(D)は 一マス 前 ぐらい」→ 斬撃の 光は 当たる 長さに おさまる 大きさ(自分の 前 から 届く ところまで)
+    const r = e.range * 0.5;
+    this.fxSlash(e.x + Math.cos(e.dir) * r * 0.5, e.z + Math.sin(e.dir) * r * 0.5, e.dir, r * (big ? 1.15 : 1), big ? 0xffc080 : 0xfff0d8, side, big ? 0.2 : 0.14);
     if (big) this.shake = Math.max(this.shake, 0.12);
   }
 
