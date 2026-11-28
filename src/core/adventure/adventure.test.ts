@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CELL, DOOR, FLOOR, generateFloor, type Floor } from './dungeon';
 import { isGachaWeapon, RPG_LEARN, rpgLearned, WEAPON_LIST } from '../rpg/roles';
-import { ADV, adventureReward, dropAt, equipStartWeapon, ALLEY_MOBS, ALLEY_TOP, BAG_MAX, BOSS_AT, FLOOR_MOBS, isBoss, MOB_KINDS, newAdventure, type MobKind, stepAdventure, unequip, useBagItem, useHerb, type AdvState } from './sim';
+import { ADV, adventureReward, dropAt, equipStartWeapon, rollGearRank, ALLEY_MOBS, ALLEY_TOP, BAG_MAX, BOSS_AT, FLOOR_MOBS, isBoss, MOB_KINDS, newAdventure, type MobKind, stepAdventure, unequip, useBagItem, useHerb, type AdvState } from './sim';
 
 /** マス(x,y)から 歩いて 行ける マスの 距離(BFS)。doors = しまった 扉も 通れる ことに する */
 function bfs(f: Floor, sx: number, sy: number, doors = false): Int32Array {
@@ -293,7 +293,28 @@ describe('冒険の 動き', () => {
     for (let i = 0; i < 3000; i++) dropAt(s, 0, 0, 1, 0);
     for (const d of s.drops) if (d.item.kind === 'gear' && d.item.slot === 'weapon') expect(isGachaWeapon(d.item.name!)).toBe(false);
   });
-  it('落とす 装備: 1階は D だけ・ずっと B まで', () => {
+  it('敵の 装備ドロップ: 表の とおり(雑魚 7.62%・中ボス 36.2%・ボス 64%)・雑魚からも S が 出る', () => {
+    const s = newAdventure(3, { hp: 10, power: 10, tough: 10, speed: 10, tech: 10 });
+    const sum = (t: number[]) => t.reduce((a, b) => a + b, 0);
+    expect(sum(ADV.drop.table.mob)).toBeCloseTo(7.62, 5);
+    expect(sum(ADV.drop.table.mid)).toBeCloseTo(36.2, 5);
+    expect(sum(ADV.drop.table.boss)).toBeCloseTo(64, 5);
+    for (const tier of ['mob', 'mid', 'boss'] as const) {
+      const N = 200000;
+      const got: Record<string, number> = {};
+      for (let i = 0; i < N; i++) {
+        const r = rollGearRank(s, ADV.drop.table[tier]) ?? 'none';
+        got[r] = (got[r] ?? 0) + 1;
+      }
+      ['D', 'C', 'B'].forEach((rk, i) => expect(Math.abs((got[rk] ?? 0) / N * 100 - ADV.drop.table[tier][i])).toBeLessThan(0.35));
+      expect(Math.abs((got.none ?? 0) / N * 100 - (100 - sum(ADV.drop.table[tier])))).toBeLessThan(0.5);
+    }
+    // 雑魚の S(0.02%)も 出る
+    let sHit = false;
+    for (let i = 0; i < 100000 && !sHit; i++) if (rollGearRank(s, ADV.drop.table.mob) === 'S') sHit = true;
+    expect(sHit).toBe(true);
+  });
+  it('置き物の 装備: 1階は D だけ・ずっと B まで', () => {
     expect(ADV.drop.cap[0]).toEqual([1, 0]);
     expect(Math.max(...ADV.drop.cap.map((c) => c[1]))).toBe(2);
   });

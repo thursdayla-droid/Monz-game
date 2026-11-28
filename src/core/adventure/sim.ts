@@ -173,11 +173,18 @@ export const ADV = {
   /** 回復の実: 最大HP の 割合 */
   herbHeal: 0.4,
   /**
-   * モブが 落とす【仮】: 回復の実 25%・装備 5%(2026-11-28 企画者「装備は 落ちにくく」12% → 5%)。
-   * ランクの 出やすさ D60 C30 B10。階で 上の ランクが ふえる(1階 = D だけ・2〜4階 = C まで・5階〜 = B まで)。
-   * 2026-11-28 企画者「落とす 装備の マックスは B ぐらい・上位は ステージ1では 出さない」。A・S は 落ちない
+   * 落とし物。回復の実 25%(別の 抽選)。
+   * 敵の 装備(2026-11-28 企画者「装備ドロップ 仕様」・ラグナロク の ような ハクスラ): table = D・C・B・A・S の %(のこりは なし)。
+   *   雑魚 7.62%・中ボス 36.2%・ボス 64%。雑魚からも S が 出る。天井 なし。
+   *   → 同じ日の「マックスは B ぐらい・ステージ1では 上位を 出さない」は 敵の 装備では とりやめ(この 表に 置きかえ)
+   * 置き物の 装備は rank・cap(階で しぼる。1階 = D だけ・2〜4階 = C まで・5階〜 = B まで)【仮】
    */
-  drop: { herb: 0.25, gear: 0.05, rank: [60, 30, 10], cap: [[1, 0], [4, 1], [Infinity, 2]] as [number, number][] },
+  drop: {
+    herb: 0.25,
+    table: { mob: [5, 2, 0.5, 0.1, 0.02], mid: [20, 10, 5, 1, 0.2], boss: [30, 20, 10, 3, 1] } as Record<'mob' | 'mid' | 'boss', number[]>,
+    rank: [60, 30, 10],
+    cap: [[1, 0], [4, 1], [Infinity, 2]] as [number, number][],
+  },
   /** 装備の 強さ(ランクごとの 倍)と 1倍の ときの 上がり方 */
   gear: {
     mul: { D: 1, C: 2, B: 3, A: 5, S: 8 } as Record<Rank, number>, head: 2, armor: 3, charm: 8, weapon: 3,
@@ -1235,18 +1242,52 @@ function stepTechs(s: AdvState, dt: number): void {
   }
 }
 
-/** 倒した モブが 物を 落とす【仮】 */
+/**
+ * 倒した 敵が 物を 落とす(2026-11-28 企画者「装備ドロップ 仕様」)。
+ * 装備: 1体に 1回の 抽選(D〜S と なし の どれか 1つ)・1体から 最大 1個・天井 なし。
+ * 回復の実は 別の 抽選(今まで どおり)
+ */
 function dropFrom(s: AdvState, m: Actor): void {
-  dropAt(s, m.x, m.z, ADV.drop.gear, ADV.drop.herb);
+  const tier: DropTier = !isBoss(m) ? 'mob' : m.mobKind === BOSS_AT[ALLEY_TOP] ? 'boss' : 'mid';
+  const rank = rollGearRank(s, ADV.drop.table[tier]);
+  if (rank) putDrop(s, m.x, m.z, gearItem(s, rank));
+  if (s.rng() < ADV.drop.herb) putDrop(s, m.x + (rank ? 0.6 : 0), m.z, { kind: 'herb' });
 }
 
+export type DropTier = 'mob' | 'mid' | 'boss';
+
+/** 装備の ランクの 抽選(1回・排他)。table = D〜S の %。なし なら null */
+export function rollGearRank(s: AdvState, table: readonly number[]): Rank | null {
+  let q = s.rng() * 100;
+  for (let i = 0; i < RANKS.length; i++) if ((q -= table[i] ?? 0) < 0) return RANKS[i];
+  return null;
+}
+
+/** ランクが 決まった あと、落とす 装備を 1つ えらぶ(武器・アタマ・ヨロイ・オマモリ) */
+function gearItem(s: AdvState, rank: Rank): AdvItem {
+  const slots: GearSlot[] = s.weapons?.length ? ['weapon', 'head', 'armor', 'charm'] : ['head', 'armor', 'charm'];
+  const slot = slots[Math.floor(s.rng() * slots.length)];
+  const item: AdvItem & { kind: 'gear' } = { kind: 'gear', slot, rank };
+  if (slot === 'weapon') {
+    // 10階 までは 下位の 武器 だけ(2026-11-28 企画者)。ガチャの 武器は 落ちない
+    const pool = s.floorNo <= WEAPON_LOW.untilFloor ? s.weapons!.slice(0, WEAPON_LOW.count) : s.weapons!;
+    item.name = pool[Math.floor(s.rng() * pool.length)];
+  }
+  return item;
+}
+
+function putDrop(s: AdvState, x: number, z: number, item: AdvItem): void {
+  const d: Drop = { id: ++s.seq, x, z, item };
+  s.drops.push(d);
+  s.events.push({ kind: 'drop', drop: d });
+}
+
+/** 置き物を こわした 時(と テスト): 装備 gearP・回復の実 herbP。装備の ランクは 階で しぼる【仮】 */
 export function dropAt(s: AdvState, x: number, z: number, gearP: number, herbP: number): void {
   const D = ADV.drop;
   const r = s.rng();
   let item: AdvItem | null = null;
   if (r < gearP) {
-    const slots: GearSlot[] = s.weapons?.length ? ['weapon', 'head', 'armor', 'charm'] : ['head', 'armor', 'charm'];
-    const slot = slots[Math.floor(s.rng() * slots.length)];
     const top = D.cap.find(([upTo]) => s.floorNo <= upTo)![1];
     const w = D.rank.slice(0, top + 1);
     let q = s.rng() * w.reduce((a, b) => a + b, 0);
@@ -1255,17 +1296,9 @@ export function dropAt(s: AdvState, x: number, z: number, gearP: number, herbP: 
       rank = RANKS[i];
       break;
     }
-    item = { kind: 'gear', slot, rank };
-    if (slot === 'weapon') {
-      // 10階 までは 下位の 武器 だけ(2026-11-28 企画者)
-      const pool = s.floorNo <= WEAPON_LOW.untilFloor ? s.weapons!.slice(0, WEAPON_LOW.count) : s.weapons!;
-      item.name = pool[Math.floor(s.rng() * pool.length)];
-    }
+    item = gearItem(s, rank);
   } else if (r < gearP + herbP) item = { kind: 'herb' };
-  if (!item) return;
-  const d: Drop = { id: ++s.seq, x, z, item };
-  s.drops.push(d);
-  s.events.push({ kind: 'drop', drop: d });
+  if (item) putDrop(s, x, z, item);
 }
 
 /**
