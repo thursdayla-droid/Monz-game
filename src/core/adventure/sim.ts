@@ -5,7 +5,7 @@
  */
 import { mulberry32, type Rng } from '../rng';
 import type { StatBlock } from '../stats';
-import { RPG_SPECIAL, WEAPON_LOW, WEAPON_POWER, WEAPON_REACH, WEAPON_STYLE } from '../rpg/roles';
+import { isGlove, RPG_SPECIAL, WEAPON_LOW, WEAPON_POWER, WEAPON_REACH, WEAPON_STYLE } from '../rpg/roles';
 import { getTech } from '../battle3d/techTable';
 import { CELL, DOOR, FLOOR, fits, generateFloor, lineOfSight, cellToWorld, roomAt, setDoor, walkable, type Floor, type Room } from './dungeon';
 
@@ -183,6 +183,10 @@ export const ADV = {
     mul: { D: 1, C: 2, B: 3, A: 5, S: 8 } as Record<Rank, number>, head: 2, armor: 3, charm: 8, weapon: 3,
     /** 武器の ランクで 通常攻撃が 広がる【仮】 */
     reach: { D: { range: 0, arc: 0 }, C: { range: 0.1, arc: 0.05 }, B: { range: 0.2, arc: 0.1 }, A: { range: 0.35, arc: 0.15 }, S: { range: 0.5, arc: 0.22 } } as Record<Rank, { range: number; arc: number }>,
+    /** グローブの ランクの 広がり【仮】(2026-11-28 企画者「グローブ ランク 高い やつは 当たる 範囲 ひろげて いこう」)。剣より 大きく 広がる */
+    reachFist: { D: { range: 0, arc: 0 }, C: { range: 0.2, arc: 0.12 }, B: { range: 0.4, arc: 0.25 }, A: { range: 0.65, arc: 0.38 }, S: { range: 0.9, arc: 0.55 } } as Record<Rank, { range: number; arc: number }>,
+    /** グローブの ランクで 通常攻撃の 光を 大きく(D = 1 倍) */
+    fxFist: { D: 1, C: 1.15, B: 1.3, A: 1.5, S: 1.75 } as Record<Rank, number>,
   },
   pickR: 1.1,
   /** ためる 技【仮】: いちばん ためるまでの 秒・ためきると 強さ ×2.6 */
@@ -327,7 +331,7 @@ export type AdvEvent =
   | { kind: 'open'; x: number; z: number }
   | { kind: 'tech'; slot: number; x: number; z: number; fx: string; dir: number; r: number; len: number; element: string; tx: number; tz: number }
   | { kind: 'status'; target: number; x: number; z: number; effect: string }
-  | { kind: 'jab'; style: string; chain: number; x: number; z: number; dir: number; range: number; arc: number; color?: number; weapon?: string }
+  | { kind: 'jab'; style: string; chain: number; x: number; z: number; dir: number; range: number; arc: number; color?: number; weapon?: string; fx?: number }
   | { kind: 'heal'; amount: number; x: number; z: number }
   | { kind: 'drop'; drop: Drop }
   | { kind: 'pick'; drop: Drop }
@@ -1350,7 +1354,7 @@ function applyGear(s: AdvState): void {
   if (s.jabBase) {
     const w = s.gear.weapon;
     const wr = w?.name ? WEAPON_REACH[w.name] ?? { range: 0, arc: 0 } : { range: -0.2, arc: -0.1 };
-    const rk = w ? G.reach[w.rank] : { range: 0, arc: 0 };
+    const rk = w ? (s.weapons && WEAPON_STYLE[w.name ?? ''] && isGlove(w.name!) ? G.reachFist : G.reach)[w.rank] : { range: 0, arc: 0 };
     s.jabReach = { range: Math.max(0.8, s.jabBase.range + wr.range + rk.range), arc: Math.max(0.3, s.jabBase.arc + wr.arc + rk.arc) };
   }
 }
@@ -1611,7 +1615,7 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
         }
       }
       // range・arc = 当たる 広さ(モブの 中心まで range + モブの 大きさ・左右 arc)
-      if (!(last && ws?.last === 'pierce')) s.events.push({ kind: 'jab', style: ws?.thrust ? 'thrust' : s.jab, chain: last ? 3 : s.chain === 3 ? 1 : s.chain, x: p.x, z: p.z, dir: p.face, range: J.range + ADV.mob.r, arc: ws?.thrust ? 0.16 : J.arc * (last ? 1.3 : 1), color: ws?.color, weapon: ws ? s.gear.weapon?.name : undefined });
+      if (!(last && ws?.last === 'pierce')) s.events.push({ kind: 'jab', style: ws?.thrust ? 'thrust' : s.jab, chain: last ? 3 : s.chain === 3 ? 1 : s.chain, x: p.x, z: p.z, dir: p.face, range: J.range + ADV.mob.r, arc: ws?.thrust ? 0.16 : J.arc * (last ? 1.3 : 1), color: ws?.color, weapon: ws ? s.gear.weapon?.name : undefined, fx: ws && isGlove(s.gear.weapon!.name!) ? ADV.gear.fxFist[s.gear.weapon!.rank] : undefined });
     }
   }
   stepTechs(s, dt);

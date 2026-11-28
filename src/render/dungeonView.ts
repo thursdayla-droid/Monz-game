@@ -2643,14 +2643,17 @@ export class DungeonView {
     const cBig = e.color != null ? new THREE.Color(e.color).lerp(new THREE.Color(0xffffff), 0.25).getHex() : 0xffc080;
     // 武器ごとの 大きさ(2026-11-28 企画者「武器 変わっても 何が 変わってるか 分からない」)
     const SZ: Record<string, number> = { 鉄骨ブレード: 1.35, ムーンエッジ: 1.3, ブルドッグガントレット: 1.3, キングフィスト: 1.15, ボクサーラップ: 0.85 };
-    const sz = SZ[e.weapon ?? ''] ?? 1;
+    const sz = (SZ[e.weapon ?? ''] ?? 1) * (e.fx ?? 1);
     this.fxSlash(e.x + Math.cos(e.dir) * r * 0.5, e.z + Math.sin(e.dir) * r * 0.5, e.dir, r * (big ? 1.15 : 1) * sz, big ? cBig : c, side, big ? 0.2 : 0.14);
     if (big) this.shake = Math.max(this.shake, 0.12);
     this.weaponJabFx(e, r);
   }
 
   /** 武器ごとの 通常攻撃の 光(1発めから ちがいが 分かる ように。2026-11-28)【仮】 */
-  private weaponJabFx(e: Extract<AdvEvent, { kind: 'jab' }>, r: number): void {
+  private weaponJabFx(e: Extract<AdvEvent, { kind: 'jab' }>, r0: number): void {
+    // グローブの ランクが 高いと 光も 大きく
+    const k = e.fx ?? 1;
+    const r = r0 * k;
     const hx = e.x + Math.cos(e.dir) * r * 1.1;
     const hz = e.z + Math.sin(e.dir) * r * 1.1;
     switch (e.weapon) {
@@ -2665,17 +2668,17 @@ export class DungeonView {
         this.fxBill('bolt', 0xffe880, hx, 1.0, hz, 1.2, 0.14, 0.4, 0, 2 / 3);
         break;
       case 'スパイクナックル': // 赤い トゲの 火花
-        this.fxBill('star', 0xff3a3a, hx, 0.9, hz, 1.1, 0.18, 0.6);
+        this.fxBill('star', 0xff3a3a, hx, 0.9, hz, 1.1 * k, 0.18, 0.6);
         break;
       case 'ボクサーラップ': // 速い 小さな 火花が 2つ
-        this.fxBill('spark', 0xd8ff8a, hx + Math.cos(e.dir) * 0.3, 1.0, hz + Math.sin(e.dir) * 0.3, 0.8, 0.12, 0.5, 0.04);
+        this.fxBill('spark', 0xd8ff8a, hx + Math.cos(e.dir) * 0.3, 1.0, hz + Math.sin(e.dir) * 0.3, 0.8 * k, 0.12, 0.5, 0.04);
         break;
       case 'ブルドッグガントレット': // 足もとに 衝撃の 輪
-        this.fxGround('ring', 0xd0d0e0, hx, hz, 2.2, 0.3, 0.7);
+        this.fxGround('ring', 0xd0d0e0, hx, hz, 2.2 * k, 0.3, 0.7);
         this.shake = Math.max(this.shake, 0.1);
         break;
       case 'キングフィスト': // 金の 光の 玉
-        this.fxBill('burst', 0xffd23a, hx, 0.9, hz, 1.6, 0.2, 0.5);
+        this.fxBill('burst', 0xffd23a, hx, 0.9, hz, 1.6 * k, 0.2, 0.5);
         break;
     }
   }

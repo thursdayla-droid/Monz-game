@@ -149,6 +149,8 @@ export const WEAPON_LIST: Record<Role, string[]> = {
   僧侶: STAFFS,
   ネクロマンサー: STAFFS,
 };
+/** グローブ(拳闘士の 武器)か */
+export const isGlove = (name: string): boolean => WEAPON_LIST.拳闘士.includes(name);
 /** 下位の 武器の 数・下位 だけが 落ちる 階 */
 export const WEAPON_LOW = { count: 2, untilFloor: 10 };
 export const WEAPON_MODEL: Record<string, string> = { ストリートソード: 'assets/rpg/gear/w_sword1.glb' };
