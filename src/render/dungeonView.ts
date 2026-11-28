@@ -566,7 +566,7 @@ function lightTexture(name: string): THREE.CanvasTexture {
   const hit = lightTexs.get(name);
   if (hit) return hit;
   const c = document.createElement('canvas');
-  const tall = name === 'pillar';
+  const tall = name === 'pillar' || name === 'bolt';
   c.width = 128;
   c.height = tall ? 192 : 128;
   const g = c.getContext('2d')!;
@@ -603,6 +603,26 @@ function lightTexture(name: string): THREE.CanvasTexture {
     g.restore();
   };
   switch (name.startsWith('ex_') ? 'burst' : name) {
+    case 'bolt': {
+      // いなずま(上から 下へ ぎざぎざ)。たて長
+      g.globalCompositeOperation = 'lighter';
+      const pts: [number, number][] = [];
+      let x = W / 2;
+      for (let y = 0; y <= H; y += H / 10) {
+        pts.push([x, y]);
+        x = W / 2 + (Math.random() - 0.5) * W * 0.45;
+      }
+      pts[pts.length - 1] = [W / 2, H];
+      for (const [wd, a] of [[22, 0.18], [12, 0.35], [5, 1]] as const) {
+        g.beginPath();
+        pts.forEach(([px, py], i) => (i ? g.lineTo(px, py) : g.moveTo(px, py)));
+        g.lineWidth = wd;
+        g.strokeStyle = `rgba(255,255,255,${a})`;
+        g.lineJoin = 'round';
+        g.stroke();
+      }
+      break;
+    }
     case 'slash': {
       // 三日月の 光(左へ ふくらむ。先が 細い)
       g.globalCompositeOperation = 'lighter';
@@ -2139,9 +2159,11 @@ export class DungeonView {
         // 残影連斬の 1回: ねらった 所に 斬撃が ばらばらの 向きで
         this.fxSlash(e.x - Math.cos(e.dir) * 0.9, e.z - Math.sin(e.dir) * 0.9, e.dir, 1.6, Math.random() < 0.5 ? 0xffffff : 0xffe24a, Math.random() < 0.5 ? 1 : -1, 0.18);
       } else if (e.kind === 'mobFx' && e.style === 'bolt') {
-        // 千雷一刀: 敵の 上に 雷の 斬撃が 落ちる
-        this.fxBill('pillar', 0xffe24a, e.x, 1.8, e.z, 3.6, 0.35, 0.2, Math.random() * 0.25, 2 / 3);
-        this.fxBill('ex_thunder', 0xffe24a, e.x, 1.0, e.z, 2.0, 0.3, 0.5, 0.1 + Math.random() * 0.25);
+        // 千雷一刀の 1本: 空から 敵へ 太い いなずまが 落ち、地面で はじける(1本ずつ 順番に)
+        this.fxBill('bolt', 0xffe880, e.x, 3.2, e.z, 6.4, 0.3, 0, 0, 2 / 3);
+        this.fxBill('burst', 0xffe24a, e.x, 0.8, e.z, 2.6, 0.3, 0.6);
+        this.fxGround('ring', 0xffe24a, e.x, e.z, 3.2, 0.35, 0.85);
+        this.shake = Math.max(this.shake, 0.3);
       } else if (e.kind === 'mobFx' && ['press', 'club', 'spin', 'quake', 'spit', 'summon'].includes(e.style)) {
         const c = e.style === 'quake' ? 0xffb03a : e.style === 'spit' ? 0x9aff5a : e.style === 'summon' ? 0xc07aff : 0xff6a3a;
         if (e.style !== 'spit' && e.style !== 'press') this.groundRing(e.x, e.z, e.r, c, e.style === 'quake' ? 0.6 : 0.4, e.style === 'quake' ? 0.12 : 0.25);
@@ -2674,9 +2696,11 @@ export class DungeonView {
         this.shake = Math.max(this.shake, 0.3);
         break;
       case 'storm':
-        this.fxGround('circle_atk', c, e.x, e.z, 3.4, 0.7, 0.3, 2);
-        this.fxBill('pillar', c, e.x, 2.2, e.z, 4.4, 0.5, 0.3, 0, 2 / 3);
-        this.shake = Math.max(this.shake, 0.45);
+        // 剣を 天に かかげて 雷を 呼ぶ: 剣先から 空へ 光の 柱・雷が 落ちる 範囲を 黄色い 輪で 見せる
+        this.fxGround('circle_atk', c, e.x, e.z, 3.4, 0.9, 0.3, 2);
+        this.fxBill('bolt', 0xffffff, e.x, 3.4, e.z, 5.2, 0.35, 0, 0, 2 / 3);
+        this.fxGround('ring', 0xffe24a, e.x, e.z, e.r * 2, 1.2, 0.15, 0, 0, 0.6);
+        this.shake = Math.max(this.shake, 0.3);
         break;
       case 'melee':
       case 'drain':

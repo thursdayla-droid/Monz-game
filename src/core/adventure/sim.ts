@@ -413,6 +413,8 @@ export interface AdvState {
    */
   brawler?: boolean;
   tcombo?: { n: number; until: number };
+  /** 千雷一刀: 順番に 落ちる 雷(のこりの 場所・次の 時刻) */
+  storm?: { left: { id: number; x: number; z: number }[]; next: number; mul: number; tech: AdvTech } | null;
   /** 闘魂チャージ(擬人化 拳闘士): 通常攻撃 3段めで 衝撃波(時刻) */
   fistShockUntil?: number;
   /** 剣気解放(擬人化 剣士): ふつうの 攻撃で 斬撃が 飛ぶ(時刻) */
@@ -979,11 +981,14 @@ function swordMove(s: AdvState, mv: string, mul: number, tc: AdvTech, ev: (fx: s
       break;
     }
     case 'storm': {
-      // まわりの 見える 敵 すべてに 雷の 斬撃
-      const list = inCircle(s, p.x, p.z, 8.5 * area);
-      hitAll(list, 1.1);
-      for (const m of list) s.events.push({ kind: 'mobFx', style: 'bolt', x: m.x, z: m.z, dir: 0, r: 1.5, arc: 0 });
-      ev('storm', 8.5 * area);
+      // 2026-11-28 企画者「千雷一刀が 分かりにくい」→ まわりの 敵に 1体ずつ 順番に 雷が 落ちる(近い 順)。敵が いなければ まわりに 落ちる
+      const r = 8.5 * area;
+      const list = inCircle(s, p.x, p.z, r).sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z));
+      const spots = list.length
+        ? list.map((m) => ({ id: m.id, x: m.x, z: m.z }))
+        : [0, 1, 2, 3, 4].map((i) => ({ id: -1, x: p.x + Math.cos(f + i * 1.26) * 3, z: p.z + Math.sin(f + i * 1.26) * 3 }));
+      s.storm = { left: spots, next: s.t + 0.05, mul: mul * 1.1, tech: tc };
+      ev('storm', r);
       break;
     }
   }
@@ -1021,6 +1026,20 @@ function stepTechs(s: AdvState, dt: number): void {
         }
       }
     }
+  }
+  if (s.storm && s.t >= s.storm.next) {
+    const st = s.storm;
+    const sp = st.left.shift()!;
+    const m = sp.id >= 0 ? s.mobs.find((o) => o.id === sp.id && o.act !== 'dead') : undefined;
+    const x = m?.x ?? sp.x;
+    const z = m?.z ?? sp.z;
+    s.events.push({ kind: 'mobFx', style: 'bolt', x, z, dir: 0, r: 1.5, arc: 0 });
+    for (const o of inCircle(s, x, z, 1.4)) {
+      o.awake = true;
+      damage(s, p, o, st.mul, st.tech);
+    }
+    st.next = s.t + 0.14;
+    if (!st.left.length) s.storm = null;
   }
   if (s.combo && s.t >= s.combo.next) {
     const tc = s.techs[s.techSlot] ?? undefined;

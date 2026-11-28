@@ -43,7 +43,7 @@ const RPG_ROWS: TechRow[] = [
   { species: 'zipp_rpg', name: '居合・雷切', type: '連続攻撃', element: '雷', strength: '強', level: 40, condition: 'なし', effect: 'まひ', memo: '剣を 構えて ためて、一瞬で 大きく 斬りはらう。とても 強い 一撃' },
   { species: 'zipp_rpg', name: '剣気解放', type: '強化', element: '雷', strength: '中', level: 45, condition: 'なし', effect: 'なし', memo: 'しばらく 攻撃が 上がり、ふつうの 攻撃でも 小さな 斬撃が 飛ぶ' },
   { species: 'zipp_rpg', name: '天裂き', type: '連射', element: '雷', strength: '大技', level: 60, condition: 'なし', effect: 'まひ', memo: '剣を 振り下ろして、敵を つらぬいて 進む 巨大な 斬撃を 飛ばす' },
-  { species: 'zipp_rpg', name: '千雷一刀', type: '火柱', element: '雷', strength: '大技', level: 70, condition: 'なし', effect: 'まひ', memo: '剣を 天に かかげ、まわりの 敵 すべてに 雷の 斬撃を 落とす' },
+  { species: 'zipp_rpg', name: '千雷一刀', type: '火柱', element: '雷', strength: '大技', level: 70, condition: 'なし', effect: 'まひ', memo: '剣を 天に かかげて 雷を 呼び、まわりの 敵 1体ずつに 近い 順で 雷を 落とす' },
 ];
 addTechRows(RPG_ROWS);
 
