@@ -249,6 +249,13 @@ export type AdvItem = { kind: 'herb' } | { kind: 'gear'; slot: GearSlot; rank: R
 
 /** 持ち物は 20個まで(企画者 2026-11-07) */
 export const BAG_MAX = 20;
+/** 持ち物の 枠の 増やし方(2026-11-28 企画者「課金で 10個ずつ 増やせて、100個 まで」)。値段は【未確定】 */
+export const BAG_STEP = 10;
+export const BAG_LIMIT = 100;
+/** 今の 持ち物の 枠(20〜100) */
+export const bagCap = (s: Pick<AdvState, 'bagMax'>): number => Math.min(BAG_LIMIT, Math.max(BAG_MAX, s.bagMax ?? BAG_MAX));
+/** 枠を 10 増やした 数(100 を こえない)。増やせない 時は 今の まま */
+export const nextBagCap = (now: number): number => Math.min(BAG_LIMIT, Math.max(BAG_MAX, now) + BAG_STEP);
 
 export interface Drop {
   id: number;
@@ -408,6 +415,8 @@ export interface AdvState {
   /** 今 使っている 技の 場所 */
   techSlot: number;
   bag: AdvItem[];
+  /** 持ち物の 枠(無い = 20。課金で 増やす【未確定】) */
+  bagMax?: number;
   gear: Partial<Record<GearSlot, AdvItem & { kind: 'gear' }>>;
   /** 闇の 武器の HP を すう 量の たまり(1 未満の はした) */
   drainAcc?: number;
@@ -1542,7 +1551,7 @@ export function useBagItem(s: AdvState, index: number): boolean {
 /** 装備を はずして 持ち物へ(いっぱいなら できない) */
 export function unequip(s: AdvState, slot: GearSlot): boolean {
   const g = s.gear[slot];
-  if (!g || s.bag.length >= BAG_MAX) return false;
+  if (!g || s.bag.length >= bagCap(s)) return false;
   delete s.gear[slot];
   s.bag.push(g);
   applyGear(s);
@@ -1567,7 +1576,7 @@ function pickUp(s: AdvState): void {
   const p = s.player;
   for (const d of [...s.drops]) {
     if (Math.hypot(d.x - p.x, d.z - p.z) > ADV.pickR) continue;
-    if (s.bag.length >= BAG_MAX) {
+    if (s.bag.length >= bagCap(s)) {
       if (!d.warned) {
         d.warned = true;
         s.events.push({ kind: 'full' });

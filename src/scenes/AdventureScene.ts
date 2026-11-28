@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
-import { RANKS, equipStartWeapon, rpgJabReach, ALLEY_TOP, isBoss, MOB_KINDS, newAdventure, stepAdventure, playerRoom, adventureReward, aimPreview, unequip, useBagItem, useHerb, BAG_MAX, SELF_KINDS, SLOT_NAMES, type AdvItem, type AdvState, type AdvTech, type GearSlot } from '../core/adventure/sim';
+import { RANKS, equipStartWeapon, rpgJabReach, ALLEY_TOP, isBoss, MOB_KINDS, newAdventure, stepAdventure, playerRoom, adventureReward, aimPreview, unequip, useBagItem, useHerb, bagCap, SELF_KINDS, SLOT_NAMES, type AdvItem, type AdvState, type AdvTech, type GearSlot } from '../core/adventure/sim';
 import { getTech, techDesc } from '../core/battle3d/techTable';
 import { RANK_HEX } from '../render/dungeonView';
 import { assetUrl } from '../assetUrl';
@@ -78,7 +78,7 @@ const CSS = `
 .adv .bag .gear{display:flex;gap:8px}
 .adv .bag .gs{flex:1;border:2px dashed #ffffff60;border-radius:10px;padding:3px 6px;line-height:1.15;text-align:center;font-size:12px;font-weight:900;background:#ffffff10;color:#fff}
 .adv .bag .gs.on{border-style:solid}
-.adv .bag .grid{display:grid;grid-template-columns:repeat(10,1fr);gap:5px}
+.adv .bag .grid{display:grid;grid-template-columns:repeat(10,1fr);gap:5px;max-height:var(--bagH,none);overflow-y:auto}
 .adv .bag .it{aspect-ratio:1;border-radius:9px;border:2px solid #ffffff40;background:#ffffff10;color:#fff;font:900 11px ${UI_FONT};display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0;line-height:1.1}
 .adv .bag .it b{font-size:15px}
 .adv .bag .note{font-size:11px;color:#c8bcd8}
@@ -194,6 +194,8 @@ export class AdventureScene extends Phaser.Scene {
     const techs: (AdvTech | null)[] = [0, 1, 2, 3].map((i) => advTech(equipped[i]));
     this.techNames = techs.map((t) => (t ? getTech(t.id).name : ''));
     this.state = newAdventure(seed, me.stats, advRun.floor, techs, growType, me.species);
+    // 持ち物の 枠(課金で 増やした ぶん。古い データは 20)
+    this.state.bagMax = life.advBag;
     // 擬人化RPG の 試作: BUNK は 拳闘士。進化で 通常攻撃が 少し 長く なる(姿は 変わらない)
     // 擬人化は 武器で 打つ(MONZ の 電撃ダッシュ・ムチ などは 使わない)
     if (rpgTest()) this.state.jab = 'punch';
@@ -499,7 +501,7 @@ export class AdventureScene extends Phaser.Scene {
       else if (e.kind === 'tech') {
         audio.se(e.fx === 'heal' || e.fx === 'barrier' || e.fx === 'buff' ? 'mcHeal' : e.fx === 'shot' ? 'whoosh' : 'punchHeavy');
       } else if (e.kind === 'pick') audio.se('select');
-      else if (e.kind === 'full') this.message('もちものが いっぱい（20こ まで）');
+      else if (e.kind === 'full') this.message(`もちものが いっぱい（${bagCap(this.state)}こ まで）`);
     }
     this.view.render(s, s.events, dt);
     this.hud();
@@ -521,7 +523,7 @@ export class AdventureScene extends Phaser.Scene {
     const herbs = s.bag.filter((b) => b.kind === 'herb').length;
     (root.querySelector('.ib b') as HTMLElement).textContent = String(herbs);
     (root.querySelector('.ib') as HTMLButtonElement).disabled = herbs === 0;
-    (root.querySelector('.bagBtn') as HTMLElement).textContent = `持ち物&技 ${s.bag.length}/${BAG_MAX}`;
+    (root.querySelector('.bagBtn') as HTMLElement).textContent = `持ち物&技 ${s.bag.length}/${bagCap(s)}`;
     // 今の 部屋の めあて(2026-11-24 しかけ)
     const ri = playerRoom(s);
     const z = ri >= 0 ? s.puzzles[ri] : undefined;
@@ -671,8 +673,8 @@ export class AdventureScene extends Phaser.Scene {
             return `<button class="gs ${g ? 'on' : ''}" data-g="${k}" style="${g ? `border-color:${this.itemLabel(g).color}` : ''}"><span style="display:flex;justify-content:center;opacity:${g ? 1 : 0.35}">${this.itemImg(k, 24)}</span>${SLOT_NAMES[k]}${g?.name ? `・<span style="font-size:11px">${g.name}</span>` : ''}<br>${g ? `<b style="color:${this.itemLabel(g).color};font-size:14px">${g.rank}ランク</b>` : 'なし'}</button>`;
           })
           .join('')}</div>
-        <h3><span>もちもの <span style="font-size:12px;color:#fff">${s.bag.length} / ${BAG_MAX}</span></span><button class="techBtn" style="padding:4px 18px">技</button></h3>
-        <div class="grid">${Array.from({ length: BAG_MAX }, (_, i) => {
+        <h3><span>もちもの <span style="font-size:12px;color:#fff">${s.bag.length} / ${bagCap(s)}</span></span><button class="techBtn" style="padding:4px 18px">技</button></h3>
+        <div class="grid" style="${bagCap(s) > 20 ? '--bagH:34vh' : ''}">${Array.from({ length: bagCap(s) }, (_, i) => {
           const it = s.bag[i];
           if (!it) return `<div class="it"></div>`;
           const l = this.itemLabel(it);

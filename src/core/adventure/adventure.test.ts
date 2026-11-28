@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CELL, DOOR, FLOOR, generateFloor, type Floor } from './dungeon';
 import { isGachaWeapon, RPG_LEARN, rpgLearned, WEAPON_LIST } from '../rpg/roles';
-import { ADV, adventureReward, dropAt, equipStartWeapon, rollGearRank, ALLEY_MOBS, ALLEY_TOP, BAG_MAX, BOSS_AT, FLOOR_MOBS, isBoss, MOB_KINDS, newAdventure, type MobKind, stepAdventure, unequip, useBagItem, useHerb, type AdvState } from './sim';
+import { ADV, adventureReward, bagCap, nextBagCap, dropAt, equipStartWeapon, rollGearRank, ALLEY_MOBS, ALLEY_TOP, BAG_MAX, BOSS_AT, FLOOR_MOBS, isBoss, MOB_KINDS, newAdventure, type MobKind, stepAdventure, unequip, useBagItem, useHerb, type AdvState } from './sim';
 
 /** マス(x,y)から 歩いて 行ける マスの 距離(BFS)。doors = しまった 扉も 通れる ことに する */
 function bfs(f: Floor, sx: number, sy: number, doors = false): Int32Array {
@@ -286,6 +286,18 @@ describe('冒険の 動き', () => {
     expect(run('剣士', 'ムーンエッジ').fx).toContain('wspin');
     // ネオンレイピアの 3段めは 突き 3発
     expect(run('剣士', 'ネオンレイピア').fx.filter((f) => f === 'wpierce').length).toBeGreaterThanOrEqual(3);
+  });
+  it('持ち物の 枠: ふだん 20・10ずつ 増えて 100 まで', () => {
+    const s = newAdventure(3, { hp: 10, power: 10, tough: 10, speed: 10, tech: 10 });
+    expect(bagCap(s)).toBe(20);
+    let n = 20;
+    for (let i = 0; i < 20; i++) n = nextBagCap(n);
+    expect(n).toBe(100);
+    expect(nextBagCap(20)).toBe(30);
+    s.bagMax = 30;
+    expect(bagCap(s)).toBe(30);
+    s.bagMax = 500;
+    expect(bagCap(s)).toBe(100);
   });
   it('ガチャの 武器は 落ちない', () => {
     const s = newAdventure(3, { hp: 10, power: 10, tough: 10, speed: 10, tech: 10 }, 20);
