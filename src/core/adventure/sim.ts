@@ -70,9 +70,9 @@ export const MOB_KINDS: Record<MobKind, MobSpec> = {
   skele: { name: 'SKELE', hp: 1.0, atk: 1.1, speed: 3.0, tough: 1, style: 'slash', range: 1.9, arc: 1.5, windup: 0.45, cool: 1.2, knock: 2.5 },
   golem: { name: 'GOLEM', hp: 2.2, atk: 1.4, speed: 1.8, tough: 3, style: 'smash', range: 1.9, arc: 1.4, windup: 1.0, cool: 2.2, knock: 5.5 },
   // 5階の 中ボス: ジャンププレス・毒液・小さい スライムを 呼ぶ(2026-11-24 企画者)
-  kingslime: { name: 'KING SLIME', hp: 6, atk: 0.85, speed: 2.2, tough: 2, style: 'boss', range: 6, arc: 0, windup: 0.9, cool: 1.4, knock: 4, size: 1.3, moves: ['press', 'spit', 'roll', 'rain', 'press', 'summon'] },
+  kingslime: { name: 'KING SLIME', hp: 12, atk: 0.85, speed: 2.2, tough: 2, style: 'boss', range: 6, arc: 0, windup: 0.9, cool: 1.4, knock: 4, size: 1.3, moves: ['press', 'spit', 'roll', 'rain', 'press', 'summon'] }, // HP 6 → 12(2026-11-28 企画者「ボス HP 倍で いい」)
   // 10階の ボス: こん棒の 振り下ろし・回転攻撃・衝撃波(2026-11-24 企画者)
-  troll: { name: 'ALLEY TROLL', hp: 7, atk: 1.0, speed: 2.4, tough: 3, style: 'boss', range: 3.2, arc: 0.8, windup: 0.9, cool: 1.2, knock: 6, size: 1.5, moves: ['club', 'rock', 'charge', 'club', 'spin', 'quake'] },
+  troll: { name: 'ALLEY TROLL', hp: 14, atk: 1.0, speed: 2.4, tough: 3, style: 'boss', range: 3.2, arc: 0.8, windup: 0.9, cool: 1.2, knock: 6, size: 1.5, moves: ['club', 'rock', 'charge', 'club', 'spin', 'quake'] }, // HP 7 → 14(2026-11-28 企画者)
 };
 for (const k of Object.keys(ALT) as MobKind[]) MOB_KINDS[k].alt = ALT[k];
 /** 路地裏の ふつうの 敵(ボスを のぞく) */
