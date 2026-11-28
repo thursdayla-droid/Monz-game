@@ -719,7 +719,7 @@ function fireTech(s: AdvState, slot: number): void {
       break;
     case 'shot':
     case 'barrage': {
-      const n = tc.kind === 'barrage' ? T.barrage.n : 1;
+      const n = tc.kind === 'barrage' ? RPG_SPECIAL[techName(tc.id)]?.shots ?? T.barrage.n : 1;
       const sp = T.shot.speed * (s.growType === 'speed' ? Y.speedShot : 1);
       for (let i = 0; i < n; i++) {
         const a = p.face + (n > 1 ? (i / (n - 1) - 0.5) * T.barrage.spread * 2 : 0);

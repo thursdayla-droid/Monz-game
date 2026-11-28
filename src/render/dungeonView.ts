@@ -2115,7 +2115,8 @@ export class DungeonView {
         const g = new THREE.Group();
         const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: c, transparent: true, opacity: 0.5, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending }));
         glow.scale.setScalar(sh.r * 3.5);
-        const enm = SHOT_EL[sh.tech.element] ?? 'none';
+        // 剣士の 技の 弾は 斬撃(三日月の 気の 刃)
+        const enm = this.pixelOpt && !this.fist ? 'none' : SHOT_EL[sh.tech.element] ?? 'none';
         // 2026-11-27 企画者の 絵(design/adventure/shots)。なければ プログラムの 絵
         const core = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.shotArt(enm) ?? shotTexture(enm), transparent: true, depthWrite: false, depthTest: false }));
         const sz = Math.max(0.9, sh.r * 3.4);

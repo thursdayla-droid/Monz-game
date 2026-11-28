@@ -319,20 +319,23 @@ export class BunkBones {
   private humanAttack(a: AttackPose, w: number): void {
     const ease = (x: number) => 1 - (1 - x) * (1 - x);
     // まっすぐの パンチ: ため = ひじを 曲げて 引く → のばす = 腕を 前へ 水平に・体を ひねる。反対の 手は 顔の 前で ガード
-    // 剣の 横振り(剣士。2026-11-28): ため = 剣を 反対の 肩の 上へ 引く → 振る = 腕を 前へ 上げたまま 横へ 大きく 振りぬく
+    // 剣の 横振り(剣士。2026-11-28 企画者「剣は 両手で 振って いる 感じ」):
+    // 両手で 柄を にぎる(左手を 右手に よせる)。ため = 剣を 肩の 上へ 引く → 振る = 両腕を 前へ のばしたまま 横へ 大きく 振りぬく
     const slash = (sd: 1 | -1, p: number): void => {
       const t = p < 0 ? 0 : ease(p);
       const pull = p < 0 ? -p : 0;
-      const up = sd > 0 ? 'R_Upperarm' : 'L_Upperarm';
-      const fo = sd > 0 ? 'R_Forearm' : 'L_Forearm';
-      // 右手で 持つ: 1段め = 右から 左へ・2段め = 左から 右へ
       const from = sd > 0 ? 1 : -1;
-      const sweep = (from * (1 - 2 * t) + pull * from * 0.3);
-      this.rot(up, 'side', (1.25 + 0.2 * pull) * w);
-      this.rot(up, 'up', sweep * 0.9 * w);
-      this.rot(fo, 'side', (0.35 + 0.6 * pull) * w);
-      this.rot('Spine01', 'up', -sweep * 0.35 * w);
-      this.rot('Spine02', 'up', -sweep * 0.2 * w);
+      const sweep = from * (1 - 2 * t) + pull * from * 0.3;
+      // 両腕 前へ・内へ よせて 手を 体の 前で そろえる
+      this.rot('R_Upperarm', 'side', (1.2 + 0.25 * pull) * w);
+      this.rot('L_Upperarm', 'side', (1.2 + 0.25 * pull) * w);
+      this.rot('R_Upperarm', 'up', (0.5 + sweep * 0.35) * w);
+      this.rot('L_Upperarm', 'up', (-0.5 + sweep * 0.35) * w);
+      this.rot('R_Forearm', 'side', (0.3 + 0.5 * pull) * w);
+      this.rot('L_Forearm', 'side', (0.45 + 0.5 * pull) * w);
+      this.rot('Spine01', 'up', sweep * 0.45 * w);
+      this.rot('Spine02', 'up', sweep * 0.35 * w);
+      this.rot('Spine01', 'side', -0.06 * t * w);
       this.rot('L_Thigh', 'side', 0.25 * t * w);
       this.rot('L_Calf', 'side', -0.3 * t * w);
       const e2 = t * w;
