@@ -71,7 +71,7 @@ const CSS = `
 .adv .bag .box{width:min(100%,720px);max-height:100%;overflow:auto;background:#1e1430;border:3px solid #ffd23a;border-radius:16px;padding:10px 14px;display:flex;flex-direction:column;gap:8px;box-sizing:border-box}
 .adv .bag h3{margin:0;font-size:16px;color:#ffd23a;display:flex;justify-content:space-between;align-items:center}
 .adv .bag .gear{display:flex;gap:8px}
-.adv .bag .gs{flex:1;border:2px dashed #ffffff60;border-radius:10px;padding:6px;text-align:center;font-size:12px;font-weight:900;background:#ffffff10;color:#fff}
+.adv .bag .gs{flex:1;border:2px dashed #ffffff60;border-radius:10px;padding:3px 6px;line-height:1.15;text-align:center;font-size:12px;font-weight:900;background:#ffffff10;color:#fff}
 .adv .bag .gs.on{border-style:solid}
 .adv .bag .grid{display:grid;grid-template-columns:repeat(10,1fr);gap:5px}
 .adv .bag .it{aspect-ratio:1;border-radius:9px;border:2px solid #ffffff40;background:#ffffff10;color:#fff;font:900 11px ${UI_FONT};display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0;line-height:1.1}
@@ -625,7 +625,7 @@ export class AdventureScene extends Phaser.Scene {
         <div class="gear">${slots
           .map((k) => {
             const g = s.gear[k];
-            return `<button class="gs ${g ? 'on' : ''}" data-g="${k}" style="${g ? `border-color:${this.itemLabel(g).color}` : ''}"><span style="display:flex;justify-content:center;opacity:${g ? 1 : 0.35}">${this.itemImg(k, 30)}</span>${SLOT_NAMES[k]}<br>${g ? `${g.name ? `<span style="font-size:11px">${g.name}</span><br>` : ''}<b style="color:${this.itemLabel(g).color};font-size:16px">${g.rank}ランク</b>` : 'なし'}</button>`;
+            return `<button class="gs ${g ? 'on' : ''}" data-g="${k}" style="${g ? `border-color:${this.itemLabel(g).color}` : ''}"><span style="display:flex;justify-content:center;opacity:${g ? 1 : 0.35}">${this.itemImg(k, 24)}</span>${SLOT_NAMES[k]}${g?.name ? `・<span style="font-size:11px">${g.name}</span>` : ''}<br>${g ? `<b style="color:${this.itemLabel(g).color};font-size:14px">${g.rank}ランク</b>` : 'なし'}</button>`;
           })
           .join('')}</div>
         <h3><span>もちもの <span style="font-size:12px;color:#fff">${s.bag.length} / ${BAG_MAX}</span></span><button class="techBtn" style="padding:4px 18px">技</button></h3>
