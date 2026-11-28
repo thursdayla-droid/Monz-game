@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { audio } from '../audio/engine';
-import { equipStartWeapon, rpgJabReach, ALLEY_TOP, isBoss, MOB_KINDS, newAdventure, stepAdventure, playerRoom, adventureReward, aimPreview, unequip, useBagItem, useHerb, BAG_MAX, SELF_KINDS, SLOT_NAMES, type AdvItem, type AdvState, type AdvTech, type GearSlot } from '../core/adventure/sim';
+import { RANKS, equipStartWeapon, rpgJabReach, ALLEY_TOP, isBoss, MOB_KINDS, newAdventure, stepAdventure, playerRoom, adventureReward, aimPreview, unequip, useBagItem, useHerb, BAG_MAX, SELF_KINDS, SLOT_NAMES, type AdvItem, type AdvState, type AdvTech, type GearSlot } from '../core/adventure/sim';
 import { getTech, techDesc } from '../core/battle3d/techTable';
 import { RANK_HEX } from '../render/dungeonView';
 import { assetUrl } from '../assetUrl';
@@ -195,7 +195,7 @@ export class AdventureScene extends Phaser.Scene {
     // 擬人化は 武器で 打つ(MONZ の 電撃ダッシュ・ムチ などは 使わない)
     if (rpgTest()) this.state.jab = 'punch';
     if (rpgTest()) this.state.brawler = ROLE_OF[rpgSp()] === '拳闘士';
-    if (rpgTest()) this.state.jabReach = rpgJabReach(ROLE_OF[rpgSp()] ?? '拳闘士', formAt(this.level));
+    if (rpgTest()) this.state.jabBase = this.state.jabReach = rpgJabReach(ROLE_OF[rpgSp()] ?? '拳闘士', formAt(this.level));
     if (advRun.carry) {
       this.state.bag = advRun.carry.bag;
       this.state.gear = advRun.carry.gear;
@@ -219,7 +219,7 @@ export class AdventureScene extends Phaser.Scene {
     root.insertAdjacentHTML(
       'beforeend',
       `<div class="top"><button class="back">◀ もどる</button><div class="me"><div class="nm">${me.name}　Lv.${this.level}　<b style="color:#ffd23a">${advRun.floor}F</b></div><div class="bar"><i></i></div><div class="num"></div></div><div class="goal"></div><button class="bagBtn">持ち物&amp;技</button></div>
-       ${isPreview() ? `<div class="dev" style="position:absolute;z-index:5;left:calc(env(safe-area-inset-left) + 12px);top:calc(env(safe-area-inset-top) + 62px);display:flex;gap:6px"><button class="back devLv">確認 Lv.${advDev.level}</button><button class="back devTy">型：${STAT_LABELS[advDev.type as StatKey]}</button><button class="back devFl">確認 ${advRun.floor}F</button><button class="back devSp">${rpgTest() ? `${rpgSp().toUpperCase()}（${ROLE_OF[rpgSp()]}）` : (advDev.species ?? '自分').toUpperCase()}</button>${rpgTest() ? `<button class="back devPx">見た目：${rpgPixel.on ? 'ドット' : '3D'}</button>` : ''}</div>` : ''}
+       ${isPreview() ? `<div class="dev" style="position:absolute;z-index:5;left:calc(env(safe-area-inset-left) + 12px);top:calc(env(safe-area-inset-top) + 62px);display:flex;gap:6px"><button class="back devLv">確認 Lv.${advDev.level}</button><button class="back devTy">型：${STAT_LABELS[advDev.type as StatKey]}</button><button class="back devFl">確認 ${advRun.floor}F</button><button class="back devSp">${rpgTest() ? `${rpgSp().toUpperCase()}（${ROLE_OF[rpgSp()]}）` : (advDev.species ?? '自分').toUpperCase()}</button>${rpgTest() ? `<button class="back devPx">見た目：${rpgPixel.on ? 'ドット' : '3D'}</button><button class="back devWr">ブキ ${this.state.gear.weapon?.rank ?? '-'}</button>` : ''}</div>` : ''}
        <div class="stickZone"><div class="stickBase"><div class="stickKnob"></div></div></div>
        <div class="stickHint">ここを<br>さわって<br>うごかす</div>
        <button class="atk">こうげき</button>
@@ -350,6 +350,15 @@ export class AdventureScene extends Phaser.Scene {
         advDev.species = i + 1 < DEV_SPECIES.length ? DEV_SPECIES[i + 1] : null;
         this.scene.restart();
       });
+      if (rpgTest())
+        // 確認用: 武器の ランクを D→C→B→A→S と 切りかえ(範囲の ちがいを ためす)
+        $('.devWr').addEventListener('click', () => {
+          const w = this.state.gear.weapon;
+          if (!w) return;
+          w.rank = RANKS[(RANKS.indexOf(w.rank) + 1) % RANKS.length];
+          equipStartWeapon(this.state, w.name ?? '');
+          $('.devWr').textContent = `ブキ ${w.rank}`;
+        });
       if (rpgTest())
         $('.devPx').addEventListener('click', () => {
           rpgPixel.on = !rpgPixel.on;

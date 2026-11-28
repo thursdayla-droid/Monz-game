@@ -5,7 +5,7 @@
  */
 import { mulberry32, type Rng } from '../rng';
 import type { StatBlock } from '../stats';
-import { RPG_SPECIAL } from '../rpg/roles';
+import { RPG_SPECIAL, WEAPON_REACH } from '../rpg/roles';
 import { getTech } from '../battle3d/techTable';
 import { CELL, DOOR, FLOOR, fits, generateFloor, lineOfSight, cellToWorld, roomAt, setDoor, walkable, type Floor, type Room } from './dungeon';
 
@@ -175,7 +175,11 @@ export const ADV = {
   /** モブが 落とす: 回復の実 25%・装備 12%【仮】。装備の ランクの 出やすさ D50 C30 B14 A5 S1 */
   drop: { herb: 0.25, gear: 0.12, rank: [50, 30, 14, 5, 1] },
   /** 装備の 強さ(ランクごとの 倍)と 1倍の ときの 上がり方 */
-  gear: { mul: { D: 1, C: 2, B: 3, A: 5, S: 8 } as Record<Rank, number>, head: 2, armor: 3, charm: 8, weapon: 3 },
+  gear: {
+    mul: { D: 1, C: 2, B: 3, A: 5, S: 8 } as Record<Rank, number>, head: 2, armor: 3, charm: 8, weapon: 3,
+    /** 武器の ランクで 通常攻撃が 広がる【仮】 */
+    reach: { D: { range: 0, arc: 0 }, C: { range: 0.1, arc: 0.05 }, B: { range: 0.2, arc: 0.1 }, A: { range: 0.35, arc: 0.15 }, S: { range: 0.5, arc: 0.22 } } as Record<Rank, { range: number; arc: number }>,
+  },
   pickR: 1.1,
   /** 拳闘士の 技コンボ【仮】: つながる 秒・1つ ごとの ダメージ アップ */
   tcombo: { keep: 1.6, up: 0.2 },
@@ -423,6 +427,8 @@ export interface AdvState {
   jab: string;
   /** 通常攻撃の 届く 長さ・広さを 変える(擬人化RPG の 試作: ロールと 進化で 決める。なければ 種族の ふつう) */
   jabReach?: { range: number; arc: number };
+  /** 武器なしの 通常攻撃の 範囲(ロールと 進化)。武器と ランクで 広がる(applyGear) */
+  jabBase?: { range: number; arc: number };
   chain: number;
   lastAtk: number;
   /** 装備の 前の 数字(装備で 足す 元) */
@@ -1122,8 +1128,8 @@ function dropAt(s: AdvState, x: number, z: number, gearP: number, herbP: number)
  */
 export function rpgJabReach(role: string, form: number): { range: number; arc: number } {
   // 2026-11-27 企画者「レベル 低い 時は 前の 一マス ぐらいで いい」→ 1.8 → 1.2(敵の 大きさを 足して 約 1マス)
-  // 2026-11-27 同じ日「攻撃が ほんの少しだけ 長く」→ 1.4
-  const base = ({ 拳闘士: { range: 1.4, arc: 0.6 }, 剣士: { range: 1.7, arc: 0.75 } } as Record<string, { range: number; arc: number }>)[role] ?? { range: 1.4, arc: 0.6 };
+  // 2026-11-27 同じ日「攻撃が ほんの少しだけ 長く」→ 1.4。2026-11-28「剣士 ストリートソード なのに 範囲 広すぎ」→ 剣士 1.7/0.75 → 1.45/0.5
+  const base = ({ 拳闘士: { range: 1.4, arc: 0.6 }, 剣士: { range: 1.45, arc: 0.5 } } as Record<string, { range: number; arc: number }>)[role] ?? { range: 1.4, arc: 0.6 };
   return { range: base.range + (form - 1) * 0.4, arc: base.arc };
 }
 
@@ -1156,13 +1162,19 @@ function applyGear(s: AdvState): void {
   p.tough = s.base.tough + G.armor * m('armor');
   p.maxHp = s.base.maxHp + G.charm * m('charm');
   p.hp = Math.max(1, Math.round(p.maxHp * rate));
+  // 通常攻撃の 範囲: 武器の 種類 ＋ ランク(2026-11-28 企画者「ストリートソード なのに 範囲 広すぎ。ランクに よって 広さを 変えたい」)
+  if (s.jabBase) {
+    const w = s.gear.weapon;
+    const wr = w?.name ? WEAPON_REACH[w.name] ?? { range: 0, arc: 0 } : { range: -0.2, arc: -0.1 };
+    const rk = w ? G.reach[w.rank] : { range: 0, arc: 0 };
+    s.jabReach = { range: Math.max(0.8, s.jabBase.range + wr.range + rk.range), arc: Math.max(0.3, s.jabBase.arc + wr.arc + rk.arc) };
+  }
 }
 
 /** 持ち物を 使う(回復の実)/装備する(つけていた 物は 持ち物へ)。できたら true */
 /** 初めから 持つ 武器を 装備する(擬人化RPG。ロールで 決まる。2026-11-28 企画者) */
 export function equipStartWeapon(s: AdvState, name: string): void {
-  if (s.gear.weapon) return;
-  s.gear.weapon = { kind: 'gear', slot: 'weapon', rank: 'D', name };
+  if (!s.gear.weapon) s.gear.weapon = { kind: 'gear', slot: 'weapon', rank: 'D', name };
   applyGear(s);
 }
 

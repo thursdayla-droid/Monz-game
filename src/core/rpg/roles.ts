@@ -138,3 +138,12 @@ export const START_WEAPON: Record<Role, string> = {
 export const WEAPON_MODEL: Record<string, string> = { ストリートソード: 'assets/rpg/gear/w_sword1.glb' };
 /** 装備の 絵(企画者の 絵。名前 → 絵) */
 export const GEAR_ICON: Record<string, string> = { ストリートソード: 'assets/rpg/gear/w_sword1.webp' };
+/** 武器ごとの 通常攻撃の 範囲の ちがい(ロールの ふつうに 足す)【仮】。ストリートソード・レザーグローブ = ふつう */
+export const WEAPON_REACH: Record<string, { range: number; arc: number }> = {
+  ストリートソード: { range: 0, arc: 0 },
+  鉄骨ブレード: { range: 0.4, arc: 0.15 },
+  ネオンレイピア: { range: 0.6, arc: -0.25 },
+  ムーンエッジ: { range: 0, arc: 0.5 },
+  雷刃: { range: 0.1, arc: 0.05 },
+  レザーグローブ: { range: 0, arc: 0 },
+};
