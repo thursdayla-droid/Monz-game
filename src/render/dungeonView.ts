@@ -9,7 +9,7 @@ import { assetUrl } from '../assetUrl';
 import { newAnimeBattle, type AnimeEntrant, type AnimeMon } from '../core/battle3d/anime';
 import { CELL, WALL } from '../core/adventure/dungeon';
 import { getTech } from '../core/battle3d/techTable';
-import { GEAR_ICON, WEAPON_LIST, WEAPON_MODEL, WEAPON_STYLE } from '../core/rpg/roles';
+import { GACHA_WEAPONS, GEAR_ICON, isGachaWeapon, isGlove, WEAPON_LIST, WEAPON_MODEL, WEAPON_STYLE } from '../core/rpg/roles';
 import { ADV, isBoss, MOB_KINDS, mobSpec, RANKS, SELF_KINDS, techWindup, type MobKind, type AimShape, type Actor, type AdvEvent, type AdvItem, type AdvState, type Rank } from '../core/adventure/sim';
 import type { modelFor } from '../core/roster';
 import { MonsterRig } from './monsterRig';
@@ -2014,12 +2014,13 @@ export class DungeonView {
 
   /** 武器の 3D を 読んで 右手に 持たせる */
   private weaponName = '';
+  private emberT = 0;
   private loadWeapon(file: string, name = ''): void {
     const url = assetUrl(file);
     const loader = new GLTFLoader();
     loader.setMeshoptDecoder(MeshoptDecoder);
     // 3D が まだ ない 剣は 形を 借りて 色と 長さで 見分ける【仮】(2026-11-28 企画者「武器 変わっても 分からない」)
-    const LOOK: Record<string, { len: number; thin?: number }> = { 鉄骨ブレード: { len: 1.3, thin: 1.25 }, ネオンレイピア: { len: 1.25, thin: 0.55 }, ムーンエッジ: { len: 1.1, thin: 1.3 }, 雷刃: { len: 1.1 } };
+    const LOOK: Record<string, { len: number; thin?: number }> = { 紅蓮剣: { len: 1.3, thin: 1.3 }, 黒影刃: { len: 1.4, thin: 1.1 }, 鉄骨ブレード: { len: 1.3, thin: 1.25 }, ネオンレイピア: { len: 1.25, thin: 0.55 }, ムーンエッジ: { len: 1.1, thin: 1.3 }, 雷刃: { len: 1.1 } };
     const done = (g: { scene: THREE.Object3D }) => {
       const st = WEAPON_STYLE[name];
       if (!WEAPON_MODEL[name] && st) {
@@ -2029,7 +2030,7 @@ export class DungeonView {
           const mat = (m.material as THREE.MeshStandardMaterial).clone();
           mat.color = new THREE.Color(0xffffff).lerp(new THREE.Color(st.color), 0.55);
           mat.emissive = new THREE.Color(st.color);
-          mat.emissiveIntensity = 0.45;
+          mat.emissiveIntensity = isGachaWeapon(name) ? 1.0 : 0.45;
           m.material = mat;
         });
       }
@@ -2211,7 +2212,7 @@ export class DungeonView {
       } else if (e.kind === 'mobFx' && e.style === 'flurryhit') {
         // 残影連斬の 1回: ねらった 所に 斬撃が ばらばらの 向きで
         this.fxSlash(e.x - Math.cos(e.dir) * 0.9, e.z - Math.sin(e.dir) * 0.9, e.dir, 1.6, Math.random() < 0.5 ? 0xffffff : 0xffe24a, Math.random() < 0.5 ? 1 : -1, 0.18);
-      } else if (e.kind === 'mobFx' && e.style.startsWith('w') && ['wslam', 'wpierce', 'wspin', 'wbolt', 'wbleed', 'wupper', 'wquake'].includes(e.style)) {
+      } else if (e.kind === 'mobFx' && e.style.startsWith('w') && ['wslam', 'wpierce', 'wspin', 'wbolt', 'wbleed', 'wupper', 'wquake', 'wblast', 'wshadow', 'weruption', 'wabyss', 'wflame'].includes(e.style)) {
         this.weaponFx(e);
       } else if (e.kind === 'mobFx' && e.style === 'bolt') {
         // 千雷一刀の 1本: 空から 敵へ 太い いなずまが 落ち、地面で はじける(1本ずつ 順番に)
@@ -2285,6 +2286,19 @@ export class DungeonView {
     // ドットの 見た目は 8方向(昔の MMORPG の キャラの 絵と 同じ)
     if (this.pixelOpt?.on) f.face = Math.round(f.face / (Math.PI / 4)) * (Math.PI / 4);
     this.rig.update(f, dt);
+    // ガチャの 武器: 手の まわりに 火の粉・闇の つぶ(特別な 武器の しるし)
+    const gw = s.gear.weapon?.name ?? '';
+    if (s.weapons && isGachaWeapon(gw)) {
+      this.emberT -= dt;
+      if (this.emberT <= 0) {
+        this.emberT = 0.07;
+        const col = WEAPON_STYLE[gw]?.color ?? 0xffffff;
+        for (const pos of this.rig.handPositions(isGlove(gw))) {
+          const j = () => (Math.random() - 0.5) * 0.35;
+          this.fxBill('spark', col, pos.x + j(), pos.y + j() + 0.15, pos.z + j(), 0.35 + Math.random() * 0.25, 0.35, 0.4);
+        }
+      }
+    }
     // 落ちている 物: くるくる・ふわふわ
     for (const o of this.drops.values()) {
       o.rotation.y += dt * 2;
@@ -2303,9 +2317,9 @@ export class DungeonView {
     if (wName !== this.weaponName && this.ready) {
       this.weaponName = wName;
       // 拳闘士は 両手に グローブ(仮の 形)
-      this.rig.setGloves(s.weapons && WEAPON_LIST.拳闘士.includes(wName) ? wName : '');
+      this.rig.setGloves(s.weapons && isGlove(wName) ? wName : '');
       // 3D が まだ ない 剣は ストリートソードの 形で 代わりに 持つ【仮】(トリポで 作るまで)
-      const file = WEAPON_MODEL[wName] ?? (WEAPON_LIST.剣士.includes(wName) ? WEAPON_MODEL.ストリートソード : undefined);
+      const file = WEAPON_MODEL[wName] ?? (WEAPON_LIST.剣士.includes(wName) || GACHA_WEAPONS.剣士.includes(wName) ? WEAPON_MODEL.ストリートソード : undefined);
       if (file) this.loadWeapon(file, wName);
       else this.rig.setWeapon(null);
     }
@@ -2677,6 +2691,19 @@ export class DungeonView {
         this.fxGround('ring', 0xd0d0e0, hx, hz, 2.2 * k, 0.3, 0.7);
         this.shake = Math.max(this.shake, 0.1);
         break;
+      case '紅蓮剣': // 炎の 火の粉
+        this.fxBill('ex_fire', 0xff5a1a, hx, 0.9, hz, 1.3 * k, 0.22, 0.5);
+        break;
+      case '黒影刃': // 紫の 三日月を かさねる
+        this.fxSlash(e.x + Math.cos(e.dir) * r * 0.5, e.z + Math.sin(e.dir) * r * 0.5, e.dir, r * 1.5, 0x6a2aff, e.chain === 2 ? -1 : 1, 0.22, 0.04);
+        break;
+      case '爆炎ナックル':
+        this.fxBill('burst', 0xff7a2a, hx, 0.9, hz, 1.4 * k, 0.2, 0.5);
+        break;
+      case '冥王の拳':
+        this.fxBill('smoke', 0x2a1040, hx, 0.7, hz, 1.4 * k, 0.3, 0.6);
+        this.fxBill('star', 0xb06aff, hx, 0.9, hz, 1.0 * k, 0.2, 0.6);
+        break;
       case 'キングフィスト': // 金の 光の 玉
         this.fxBill('burst', 0xffd23a, hx, 0.9, hz, 1.6 * k, 0.2, 0.5);
         break;
@@ -2719,6 +2746,36 @@ export class DungeonView {
         this.fxBill('pillar', 0xa8ff5a, fx + Math.cos(e.dir) * 0.3, 1.4, fz + Math.sin(e.dir) * 0.3, 2.8, 0.3, 0.3, 0, 2 / 3);
         this.fxBill('spark', 0xffffff, fx, 1.0, fz, 1.6, 0.2, 0.6);
         this.shake = Math.max(this.shake, 0.2);
+        break;
+      // ---- ガチャの 武器(炎・闇) ----
+      case 'wblast': // 爆炎ナックル: 当たった 所で 小さな 爆発
+        this.fxBill('burst', 0xff7a2a, e.x, 0.9, e.z, 1.8, 0.25, 0.6);
+        this.fxBill('ex_fire', 0xff5a1a, e.x, 0.8, e.z, 1.4, 0.3, 0.5);
+        break;
+      case 'wflame': // 紅蓮剣: 足もとから 炎の 輪
+        this.fxGround('ring', 0xff5a1a, e.x, e.z, e.r * 2.4, 0.35, 0.8);
+        this.fxBill('pillar', 0xff7a2a, e.x + Math.cos(e.dir) * 1.2, 1.4, e.z + Math.sin(e.dir) * 1.2, 2.6, 0.3, 0.3, 0, 2 / 3);
+        this.shake = Math.max(this.shake, 0.25);
+        break;
+      case 'wshadow': // 黒影刃: 敵の 所に 紫の 斬撃が 2本 クロス・黒い けむり
+        this.fxSlash(e.x - Math.cos(e.dir) * 0.9, e.z - Math.sin(e.dir) * 0.9, e.dir, 1.7, 0xb06aff, 1, 0.24, e.arc * 0.05);
+        this.fxSlash(e.x - Math.cos(e.dir + 1.6) * 0.9, e.z - Math.sin(e.dir + 1.6) * 0.9, e.dir + 1.6, 1.7, 0x6a2aff, -1, 0.24, e.arc * 0.05 + 0.04);
+        this.fxBill('smoke', 0x2a1040, e.x, 0.6, e.z, 1.8, 0.4, 0.6, e.arc * 0.05);
+        this.shake = Math.max(this.shake, 0.18);
+        break;
+      case 'weruption': // 爆炎ナックル: 大爆発(炎の 柱・大きな 輪・火花)
+        this.fxBill('pillar', 0xff6a1a, e.x, 2.0, e.z, 4.4, 0.45, 0.3, 0, 2 / 3);
+        this.fxBill('burst', 0xffb03a, e.x, 1.0, e.z, e.r * 1.6, 0.4, 0.7);
+        this.fxBill('ex_fire', 0xff4a1a, e.x, 0.8, e.z, e.r * 1.3, 0.45, 0.6);
+        this.fxGround('ring', 0xff6a1a, e.x, e.z, e.r * 2.2, 0.45, 0.9);
+        this.shake = Math.max(this.shake, 0.5);
+        break;
+      case 'wabyss': // 冥王の拳: 闇の 渦(紫の 輪が 外から 内へ・黒い けむり・星)
+        this.fxGround('ring', 0x9a4aff, e.x, e.z, e.r * 2.2, 0.45, -0.6, 3);
+        this.fxGround('ring', 0x4a1a8a, e.x, e.z, e.r * 1.4, 0.5, -0.8, -3);
+        this.fxBill('smoke', 0x1a0830, e.x, 0.8, e.z, e.r * 1.2, 0.5, 0.4);
+        this.fxBill('star', 0xd0a0ff, e.x, 1.0, e.z, 2.4, 0.3, 0.6, 0.15);
+        this.shake = Math.max(this.shake, 0.45);
         break;
       case 'wquake': // ブルドッグガントレット: 灰色の 大きな 輪と けむり
         this.fxGround('ring', 0xd0d0e0, e.x, e.z, e.r * 2, 0.4, 0.8);

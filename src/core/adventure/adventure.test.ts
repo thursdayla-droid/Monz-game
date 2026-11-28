@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CELL, DOOR, FLOOR, generateFloor, type Floor } from './dungeon';
-import { RPG_LEARN, rpgLearned, WEAPON_LIST } from '../rpg/roles';
+import { isGachaWeapon, RPG_LEARN, rpgLearned, WEAPON_LIST } from '../rpg/roles';
 import { ADV, adventureReward, dropAt, equipStartWeapon, ALLEY_MOBS, ALLEY_TOP, BAG_MAX, BOSS_AT, FLOOR_MOBS, isBoss, MOB_KINDS, newAdventure, type MobKind, stepAdventure, unequip, useBagItem, useHerb, type AdvState } from './sim';
 
 /** マス(x,y)から 歩いて 行ける マスの 距離(BFS)。doors = しまった 扉も 通れる ことに する */
@@ -286,6 +286,12 @@ describe('冒険の 動き', () => {
     expect(run('剣士', 'ムーンエッジ').fx).toContain('wspin');
     // ネオンレイピアの 3段めは 突き 3発
     expect(run('剣士', 'ネオンレイピア').fx.filter((f) => f === 'wpierce').length).toBeGreaterThanOrEqual(3);
+  });
+  it('ガチャの 武器は 落ちない', () => {
+    const s = newAdventure(3, { hp: 10, power: 10, tough: 10, speed: 10, tech: 10 }, 20);
+    equipStartWeapon(s, WEAPON_LIST.剣士[0], WEAPON_LIST.剣士);
+    for (let i = 0; i < 3000; i++) dropAt(s, 0, 0, 1, 0);
+    for (const d of s.drops) if (d.item.kind === 'gear' && d.item.slot === 'weapon') expect(isGachaWeapon(d.item.name!)).toBe(false);
   });
   it('落とす 装備: 1階は D だけ・ずっと B まで', () => {
     expect(ADV.drop.cap[0]).toEqual([1, 0]);

@@ -149,8 +149,24 @@ export const WEAPON_LIST: Record<Role, string[]> = {
   僧侶: STAFFS,
   ネクロマンサー: STAFFS,
 };
+/**
+ * ガチャ だけで 出る 特別な 武器(2026-11-28 企画者「炎と 闇の 武器・各ロールに 作る・ガチャで しか 出ない・確率は 低い・ランクも ある・強くて カッコいい」)。
+ * 名前は【仮】。弓矢・杖は まだ【未確定】(ロールが 動く ように なってから)。敵や 置き物からは 落ちない
+ */
+export const GACHA_WEAPONS: Record<Role, string[]> = {
+  剣士: ['紅蓮剣', '黒影刃'],
+  拳闘士: ['爆炎ナックル', '冥王の拳'],
+  弓矢: [],
+  魔法使い: [],
+  僧侶: [],
+  ネクロマンサー: [],
+};
+/** ガチャで 特別な 武器が 出る 確率【仮】(ガチャの 画面は まだ ない) */
+export const GACHA_WEAPON_RATE = 0.01;
 /** グローブ(拳闘士の 武器)か */
-export const isGlove = (name: string): boolean => WEAPON_LIST.拳闘士.includes(name);
+export const isGlove = (name: string): boolean => WEAPON_LIST.拳闘士.includes(name) || GACHA_WEAPONS.拳闘士.includes(name);
+/** ガチャの 武器か */
+export const isGachaWeapon = (name: string): boolean => Object.values(GACHA_WEAPONS).some((l) => l.includes(name));
 /** 下位の 武器の 数・下位 だけが 落ちる 階 */
 export const WEAPON_LOW = { count: 2, untilFloor: 10 };
 export const WEAPON_MODEL: Record<string, string> = { ストリートソード: 'assets/rpg/gear/w_sword1.glb' };
@@ -169,6 +185,10 @@ export const WEAPON_REACH: Record<string, { range: number; arc: number }> = {
   ボクサーラップ: { range: -0.1, arc: 0 },
   ブルドッグガントレット: { range: 0.1, arc: 0.45 },
   キングフィスト: { range: 0.35, arc: 0.1 },
+  紅蓮剣: { range: 0.4, arc: 0.2 },
+  黒影刃: { range: 0.45, arc: 0.1 },
+  爆炎ナックル: { range: 0.3, arc: 0.2 },
+  冥王の拳: { range: 0.35, arc: 0.15 },
   // 杖(クリスタル = ためが 速い・弓の 特徴は ロールが 動くように なってから【未実装】)
   ウッドスタッフ: { range: 0, arc: 0 },
   ランタンロッド: { range: 0.3, arc: 0 },
@@ -177,12 +197,21 @@ export const WEAPON_REACH: Record<string, { range: number; arc: number }> = {
   ほうき星の杖: { range: 0.15, arc: 0.1 },
 };
 /** 武器ごとの 攻撃の 上がり方の 倍(ふつう = 1)【仮】。スパイクナックル = 一発が 重い */
-export const WEAPON_POWER: Record<string, number> = { スパイクナックル: 1.5, キングフィスト: 1.3, ほうき星の杖: 1.4, 鉄骨ブレード: 1.1 };
+export const WEAPON_POWER: Record<string, number> = { スパイクナックル: 1.5, キングフィスト: 1.3, ほうき星の杖: 1.4, 鉄骨ブレード: 1.1, 紅蓮剣: 1.7, 黒影刃: 1.6, 爆炎ナックル: 1.7, 冥王の拳: 1.6 };
 /**
  * 武器ごとの 通常攻撃の 打ち方(2026-11-28 企画者 OK)。ランクでは 変わらない【仮】
  * cool = 次を 打てる までの 倍・hits = 何段 まで 続くか(ふつう 3)・knock = 敵を 押す 強さ・last = さいごの 一撃・color = 光の 色
  */
-export interface WeaponStyle { thrust?: boolean; cool?: number; hits?: number; knock?: number; last?: 'slam' | 'pierce' | 'spin' | 'bolt' | 'bleed' | 'upper' | 'quake' | 'wave'; color: number }
+export interface WeaponStyle {
+  thrust?: boolean;
+  cool?: number;
+  hits?: number;
+  knock?: number;
+  last?: 'slam' | 'pierce' | 'spin' | 'bolt' | 'bleed' | 'upper' | 'quake' | 'wave' | 'flamewave' | 'shadow' | 'eruption' | 'abyss';
+  /** 1発ごとの おまけ: burn = やけど・blast = 小さな 爆発・drain = HP を すう */
+  every?: 'burn' | 'blast' | 'drain';
+  color: number;
+}
 export const WEAPON_STYLE: Record<string, WeaponStyle> = {
   ストリートソード: { color: 0xfff0d8 },
   鉄骨ブレード: { cool: 1.25, knock: 3, last: 'slam', color: 0xff9a3a },
@@ -195,6 +224,11 @@ export const WEAPON_STYLE: Record<string, WeaponStyle> = {
   ボクサーラップ: { cool: 0.7, hits: 4, last: 'upper', color: 0xa8ff5a },
   ブルドッグガントレット: { knock: 6, last: 'quake', color: 0xb8b8c8 },
   キングフィスト: { last: 'wave', color: 0xffd23a },
+  // ガチャの 武器(炎・闇)【仮】
+  紅蓮剣: { every: 'burn', last: 'flamewave', color: 0xff5a1a },
+  黒影刃: { every: 'drain', cool: 0.9, last: 'shadow', color: 0xa05aff },
+  爆炎ナックル: { every: 'blast', last: 'eruption', color: 0xff6a1a },
+  冥王の拳: { every: 'drain', knock: 2, last: 'abyss', color: 0x9a4aff },
 };
 /** ためる 技か(押して いる 間 ためる) */
 export const isChargeTech = (name: string): boolean => !!RPG_SPECIAL[name]?.charge;

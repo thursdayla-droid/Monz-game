@@ -430,18 +430,37 @@ export class MonsterRig {
    */
   private gloveObjs: THREE.Object3D[] = [];
   private gloveKey = '';
+  /** 手(と 武器の 先)の 場所。both = 両手 */
+  handPositions(both: boolean): THREE.Vector3[] {
+    const out: THREE.Vector3[] = [];
+    if (!this.model) return out;
+    for (const n of both ? ['R_Hand', 'L_Hand'] : ['R_Hand']) {
+      const h = this.model.getObjectByName(n);
+      if (h) out.push(h.getWorldPosition(new THREE.Vector3()));
+    }
+    if (!both && this.weapon) {
+      // 剣は 刃の まん中 あたりにも
+      const tip = new THREE.Vector3(0, 0.5, 0);
+      this.weapon.localToWorld(tip);
+      out.push(tip);
+    }
+    return out;
+  }
+
   setGloves(name: string): void {
     if (name === this.gloveKey) return;
     this.gloveKey = name;
     for (const o of this.gloveObjs) o.removeFromParent();
     this.gloveObjs = [];
     if (!name || !this.model) return;
-    const LOOK: Record<string, { c: number; r: number; glow: number; spike?: boolean; metal?: number }> = {
+    const LOOK: Record<string, { c: number; r: number; glow: number; spike?: boolean; metal?: number; spikeC?: number }> = {
       レザーグローブ: { c: 0x8a5a3a, r: 1, glow: 0 },
       スパイクナックル: { c: 0x3a3440, r: 1.05, glow: 0.15, spike: true, metal: 0.5 },
       ボクサーラップ: { c: 0x9aff5a, r: 0.9, glow: 0.35 },
       ブルドッグガントレット: { c: 0x9a9aaa, r: 1.5, glow: 0.05, metal: 0.7 },
       キングフィスト: { c: 0xffc83a, r: 1.15, glow: 0.6, metal: 0.6 },
+      爆炎ナックル: { c: 0xff5a1a, r: 1.25, glow: 1.0, spike: true, metal: 0.4, spikeC: 0xffd23a },
+      冥王の拳: { c: 0x3a1060, r: 1.25, glow: 0.9, spike: true, metal: 0.5, spikeC: 0xb06aff },
     };
     const lk = LOOK[name];
     if (!lk) return;
@@ -462,7 +481,8 @@ export class MonsterRig {
       cuff.position.y = R * 0.6;
       g.add(cuff);
       if (lk.spike) {
-        const sm = new THREE.MeshStandardMaterial({ color: 0xff4a4a, roughness: 0.4, metalness: 0.4, emissive: 0xff2a2a, emissiveIntensity: 0.4 });
+        const sc = lk.spikeC ?? 0xff4a4a;
+        const sm = new THREE.MeshStandardMaterial({ color: sc, roughness: 0.4, metalness: 0.4, emissive: sc, emissiveIntensity: lk.spikeC ? 0.9 : 0.4 });
         for (let i = 0; i < 6; i++) {
           const a = (i / 6) * Math.PI * 2;
           const sp = new THREE.Mesh(new THREE.ConeGeometry(R * 0.25, R * 0.7, 6), sm);

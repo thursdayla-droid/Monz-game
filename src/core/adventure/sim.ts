@@ -5,7 +5,7 @@
  */
 import { mulberry32, type Rng } from '../rng';
 import type { StatBlock } from '../stats';
-import { isGlove, RPG_SPECIAL, WEAPON_LOW, WEAPON_POWER, WEAPON_REACH, WEAPON_STYLE } from '../rpg/roles';
+import { RPG_SPECIAL, WEAPON_LOW, WEAPON_POWER, WEAPON_REACH, WEAPON_STYLE } from '../rpg/roles';
 import { getTech } from '../battle3d/techTable';
 import { CELL, DOOR, FLOOR, fits, generateFloor, lineOfSight, cellToWorld, roomAt, setDoor, walkable, type Floor, type Room } from './dungeon';
 
@@ -183,9 +183,9 @@ export const ADV = {
     mul: { D: 1, C: 2, B: 3, A: 5, S: 8 } as Record<Rank, number>, head: 2, armor: 3, charm: 8, weapon: 3,
     /** 武器の ランクで 通常攻撃が 広がる【仮】 */
     reach: { D: { range: 0, arc: 0 }, C: { range: 0.1, arc: 0.05 }, B: { range: 0.2, arc: 0.1 }, A: { range: 0.35, arc: 0.15 }, S: { range: 0.5, arc: 0.22 } } as Record<Rank, { range: number; arc: number }>,
-    /** グローブの ランクの 広がり【仮】(2026-11-28 企画者「グローブ ランク 高い やつは 当たる 範囲 ひろげて いこう」)。剣より 大きく 広がる */
+    /** 武器の ランクの 広がり【仮】(2026-11-28 企画者「グローブ ランク 高い やつは 当たる 範囲 ひろげて いこう」「剣も 同じ ように」) */
     reachFist: { D: { range: 0, arc: 0 }, C: { range: 0.2, arc: 0.12 }, B: { range: 0.4, arc: 0.25 }, A: { range: 0.65, arc: 0.38 }, S: { range: 0.9, arc: 0.55 } } as Record<Rank, { range: number; arc: number }>,
-    /** グローブの ランクで 通常攻撃の 光を 大きく(D = 1 倍) */
+    /** 武器の ランクで 通常攻撃の 光を 大きく(D = 1 倍) */
     fxFist: { D: 1, C: 1.15, B: 1.3, A: 1.5, S: 1.75 } as Record<Rank, number>,
   },
   pickR: 1.1,
@@ -1240,6 +1240,33 @@ export function rpgJabReach(role: string, form: number): { range: number; arc: n
 /** 装備して いる 武器の 打ち方(擬人化RPG の 時 だけ) */
 const weaponStyle = (s: AdvState) => (s.weapons && s.gear.weapon?.name ? WEAPON_STYLE[s.gear.weapon.name] : undefined);
 
+const FIRE_JAB: AdvTech = { id: 'punch', kind: 'jab', power: 7, cooldown: 0, element: '炎', effect: 'やけど', strength: '弱' };
+const DARK_JAB: AdvTech = { id: 'punch', kind: 'jab', power: 7, cooldown: 0, element: '闇', effect: 'なし', strength: '弱' };
+
+/** HP を すう(闇の 武器)【仮】 */
+function drainHp(s: AdvState, amount: number): void {
+  const p = s.player;
+  const got = Math.min(p.maxHp - p.hp, Math.max(1, Math.round(amount)));
+  if (got <= 0) return;
+  p.hp += got;
+  s.events.push({ kind: 'heal', amount: got, x: p.x, z: p.z });
+}
+
+/** ガチャの 武器の 1発ごとの おまけ【仮】 */
+function weaponEvery(s: AdvState, kind: 'burn' | 'blast' | 'drain', m: Actor, mul: number): void {
+  const p = s.player;
+  if (kind === 'burn') {
+    if (m.act !== 'dead' && s.rng() < 0.35) setStatus(s, m, 'やけど', p.atk * mul);
+  } else if (kind === 'blast') {
+    // 当たった 所で 小さな 爆発(まわりの 敵にも)
+    for (const o of inCircle(s, m.x, m.z, 1.4)) if (o !== m) {
+      o.awake = true;
+      damage(s, p, o, mul * 0.45, FIRE_JAB);
+    }
+    s.events.push({ kind: 'mobFx', style: 'wblast', x: m.x, z: m.z, dir: p.face, r: 1.4, arc: 0 });
+  } else drainHp(s, p.atk * mul * 0.12);
+}
+
 /** 武器の さいごの 一撃(2026-11-28 企画者 OK)【仮】 */
 function weaponFinish(s: AdvState, kind: NonNullable<(typeof WEAPON_STYLE)[string]['last']>, J: { range: number; arc: number }, mul: number, hitList: Actor[]): void {
   const p = s.player;
@@ -1310,6 +1337,57 @@ function weaponFinish(s: AdvState, kind: NonNullable<(typeof WEAPON_STYLE)[strin
       fx('wquake', p.x, p.z, r);
       break;
     }
+    case 'flamewave': {
+      // 紅蓮剣: 大きな 炎の 斬撃が 前へ 飛ぶ(つらぬく・やけど)
+      const sp = 13;
+      s.shots.push({ id: ++s.seq, x: p.x + Math.cos(f) * 1.0, z: p.z + Math.sin(f) * 1.0, vx: Math.cos(f) * sp, vz: Math.sin(f) * sp, r: 1.2, life: 0.55, mul: mul * 1.2, tech: FIRE_JAB, pierce: hitList.map((m) => m.id), art: 'big' });
+      fx('wflame', p.x, p.z, J.range);
+      break;
+    }
+    case 'shadow': {
+      // 黒影刃: 影が 近くの 敵(4体 まで)を 斬る・HP を すう
+      const list = s.mobs.filter((m) => m.act !== 'dead' && Math.hypot(m.x - p.x, m.z - p.z) < 6.5 && seen(s, p.x, p.z, m)).sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z)).slice(0, 4);
+      list.forEach((m, i) => {
+        m.awake = true;
+        damage(s, p, m, mul * 0.9, DARK_JAB);
+        s.events.push({ kind: 'mobFx', style: 'wshadow', x: m.x, z: m.z, dir: f + i * 1.3, r: 1.6, arc: i });
+      });
+      if (list.length) drainHp(s, p.atk * mul * 0.3);
+      break;
+    }
+    case 'eruption': {
+      // 爆炎ナックル: 前で 大爆発(まわり ぜんぶ・やけど)
+      const cx = p.x + Math.cos(f) * J.range * 0.8;
+      const cz = p.z + Math.sin(f) * J.range * 0.8;
+      const list = inCircle(s, cx, cz, 3.0);
+      for (const m of list) {
+        m.awake = true;
+        damage(s, p, m, mul * 1.1, FIRE_JAB);
+        if (m.act !== 'dead') setStatus(s, m, 'やけど', p.atk * mul);
+      }
+      hitCrates(s, (x, z) => Math.hypot(x - cx, z - cz) < 4, mul * 1.5);
+      fx('weruption', cx, cz, 3.0);
+      break;
+    }
+    case 'abyss': {
+      // 冥王の拳: 闇に 引きこんで つぶす・HP を すう
+      const cx = p.x + Math.cos(f) * J.range;
+      const cz = p.z + Math.sin(f) * J.range;
+      const list = inCircle(s, cx, cz, 4.0);
+      for (const m of list) {
+        m.awake = true;
+        damage(s, p, m, mul * 1.0, DARK_JAB);
+        if (!isBoss(m)) {
+          const a = Math.atan2(cz - m.z, cx - m.x);
+          m.vx += Math.cos(a) * 9;
+          m.vz += Math.sin(a) * 9;
+          m.stunUntil = Math.max(m.stunUntil ?? 0, s.t + 0.6);
+        }
+      }
+      if (list.length) drainHp(s, p.atk * mul * 0.3);
+      fx('wabyss', cx, cz, 4.0);
+      break;
+    }
     case 'wave': {
       // キングフィスト: 拳の 衝撃波が 前へ 飛ぶ
       const sp = 12;
@@ -1354,7 +1432,8 @@ function applyGear(s: AdvState): void {
   if (s.jabBase) {
     const w = s.gear.weapon;
     const wr = w?.name ? WEAPON_REACH[w.name] ?? { range: 0, arc: 0 } : { range: -0.2, arc: -0.1 };
-    const rk = w ? (s.weapons && WEAPON_STYLE[w.name ?? ''] && isGlove(w.name!) ? G.reachFist : G.reach)[w.rank] : { range: 0, arc: 0 };
+    // 2026-11-28 企画者「剣も 同じ ように ランクで 大きく」→ 剣も グローブと 同じ 広がり
+    const rk = w ? (s.weapons && WEAPON_STYLE[w.name ?? ''] ? G.reachFist : G.reach)[w.rank] : { range: 0, arc: 0 };
     s.jabReach = { range: Math.max(0.8, s.jabBase.range + wr.range + rk.range), arc: Math.max(0.3, s.jabBase.arc + wr.arc + rk.arc) };
   }
 }
@@ -1592,6 +1671,7 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
           for (const m of hitList) {
             m.awake = true;
             damage(s, p, m, mul);
+            if (ws?.every) weaponEvery(s, ws.every, m, mul);
             if (ws?.knock && !isBoss(m)) {
               m.vx += Math.cos(p.face) * ws.knock;
               m.vz += Math.sin(p.face) * ws.knock;
@@ -1615,7 +1695,7 @@ export function stepAdventure(s: AdvState, inp: AdvInput, dt: number): void {
         }
       }
       // range・arc = 当たる 広さ(モブの 中心まで range + モブの 大きさ・左右 arc)
-      if (!(last && ws?.last === 'pierce')) s.events.push({ kind: 'jab', style: ws?.thrust ? 'thrust' : s.jab, chain: last ? 3 : s.chain === 3 ? 1 : s.chain, x: p.x, z: p.z, dir: p.face, range: J.range + ADV.mob.r, arc: ws?.thrust ? 0.16 : J.arc * (last ? 1.3 : 1), color: ws?.color, weapon: ws ? s.gear.weapon?.name : undefined, fx: ws && isGlove(s.gear.weapon!.name!) ? ADV.gear.fxFist[s.gear.weapon!.rank] : undefined });
+      if (!(last && ws?.last === 'pierce')) s.events.push({ kind: 'jab', style: ws?.thrust ? 'thrust' : s.jab, chain: last ? 3 : s.chain === 3 ? 1 : s.chain, x: p.x, z: p.z, dir: p.face, range: J.range + ADV.mob.r, arc: ws?.thrust ? 0.16 : J.arc * (last ? 1.3 : 1), color: ws?.color, weapon: ws ? s.gear.weapon?.name : undefined, fx: ws ? ADV.gear.fxFist[s.gear.weapon!.rank] : undefined });
     }
   }
   stepTechs(s, dt);
